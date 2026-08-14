@@ -61,13 +61,13 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
       <PageHeader title={`${label} 代表`} onBack={onBack} />
 
       <div style={{
-        margin: '8px 12px 12px', borderRadius: '16px',
+        margin: '8px 12px 12px',
         background: `linear-gradient(135deg, ${C.gold}22, #14121F)`,
         border: `1px solid ${C.goldDark}55`, padding: '16px',
       }}>
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 2, fontWeight: 900, marginBottom: 6 }}>NATIONAL TEAM</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Flag code={nat} width={40} radius={4} />
+          <Flag code={nat} width={40} />
           <div style={{ fontSize: '20px', fontWeight: '900', color: C.text }}>{label} 代表</div>
         </div>
       </div>
@@ -83,11 +83,11 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
         </div>
 
         {roster.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: C.textGhost, fontSize: '12px', backgroundColor: C.surface, borderRadius: '14px' }}>
+          <div style={{ textAlign: 'center', padding: '40px', color: C.textGhost, fontSize: '12px', backgroundColor: C.surface,}}>
             選手データなし
           </div>
         ) : (
-          <div style={{ borderRadius: '14px', overflow: 'hidden', border: `1px solid ${C.border}`, marginBottom: '80px' }}>
+          <div style={{overflow: 'hidden', border: `1px solid ${C.border}`, marginBottom: '80px' }}>
             {roster.map(p => <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} extra={rowExtra(p)} />)}
           </div>
         )}

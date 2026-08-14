@@ -17,7 +17,7 @@ export default function LogoSelectSheet({ team, value, onSelect, onClose }: {
   const pick = (id: string) => { onSelect(id); onClose() }
 
   const tile = (selected: boolean): React.CSSProperties => ({
-    aspectRatio: '1', borderRadius: 12, cursor: 'pointer', padding: 6,
+    aspectRatio: '1',cursor: 'pointer', padding: 6,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     backgroundColor: alpha('#000', 0.25),
     border: selected ? `2px solid ${C.gold}` : `1px solid ${alpha(C.gold, 0.14)}`,

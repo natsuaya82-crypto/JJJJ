@@ -16,7 +16,7 @@ const CONTRACT_TYPE_LABEL: Record<string, string> = {
 
 function InfoRow({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderRadius: 8, background: C.surface2, border: `1px solid ${C.border}` }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px',background: C.surface2, border: `1px solid ${C.border}` }}>
       <span style={{ fontSize: 11, color: C.textDim }}>{label}</span>
       <span style={{ fontSize: 13, fontWeight: 700, color: color ?? C.textSub, fontFamily: SAIRA }}>{value}</span>
     </div>
@@ -42,14 +42,14 @@ export default function ContractInfoModal() {
       <div style={{
         position: 'fixed', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
         width: 'min(360px, 92vw)', zIndex: 311,
-        background: C.surface, borderRadius: 16, border: `1px solid ${C.border2}`,
+        background: C.surface,border: `1px solid ${C.border2}`,
         padding: 16, boxShadow: '0 20px 50px rgba(0,0,0,0.7)',
         fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif",
       }}>
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 12 }}>契約情報</div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-          <div style={{ flexShrink: 0, borderRadius: 10, overflow: 'hidden', border: `1px solid ${C.border2}` }}>
+          <div style={{ flexShrink: 0,overflow: 'hidden', border: `1px solid ${C.border2}` }}>
             <PlayerFace playerId={player.id} nationality={player.nationality} size={48} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -70,18 +70,18 @@ export default function ContractInfoModal() {
 
         <button
           onClick={() => { closeContractInfo(); navigate(`/team/chat?player=${player.id}`) }}
-          style={{ width: '100%', padding: 13, borderRadius: 12, border: 'none', cursor: 'pointer', background: C.gold, color: '#1a0d00', fontSize: 14, fontWeight: 900, fontFamily: SAIRA, marginBottom: 8 }}
+          style={{ width: '100%', padding: 13,border: 'none', cursor: 'pointer', background: C.gold, color: '#1a0d00', fontSize: 14, fontWeight: 900, fontFamily: SAIRA, marginBottom: 8 }}
         >
           契約更新の交渉
         </button>
         <button
           onClick={closeContractInfo}
-          style={{ width: '100%', padding: 11, borderRadius: 12, background: 'transparent', border: `1px solid ${C.border}`, color: C.textDim, fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}
+          style={{ width: '100%', padding: 11,background: 'transparent', border: `1px solid ${C.border}`, color: C.textDim, fontSize: 13, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}
         >
           閉じる
         </button>
 
-        <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.12)}`, borderRadius: 12, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.12)}`,pointerEvents: 'none' }} />
       </div>
     </>
   )

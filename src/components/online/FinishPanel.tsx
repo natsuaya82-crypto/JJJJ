@@ -149,7 +149,7 @@ export default function FinishPanel({
         const t = teamMap.get(champion.teamId)
         return (
           <div style={{
-            margin: '0 0 12px', padding: '18px 14px', borderRadius: 16, textAlign: 'center',
+            margin: '0 0 12px', padding: '18px 14px',textAlign: 'center',
             background: `linear-gradient(180deg, ${alpha(C.gold, 0.18)}, ${C.surface2})`,
             border: `2px solid ${C.gold}`, boxShadow: `0 0 24px ${alpha(C.gold, 0.25)}`,
           }}>
@@ -167,7 +167,7 @@ export default function FinishPanel({
       })()}
 
       {/* 順位表（下から埋まっていく） */}
-      <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+      <div style={{overflow: 'hidden', border: `1px solid ${C.border}` }}>
         {standings.map((s, i) => {
           const revealed = total - i <= shown
           const t = teamMap.get(s.teamId)

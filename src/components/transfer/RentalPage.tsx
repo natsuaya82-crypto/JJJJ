@@ -25,11 +25,11 @@ export default function RentalPage() {
   const row = (p: Player, sub: string) => {
     return (
       <div key={p.id} style={{
-        marginBottom: 6, borderRadius: 12, padding: '9px 12px',
+        marginBottom: 6,padding: '9px 12px',
         background: `linear-gradient(180deg, ${C.surface} 0%, ${C.bg} 100%)`,
         border: `1px solid ${C.border2}`, display: 'flex', alignItems: 'center', gap: 10,
       }}>
-        <div style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1px solid ${C.border2}` }}>
+        <div style={{ flexShrink: 0,overflow: 'hidden', border: `1px solid ${C.border2}` }}>
           <PlayerFace playerId={p.id} nationality={p.nationality} size={44} />
         </div>
         <SpecChip specialty={p.specialty} />
@@ -62,24 +62,24 @@ export default function RentalPage() {
       {/* 借用中 */}
       <div style={{ padding: '0 12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 2px 8px' }}>
-          <div style={{ width: 3, height: 14, background: C.blue, borderRadius: 2 }}/>
+          <div style={{ width: 3, height: 14, background: C.blue,}}/>
           <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 900, color: C.text, letterSpacing: '0.08em' }}>借用中</span>
           <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>{borrowedIn.length}名</span>
         </div>
         {borrowedIn.length === 0
-          ? <div style={{ padding: '14px', textAlign: 'center', fontSize: 12, color: C.textDim, border: `1px dashed ${C.border2}`, borderRadius: 12, marginBottom: 12 }}>借りている選手はいません</div>
+          ? <div style={{ padding: '14px', textAlign: 'center', fontSize: 12, color: C.textDim, border: `1px dashed ${C.border2}`,marginBottom: 12 }}>借りている選手はいません</div>
           : borrowedIn.map(p => row(p, `保有元 ${clubName(p.loan!.ownerTeamId)} · 〜${p.loan!.untilYear}年で返却`))}
       </div>
 
       {/* 貸出中 */}
       <div style={{ padding: '10px 12px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 2px 8px' }}>
-          <div style={{ width: 3, height: 14, background: C.textSub, borderRadius: 2 }}/>
+          <div style={{ width: 3, height: 14, background: C.textSub,}}/>
           <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 900, color: C.textSub, letterSpacing: '0.08em' }}>貸出中</span>
           <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>{loanedOut.length}名</span>
         </div>
         {loanedOut.length === 0
-          ? <div style={{ padding: '14px', textAlign: 'center', fontSize: 12, color: C.textDim, border: `1px dashed ${C.border2}`, borderRadius: 12 }}>貸し出している選手はいません</div>
+          ? <div style={{ padding: '14px', textAlign: 'center', fontSize: 12, color: C.textDim, border: `1px dashed ${C.border2}`,}}>貸し出している選手はいません</div>
           : loanedOut.map(p => row(p, `貸出先 ${clubName(p.teamId)} · 〜${p.loan!.untilYear}年で復帰`))}
       </div>
     </div>

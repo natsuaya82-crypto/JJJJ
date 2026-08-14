@@ -55,7 +55,7 @@ export default function RulesPanel({ rules, isHost, deadline, teams, maxTeams, o
   return (
     <div style={{ paddingBottom: 100 }}>
       {/* 残り時間 */}
-      <div style={{ margin: '4px 12px 0', padding: '14px 16px', borderRadius: 16, textAlign: 'center', background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${alpha(C.gold, 0.4)}` }}>
+      <div style={{ margin: '4px 12px 0', padding: '14px 16px',textAlign: 'center', background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${alpha(C.gold, 0.4)}` }}>
         <div style={{ fontFamily: SAIRA, fontSize: 9, color: alpha(C.gold, 0.6), letterSpacing: '4px', fontWeight: 900 }}>RULES</div>
         <div style={{ fontFamily: SAIRA, fontSize: 40, fontWeight: 900, color: left <= 10 ? C.red : C.gold, lineHeight: 1.2 }}>{left}</div>
         <div style={{ fontSize: 10, color: C.textDim }}>{isHost ? 'ルールを決めてください' : 'ホストが決めています'}</div>
@@ -89,7 +89,7 @@ export default function RulesPanel({ rules, isHost, deadline, teams, maxTeams, o
                   onClick={() => isHost && setPicking(i)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
-                    padding: '9px 12px', borderRadius: 10, background: C.surface2,
+                    padding: '9px 12px',background: C.surface2,
                     border: `1px solid ${C.border}`, cursor: isHost ? 'pointer' : 'default', fontFamily: 'inherit',
                   }}
                 >
@@ -171,7 +171,7 @@ function Segmented({ options, value, disabled, onChange }: {
             key={o.key}
             onClick={() => !disabled && onChange(o.key)}
             style={{
-              flex: 1, padding: '10px 4px', borderRadius: 10,
+              flex: 1, padding: '10px 4px',
               border: `2px solid ${on ? C.gold : C.border2}`,
               background: on ? alpha(C.gold, 0.15) : C.surface2,
               color: on ? C.gold : C.textDim,
@@ -188,7 +188,7 @@ function Segmented({ options, value, disabled, onChange }: {
 function Step({ label, disabled, onClick }: { label: string; disabled?: boolean; onClick: () => void }) {
   return (
     <button onClick={() => !disabled && onClick()} style={{
-      width: 44, height: 44, borderRadius: 12, border: `2px solid ${disabled ? C.border2 : C.goldDark}`,
+      width: 44, height: 44,border: `2px solid ${disabled ? C.border2 : C.goldDark}`,
       background: C.surface2, color: disabled ? C.textGhost : C.gold,
       fontFamily: SAIRA, fontSize: 20, fontWeight: 900, cursor: disabled ? 'default' : 'pointer',
     }}>{label}</button>
@@ -209,7 +209,7 @@ function CoursePicker({ onPick, onClose }: { onPick: (id: string) => void; onClo
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 12px 8px' }}>
         <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.text, flex: 1 }}>コースを選ぶ</div>
-        <button onClick={onClose} style={{ padding: '5px 12px', borderRadius: 8, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 11, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>閉じる</button>
+        <button onClick={onClose} style={{ padding: '5px 12px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 11, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>閉じる</button>
       </div>
 
       <div style={{ display: 'flex', gap: 6, padding: '0 12px 10px' }}>
@@ -217,7 +217,7 @@ function CoursePicker({ onPick, onClose }: { onPick: (id: string) => void; onClo
           const on = k === tab
           return (
             <button key={k} onClick={() => setTab(k)} style={{
-              flex: 1, padding: '9px 4px', borderRadius: 10,
+              flex: 1, padding: '9px 4px',
               border: `2px solid ${on ? C.gold : C.border2}`,
               background: on ? alpha(C.gold, 0.15) : C.surface2,
               color: on ? C.gold : C.textDim, fontFamily: SAIRA, fontSize: 12, fontWeight: 900, cursor: 'pointer',
@@ -229,7 +229,7 @@ function CoursePicker({ onPick, onClose }: { onPick: (id: string) => void; onClo
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 12px 24px', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {rows.map(c => (
           <button key={c.id} onClick={() => onPick(c.id)} className="btn-press" style={{
-            width: '100%', textAlign: 'left', padding: '11px 13px', borderRadius: 12,
+            width: '100%', textAlign: 'left', padding: '11px 13px',
             background: C.surface2, border: `1px solid ${C.border}`, cursor: 'pointer', fontFamily: 'inherit',
           }}>
             <div style={{ fontSize: 13, fontWeight: 900, color: C.text }}>{c.name}</div>

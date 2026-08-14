@@ -37,7 +37,7 @@ function MatchCard({ m, onOpen }: { m: MatchHistoryItem; onOpen: () => void }) {
       onClick={onOpen}
       onKeyDown={e => e.key === 'Enter' && onOpen()}
       style={{
-        cursor: 'pointer', borderRadius: 14, marginBottom: 8,
+        cursor: 'pointer',marginBottom: 8,
         display: 'flex', alignItems: 'center', gap: 10, padding: '11px 12px',
         background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
         border: `1px solid ${C.border2}`,
@@ -49,7 +49,7 @@ function MatchCard({ m, onOpen }: { m: MatchHistoryItem; onOpen: () => void }) {
           shortName={m.host.shortName} logoId={m.host.logoId} size={30}
         />
       ) : (
-        <div style={{ width: 30, height: 30, borderRadius: 7, background: C.surface3, flexShrink: 0 }} />
+        <div style={{ width: 30, height: 30,background: C.surface3, flexShrink: 0 }} />
       )}
 
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -71,11 +71,11 @@ function MatchCard({ m, onOpen }: { m: MatchHistoryItem; onOpen: () => void }) {
       <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
         <span style={{
           fontFamily: SAIRA, fontSize: 11, fontWeight: 800, color: C.textSub,
-          padding: '3px 8px', borderRadius: 7, background: alpha(C.textSub, 0.10),
+          padding: '3px 8px',background: alpha(C.textSub, 0.10),
         }}>{m.size}チーム</span>
         <span style={{
           fontFamily: SAIRA, fontSize: 11, fontWeight: 800, color: C.cyan,
-          padding: '3px 8px', borderRadius: 7, background: alpha(C.cyan, 0.10),
+          padding: '3px 8px',background: alpha(C.cyan, 0.10),
         }}>{m.races > 0 ? `${m.races}レース` : '—'}</span>
       </div>
 
@@ -105,7 +105,7 @@ export default function MatchHistoryPage() {
       {s && (
         <div style={{ padding: '0 12px 10px' }}>
           <div style={{
-            display: 'flex', borderRadius: 12, overflow: 'hidden',
+            display: 'flex',overflow: 'hidden',
             background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
             border: `1px solid ${C.border2}`,
           }}>

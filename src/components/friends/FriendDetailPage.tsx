@@ -175,15 +175,15 @@ export default function FriendDetailPage() {
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: alpha(C.gold, 0.6), letterSpacing: '3px', fontWeight: 900 }}>FRIEND</div>
         <div style={{ flex: 1 }} />
         {isFriend === true && (
-          <button onClick={() => setAskRemove(true)} style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 11, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>解除</button>
+          <button onClick={() => setAskRemove(true)} style={{ padding: '5px 10px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 11, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>解除</button>
         )}
         {isFriend === false && isSent && (
-          <span style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border2}`, color: C.textDim, fontSize: 11, fontWeight: 800, fontFamily: SAIRA }}>申請中</span>
+          <span style={{ padding: '5px 10px',border: `1px solid ${C.border2}`, color: C.textDim, fontSize: 11, fontWeight: 800, fontFamily: SAIRA }}>申請中</span>
         )}
         {isFriend === false && !isSent && (
-          <button onClick={() => { void onAdd() }} className="btn-press" style={{ padding: '5px 10px', borderRadius: 8, border: `2px solid ${alpha(C.gold, 0.6)}`, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, color: C.gold, fontSize: 11, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>＋フレンド</button>
+          <button onClick={() => { void onAdd() }} className="btn-press" style={{ padding: '5px 10px',border: `2px solid ${alpha(C.gold, 0.6)}`, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, color: C.gold, fontSize: 11, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>＋フレンド</button>
         )}
-        <button onClick={() => setMenu(true)} aria-label="メニュー" style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 13, fontWeight: 900, fontFamily: SAIRA, letterSpacing: '1px', cursor: 'pointer' }}>···</button>
+        <button onClick={() => setMenu(true)} aria-label="メニュー" style={{ padding: '5px 10px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 13, fontWeight: 900, fontFamily: SAIRA, letterSpacing: '1px', cursor: 'pointer' }}>···</button>
       </div>
 
       {/* チーム情報 */}
@@ -197,7 +197,7 @@ export default function FriendDetailPage() {
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
           {[['平均OVR', `${avgOvr}`], ['最終ログイン', friend.lastLogin], ['通算優勝', champsText]].map(([k, v]) => (
-            <div key={k} style={{ flex: 1, padding: '9px 8px', borderRadius: 10, background: alpha(C.bg, 0.4), border: `1px solid ${C.border}`, textAlign: 'center' }}>
+            <div key={k} style={{ flex: 1, padding: '9px 8px',background: alpha(C.bg, 0.4), border: `1px solid ${C.border}`, textAlign: 'center' }}>
               <div style={{ fontSize: 8, color: C.textDim, marginBottom: 2 }}>{k}</div>
               <div style={{ fontSize: 15, fontWeight: 900, color: C.text, fontFamily: SAIRA }}>{v}</div>
             </div>
@@ -208,7 +208,7 @@ export default function FriendDetailPage() {
           <button
             onClick={() => navigate(`/friends/club?code=${club.code}`)}
             className="btn-press"
-            style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, padding: '8px 10px', borderRadius: 10, background: alpha(C.bg, 0.4), border: `1px solid ${C.border}`, width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, padding: '8px 10px',background: alpha(C.bg, 0.4), border: `1px solid ${C.border}`, width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}>
             <img src={clubLogoSrc(club.logoId)} alt="" width={22} height={22} draggable={false} style={{ objectFit: 'contain', display: 'block', flexShrink: 0 }} />
             <div style={{ fontSize: 9, color: C.textDim, flexShrink: 0 }}>走友会</div>
             <div style={{ fontSize: 13, fontWeight: 900, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{club.name}</div>
@@ -257,7 +257,7 @@ export default function FriendDetailPage() {
                   value={sortKey}
                   onChange={e => setSortKey(e.target.value as SortKey)}
                   aria-label="並び替え"
-                  style={{ padding: '5px 8px', borderRadius: 10, border: `1px solid ${C.border2}`, backgroundColor: C.border, color: C.textSub, fontSize: 11, fontFamily: SAIRA, fontWeight: 800, cursor: 'pointer', flexShrink: 0 }}>
+                  style={{ padding: '5px 8px',border: `1px solid ${C.border2}`, backgroundColor: C.border, color: C.textSub, fontSize: 11, fontFamily: SAIRA, fontWeight: 800, cursor: 'pointer', flexShrink: 0 }}>
                   <option value="ovr">OVR順</option>
                   <option value="age">年齢順</option>
                   <option value="spec">種目順</option>

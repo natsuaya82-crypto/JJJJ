@@ -44,7 +44,7 @@ export default function ActionSheet({ open, onClose, items, header }: { open: bo
         style={{
           display: 'block', width: '100%', minHeight: 52,
           marginTop: 8, padding: '14px 12px',
-          background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 12,
+          background: C.surface2, border: `1px solid ${C.border}`,
           color: C.textDim, fontSize: 15, fontWeight: 800, fontFamily: 'inherit',
           cursor: 'pointer',
         }}

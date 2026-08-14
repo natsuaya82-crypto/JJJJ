@@ -164,7 +164,7 @@ export default function CardTrainingPage() {
       {/* 開催中のイベント（data/events の1本。終わったら自動的に消える） */}
       {activeEvents().map(ev => (
         <div key={ev.id} style={{
-          marginBottom: 8, padding: '6px 10px', borderRadius: 8,
+          marginBottom: 8, padding: '6px 10px',
           background: `linear-gradient(180deg, ${alpha(C.gold, 0.18)}, ${alpha(C.gold, 0.08)})`,
           border: `1px solid ${alpha(C.gold, 0.5)}`,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
@@ -267,7 +267,7 @@ export default function CardTrainingPage() {
       {/* Selected player banner */}
       <div style={{ ...panelStyle(C.gold), margin: '12px 14px 0', padding: '10px 14px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-          <div style={{ flexShrink: 0, borderRadius: 10, overflow: 'hidden', border: `1px solid ${alpha(C.gold, 0.4)}` }}>
+          <div style={{ flexShrink: 0,overflow: 'hidden', border: `1px solid ${alpha(C.gold, 0.4)}` }}>
             <PlayerFace playerId={targetPlayer.id} nationality={targetPlayer.nationality} size={60} />
           </div>
           <div style={{ flex: 1 }}>
@@ -290,7 +290,7 @@ export default function CardTrainingPage() {
             const canBreak = maxed && cap < 99
             return (
               <div key={k} onClick={canBreak ? () => setLimitBreakStat(k) : undefined} style={{
-                padding: '5px 6px', borderRadius: 6, textAlign: 'center',
+                padding: '5px 6px',textAlign: 'center',
                 background: maxed ? alpha(C.gold, 0.1) : delta > 0 ? alpha('#9FE88D', 0.12) : alpha(C.surface, 0.8),
                 border: `1px solid ${maxed ? alpha(C.gold, 0.4) : delta > 0 ? alpha('#9FE88D', 0.35) : C.border}`,
                 cursor: canBreak ? 'pointer' : 'default',
@@ -299,9 +299,9 @@ export default function CardTrainingPage() {
                 <div style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 700, color: maxed ? C.gold : delta > 0 ? '#9FE88D' : C.textSub, marginBottom: 4 }}>
                   {current}{maxed ? <span style={{ fontSize: 7, color: C.gold, marginLeft: 2 }}>MAX</span> : levelUp && <span style={{ fontSize: 8, color: '#9FE88D', marginLeft: 2 }}>↑</span>}
                 </div>
-                <div style={{ height: 3, borderRadius: 2, background: alpha(C.border, 0.8), overflow: 'hidden', position: 'relative' }}>
-                  <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${maxed ? 100 : basePct * 100}%`, background: maxed ? alpha(C.gold, 0.6) : alpha(C.textSub, 0.5), borderRadius: 2, transition: 'width 0.25s ease' }}/>
-                  <div style={{ position: 'absolute', left: `${basePct * 100}%`, top: 0, height: '100%', width: `${maxed ? 0 : gainPct * 100}%`, background: '#9FE88D', borderRadius: 2, transition: 'left 0.25s ease, width 0.25s ease' }}/>
+                <div style={{ height: 3,background: alpha(C.border, 0.8), overflow: 'hidden', position: 'relative' }}>
+                  <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${maxed ? 100 : basePct * 100}%`, background: maxed ? alpha(C.gold, 0.6) : alpha(C.textSub, 0.5),transition: 'width 0.25s ease' }}/>
+                  <div style={{ position: 'absolute', left: `${basePct * 100}%`, top: 0, height: '100%', width: `${maxed ? 0 : gainPct * 100}%`, background: '#9FE88D',transition: 'left 0.25s ease, width 0.25s ease' }}/>
                 </div>
                 {canBreak && <div style={{ fontFamily: SAIRA, fontSize: 7, color: C.gold, marginTop: 3 }}>タップで上限解放</div>}
               </div>
@@ -320,10 +320,10 @@ export default function CardTrainingPage() {
             <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: combo!.color, textShadow: `0 0 12px ${alpha(combo!.color, 0.5)}` }}>
               {combo!.name}
               {distinctCount >= 2 && (
-                <span style={{ marginLeft: 8, fontSize: 12, background: `${combo!.color}33`, padding: '1px 7px', borderRadius: 5 }}>×{MENU_MULT_LABEL[distinctCount] ?? '1.0'}</span>
+                <span style={{ marginLeft: 8, fontSize: 12, background: `${combo!.color}33`, padding: '1px 7px',}}>×{MENU_MULT_LABEL[distinctCount] ?? '1.0'}</span>
               )}
               {fatigueDelta > 0 && (
-                <span style={{ marginLeft: 8, fontSize: 12, background: `${combo!.color}33`, padding: '1px 7px', borderRadius: 5 }}>疲労 -{fatigueDelta}</span>
+                <span style={{ marginLeft: 8, fontSize: 12, background: `${combo!.color}33`, padding: '1px 7px',}}>疲労 -{fatigueDelta}</span>
               )}
             </div>
           )}
@@ -344,7 +344,7 @@ export default function CardTrainingPage() {
               <button key={i} onClick={() => navigate('/cards/select')}
                 style={{
                   flex: 1, aspectRatio: '58 / 81', maxWidth: 58, margin: '0 auto',
-                  borderRadius: 9, border: `2px dashed ${C.border2}`,
+border: `2px dashed ${C.border2}`,
                   background: alpha(C.surface, 0.5),
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   color: C.textGhost, fontSize: 20, fontFamily: SAIRA, cursor: 'pointer',
@@ -380,7 +380,7 @@ export default function CardTrainingPage() {
               onClick={() => setUseFreeGreat(false)}
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 7, cursor: 'pointer',
-                padding: '7px 14px', borderRadius: 999,
+                padding: '7px 14px',
                 background: `linear-gradient(180deg, ${alpha(C.gold, 0.22)}, ${alpha(C.gold, 0.08)})`,
                 border: `1px solid ${alpha(C.gold, 0.5)}`,
                 boxShadow: `0 2px 10px ${alpha(C.gold, 0.18)}`,
@@ -407,7 +407,7 @@ export default function CardTrainingPage() {
                   className="btn-press"
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 7, cursor: 'pointer',
-                    padding: '8px 16px', borderRadius: 999, marginBottom: 2,
+                    padding: '8px 16px',marginBottom: 2,
                     background: `linear-gradient(180deg, ${alpha(C.gold, 0.14)}, ${alpha(C.gold, 0.04)})`,
                     border: `1.5px dashed ${alpha(C.gold, 0.5)}`,
                     fontFamily: 'inherit',
@@ -518,13 +518,12 @@ export default function CardTrainingPage() {
                         {levelUp && <span style={{ fontFamily: SAIRA, fontSize: 8, color: '#9FE88D', marginLeft: 4, letterSpacing: 1 }}>LV UP</span>}
                       </span>
                     </div>
-                    <div style={{ height: 6, borderRadius: 3, background: alpha(C.border, 0.9), overflow: 'hidden', position: 'relative' }}>
-                      <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${prePct * 100}%`, background: alpha(C.textSub, 0.4), borderRadius: 3 }} />
+                    <div style={{ height: 6,background: alpha(C.border, 0.9), overflow: 'hidden', position: 'relative' }}>
+                      <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${prePct * 100}%`, background: alpha(C.textSub, 0.4),}} />
                       <div style={{
                         position: 'absolute', left: `${prePct * 100}%`, top: 0, height: '100%',
                         width: barAnimated ? `${Math.max(0, targetPct - prePct) * 100}%` : '0%',
                         background: levelUp ? '#9FE88D' : PURPLE,
-                        borderRadius: 3,
                         transition: 'width 0.55s cubic-bezier(0.34,1.56,0.64,1)',
                         boxShadow: barAnimated ? `0 0 6px ${levelUp ? alpha('#9FE88D', 0.6) : alpha(PURPLE, 0.6)}` : 'none',
                       }} />
@@ -538,7 +537,7 @@ export default function CardTrainingPage() {
                 marginBottom: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                 background: alpha(applied.combo.color, 0.12),
                 border: `1.5px solid ${alpha(applied.combo.color, 0.5)}`,
-                borderRadius: 10, padding: '9px 16px',
+padding: '9px 16px',
               }}>
                 <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textSub }}>疲労回復</span>
                 <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: applied.combo.color, textShadow: `0 0 10px ${alpha(applied.combo.color, 0.5)}` }}>
@@ -552,7 +551,7 @@ export default function CardTrainingPage() {
                 marginTop: 8, width: '100%',
                 background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
                 border: `2px solid ${C.border2}`,
-                borderRadius: 10, padding: '12px',
+padding: '12px',
                 boxShadow: `0 3px 0 rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07)`,
                 fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.text, cursor: 'pointer',
                 letterSpacing: '2px',

@@ -145,7 +145,7 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, va
       {/* CTA：白文字＋共通の縁取り（金・青とも btn-game のCSSに準拠） */}
       <div style={{ padding: '10px 14px 12px', position: 'relative', zIndex: 2, display: 'flex', gap: 8 }}>
         <button className={`btn-game ${AC.btnClass}`} style={{ flex: 1, minWidth: 0, border: 'none', cursor: 'pointer' }}>
-          <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px', borderRadius: 12, fontWeight: 900 }}>
+          <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px',fontWeight: 900 }}>
             {ctaLabel ?? '出走メンバーを組む'}
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
               <path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>

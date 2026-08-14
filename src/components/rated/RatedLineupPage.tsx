@@ -64,7 +64,7 @@ export default function RatedLineupPage() {
       headerNote={
         <span style={{
           fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: C.gold,
-          padding: '2px 8px', borderRadius: 6, background: 'rgba(245,200,66,0.12)',
+          padding: '2px 8px',background: 'rgba(245,200,66,0.12)',
         }}>締め切り {SUBMIT_DEADLINE_HHMM}</span>
       }
     />

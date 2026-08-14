@@ -63,7 +63,6 @@ export default function ReportSheet({ target, onClose, onDone }: {
           width: '100%', maxWidth: 340, maxHeight: '86svh', overflowY: 'auto',
           background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
           border: `2px solid ${alpha(C.red, 0.5)}`,
-          borderRadius: 18,
           boxShadow: `0 0 40px ${alpha(C.red, 0.2)}, 0 8px 32px rgba(0,0,0,0.6)`,
           padding: '22px 20px 18px',
         }}
@@ -89,14 +88,14 @@ export default function ReportSheet({ target, onClose, onDone }: {
                 onClick={() => setReason(r.key)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 9, width: '100%',
-                  padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
+                  padding: '10px 12px',cursor: 'pointer',
                   background: on ? alpha(C.red, 0.14) : alpha('#000', 0.22),
                   border: `1px solid ${on ? alpha(C.red, 0.6) : C.border}`,
                   color: C.text, fontFamily: 'inherit', textAlign: 'left',
                 }}
               >
                 <span style={{
-                  width: 16, height: 16, borderRadius: 8, flexShrink: 0,
+                  width: 16, height: 16,flexShrink: 0,
                   border: `1.5px solid ${on ? C.red : C.border3}`,
                   background: on ? C.red : 'transparent',
                 }} />
@@ -112,7 +111,7 @@ export default function ReportSheet({ target, onClose, onDone }: {
           placeholder="くわしく（任意）"
           rows={2}
           style={{
-            width: '100%', boxSizing: 'border-box', padding: '9px 11px', borderRadius: 10,
+            width: '100%', boxSizing: 'border-box', padding: '9px 11px',
             border: `1px solid ${C.border3}`, background: alpha('#000', 0.25),
             color: C.text, fontSize: 13, fontFamily: 'inherit', outline: 'none', resize: 'none',
           }}
@@ -124,7 +123,7 @@ export default function ReportSheet({ target, onClose, onDone }: {
             style={{ display: 'flex', alignItems: 'center', gap: 9, marginTop: 12, cursor: 'pointer' }}
           >
             <div style={{
-              width: 20, height: 20, borderRadius: 6, flexShrink: 0,
+              width: 20, height: 20,flexShrink: 0,
               border: `1.5px solid ${alsoBlock ? C.red : C.border3}`,
               background: alsoBlock ? C.red : 'transparent',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -139,7 +138,7 @@ export default function ReportSheet({ target, onClose, onDone }: {
         <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
           <button
             onClick={onClose}
-            style={{ flex: 1, padding: '12px', borderRadius: 12, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontFamily: SAIRA, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
+            style={{ flex: 1, padding: '12px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontFamily: SAIRA, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
           >
             やめる
           </button>
@@ -147,7 +146,7 @@ export default function ReportSheet({ target, onClose, onDone }: {
             onClick={onSend}
             disabled={!canSend}
             style={{
-              flex: 1.4, padding: '12px', borderRadius: 12,
+              flex: 1.4, padding: '12px',
               border: `2px solid ${canSend ? C.red : C.border2}`,
               background: canSend ? `linear-gradient(180deg, ${alpha(C.red, 0.25)}, ${alpha(C.red, 0.1)})` : 'transparent',
               color: canSend ? C.red : C.textGhost,

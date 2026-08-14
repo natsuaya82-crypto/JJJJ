@@ -161,7 +161,7 @@ export default function TeamManagement() {
                 <div style={{ flex: 1, textAlign: 'left' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                     <span style={{ fontSize: '15px', fontWeight: '800', color: active ? C.text : C.textSub }}>{opt.label}</span>
-                    {active && <span style={{ padding: '1px 7px', borderRadius: '8px', backgroundColor: alpha(opt.color, 0.25), color: opt.color, fontSize: '10px', fontWeight: '800', border: `1px solid ${alpha(opt.color, 0.4)}` }}>設定中</span>}
+                    {active && <span style={{ padding: '1px 7px',backgroundColor: alpha(opt.color, 0.25), color: opt.color, fontSize: '10px', fontWeight: '800', border: `1px solid ${alpha(opt.color, 0.4)}` }}>設定中</span>}
                   </div>
                   <div style={{ fontSize: '11px', color: C.textDim, marginBottom: '3px', lineHeight: 1.4 }}>{opt.desc}</div>
                   <div style={{ fontSize: '10px', color: active ? opt.color : C.textGhost, fontWeight: '600' }}>{opt.stat}</div>
@@ -188,17 +188,17 @@ export default function TeamManagement() {
           : 0
         return (
           <div style={{ padding: '0 12px', paddingBottom: '80px' }}>
-            <div style={{ padding: '10px 12px', borderRadius: '12px', backgroundColor: C.surface2, border: `1px solid ${C.border2}`, marginBottom: '14px' }}>
+            <div style={{ padding: '10px 12px',backgroundColor: C.surface2, border: `1px solid ${C.border2}`, marginBottom: '14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
                 <span style={{ fontSize: '9px', color: C.textDim, letterSpacing: '2px' }}>チーム平均疲労度</span>
                 <span style={{ fontSize: '12px', fontWeight: '700', color: avgFatigue >= 70 ? C.red : avgFatigue >= 50 ? C.gold : C.green, fontFamily: SAIRA }}>{avgFatigue}</span>
               </div>
-              <div style={{ height: '5px', borderRadius: '3px', backgroundColor: C.border, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${avgFatigue}%`, borderRadius: '3px', backgroundColor: avgFatigue >= 70 ? C.red : avgFatigue >= 50 ? C.gold : C.green }} />
+              <div style={{ height: '5px',backgroundColor: C.border, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${avgFatigue}%`,backgroundColor: avgFatigue >= 70 ? C.red : avgFatigue >= 50 ? C.gold : C.green }} />
               </div>
               {avgFatigue >= 60 && <div style={{ fontSize: '9px', color: C.red, marginTop: '4px' }}>疲労が高め。回復調整を検討してください。</div>}
             </div>
-            <div style={{ padding: '8px 12px', borderRadius: '10px', backgroundColor: alpha(C.green, 0.06), border: `1px solid ${alpha(C.green, 0.15)}`, marginBottom: '12px' }}>
+            <div style={{ padding: '8px 12px',backgroundColor: alpha(C.green, 0.06), border: `1px solid ${alpha(C.green, 0.15)}`, marginBottom: '12px' }}>
               <div style={{ fontSize: '9px', color: C.green, fontWeight: '700', marginBottom: '4px', letterSpacing: '1px' }}>適用タイミング</div>
               <div style={{ fontSize: '10px', color: C.textDim, lineHeight: 1.5 }}>選んだプランは<span style={{ color: C.text }}>次のレース終了後</span>から自動適用される。</div>
             </div>
@@ -218,7 +218,7 @@ export default function TeamManagement() {
                   <div style={{ flex: 1, textAlign: 'left' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '3px' }}>
                       <span style={{ fontSize: '14px', fontWeight: '800', color: active ? C.text : C.textSub }}>{plan.label}</span>
-                      {active && <span style={{ padding: '1px 6px', borderRadius: '7px', backgroundColor: alpha(plan.color, 0.25), color: plan.color, fontSize: '9px', fontWeight: '800', border: `1px solid ${alpha(plan.color, 0.4)}` }}>実施中</span>}
+                      {active && <span style={{ padding: '1px 6px',backgroundColor: alpha(plan.color, 0.25), color: plan.color, fontSize: '9px', fontWeight: '800', border: `1px solid ${alpha(plan.color, 0.4)}` }}>実施中</span>}
                     </div>
                     <div style={{ fontSize: '10px', color: C.textDim, marginBottom: '3px', lineHeight: 1.4 }}>{plan.desc}</div>
                     <div style={{ fontSize: '10px', color: active ? plan.color : C.textGhost, fontWeight: '600' }}>効果: {plan.effect}</div>
@@ -235,19 +235,19 @@ export default function TeamManagement() {
                   const fatColor = fat >= 70 ? C.red : fat >= 50 ? C.gold : C.green
                   const statusLabel = fat >= 70 ? '要休養' : fat >= 50 ? '注意' : '良好'
                   return (
-                    <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '10px', backgroundColor: C.surface2, border: `1px solid ${alpha(fatColor, 0.18)}` }}>
-                      <div style={{ width: '4px', height: '32px', borderRadius: '2px', background: `linear-gradient(180deg, ${fatColor}, ${alpha(fatColor, 0.6)})`, flexShrink: 0 }}/>
+                    <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px',backgroundColor: C.surface2, border: `1px solid ${alpha(fatColor, 0.18)}` }}>
+                      <div style={{ width: '4px', height: '32px',background: `linear-gradient(180deg, ${fatColor}, ${alpha(fatColor, 0.6)})`, flexShrink: 0 }}/>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                           <span style={{ fontSize: '12px', fontWeight: '600', color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
                           <NewBadge joinedYear={p.joinedYear} currentYear={currentSeason.year} size={7} />
                         </div>
-                        <div style={{ height: '4px', borderRadius: '2px', backgroundColor: C.border, marginTop: '4px', overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${fat}%`, backgroundColor: fatColor, borderRadius: '2px' }}/>
+                        <div style={{ height: '4px',backgroundColor: C.border, marginTop: '4px', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${fat}%`, backgroundColor: fatColor,}}/>
                         </div>
                       </div>
                       <span style={{ fontSize: '12px', fontWeight: '700', color: fatColor, fontFamily: SAIRA, flexShrink: 0 }}>{fat}</span>
-                      <span style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '6px', backgroundColor: alpha(fatColor, 0.15), color: fatColor, fontWeight: '700', border: `1px solid ${alpha(fatColor, 0.3)}`, flexShrink: 0, minWidth: '36px', textAlign: 'center' }}>{statusLabel}</span>
+                      <span style={{ fontSize: '9px', padding: '2px 6px',backgroundColor: alpha(fatColor, 0.15), color: fatColor, fontWeight: '700', border: `1px solid ${alpha(fatColor, 0.3)}`, flexShrink: 0, minWidth: '36px', textAlign: 'center' }}>{statusLabel}</span>
                     </div>
                   )
                 })}
@@ -261,8 +261,8 @@ export default function TeamManagement() {
                   const currentFocus = (currentSeason.trainingAssignments ?? {})[p.id] ?? ''
                   const specCol = SPEC_COLOR[p.specialty]
                   return (
-                    <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '10px', backgroundColor: C.surface2, border: `1px solid ${C.border}` }}>
-                      <div style={{ width: '3px', alignSelf: 'stretch', borderRadius: '2px', backgroundColor: specCol, flexShrink: 0 }}/>
+                    <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px',backgroundColor: C.surface2, border: `1px solid ${C.border}` }}>
+                      <div style={{ width: '3px', alignSelf: 'stretch',backgroundColor: specCol, flexShrink: 0 }}/>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                           <span style={{ fontSize: '12px', fontWeight: '600', color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
@@ -273,7 +273,7 @@ export default function TeamManagement() {
                       <select
                         value={currentFocus}
                         onChange={e => setTrainingFocus(p.id, e.target.value || null)}
-                        style={{ padding: '5px 6px', borderRadius: '8px', border: `1px solid ${currentFocus ? alpha(C.gold, 0.4) : C.border2}`, backgroundColor: C.surface, color: currentFocus ? C.gold : C.textDim, fontSize: '10px', fontFamily: 'inherit', cursor: 'pointer', flexShrink: 0, outline: 'none' }}
+                        style={{ padding: '5px 6px',border: `1px solid ${currentFocus ? alpha(C.gold, 0.4) : C.border2}`, backgroundColor: C.surface, color: currentFocus ? C.gold : C.textDim, fontSize: '10px', fontFamily: 'inherit', cursor: 'pointer', flexShrink: 0, outline: 'none' }}
                       >
                         <option value="">チーム計画</option>
                         <option value="speed">速力</option>
@@ -306,7 +306,7 @@ export default function TeamManagement() {
         <div style={{ flex: 1 }} />
         {loanedIn.length > 0 && (
           <button onClick={() => setActiveTab(activeTab === 'loan' ? 'main' : 'loan')} style={{
-            padding: '5px 11px', borderRadius: 9, cursor: 'pointer', fontFamily: SAIRA, fontSize: 11, fontWeight: 800,
+            padding: '5px 11px',cursor: 'pointer', fontFamily: SAIRA, fontSize: 11, fontWeight: 800,
             border: `1px solid ${activeTab === 'loan' ? C.gold : C.border2}`,
             background: activeTab === 'loan' ? alpha(C.gold, 0.15) : 'transparent',
             color: activeTab === 'loan' ? C.gold : C.textDim,
@@ -331,7 +331,7 @@ export default function TeamManagement() {
             </button>}
           </div>
           <SortSelect options={SORT_OPTIONS} value={sortKey} onChange={setSortKey} style={{ flexShrink: 0 }} />
-          <select value={specFilter} onChange={e => setSpecFilter(e.target.value)} style={{ padding: '0 8px', borderRadius: '10px', border: `1px solid ${C.border2}`, backgroundColor: C.border, color: C.textSub, fontSize: '11px', fontFamily: 'inherit', cursor: 'pointer', flexShrink: 0 }}>
+          <select value={specFilter} onChange={e => setSpecFilter(e.target.value)} style={{ padding: '0 8px',border: `1px solid ${C.border2}`, backgroundColor: C.border, color: C.textSub, fontSize: '11px', fontFamily: 'inherit', cursor: 'pointer', flexShrink: 0 }}>
             <option value="all">全ポジ</option>
             {SPECIALTIES.map(sp => <option key={sp} value={sp}>{SPECIALTY_LABELS[sp]}</option>)}
           </select>
@@ -364,7 +364,7 @@ export default function TeamManagement() {
             onClose={() => setMenuPlayerId(null)}
             header={mp ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
+                <div style={{overflow: 'hidden', flexShrink: 0 }}>
                   <PlayerFace playerId={mp.id} nationality={mp.nationality} size={44} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -391,7 +391,7 @@ export default function TeamManagement() {
         return createPortal((
           <>
             <div onClick={() => setReleasePlayerId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 320 }} />
-            <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 321, width: 'calc(100% - 48px)', maxWidth: 360, background: C.surface, border: `1.5px solid ${C.border2}`, borderRadius: 16, padding: '20px 18px', boxShadow: '0 16px 48px rgba(0,0,0,0.7)' }}>
+            <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 321, width: 'calc(100% - 48px)', maxWidth: 360, background: C.surface, border: `1.5px solid ${C.border2}`,padding: '20px 18px', boxShadow: '0 16px 48px rgba(0,0,0,0.7)' }}>
               <div style={{ fontSize: 15, fontWeight: 800, color: C.text, marginBottom: 8 }}>{rp.name}を解雇しますか？</div>
               <div style={{ fontSize: 12, color: C.textSub, lineHeight: 1.7, marginBottom: 4 }}>
                 違約金：<span style={{ color: buyout > 0 ? C.red : C.textDim, fontWeight: 800 }}>{buyout > 0 ? fmtYen(buyout) : 'なし'}</span>
@@ -401,11 +401,11 @@ export default function TeamManagement() {
               {releaseError && <div style={{ fontSize: 11, color: C.red, marginBottom: 10 }}>最低ロスター人数を下回るため解雇できません。</div>}
               <div style={{ display: 'flex', gap: 8 }}>
                 <button onClick={() => { const ok = releasePlayerWithBuyout(rp.id); if (ok) setReleasePlayerId(null); else setReleaseError(true) }}
-                  style={{ flex: 1, padding: '12px', borderRadius: 10, border: 'none', background: C.red, color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  style={{ flex: 1, padding: '12px',border: 'none', background: C.red, color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
                   解雇する
                 </button>
                 <button onClick={() => setReleasePlayerId(null)}
-                  style={{ flex: 1, padding: '12px', borderRadius: 10, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textDim, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  style={{ flex: 1, padding: '12px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textDim, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                   やめる
                 </button>
               </div>

@@ -111,7 +111,6 @@ export function GmPassCard() {
       position: 'relative', overflow: 'hidden',
       background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
       border: `1.5px solid ${alpha(G, 0.42)}`,
-      borderRadius: 16,
       boxShadow: `0 3px 0 rgba(0,0,0,0.45), 0 10px 26px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.05)`,
       padding: '16px 15px 15px',
       marginBottom: '18px',
@@ -124,7 +123,7 @@ export function GmPassCard() {
         {/* ヘッダー：ページ見出しと同じ「縦バー＋EYEBROW＋タイトル」の型 */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, marginBottom: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
-            <div style={{ width: 4, height: 34, borderRadius: 2, background: `linear-gradient(180deg, ${G}, ${alpha(G, 0.25)})`, flexShrink: 0 }} />
+            <div style={{ width: 4, height: 34,background: `linear-gradient(180deg, ${G}, ${alpha(G, 0.25)})`, flexShrink: 0 }} />
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 9, color: alpha(G, 0.5), letterSpacing: '4px', marginBottom: 3 }}>GM PASS</div>
               <div style={{ fontSize: 20, fontWeight: 900, color: C.text, lineHeight: 1 }}>GMパス</div>
@@ -151,7 +150,7 @@ export function GmPassCard() {
           ].map(({ icon, label, sub }, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{
-                width: 38, height: 38, borderRadius: 12, flexShrink: 0,
+                width: 38, height: 38,flexShrink: 0,
                 background: `linear-gradient(180deg, ${alpha(G, 0.22)} 0%, ${alpha(G, 0.06)} 100%)`,
                 border: `1px solid ${alpha(G, 0.3)}`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -171,7 +170,7 @@ export function GmPassCard() {
 
         {adsRemoved ? (
           <div style={{
-            padding: '14px', borderRadius: 13, textAlign: 'center',
+            padding: '14px',textAlign: 'center',
             background: `linear-gradient(180deg, ${alpha(G, 0.16)}, ${alpha(G, 0.05)})`,
             border: `1.5px solid ${alpha(G, 0.45)}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -200,7 +199,7 @@ export function GmPassCard() {
           onClick={handleRestore}
           disabled={busy}
           style={{
-            width: '100%', padding: '10px', marginTop: 9, borderRadius: 11, cursor: busy ? 'default' : 'pointer',
+            width: '100%', padding: '10px', marginTop: 9,cursor: busy ? 'default' : 'pointer',
             background: 'transparent', border: `1px solid ${alpha(G, 0.14)}`, color: C.textDim,
             fontSize: 11, fontWeight: 700, fontFamily: SAIRA, opacity: busy ? 0.6 : 1,
           }}
@@ -236,7 +235,7 @@ export function GmPassSheet({ onClose }: { onClose: () => void }) {
         <button
           onClick={onClose}
           style={{
-            width: '100%', padding: '13px', borderRadius: 12, cursor: 'pointer',
+            width: '100%', padding: '13px',cursor: 'pointer',
             background: 'transparent', border: `1px solid ${C.border2}`, color: C.textSub,
             fontFamily: SAIRA, fontSize: 13, fontWeight: 700,
           }}

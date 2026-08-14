@@ -243,11 +243,11 @@ export default function ChatPage() {
         key={player.id}
         {...longPress(player.id)}
         onClick={() => { if (lpFired.current) { lpFired.current = false; return } setChatPlayerId(player.id) }}
-        style={{ width: '100%', borderRadius: 12, background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${borderColor}`, overflow: 'hidden', cursor: 'pointer', textAlign: 'left', padding: 0, fontFamily: 'inherit' }}
+        style={{ width: '100%',background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${borderColor}`, overflow: 'hidden', cursor: 'pointer', textAlign: 'left', padding: 0, fontFamily: 'inherit' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px' }}>
           {/* 詳細は行の長押しに統一（顔タップの個別詳細は廃止） */}
-          <div style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1.5px solid ${alpha(specCol, 0.4)}` }}>
+          <div style={{ flexShrink: 0,overflow: 'hidden', border: `1.5px solid ${alpha(specCol, 0.4)}` }}>
             <PlayerFace playerId={player.id} nationality={player.nationality} size={44} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -255,7 +255,7 @@ export default function ChatPage() {
               <span style={{ fontSize: 13, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.name}</span>
               <SpecChip specialty={player.specialty} size="sm" />
               {status && (
-                <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(status.color, 0.18), border: `1px solid ${alpha(status.color, 0.4)}`, color: status.color, fontWeight: 800, flexShrink: 0 }}>
+                <span style={{ fontSize: 8, padding: '1px 5px',backgroundColor: alpha(status.color, 0.18), border: `1px solid ${alpha(status.color, 0.4)}`, color: status.color, fontWeight: 800, flexShrink: 0 }}>
                   {status.label}
                 </span>
               )}
@@ -291,18 +291,18 @@ export default function ChatPage() {
         key={player.id}
         {...longPress(player.id)}
         onClick={() => { if (lpFired.current) { lpFired.current = false; return } setChatPlayerId(player.id) }}
-        style={{ width: '100%', borderRadius: 12, background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${alpha(statusCol, 0.4)}`, overflow: 'hidden', cursor: 'pointer', textAlign: 'left', padding: 0, fontFamily: 'inherit' }}
+        style={{ width: '100%',background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${alpha(statusCol, 0.4)}`, overflow: 'hidden', cursor: 'pointer', textAlign: 'left', padding: 0, fontFamily: 'inherit' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px' }}>
           {/* 詳細は行の長押しに統一（顔タップの個別詳細は廃止） */}
-          <div style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1.5px solid ${alpha(specCol, 0.4)}` }}>
+          <div style={{ flexShrink: 0,overflow: 'hidden', border: `1.5px solid ${alpha(specCol, 0.4)}` }}>
             <PlayerFace playerId={player.id} nationality={player.nationality} size={44} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
               <span style={{ fontSize: 13, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.name}</span>
-              <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, backgroundColor: alpha(C.orange, 0.15), color: C.orange, fontWeight: 700, flexShrink: 0 }}>{sourceLabel}</span>
-              <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(statusCol, 0.18), border: `1px solid ${alpha(statusCol, 0.4)}`, color: statusCol, fontWeight: 800, flexShrink: 0 }}>{statusLabel}</span>
+              <span style={{ fontSize: 8, padding: '1px 4px',backgroundColor: alpha(C.orange, 0.15), color: C.orange, fontWeight: 700, flexShrink: 0 }}>{sourceLabel}</span>
+              <span style={{ fontSize: 8, padding: '1px 5px',backgroundColor: alpha(statusCol, 0.18), border: `1px solid ${alpha(statusCol, 0.4)}`, color: statusCol, fontWeight: 800, flexShrink: 0 }}>{statusLabel}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {(() => {
@@ -343,7 +343,7 @@ export default function ChatPage() {
           return (
             <button key={key} onClick={() => setActiveTab(key)}
               style={{
-                flex: 1, padding: '9px 4px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
+                flex: 1, padding: '9px 4px',cursor: 'pointer', fontFamily: 'inherit',
                 fontSize: 13, fontWeight: 800,
                 background: active ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})` : 'transparent',
                 border: `1.5px solid ${active ? C.gold : C.border2}`,
@@ -351,7 +351,7 @@ export default function ChatPage() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}>
               {label}
-              {badge > 0 && <span style={{ fontFamily: SAIRA, fontSize: 10, fontWeight: 900, padding: '1px 6px', borderRadius: 8, background: C.orange, color: '#111' }}>{badge}</span>}
+              {badge > 0 && <span style={{ fontFamily: SAIRA, fontSize: 10, fontWeight: 900, padding: '1px 6px',background: C.orange, color: '#111' }}>{badge}</span>}
             </button>
           )
         })}
@@ -395,9 +395,9 @@ export default function ChatPage() {
               if (!p) return null
               const decidesIn = Math.max(1, o.expiresAtRace - racesConsumed(currentSeason))
               return (
-                <button key={o.id} onClick={() => setChatPlayerId(p.id)} style={{ borderRadius: 12, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1.5px solid ${alpha(C.orange, 0.4)}`, padding: '10px 12px', marginBottom: 2, width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}>
+                <button key={o.id} onClick={() => setChatPlayerId(p.id)} style={{background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1.5px solid ${alpha(C.orange, 0.4)}`, padding: '10px 12px', marginBottom: 2, width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1px solid ${alpha(C.orange, 0.4)}` }}>
+                    <div style={{ flexShrink: 0,overflow: 'hidden', border: `1px solid ${alpha(C.orange, 0.4)}` }}>
                       <PlayerFace playerId={p.id} nationality={p.nationality} size={40} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -457,15 +457,15 @@ export default function ChatPage() {
               return (
                 <button key={p.id} {...longPress(p.id)}
                   onClick={() => { if (lpFired.current) { lpFired.current = false; return } setChatPlayerId(p.id) }}
-                  style={{ width: '100%', borderRadius: 12, background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${alpha(C.green, 0.4)}`, overflow: 'hidden', cursor: 'pointer', textAlign: 'left', padding: 0, fontFamily: 'inherit' }}>
+                  style={{ width: '100%',background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${alpha(C.green, 0.4)}`, overflow: 'hidden', cursor: 'pointer', textAlign: 'left', padding: 0, fontFamily: 'inherit' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px' }}>
-                    <div onClick={(e) => { e.stopPropagation(); openPlayerSheet(p.id) }} style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1.5px solid ${alpha(specCol, 0.4)}`, cursor: 'pointer' }}>
+                    <div onClick={(e) => { e.stopPropagation(); openPlayerSheet(p.id) }} style={{ flexShrink: 0,overflow: 'hidden', border: `1.5px solid ${alpha(specCol, 0.4)}`, cursor: 'pointer' }}>
                       <PlayerFace playerId={p.id} nationality={p.nationality} size={44} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3 }}>
                         <span style={{ fontSize: 13, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                        <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(C.green, 0.18), border: `1px solid ${alpha(C.green, 0.4)}`, color: C.green, fontWeight: 800, flexShrink: 0 }}>費用合意</span>
+                        <span style={{ fontSize: 8, padding: '1px 5px',backgroundColor: alpha(C.green, 0.18), border: `1px solid ${alpha(C.green, 0.4)}`, color: C.green, fontWeight: 800, flexShrink: 0 }}>費用合意</span>
                       </div>
                       <div style={{ fontSize: 10, color: C.textDim }}>{curTeam?.shortName ?? '他クラブ'}と移籍金合意済み — 本人と契約交渉</div>
                     </div>

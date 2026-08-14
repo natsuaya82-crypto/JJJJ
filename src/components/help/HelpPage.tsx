@@ -212,7 +212,7 @@ export default function HelpPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {SECTIONS.map(sec => (
             <div key={sec.no} style={{
-              borderRadius: 14, position: 'relative', overflow: 'hidden',
+position: 'relative', overflow: 'hidden',
               background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
               border: `1px solid ${alpha(sec.color, 0.35)}`,
               boxShadow: `0 3px 0 rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)`,

@@ -53,7 +53,7 @@ const ovrLabel = (v: number) => (v <= OVR_MIN ? 'なし' : `${v} 以上`)
 function ChoiceButton({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
   return (
     <button type="button" onClick={onClick} style={{
-      flex: 1, padding: '9px 0', borderRadius: 9, cursor: 'pointer', fontFamily: SAIRA,
+      flex: 1, padding: '9px 0',cursor: 'pointer', fontFamily: SAIRA,
       fontSize: 11, fontWeight: 900, whiteSpace: 'nowrap',
       color: on ? '#1a1200' : C.textGhost,
       background: on ? C.gold : alpha('#000', 0.3),
@@ -65,7 +65,7 @@ function ChoiceButton({ label, on, onClick }: { label: string; on: boolean; onCl
 }
 
 const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '10px 12px', borderRadius: 10, boxSizing: 'border-box',
+  width: '100%', padding: '10px 12px',boxSizing: 'border-box',
   border: `1px solid ${C.border3}`, background: alpha('#000', 0.25),
   color: C.text, fontSize: 14, fontFamily: 'inherit', outline: 'none',
 }
@@ -95,7 +95,7 @@ function ClubLogo({ logoId, size = 44 }: { logoId: string; size?: number }) {
 function Pill({ color, children }: { color: string; children: React.ReactNode }) {
   return (
     <span style={{
-      padding: '1px 7px', borderRadius: 6, fontSize: 9, fontWeight: 900, fontFamily: SAIRA,
+      padding: '1px 7px',fontSize: 9, fontWeight: 900, fontFamily: SAIRA,
       color, border: `1px solid ${alpha(color, 0.5)}`, background: alpha(color, 0.12),
       whiteSpace: 'nowrap', flexShrink: 0,
     }}>{children}</span>
@@ -104,7 +104,7 @@ function Pill({ color, children }: { color: string; children: React.ReactNode })
 
 function actionButton(color: string, disabled = false): React.CSSProperties {
   return {
-    padding: '8px 14px', borderRadius: 9, flexShrink: 0, cursor: disabled ? 'default' : 'pointer',
+    padding: '8px 14px',flexShrink: 0, cursor: disabled ? 'default' : 'pointer',
     border: `2px solid ${alpha(color, disabled ? 0.25 : 0.6)}`,
     background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
     color: disabled ? C.textGhost : color, fontSize: 12, fontWeight: 900, fontFamily: SAIRA,
@@ -115,7 +115,7 @@ function actionButton(color: string, disabled = false): React.CSSProperties {
 function ClubCard({ club, right }: { club: ClubBrief; right?: React.ReactNode }) {
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12,
+      display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
       background: C.surface2, border: `1px solid ${C.border2}`,
     }}>
       <ClubLogo logoId={club.logoId} size={44} />
@@ -154,7 +154,7 @@ function ClubEditor({ initial, title, okLabel, busy, onSubmit, onCancel }: {
     <div style={{ padding: '0 12px' }}>
       <SectionLabel>{title}</SectionLabel>
 
-      <div style={{ padding: 12, borderRadius: 12, background: C.surface2, border: `1px solid ${C.border2}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ padding: 12,background: C.surface2, border: `1px solid ${C.border2}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div>
           <div style={{ fontSize: 10, color: C.textDim, marginBottom: 4 }}>走友会名（16文字まで）</div>
           <input value={f.name} maxLength={16} placeholder="多摩川ランナーズ"
@@ -172,7 +172,7 @@ function ClubEditor({ initial, title, okLabel, busy, onSubmit, onCancel }: {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 6 }}>
             {CLUB_LOGOS.map(id => (
               <button key={id} type="button" onClick={() => set('logoId', id)} style={{
-                aspectRatio: '1', borderRadius: 9, cursor: 'pointer', padding: 3,
+                aspectRatio: '1',cursor: 'pointer', padding: 3,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: alpha('#000', 0.25),
                 border: f.logoId === id ? `2px solid ${C.gold}` : `1px solid ${alpha(C.gold, 0.14)}`,
@@ -341,7 +341,7 @@ function ClubSearch({ onChanged, initialCode = '' }: { onChanged: () => void; in
 
         <SectionLabel>自分で作る</SectionLabel>
         <button onClick={() => setMaking(true)} className="btn-press" style={{
-          width: '100%', padding: '14px', borderRadius: 12, cursor: 'pointer',
+          width: '100%', padding: '14px',cursor: 'pointer',
           border: `2px solid ${C.goldDark}`, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
           color: C.gold, fontSize: 14, fontWeight: 900, fontFamily: SAIRA,
         }}>走友会を作る</button>
@@ -377,7 +377,7 @@ function MemberRow({ m, canKick, isMe, friendState, onKick, onMenu, onOpen, onAd
   // ブロックした相手は、名前も監督名も伏せる。人数がずれるので一覧からは消さない。
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 12,
+      display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
       background: C.surface2, border: `1px solid ${C.border2}`,
       opacity: m.blocked ? 0.5 : 1,
     }}>
@@ -511,7 +511,7 @@ function DonatePicker({ rarity, open, cards, busy, onGive, onCancel }: {
               <button key={c.id} type="button" disabled={busy || !ok} onClick={() => toggle(c)} style={{
                 background: on ? alpha(C.green, 0.16) : 'none',
                 border: `1px solid ${on ? C.green : 'transparent'}`,
-                borderRadius: 9, padding: '3px 0', cursor: busy || !ok ? 'default' : 'pointer',
+padding: '3px 0', cursor: busy || !ok ? 'default' : 'pointer',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
                 opacity: ok ? 1 : 0.3,
               }}>
@@ -565,14 +565,14 @@ function AskPicker({ rarity, busy, onPick, onCancel }: {
           <button key={i} type="button" onClick={() => setSlot(i)} style={{
             flex: 1, background: i === slot ? alpha(C.gold, 0.16) : alpha('#000', 0.25),
             border: `1px solid ${i === slot ? C.gold : C.border3}`,
-            borderRadius: 9, padding: '5px 0', cursor: 'pointer',
+padding: '5px 0', cursor: 'pointer',
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
           }}>
             {v ? (
               <TrainingCardSVG statKey={v} rarity={rarity} width={slotW} />
             ) : (
               <div style={{
-                width: slotW, height: Math.round(slotW * 1.4), borderRadius: 6,
+                width: slotW, height: Math.round(slotW * 1.4),
                 border: `1px dashed ${C.border3}`, background: alpha('#000', 0.25),
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.textGhost,
@@ -598,7 +598,7 @@ function AskPicker({ rarity, busy, onPick, onCancel }: {
           <button key={s} type="button" onClick={() => choose(s)} style={{
             background: stats[slot] === s ? alpha(C.gold, 0.16) : 'none',
             border: `1px solid ${stats[slot] === s ? C.gold : 'transparent'}`,
-            borderRadius: 9, padding: '4px 0', cursor: 'pointer',
+padding: '4px 0', cursor: 'pointer',
             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
             opacity: stats[slot] === s ? 1 : 0.6,
           }}>
@@ -827,7 +827,7 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
     const counts = Object.entries(rc?.counts ?? {}) as [string, number][]
     return (
       <div key={p.id} style={{
-        padding: '9px 12px', borderRadius: 12, background: C.surface2,
+        padding: '9px 12px',background: C.surface2,
         border: `1px solid ${p.kind === 'req' ? alpha(col, 0.45) : C.border2}`,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -853,7 +853,7 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
                   </span>
                 </div>
                 <button onClick={() => { void onJoinRoom(p.roomCode) }} disabled={busy === 'join'} className="btn-press" style={{
-                  flexShrink: 0, padding: '6px 14px', borderRadius: 14, cursor: 'pointer',
+                  flexShrink: 0, padding: '6px 14px',cursor: 'pointer',
                   border: `1px solid ${alpha(C.cyan, 0.6)}`, background: alpha(C.cyan, 0.14),
                   color: C.cyan, fontSize: 12, fontWeight: 900, fontFamily: 'inherit',
                 }}>参加する</button>
@@ -884,7 +884,7 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
             const isMine = rc?.mine === idx
             return (
               <button key={e} onClick={() => { void onReact(p, idx) }} className="btn-press" style={{
-                padding: '2px 8px', borderRadius: 11, cursor: 'pointer', fontSize: 12,
+                padding: '2px 8px',cursor: 'pointer', fontSize: 12,
                 border: `1px solid ${isMine ? C.gold : C.border3}`,
                 background: isMine ? alpha(C.gold, 0.14) : alpha('#000', 0.25),
                 color: C.textSub, fontFamily: 'inherit',
@@ -895,7 +895,7 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
             )
           })}
           <button onClick={() => setReactFor(p)} className="btn-press" aria-label="反応する" style={{
-            padding: '2px 9px', borderRadius: 11, cursor: 'pointer', fontSize: 12,
+            padding: '2px 9px',cursor: 'pointer', fontSize: 12,
             border: `1px dashed ${C.border3}`, background: 'transparent', color: C.textGhost, fontFamily: 'inherit',
           }}>＋</button>
 
@@ -952,13 +952,13 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {/* 対戦の募集。部屋を立てて、その番号を掲示板に貼る */}
             <button onClick={() => { void onInvite() }} disabled={busy === 'room'} className="btn-press" style={{
-              flexShrink: 0, width: 40, height: 40, borderRadius: 20, cursor: 'pointer',
+              flexShrink: 0, width: 40, height: 40,cursor: 'pointer',
               border: `1px solid ${alpha(C.cyan, 0.5)}`, background: alpha(C.cyan, 0.12),
               color: C.cyan, fontSize: 17, fontFamily: 'inherit', padding: 0,
             }} title="対戦を募集する">🏁</button>
             <div style={{
               flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6,
-              padding: '6px 6px 6px 14px', borderRadius: 22,
+              padding: '6px 6px 6px 14px',
               border: `1px solid ${C.border3}`, background: C.surface2,
             }}>
               <input
@@ -980,7 +980,7 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
               <button onClick={() => { void onSend() }} disabled={!draft.trim() || busy === 'msg'} style={{
                 flexShrink: 0, fontSize: 12, fontWeight: 900, cursor: draft.trim() ? 'pointer' : 'default',
                 color: C.bg, background: draft.trim() ? C.gold : C.border3, border: 'none',
-                borderRadius: 14, padding: '6px 14px', fontFamily: 'inherit',
+padding: '6px 14px', fontFamily: 'inherit',
               }}>送る</button>
             </div>
           </div>
@@ -1036,7 +1036,7 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
         <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between' }}>
           {CLUB_REACTIONS.map((e, i) => (
             <button key={e} onClick={() => { if (reactFor) void onReact(reactFor, i) }} className="btn-press" style={{
-              flex: 1, padding: '12px 0', borderRadius: 12, cursor: 'pointer', fontSize: 22,
+              flex: 1, padding: '12px 0',cursor: 'pointer', fontSize: 22,
               border: `1px solid ${C.border3}`, background: alpha('#000', 0.25), fontFamily: 'inherit',
             }}>{e}</button>
           ))}
@@ -1232,7 +1232,7 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
             どのタブにいても同じ位置に出す。タブごとに畳んでいたときは、
             見たい数字がどのタブに出るのかを覚えていないと探せなかった */}
         <div style={{
-          padding: 14, borderRadius: 14, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+          padding: 14,background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
           border: `2px solid ${C.goldDark}`,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -1252,7 +1252,7 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
               { k: '平均OVR', v: String(club.avgOvr) },
               { k: '入会条件', v: club.minOvr > 0 ? `OVR${club.minOvr}+` : 'なし' },
             ].map(s => (
-              <div key={s.k} style={{ flex: 1, textAlign: 'center', padding: '7px 0', borderRadius: 9, background: alpha('#000', 0.25) }}>
+              <div key={s.k} style={{ flex: 1, textAlign: 'center', padding: '7px 0',background: alpha('#000', 0.25) }}>
                 <div style={{ fontSize: 9, color: C.textGhost }}>{s.k}</div>
                 <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: C.gold }}>{s.v}</div>
               </div>
@@ -1283,7 +1283,7 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
             : [['members', 'メンバー'], ['cards', 'カード']] as const
           ).map(([k, label]) => (
             <button key={k} onClick={() => setTab(k)} className="btn-press" style={{
-              flex: 1, padding: '9px 0', borderRadius: 10, fontFamily: SAIRA, fontSize: 12, cursor: 'pointer',
+              flex: 1, padding: '9px 0',fontFamily: SAIRA, fontSize: 12, cursor: 'pointer',
               background: tab === k ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})` : `linear-gradient(180deg, ${C.surface}, ${C.bg})`,
               color: tab === k ? C.gold : C.textDim,
               fontWeight: tab === k ? 800 : 400,
@@ -1301,7 +1301,7 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {(reqs.data ?? []).map(a => (
                 <div key={a.id} style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 12,
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
                   background: C.surface2, border: `1px solid ${alpha(C.cyan, 0.35)}`,
                 }}>
                   <TeamLogoSVG primary={a.primary} secondary={a.secondary} shortName={a.shortName} logoId={a.logoId} size={40} />

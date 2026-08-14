@@ -58,7 +58,7 @@ export default function NewsPage() {
   const filtered = filter === 'all' ? newsFeed : newsFeed.filter(n => n.category === filter)
 
   const selStyle: React.CSSProperties = {
-    background: C.surface2, border: `1px solid ${C.border2}`, borderRadius: 8,
+    background: C.surface2, border: `1px solid ${C.border2}`,
     color: filter === 'all' ? C.textDim : CAT_COLOR[filter] ?? C.textSub,
     fontSize: 11, fontWeight: 700, fontFamily: SAIRA, padding: '4px 8px',
     cursor: 'pointer', outline: 'none',
@@ -85,7 +85,7 @@ export default function NewsPage() {
       {/* List */}
       <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {filtered.length === 0 ? (
-          <div style={{ padding: 24, textAlign: 'center', color: C.textGhost, fontSize: 13, background: C.surface2, border: `1px solid ${C.border2}`, borderRadius: 12 }}>
+          <div style={{ padding: 24, textAlign: 'center', color: C.textGhost, fontSize: 13, background: C.surface2, border: `1px solid ${C.border2}`,}}>
             ニュースなし
           </div>
         ) : filtered.map((news, i) => {
@@ -109,7 +109,7 @@ export default function NewsPage() {
             return (
               <div key={i} {...lp(relPlayer.id)} style={{
                 background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-                border: news.major ? `2px solid ${C.gold}` : `2px solid ${alpha(col, 0.55)}`, borderRadius: 14,
+                border: news.major ? `2px solid ${C.gold}` : `2px solid ${alpha(col, 0.55)}`,
                 boxShadow: news.major
                   ? `0 4px 0 #5a3500, 0 6px 22px ${alpha(C.gold, 0.28)}, inset 0 1px 0 rgba(255,255,255,0.08)`
                   : `0 4px 0 #2a1800, 0 6px 18px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07)`,
@@ -117,12 +117,12 @@ export default function NewsPage() {
               }}>
                 {/* Top row */}
                 <div style={{ padding: '10px 12px 8px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: `1px solid ${alpha(col, 0.18)}` }}>
-                  <div style={{ width: 28, height: 28, flexShrink: 0, background: `linear-gradient(180deg, ${C.surface3} 0%, #0f2440 100%)`, border: `1px solid ${alpha(col, 0.4)}`, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', color: col }}>
+                  <div style={{ width: 28, height: 28, flexShrink: 0, background: `linear-gradient(180deg, ${C.surface3} 0%, #0f2440 100%)`, border: `1px solid ${alpha(col, 0.4)}`,display: 'flex', alignItems: 'center', justifyContent: 'center', color: col }}>
                     {CAT_ICON[news.category] ?? DEFAULT_ICON}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
-                      {news.major && <span style={{ fontFamily: SAIRA, fontSize: 8, fontWeight: 900, letterSpacing: '0.1em', color: '#111', background: `linear-gradient(180deg, ${C.goldHi ?? C.gold}, ${C.gold})`, padding: '1px 6px', borderRadius: 4 }}>大ニュース</span>}
+                      {news.major && <span style={{ fontFamily: SAIRA, fontSize: 8, fontWeight: 900, letterSpacing: '0.1em', color: '#111', background: `linear-gradient(180deg, ${C.goldHi ?? C.gold}, ${C.gold})`, padding: '1px 6px',}}>大ニュース</span>}
                       <div style={{ fontFamily: SAIRA, fontSize: 9, fontWeight: 900, letterSpacing: '0.14em', color: col }}>
                         {CAT_LABEL[news.category]}
                       </div>
@@ -134,7 +134,7 @@ export default function NewsPage() {
 
                 {/* Player detail card */}
                 <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 44, flexShrink: 0, overflow: 'hidden', borderRadius: 8, background: alpha(col, 0.08), border: `1px solid ${alpha(col, 0.2)}` }}>
+                  <div style={{ width: 44, flexShrink: 0, overflow: 'hidden',background: alpha(col, 0.08), border: `1px solid ${alpha(col, 0.2)}` }}>
                     <PlayerFace playerId={relPlayer.id} nationality={relPlayer.nationality} size={44} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -184,7 +184,7 @@ export default function NewsPage() {
               ...panelStyle(col), padding: 10,
               display: 'flex', alignItems: 'center', gap: 10,
             }}>
-              <div style={{ width: 36, height: 36, flexShrink: 0, background: `linear-gradient(180deg, ${C.surface3} 0%, #0f2440 100%)`, border: `1px solid ${alpha(col, 0.4)}`, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: col }}>
+              <div style={{ width: 36, height: 36, flexShrink: 0, background: `linear-gradient(180deg, ${C.surface3} 0%, #0f2440 100%)`, border: `1px solid ${alpha(col, 0.4)}`,display: 'flex', alignItems: 'center', justifyContent: 'center', color: col }}>
                 {CAT_ICON[news.category] ?? DEFAULT_ICON}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>

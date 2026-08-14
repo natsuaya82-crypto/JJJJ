@@ -721,7 +721,7 @@ export function TeamLogoSVG({ primary, secondary, shortName, size = 48, teamId, 
       <img
         src={`/flags/${teamId.slice(4)}.svg`}
         alt="" width={w} height={h} draggable={false}
-        style={{ width: w, height: h, borderRadius: 2, objectFit: 'cover', display: 'block', flexShrink: 0, border: '1px solid rgba(0,0,0,0.35)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)' }}
+        style={{ width: w, height: h,objectFit: 'cover', display: 'block', flexShrink: 0, border: '1px solid rgba(0,0,0,0.35)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.08)' }}
       />
     )
   }

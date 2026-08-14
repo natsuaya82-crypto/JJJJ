@@ -38,7 +38,7 @@ export default function CoursePanel({
         {courses.map((c, i) => (
           <div key={i} style={{
             display: 'flex', alignItems: 'center', gap: 12,
-            padding: '12px 14px', borderRadius: 12,
+            padding: '12px 14px',
             background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
             border: `1px solid ${C.border}`,
           }}>
@@ -56,7 +56,7 @@ export default function CoursePanel({
             </div>
             {c && (
               <div style={{
-                flexShrink: 0, padding: '3px 8px', borderRadius: 6,
+                flexShrink: 0, padding: '3px 8px',
                 background: alpha(C.cyan, 0.12), color: C.cyan,
                 fontSize: 9, fontWeight: 900, fontFamily: SAIRA, letterSpacing: 1,
               }}>{CATEGORY_LABEL[c.category]}</div>

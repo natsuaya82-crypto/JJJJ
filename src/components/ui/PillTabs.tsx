@@ -27,7 +27,7 @@ export default function PillTabs({ labels, value, onChange, fill = false, style 
         return (
           <button key={i} onClick={() => onChange(i)} style={{
             ...(fill ? { flex: 1, padding: '7px 0' } : { flexShrink: 0, padding: '7px 14px' }),
-            borderRadius: 9, cursor: 'pointer', fontFamily: SAIRA,
+cursor: 'pointer', fontFamily: SAIRA,
             fontSize: 13, fontWeight: sel ? 900 : 700,
             background: sel ? `linear-gradient(180deg, ${C.gold}, ${alpha(C.gold, 0.7)})` : C.surface2,
             color: sel ? C.bg : C.textDim,

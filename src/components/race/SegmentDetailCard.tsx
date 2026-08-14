@@ -78,7 +78,7 @@ export function SegmentDetailCard({
         background: isMyWin ? `linear-gradient(90deg, ${alpha(C.gold, 0.07)}, transparent)` : undefined,
       }}>
         <div style={{
-          width: 28, height: 28, borderRadius: 7, flexShrink: 0,
+          width: 28, height: 28,flexShrink: 0,
           background: `linear-gradient(180deg, #2a4060 0%, #122440 100%)`,
           border: `2px solid ${C.bg}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -140,7 +140,7 @@ export function SegmentDetailCard({
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
                   {p && <div style={{ fontSize: 11, fontWeight: isMe ? 800 : 600, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>}
                   {newSegRecords.some(m => m.segmentIndex === sr.segmentIndex && m.playerId === runner.playerId) && (
-                    <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, backgroundColor: alpha(C.red, 0.15), border: `1px solid ${alpha(C.red, 0.5)}`, color: C.red, fontWeight: 900, flexShrink: 0 }}>区間新！</span>
+                    <span style={{ fontSize: 8, padding: '1px 4px',backgroundColor: alpha(C.red, 0.15), border: `1px solid ${alpha(C.red, 0.5)}`, color: C.red, fontWeight: 900, flexShrink: 0 }}>区間新！</span>
                   )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 1 }}>

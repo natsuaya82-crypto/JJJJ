@@ -404,7 +404,7 @@ export default function PlayerSheet() {
         <div style={{
           position: 'fixed', top: 'env(safe-area-inset-top)', bottom: bottomStack(adH),
           left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px', zIndex: 210,
-          background: '#0E0D17', borderRadius: '16px 16px 0 0', overflowY: 'auto',
+          background: '#0E0D17',overflowY: 'auto',
           fontFamily: FONT,
         }}>
           <div style={{ padding: '10px 12px 2px' }}><BackButton onClick={() => setShowBadges(false)} /></div>
@@ -424,7 +424,7 @@ export default function PlayerSheet() {
                   key={b.key}
                   onClick={isMyPlayer ? () => setDisplayBadge(player.id, selected ? null : b.key) : undefined}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 12,
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px',
                     background: `linear-gradient(180deg, ${col}22, ${col}0C)`,
                     border: `1px solid ${selected ? col : `${col}44`}`,
                     boxShadow: selected ? `0 0 10px ${col}55` : 'none',
@@ -476,7 +476,7 @@ export default function PlayerSheet() {
             ) : (
               pages.map(p => (
                 <div key={p} onClick={() => goToPage(p)} style={{
-                  width: page === p ? '20px' : '6px', height: '6px', borderRadius: '3px',
+                  width: page === p ? '20px' : '6px', height: '6px',
                   backgroundColor: page === p ? specCol : '#2E2B42',
                   transition: 'width 0.2s, background-color 0.2s',
                   cursor: 'pointer',
@@ -506,7 +506,7 @@ export default function PlayerSheet() {
         {/* Header */}
         <div style={{ padding: '12px 20px 14px', background: `linear-gradient(135deg, ${specCol}10, transparent)` }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-            <div style={{ flexShrink: 0, position: 'relative', borderRadius: 14, overflow: 'hidden', border: `1.5px solid ${specCol}40` }}>
+            <div style={{ flexShrink: 0, position: 'relative',overflow: 'hidden', border: `1.5px solid ${specCol}40` }}>
               <PlayerFace playerId={player.id} nationality={player.nationality} size={64} />
             </div>
             <div style={{ flex: 1 }}>
@@ -528,12 +528,12 @@ export default function PlayerSheet() {
                 )}
                 <ForeignChip nationality={player.nationality} />
                 {player.status === 'injured' && (
-                  <span style={{ fontSize: '8px', padding: '1px 5px', borderRadius: '4px', backgroundColor: '#E8462A18', border: '1px solid #E8462A35', color: '#E8462A', fontWeight: '700' }}>負傷中</span>
+                  <span style={{ fontSize: '8px', padding: '1px 5px',backgroundColor: '#E8462A18', border: '1px solid #E8462A35', color: '#E8462A', fontWeight: '700' }}>負傷中</span>
                 )}
               </div>
               <div style={{ fontSize: '10px', color: '#5C5870', marginBottom: '6px' }}>{player.nameKana}</div>
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <span style={{ padding: '2px 8px', borderRadius: '10px', backgroundColor: `${specCol}18`, color: specCol, fontSize: '10px', fontWeight: '700' }}>
+                <span style={{ padding: '2px 8px',backgroundColor: `${specCol}18`, color: specCol, fontSize: '10px', fontWeight: '700' }}>
                   {SPECIALTY_LABELS[player.specialty]}
                 </span>
                 <span style={{ fontSize: '10px', color: '#5C5870' }}>{`${player.age}歳 / ${player.yearsPro + 1}年目`}</span>
@@ -544,7 +544,7 @@ export default function PlayerSheet() {
                   onClick={() => setShowBadges(true)}
                   style={{
                     marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 5, cursor: 'pointer',
-                    padding: '4px 10px', borderRadius: 8, background: 'linear-gradient(180deg, #C9A84C22, #C9A84C0E)',
+                    padding: '4px 10px',background: 'linear-gradient(180deg, #C9A84C22, #C9A84C0E)',
                     border: '1px solid #C9A84C55', color: '#C9A84C', fontFamily: 'inherit', fontWeight: 800, fontSize: 10,
                   }}
                 >
@@ -576,11 +576,11 @@ export default function PlayerSheet() {
               <RadarChart ratings={player.ratings} color={specCol} player={player} />
               {isProspect ? (
                 <>
-                  <div style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E' }}>
+                  <div style={{ padding: '8px 10px',backgroundColor: '#14121F', border: '1px solid #1E1B2E' }}>
                     <div style={{ fontSize: '8px', color: '#5C5870', marginBottom: '2px' }}>所属</div>
                     <div style={{ fontSize: '12px', fontWeight: '600', color: '#9B97A8' }}>{player.origin}</div>
                   </div>
-                  <div style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ padding: '8px 10px',backgroundColor: '#14121F', border: '1px solid #1E1B2E', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ fontSize: '8px', color: '#5C5870' }}>予想指名順位</div>
                     <div style={{ fontSize: '12px', fontWeight: '700', color: (predictedPick && predictedPick <= 40) ? '#C9A84C' : '#5C5870', fontFamily: 'monospace' }}>
                       {predictedPick && predictedPick <= 40 ? `${Math.ceil(predictedPick / 20)}巡目 全体${predictedPick}位` : '指名圏外'}
@@ -602,7 +602,7 @@ export default function PlayerSheet() {
                       // 凍らせたコピーもここを通るので、登録時期はこの1ページ目だけ見ればわかる
                       ...(hofEntry ? [{ label: '殿堂入り', val: `${hofEntry.year}年 ${hofEntry.teamName}` }] : []),
                     ].map(({ label, val }) => (
-                      <div key={label} style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E' }}>
+                      <div key={label} style={{ padding: '8px 10px',backgroundColor: '#14121F', border: '1px solid #1E1B2E' }}>
                         <div style={{ fontSize: '8px', color: '#5C5870', marginBottom: '2px' }}>{label}</div>
                         <div style={{ fontSize: '12px', fontWeight: '600', color: '#9B97A8' }}>{val}</div>
                       </div>
@@ -625,7 +625,7 @@ export default function PlayerSheet() {
                       <button
                         onClick={() => { if (!registerHof(player.id)) setHofMsg(`殿堂入りは${HOF_MAX}人までです`); else setHofMsg(inHof ? '殿堂入りの能力を今の値に更新しました' : '殿堂入りチームに登録しました') }}
                         style={{
-                          width: '100%', padding: '11px 14px', borderRadius: 11, cursor: 'pointer', fontFamily: 'inherit',
+                          width: '100%', padding: '11px 14px',cursor: 'pointer', fontFamily: 'inherit',
                           background: inHof ? 'transparent' : 'linear-gradient(180deg, #F0D264 0%, #C9A84C 60%, #8b6914 100%)',
                           border: `2px solid ${inHof ? '#C9A84C66' : '#8b6914'}`,
                           color: inHof ? '#C9A84C' : '#1a0d00', fontSize: 13, fontWeight: 900,
@@ -655,7 +655,7 @@ export default function PlayerSheet() {
                     onClick={() => setShowBadges(true)}
                     style={{
                       display: 'inline-flex', alignItems: 'center', gap: 5, cursor: 'pointer',
-                      padding: '5px 12px', borderRadius: 8, background: 'linear-gradient(180deg, #C9A84C22, #C9A84C0E)',
+                      padding: '5px 12px',background: 'linear-gradient(180deg, #C9A84C22, #C9A84C0E)',
                       border: '1px solid #C9A84C55', color: '#C9A84C', fontFamily: 'inherit', fontWeight: 800, fontSize: 10,
                     }}
                   >
@@ -676,20 +676,20 @@ export default function PlayerSheet() {
                 const retYear = player.retiredYear ?? lastRaceYear
                 return (
                   <>
-                    <div style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ padding: '8px 10px',backgroundColor: '#14121F', border: '1px solid #1E1B2E', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ fontSize: '8px', color: '#5C5870' }}>国籍</div>
                       <div style={{ fontSize: '12px', fontWeight: '600', color: '#9B97A8', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <Flag code={player.nationality} width={18} radius={3} />
+                        <Flag code={player.nationality} width={18} />
                         {natLabel(player.nationality)}
                       </div>
                     </div>
-                    <div style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: 'rgba(232,70,42,0.08)', border: '1px solid rgba(232,70,42,0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ padding: '8px 10px',backgroundColor: 'rgba(232,70,42,0.08)', border: '1px solid rgba(232,70,42,0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ fontSize: '8px', color: '#5C5870' }}>引退</div>
                       <div style={{ fontSize: '12px', fontWeight: '800', color: '#E8462A' }}>
                         {retYear != null ? `${retYear}年 引退` : '引退済み'}
                       </div>
                     </div>
-                    <div style={{ padding: '8px 10px', borderRadius: '8px', backgroundColor: '#14121F', border: '1px solid #1E1B2E', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ padding: '8px 10px',backgroundColor: '#14121F', border: '1px solid #1E1B2E', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ fontSize: '8px', color: '#5C5870' }}>ドラフト</div>
                       <div style={{ fontSize: '12px', fontWeight: '600', color: '#9B97A8' }}>
                         {player.draftRound && player.draftPick != null ? `${player.draftYear}年 全体${(player.draftRound - 1) * 20 + player.draftPick}位` : 'ドラフト外'}
@@ -702,7 +702,7 @@ export default function PlayerSheet() {
               {/* 自己ベスト（種目別・記録会で走った実タイムのみ）。種目を横に並べてタイムを下に置く */}
               <div>
                 <div style={{ fontSize: '9px', fontWeight: '800', color: '#5C5870', letterSpacing: '2px', marginBottom: '6px' }}>自己ベスト</div>
-                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${EVENT_DISTANCES.length}, 1fr)`, borderRadius: '8px', overflow: 'hidden', border: '1px solid #1E1B2E', background: '#14121F' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(${EVENT_DISTANCES.length}, 1fr)`,overflow: 'hidden', border: '1px solid #1E1B2E', background: '#14121F' }}>
                   {EVENT_DISTANCES.map((d, i) => {
                     const best = player.eventBests?.[d]
                     return (
@@ -732,7 +732,7 @@ export default function PlayerSheet() {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
                     {g.names.map(name => (
                       <div key={name} onClick={() => openRaceDetail(raceKey(g.league, name))} style={{
-                        padding: '10px 6px', borderRadius: '8px', border: '1px solid #1E1B2E', backgroundColor: '#14121F',
+                        padding: '10px 6px',border: '1px solid #1E1B2E', backgroundColor: '#14121F',
                         cursor: 'pointer', textAlign: 'center', minHeight: 44,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
@@ -757,7 +757,7 @@ export default function PlayerSheet() {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
                       {indLabels.map(label => (
                         <div key={label} onClick={() => openRaceDetail(`世界選手権 ${label}`)} style={{
-                          padding: '10px 6px', borderRadius: '8px', border: '1px solid rgba(168,85,247,0.35)', backgroundColor: '#14121F',
+                          padding: '10px 6px',border: '1px solid rgba(168,85,247,0.35)', backgroundColor: '#14121F',
                           cursor: 'pointer', textAlign: 'center', minHeight: 44,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}>
@@ -776,7 +776,7 @@ export default function PlayerSheet() {
             <div style={{ padding: '12px 20px 28px' }}>
               <div style={{ fontSize: '9px', fontWeight: '800', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px' }}>在籍履歴</div>
               {historyRows.length > 0 ? (
-                <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #1E1B2E' }}>
+                <div style={{overflow: 'hidden', border: '1px solid #1E1B2E' }}>
                   {/* header */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', backgroundColor: '#14121F', borderBottom: '1px solid #1E1B2E' }}>
                     <span style={{ width: '36px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870' }}>年</span>
@@ -814,14 +814,14 @@ export default function PlayerSheet() {
                             <span style={{ fontSize: '12px', fontWeight: '700', color: '#F0EDE8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {teamName}
                               {isLoan && <span style={{ fontSize: '10px', color: '#9B97A8', marginLeft: '3px' }}>(L)</span>}
-                              {isRetired && i === 0 && <span style={{ fontSize: '9px', fontWeight: 800, color: '#E8462A', marginLeft: '5px', padding: '1px 5px', borderRadius: 4, background: 'rgba(232,70,42,0.12)', border: '1px solid rgba(232,70,42,0.3)' }}>引退済み</span>}
+                              {isRetired && i === 0 && <span style={{ fontSize: '9px', fontWeight: 800, color: '#E8462A', marginLeft: '5px', padding: '1px 5px',background: 'rgba(232,70,42,0.12)', border: '1px solid rgba(232,70,42,0.3)' }}>引退済み</span>}
                             </span>
                           </div>
                           <span style={{ width: '28px', flexShrink: 0, fontSize: '13px', fontWeight: '900', color: '#9B97A8', fontFamily: 'monospace', textAlign: 'center' }}>{row.races}</span>
                           <span style={{ width: '32px', flexShrink: 0, fontSize: '13px', fontWeight: '900', color: row.wins > 0 ? '#C9A84C' : '#3A3758', fontFamily: 'monospace', textAlign: 'center' }}>{row.wins}</span>
                           <span style={{ width: '36px', flexShrink: 0, textAlign: 'center' }}>
                             {avg != null ? (
-                              <span style={{ fontSize: '11px', fontWeight: '900', fontFamily: 'monospace', padding: '2px 5px', borderRadius: 5, background: histAvgColor(avg), color: '#0E0D17' }}>{avg.toFixed(1)}</span>
+                              <span style={{ fontSize: '11px', fontWeight: '900', fontFamily: 'monospace', padding: '2px 5px',background: histAvgColor(avg), color: '#0E0D17' }}>{avg.toFixed(1)}</span>
                             ) : (
                               <span style={{ fontSize: '11px', color: '#3A3758' }}>—</span>
                             )}
@@ -844,7 +844,7 @@ export default function PlayerSheet() {
                               <span style={{ width: '32px', flexShrink: 0, fontSize: '12px', fontWeight: '900', color: c.wins > 0 ? '#C9A84C' : '#3A3758', fontFamily: 'monospace', textAlign: 'center' }}>{c.wins}</span>
                               <span style={{ width: '36px', flexShrink: 0, textAlign: 'center' }}>
                                 {cavg != null ? (
-                                  <span style={{ fontSize: '10px', fontWeight: '900', fontFamily: 'monospace', padding: '1px 4px', borderRadius: 4, background: histAvgColor(cavg), color: '#0E0D17' }}>{cavg.toFixed(1)}</span>
+                                  <span style={{ fontSize: '10px', fontWeight: '900', fontFamily: 'monospace', padding: '1px 4px',background: histAvgColor(cavg), color: '#0E0D17' }}>{cavg.toFixed(1)}</span>
                                 ) : (
                                   <span style={{ fontSize: '11px', color: '#3A3758' }}>—</span>
                                 )}
@@ -924,7 +924,7 @@ export default function PlayerSheet() {
                 return (
                   <div style={{ marginTop: '16px' }}>
                     <div style={{ fontSize: '9px', fontWeight: '800', color: '#A855F7', letterSpacing: '2px', marginBottom: '8px' }}>代表チーム</div>
-                    <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #1E1B2E' }}>
+                    <div style={{overflow: 'hidden', border: '1px solid #1E1B2E' }}>
                       {/* header（在籍履歴と同じ列構成） */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', backgroundColor: '#14121F', borderBottom: '1px solid #1E1B2E' }}>
                         <span style={{ width: '36px', flexShrink: 0, fontSize: '8px', fontWeight: '700', color: '#5C5870' }}>年</span>
@@ -947,14 +947,14 @@ export default function PlayerSheet() {
                             >
                               <span style={{ width: '36px', flexShrink: 0, fontSize: '12px', color: '#5C5870', fontFamily: 'monospace' }}>{row.year}</span>
                               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-                                <Flag code={player.nationality} width={20} radius={3} />
+                                <Flag code={player.nationality} width={20} />
                                 <span style={{ fontSize: '12px', fontWeight: '700', color: '#F0EDE8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{natLabel(player.nationality)}</span>
                               </div>
                               <span style={{ width: '28px', flexShrink: 0, fontSize: '13px', fontWeight: '900', color: '#9B97A8', fontFamily: 'monospace', textAlign: 'center' }}>{row.races}</span>
                               <span style={{ width: '32px', flexShrink: 0, fontSize: '13px', fontWeight: '900', color: row.wins > 0 ? '#C9A84C' : '#3A3758', fontFamily: 'monospace', textAlign: 'center' }}>{row.wins}</span>
                               <span style={{ width: '36px', flexShrink: 0, textAlign: 'center' }}>
                                 {avg != null ? (
-                                  <span style={{ fontSize: '11px', fontWeight: '900', fontFamily: 'monospace', padding: '2px 5px', borderRadius: 5, background: histAvgColor(avg), color: '#0E0D17' }}>{avg.toFixed(1)}</span>
+                                  <span style={{ fontSize: '11px', fontWeight: '900', fontFamily: 'monospace', padding: '2px 5px',background: histAvgColor(avg), color: '#0E0D17' }}>{avg.toFixed(1)}</span>
                                 ) : (
                                   <span style={{ fontSize: '11px', color: '#3A3758' }}>—</span>
                                 )}
@@ -976,7 +976,7 @@ export default function PlayerSheet() {
                                     {c.ind ? (
                                       <span style={{ fontSize: '11px', fontWeight: '900', fontFamily: 'monospace', color: medalCol(c.indRank) }}>{c.indRank != null ? `${c.indRank}位` : '出場'}</span>
                                     ) : cavg != null ? (
-                                      <span style={{ fontSize: '10px', fontWeight: '900', fontFamily: 'monospace', padding: '1px 4px', borderRadius: 4, background: histAvgColor(cavg), color: '#0E0D17' }}>{cavg.toFixed(1)}</span>
+                                      <span style={{ fontSize: '10px', fontWeight: '900', fontFamily: 'monospace', padding: '1px 4px',background: histAvgColor(cavg), color: '#0E0D17' }}>{cavg.toFixed(1)}</span>
                                     ) : (
                                       <span style={{ fontSize: '11px', color: '#3A3758' }}>—</span>
                                     )}
@@ -1012,7 +1012,7 @@ export default function PlayerSheet() {
               return (
                 <div style={{ padding: '12px 20px 28px' }}>
                   {rows.length > 0 ? (
-                    <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #1E1B2E' }}>
+                    <div style={{overflow: 'hidden', border: '1px solid #1E1B2E' }}>
                       {rows.map((e, i) => {
                         const rankCol = rankColor(e.rank)
                         return (
@@ -1021,9 +1021,9 @@ export default function PlayerSheet() {
                             <span style={{ fontSize: '12px', color: '#9B97A8', flexShrink: 0 }}>{e.city}</span>
                             <span style={{ fontSize: '15px', fontWeight: '900', color: rankCol, fontFamily: 'monospace', width: '38px', textAlign: 'center', flexShrink: 0 }}>{e.rank}位</span>
                             {e.rank === 1 ? (
-                              <span style={{ fontSize: '8px', fontWeight: '900', letterSpacing: '0.05em', padding: '2px 6px', borderRadius: '4px', background: 'linear-gradient(180deg,#F5D76E,#C9A84C)', color: '#1a0d00', flexShrink: 0 }}>優勝</span>
+                              <span style={{ fontSize: '8px', fontWeight: '900', letterSpacing: '0.05em', padding: '2px 6px',background: 'linear-gradient(180deg,#F5D76E,#C9A84C)', color: '#1a0d00', flexShrink: 0 }}>優勝</span>
                             ) : e.rank <= 8 ? (
-                              <span style={{ fontSize: '8px', fontWeight: '900', letterSpacing: '0.05em', padding: '2px 6px', borderRadius: '4px', background: 'linear-gradient(180deg,#C583FA,#7E22CE)', color: '#fff', flexShrink: 0 }}>入賞</span>
+                              <span style={{ fontSize: '8px', fontWeight: '900', letterSpacing: '0.05em', padding: '2px 6px',background: 'linear-gradient(180deg,#C583FA,#7E22CE)', color: '#fff', flexShrink: 0 }}>入賞</span>
                             ) : null}
                             <span style={{ flex: 1 }} />
                             <span style={{ fontSize: '12px', fontWeight: '700', color: '#9B97A8', fontFamily: 'monospace', flexShrink: 0 }}>{formatRaceTime(e.timeSec)}</span>
@@ -1043,7 +1043,7 @@ export default function PlayerSheet() {
             return (
               <div style={{ padding: '12px 20px 28px' }}>
                 {entries.length > 0 ? (
-                  <div style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid #1E1B2E' }}>
+                  <div style={{overflow: 'hidden', border: '1px solid #1E1B2E' }}>
                     {entries.map((e, i) => {
                       const rankCol = rankColor(e.rank)
                       // この大会×区間の記録タイムと同タイムの走りなら「区間記録」パッチ（同タイムの共同保持もタイ記録として付く）
@@ -1055,7 +1055,7 @@ export default function PlayerSheet() {
                           <span style={{ fontSize: '12px', color: '#9B97A8', flexShrink: 0 }}>第{e.segIdx}区{e.distKm != null ? ` ${e.distKm}km` : ''}</span>
                           <span style={{ fontSize: '15px', fontWeight: '900', color: rankCol, fontFamily: 'monospace', width: '32px', textAlign: 'center', flexShrink: 0 }}>{e.rank}位</span>
                           {isSegRecord && (
-                            <span style={{ fontSize: '8px', fontWeight: '900', letterSpacing: '0.05em', padding: '2px 6px', borderRadius: '4px', background: 'linear-gradient(180deg,#F5D76E,#C9A84C)', color: '#1a0d00', flexShrink: 0 }}>区間記録</span>
+                            <span style={{ fontSize: '8px', fontWeight: '900', letterSpacing: '0.05em', padding: '2px 6px',background: 'linear-gradient(180deg,#F5D76E,#C9A84C)', color: '#1a0d00', flexShrink: 0 }}>区間記録</span>
                           )}
                           <span style={{ flex: 1 }} />
                           <span style={{ fontSize: '12px', fontWeight: '700', color: '#9B97A8', fontFamily: 'monospace', flexShrink: 0 }}>{formatRaceTime(e.timeSec)}</span>
@@ -1087,7 +1087,7 @@ export default function PlayerSheet() {
             onClick={e => e.stopPropagation()}
             style={{
               width: '100%', maxWidth: 340, background: 'linear-gradient(180deg, #221F33, #1A1828)',
-              border: '2px solid rgba(201,168,76,0.5)', borderRadius: 18, padding: '22px 20px 18px',
+              border: '2px solid rgba(201,168,76,0.5)',padding: '22px 20px 18px',
               boxShadow: '0 0 40px rgba(201,168,76,0.2), 0 8px 32px rgba(0,0,0,0.6)',
             }}
           >
@@ -1102,7 +1102,7 @@ export default function PlayerSheet() {
               onChange={e => setRenameDraft(e.target.value)}
               maxLength={12}
               style={{
-                width: '100%', padding: '12px 14px', borderRadius: 10, border: 'none', marginBottom: 16,
+                width: '100%', padding: '12px 14px',border: 'none', marginBottom: 16,
                 backgroundColor: '#1E1B2E', color: '#F0EDE8', fontSize: 15, boxSizing: 'border-box',
                 fontFamily: SAIRA, outline: 'none',
                 boxShadow: 'inset 0 0 0 1px rgba(201,168,76,0.14)',
@@ -1112,7 +1112,7 @@ export default function PlayerSheet() {
               <button
                 onClick={() => setRenameDraft(null)}
                 style={{
-                  flex: 1, padding: '12px', borderRadius: 12, cursor: 'pointer',
+                  flex: 1, padding: '12px',cursor: 'pointer',
                   border: '2px solid #3A3758', background: 'transparent', color: '#9B97A8',
                   fontFamily: SAIRA, fontSize: 15, fontWeight: 900,
                 }}
@@ -1123,7 +1123,7 @@ export default function PlayerSheet() {
                 disabled={renameDraft.trim() === ''}
                 onClick={() => { renamePlayer(player.id, renameDraft); setRenameDraft(null) }}
                 style={{
-                  flex: 1, padding: '12px', borderRadius: 12, cursor: renameDraft.trim() === '' ? 'default' : 'pointer',
+                  flex: 1, padding: '12px',cursor: renameDraft.trim() === '' ? 'default' : 'pointer',
                   border: '2px solid #C9A84C', opacity: renameDraft.trim() === '' ? 0.4 : 1,
                   background: 'linear-gradient(180deg, rgba(201,168,76,0.25), rgba(201,168,76,0.1))',
                   color: '#C9A84C', fontFamily: SAIRA, fontSize: 15, fontWeight: 900,

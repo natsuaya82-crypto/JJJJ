@@ -82,7 +82,7 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
           <div style={{ padding: '12px 14px 4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
             <span style={{ fontSize: 11, fontWeight: 800, color: TT_COLOR, letterSpacing: '0.1em', flexShrink: 0 }}>自チームの出場選手</span>
             <select value={sortKey} onChange={e => setSortKey(e.target.value as typeof sortKey)}
-              style={{ padding: '5px 8px', borderRadius: 7, border: `1px solid ${C.border2}`, background: C.surface2, color: C.text, fontSize: 11, fontFamily: 'inherit', cursor: 'pointer' }}>
+              style={{ padding: '5px 8px',border: `1px solid ${C.border2}`, background: C.surface2, color: C.text, fontSize: 11, fontFamily: 'inherit', cursor: 'pointer' }}>
               <option value="pb">自己ベスト順</option>
               <option value="fatigue">疲労少ない順</option>
               <option value="ovr">OVR順</option>
@@ -117,8 +117,8 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
                   // タップは usePlayerLongPress の第2引数で受ける＝長押し（選手詳細）のあとの
                   // タップは捨てられるので、ここで打ち消しを書き足さないこと
                   <div key={p.id} {...longPress(p.id, () => toggleResting(p.id))}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px 7px 12px', borderRadius: 9, cursor: 'pointer', width: '100%', background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${C.border}`, opacity: isResting ? 0.45 : 1 }}>
-                    <div style={{ borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px 7px 12px',cursor: 'pointer', width: '100%', background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${C.border}`, opacity: isResting ? 0.45 : 1 }}>
+                    <div style={{overflow: 'hidden', flexShrink: 0 }}>
                       <PlayerFace playerId={p.id} nationality={p.nationality} size={32} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -131,7 +131,7 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
                     {/* 表示は正規OVR（種目適性値は紛らわしいのでソート専用に） */}
                     <span style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: ratingColor(ovr(p)), flexShrink: 0 }}>{ovr(p)}</span>
                     <button onClick={(e) => { e.stopPropagation(); toggleResting(p.id) }}
-                      style={{ flexShrink: 0, padding: '5px 9px', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit', fontSize: 10, fontWeight: 800, background: isResting ? 'transparent' : alpha(TT_COLOR, 0.14), border: `1.5px solid ${isResting ? C.border2 : alpha(TT_COLOR, 0.5)}`, color: isResting ? C.textDim : TT_COLOR }}>
+                      style={{ flexShrink: 0, padding: '5px 9px',cursor: 'pointer', fontFamily: 'inherit', fontSize: 10, fontWeight: 800, background: isResting ? 'transparent' : alpha(TT_COLOR, 0.14), border: `1.5px solid ${isResting ? C.border2 : alpha(TT_COLOR, 0.5)}`, color: isResting ? C.textDim : TT_COLOR }}>
                       {isResting ? '休む' : '出走'}
                     </button>
                   </div>
@@ -154,7 +154,7 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
               {topTen.map((r, i) => (
                 <button key={r.playerId} {...longPress(r.playerId)}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, cursor: 'pointer', textAlign: 'left', width: '100%', fontFamily: 'inherit',
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px',cursor: 'pointer', textAlign: 'left', width: '100%', fontFamily: 'inherit',
                     background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
                     border: `1px solid ${r.rank === 1 ? alpha(C.gold, 0.5) : r.teamId === playerTeamId ? alpha(TT_COLOR, 0.5) : C.border}`,
                     // 下位から順に表示して1位が最後に出る
@@ -162,7 +162,7 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
                     animationDelay: `${(topTen.length - 1 - i) * 0.15}s`,
                   }}>
                   <span style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: r.rank === 1 ? C.gold : r.rank <= 3 ? C.text : C.textSub, width: 22, flexShrink: 0 }}>{r.rank}</span>
-                  <div style={{ borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
+                  <div style={{overflow: 'hidden', flexShrink: 0 }}>
                     <PlayerFace playerId={r.playerId} nationality={findP(r.playerId)?.nationality ?? 'JPN'} size={30} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -173,13 +173,13 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
                         const jr = japanRecords?.[bestKey]
                         // 保持者本人は「新！」、同タイムの共同保持者は「タイ！」
                         if (wr && wr.playerId === r.playerId && wr.timeSec === r.timeSec && wr.year === seasonYear)
-                          return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px', borderRadius: 4, background: alpha(C.gold, 0.15), color: C.gold, border: `1px solid ${alpha(C.gold, 0.5)}`, flexShrink: 0 }}>世界新！</span>
+                          return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px',background: alpha(C.gold, 0.15), color: C.gold, border: `1px solid ${alpha(C.gold, 0.5)}`, flexShrink: 0 }}>世界新！</span>
                         if (wr && wr.timeSec === r.timeSec && (wr.coHolders ?? []).some(c => c.playerId === r.playerId && c.year === seasonYear))
-                          return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px', borderRadius: 4, background: alpha(C.gold, 0.15), color: C.gold, border: `1px solid ${alpha(C.gold, 0.5)}`, flexShrink: 0 }}>世界タイ！</span>
+                          return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px',background: alpha(C.gold, 0.15), color: C.gold, border: `1px solid ${alpha(C.gold, 0.5)}`, flexShrink: 0 }}>世界タイ！</span>
                         if (jr && jr.playerId === r.playerId && jr.timeSec === r.timeSec && jr.year === seasonYear)
-                          return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px', borderRadius: 4, background: alpha(C.red, 0.15), color: C.red, border: `1px solid ${alpha(C.red, 0.5)}`, flexShrink: 0 }}>日本新！</span>
+                          return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px',background: alpha(C.red, 0.15), color: C.red, border: `1px solid ${alpha(C.red, 0.5)}`, flexShrink: 0 }}>日本新！</span>
                         if (jr && jr.timeSec === r.timeSec && (jr.coHolders ?? []).some(c => c.playerId === r.playerId && c.year === seasonYear))
-                          return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px', borderRadius: 4, background: alpha(C.red, 0.15), color: C.red, border: `1px solid ${alpha(C.red, 0.5)}`, flexShrink: 0 }}>日本タイ！</span>
+                          return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px',background: alpha(C.red, 0.15), color: C.red, border: `1px solid ${alpha(C.red, 0.5)}`, flexShrink: 0 }}>日本タイ！</span>
                         return null
                       })()}
                     </div>
@@ -206,7 +206,7 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
           </div>
 
           {(event.rewardCards ?? []).length > 0 && (
-            <div style={{ borderRadius: 12, padding: '10px 14px', background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1.5px solid ${alpha(C.gold, 0.4)}`, animation: 'race-result-in 0.4s ease both', animationDelay: `${topTen.length * 0.15 + 0.2}s` }}>
+            <div style={{padding: '10px 14px', background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1.5px solid ${alpha(C.gold, 0.4)}`, animation: 'race-result-in 0.4s ease both', animationDelay: `${topTen.length * 0.15 + 0.2}s` }}>
               <div style={{ fontSize: 10, fontWeight: 800, color: C.gold, letterSpacing: '0.1em', marginBottom: 8 }}>獲得した練習カード · {(event.rewardCards ?? []).length}枚</div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {(event.rewardCards ?? []).map(c => (
@@ -225,13 +225,13 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
                 return (
                   <button key={r.playerId} {...longPress(r.playerId)}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', borderRadius: 9, cursor: 'pointer', textAlign: 'left', width: '100%', fontFamily: 'inherit',
+                      display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px',cursor: 'pointer', textAlign: 'left', width: '100%', fontFamily: 'inherit',
                       background: isPB ? alpha(C.green, 0.06) : C.surface2,
                       border: `1px solid ${isPB ? alpha(C.green, 0.45) : C.border}`,
                       boxShadow: isPB ? `0 0 8px ${alpha(C.green, 0.15)}` : 'none',
                     }}>
                     <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: r.rank <= 3 ? C.gold : C.textDim, minWidth: 30, flexShrink: 0, whiteSpace: 'nowrap' }}>{r.rank}位</span>
-                    <div style={{ borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
+                    <div style={{overflow: 'hidden', flexShrink: 0 }}>
                       <PlayerFace playerId={r.playerId} nationality={p?.nationality ?? 'JPN'} size={26} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{playerName(r.playerId)}</div>
@@ -239,14 +239,14 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
                       const wr = worldRecords?.[bestKey]
                       const jr = japanRecords?.[bestKey]
                       if (wr && wr.playerId === r.playerId && wr.timeSec === r.timeSec && wr.year === seasonYear)
-                        return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px', borderRadius: 4, background: alpha(C.gold, 0.15), color: C.gold, border: `1px solid ${alpha(C.gold, 0.5)}`, flexShrink: 0 }}>世界新！</span>
+                        return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px',background: alpha(C.gold, 0.15), color: C.gold, border: `1px solid ${alpha(C.gold, 0.5)}`, flexShrink: 0 }}>世界新！</span>
                       if (wr && wr.timeSec === r.timeSec && (wr.coHolders ?? []).some(c => c.playerId === r.playerId && c.year === seasonYear))
-                        return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px', borderRadius: 4, background: alpha(C.gold, 0.15), color: C.gold, border: `1px solid ${alpha(C.gold, 0.5)}`, flexShrink: 0 }}>世界タイ！</span>
+                        return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px',background: alpha(C.gold, 0.15), color: C.gold, border: `1px solid ${alpha(C.gold, 0.5)}`, flexShrink: 0 }}>世界タイ！</span>
                       if (jr && jr.playerId === r.playerId && jr.timeSec === r.timeSec && jr.year === seasonYear)
-                        return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px', borderRadius: 4, background: alpha(C.red, 0.15), color: C.red, border: `1px solid ${alpha(C.red, 0.5)}`, flexShrink: 0 }}>日本新！</span>
+                        return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px',background: alpha(C.red, 0.15), color: C.red, border: `1px solid ${alpha(C.red, 0.5)}`, flexShrink: 0 }}>日本新！</span>
                       if (jr && jr.timeSec === r.timeSec && (jr.coHolders ?? []).some(c => c.playerId === r.playerId && c.year === seasonYear))
-                        return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px', borderRadius: 4, background: alpha(C.red, 0.15), color: C.red, border: `1px solid ${alpha(C.red, 0.5)}`, flexShrink: 0 }}>日本タイ！</span>
-                      return isPB ? <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 5px', borderRadius: 4, background: alpha(C.green, 0.15), color: C.green, border: `1px solid ${alpha(C.green, 0.4)}`, fontFamily: SAIRA, flexShrink: 0 }}>PB</span> : null
+                        return <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 4px',background: alpha(C.red, 0.15), color: C.red, border: `1px solid ${alpha(C.red, 0.5)}`, flexShrink: 0 }}>日本タイ！</span>
+                      return isPB ? <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 5px',background: alpha(C.green, 0.15), color: C.green, border: `1px solid ${alpha(C.green, 0.4)}`, fontFamily: SAIRA, flexShrink: 0 }}>PB</span> : null
                     })()}
                     <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.textSub, flexShrink: 0 }}>{formatRaceTime(r.timeSec)}</span>
                   </button>

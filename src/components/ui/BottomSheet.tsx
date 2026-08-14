@@ -47,7 +47,7 @@ export default function BottomSheet({ open, onClose, title, children }: {
         style={{
           position: 'fixed', bottom: adH, left: 0, right: 0, margin: '0 auto',
           width: '100%', maxWidth: 480, zIndex: 301,
-          background: C.surface, borderRadius: '18px 18px 0 0',
+          background: C.surface,
           border: `1px solid ${C.border2}`, borderBottom: 'none',
           boxShadow: '0 -12px 40px rgba(0,0,0,0.6)',
           // border-box を付けないと width:100% に左右14pxのpaddingが足され、
@@ -56,7 +56,7 @@ export default function BottomSheet({ open, onClose, title, children }: {
           padding: '8px 14px calc(18px + env(safe-area-inset-bottom))',
         }}
       >
-        <div style={{ width: 38, height: 4, borderRadius: 2, background: C.border3, margin: '4px auto 10px' }} />
+        <div style={{ width: 38, height: 4,background: C.border3, margin: '4px auto 10px' }} />
         {title && (
           <div style={{ fontSize: 12, fontWeight: 800, color: C.textSub, marginBottom: 10 }}>{title}</div>
         )}

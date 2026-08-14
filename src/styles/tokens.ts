@@ -25,13 +25,10 @@ export const C = {
   purpleDark:'#6D28D9',
 } as const
 
-export const R = {
-  sm:  '8px',
-  md:  '12px',
-  lg:  '16px',
-  xl:  '20px',
-  full:'9999px',
-} as const
+// ★角の丸みを配る `R`（sm/md/lg/xl/full）は**廃止**しました。復活させないこと。
+//   角丸はアプリ全体でやめています（オーナー・2026-08-13「角丸全部やめて」）。
+//   丸いままにするのは「丸いことに意味がある物」だけ——顔・ロゴ・状態の点（`50%`）。
+//   `npm run check` の ui-tokens ⑧ が、画面に borderRadius を書いたら落とします。
 
 export type Competition = 'jpel' | 'reserve' | 'ecl' | 'world' | 'friend'
 export const COMPETITION_BTN: Record<Competition, string> = {
@@ -86,7 +83,7 @@ export const JP = "'Noto Sans JP', system-ui, sans-serif"
 
 /** 絞り込みの <select> の見た目。カードの一覧と選択で同じものを使う */
 export const SELECT_STYLE = {
-  padding: '6px 28px 6px 10px', borderRadius: 8,
+  padding: '6px 28px 6px 10px',
   background: C.surface2, border: `1px solid ${C.border}`,
   color: C.textSub, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer',
   appearance: 'none' as const, WebkitAppearance: 'none' as const,

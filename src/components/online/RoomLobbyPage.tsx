@@ -658,12 +658,12 @@ export default function RoomLobbyPage() {
         {conn !== 'online' && (
           <div style={{ fontSize: 10, color: C.textDim }}>{conn === 'connecting' ? '接続中…' : 'オフライン'}</div>
         )}
-        <button onClick={() => setAskLeave(true)} disabled={busy} style={{ padding: '5px 10px', borderRadius: 8, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 11, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>退出</button>
+        <button onClick={() => setAskLeave(true)} disabled={busy} style={{ padding: '5px 10px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 11, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>退出</button>
       </div>
 
       {phase === 'lobby' && (<>
       {/* 部屋番号 */}
-      <div style={{ margin: '4px 12px 0', padding: '16px', borderRadius: 16, textAlign: 'center', background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${alpha(C.cyan, 0.4)}` }}>
+      <div style={{ margin: '4px 12px 0', padding: '16px',textAlign: 'center', background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${alpha(C.cyan, 0.4)}` }}>
         <div style={{ fontFamily: SAIRA, fontSize: 9, color: alpha(C.cyan, 0.6), letterSpacing: '4px', fontWeight: 900 }}>ROOM CODE</div>
         <div style={{ fontFamily: SAIRA, fontSize: 44, fontWeight: 900, color: C.cyan, letterSpacing: '8px', lineHeight: 1.3 }}>
           {formatRoomCode(room?.code ?? '')}
@@ -685,7 +685,7 @@ export default function RoomLobbyPage() {
             const connected = online.includes(m.userId)
             return (
               <div key={m.userId} style={{
-                display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 12,
+                display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px',
                 background: isMe ? alpha(C.gold, 0.08) : C.surface2,
                 border: `1px solid ${isMe ? alpha(C.gold, 0.35) : C.border}`,
               }}>
@@ -694,7 +694,7 @@ export default function RoomLobbyPage() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 900, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {p?.teamName ?? '読み込み中'}
-                    {isRoomHost && <span style={{ marginLeft: 6, padding: '1px 6px', borderRadius: 5, background: C.gold, color: '#1a0d00', fontSize: 9, fontWeight: 900 }}>ホスト</span>}
+                    {isRoomHost && <span style={{ marginLeft: 6, padding: '1px 6px',background: C.gold, color: '#1a0d00', fontSize: 9, fontWeight: 900 }}>ホスト</span>}
                   </div>
                   <div style={{ fontSize: 10, color: C.textDim }}>GM {p?.gmName ?? '—'}{!connected && '・接続待ち'}</div>
                 </div>
@@ -702,7 +702,7 @@ export default function RoomLobbyPage() {
                   <div style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: C.green }}>準備OK</div>
                 )}
                 {isHost && !isMe && (
-                  <button onClick={() => setAskKick(m)} disabled={busy} style={{ padding: '4px 9px', borderRadius: 7, border: `1px solid ${alpha(C.red, 0.5)}`, background: 'transparent', color: C.red, fontSize: 10, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>退出</button>
+                  <button onClick={() => setAskKick(m)} disabled={busy} style={{ padding: '4px 9px',border: `1px solid ${alpha(C.red, 0.5)}`, background: 'transparent', color: C.red, fontSize: 10, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>退出</button>
                 )}
               </div>
             )
@@ -721,7 +721,7 @@ export default function RoomLobbyPage() {
       {!isHost && mine && (
         <div style={{ padding: '20px 12px 0' }}>
           <button onClick={onToggleReady} disabled={busy} className="btn-press" style={{
-            width: '100%', padding: '15px 14px', borderRadius: 14,
+            width: '100%', padding: '15px 14px',
             border: `2px solid ${mine.ready ? C.green : C.goldDark}`,
             background: mine.ready ? alpha(C.green, 0.15) : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
             color: mine.ready ? C.green : C.gold, fontFamily: SAIRA, fontSize: 16, fontWeight: 900, cursor: 'pointer',
@@ -816,7 +816,7 @@ export default function RoomLobbyPage() {
             <div style={{ fontSize: 18, fontWeight: 900, color: C.text, marginTop: 8 }}>対戦終了</div>
             <div style={{ fontSize: 12, color: C.textDim, marginTop: 10, lineHeight: 1.7 }}>お疲れさまでした。</div>
             <button onClick={() => setAskLeave(true)} className="btn-press" style={{
-              marginTop: 24, padding: '13px 28px', borderRadius: 12, border: `2px solid ${C.goldDark}`,
+              marginTop: 24, padding: '13px 28px',border: `2px solid ${C.goldDark}`,
               background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
               color: C.gold, fontFamily: SAIRA, fontSize: 15, fontWeight: 900, cursor: 'pointer',
             }}>部屋を出る</button>

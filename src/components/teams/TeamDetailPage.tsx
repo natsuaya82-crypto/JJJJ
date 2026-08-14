@@ -360,7 +360,6 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
 
       <div style={{
         margin: '0 12px 10px',
-        borderRadius: '16px',
         background: `linear-gradient(135deg, ${colors.primary}25, #14121F)`,
         border: `1px solid ${colors.primary}40`,
         padding: '16px',
@@ -371,7 +370,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
               <span style={{ fontSize: '18px', fontWeight: '900', color: '#F0EDE8' }}>{name}</span>
               {isMyTeam && (
-                <span style={{ fontSize: '8px', padding: '2px 6px', borderRadius: '4px', backgroundColor: `${colors.primary}30`, color: colors.primary, fontWeight: '700' }}>自チーム</span>
+                <span style={{ fontSize: '8px', padding: '2px 6px',backgroundColor: `${colors.primary}30`, color: colors.primary, fontWeight: '700' }}>自チーム</span>
               )}
             </div>
             <div style={{ fontSize: '11px', color: '#5C5870' }}>{infoLocation} • {mainPlayers.length}名</div>
@@ -383,15 +382,15 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
         </div>
 
         <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-          <div style={{ flex: 1, textAlign: 'center', padding: '8px', borderRadius: '10px', backgroundColor: '#0E0D17' }}>
+          <div style={{ flex: 1, textAlign: 'center', padding: '8px',backgroundColor: '#0E0D17' }}>
             <div style={{ fontSize: '18px', fontWeight: '900', color: '#C9A84C', fontFamily: 'monospace' }}>{standingPoints}</div>
             <div style={{ fontSize: '8px', color: '#3A3758' }}>ポイント</div>
           </div>
-          <div style={{ flex: 1, textAlign: 'center', padding: '8px', borderRadius: '10px', backgroundColor: '#0E0D17' }}>
+          <div style={{ flex: 1, textAlign: 'center', padding: '8px',backgroundColor: '#0E0D17' }}>
             <div style={{ fontSize: '18px', fontWeight: '900', color: '#9B97A8', fontFamily: 'monospace' }}>{completedRaces}</div>
             <div style={{ fontSize: '8px', color: '#3A3758' }}>消化試合</div>
           </div>
-          <div style={{ flex: 1, textAlign: 'center', padding: '8px', borderRadius: '10px', backgroundColor: '#0E0D17' }}>
+          <div style={{ flex: 1, textAlign: 'center', padding: '8px',backgroundColor: '#0E0D17' }}>
             <div style={{ fontSize: '18px', fontWeight: '900', color: '#4CAF50', fontFamily: 'monospace' }}>
               {mainPlayers.length > 0 ? Math.round(mainPlayers.reduce((s, p) => s + ovr(p), 0) / mainPlayers.length) : '—'}
             </div>
@@ -408,7 +407,6 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
             style={{
               height: '4px',
               width: activePage === i ? '20px' : '6px',
-              borderRadius: '2px',
               background: activePage === i ? '#C9A84C' : '#2E2B42',
               transition: 'all 0.2s',
               cursor: 'pointer',
@@ -434,7 +432,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
 
             <div>
               <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>RECENT FORM</div>
-              <div style={{ backgroundColor: '#0E0D17', borderRadius: '12px', padding: '12px 16px', border: '1px solid #1A1828' }}>
+              <div style={{ backgroundColor: '#0E0D17',padding: '12px 16px', border: '1px solid #1A1828' }}>
                 {recentForm.length === 0 ? (
                   <div style={{ textAlign: 'center', fontSize: '11px', color: '#3A3758' }}>データなし</div>
                 ) : (
@@ -455,7 +453,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
 
             <div>
               <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>TEAM INFO</div>
-              <div style={{ backgroundColor: '#0E0D17', borderRadius: '12px', padding: '12px 16px', border: '1px solid #1A1828' }}>
+              <div style={{ backgroundColor: '#0E0D17',padding: '12px 16px', border: '1px solid #1A1828' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 10, marginBottom: 10, borderBottom: '1px solid #1A1828' }}>
                   <span style={{ fontSize: '9px', color: '#3A3758', letterSpacing: '2px', width: 42, flexShrink: 0 }}>本拠地</span>
                   <span style={{ fontSize: '14px', fontWeight: '800', color: '#F0EDE8' }}>{infoLocation}</span>
@@ -487,7 +485,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
             {clubFac && (
               <div>
                 <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>クラブ規模</div>
-                <div style={{ backgroundColor: '#0E0D17', borderRadius: '12px', padding: '12px 16px', border: '1px solid #1A1828' }}>
+                <div style={{ backgroundColor: '#0E0D17',padding: '12px 16px', border: '1px solid #1A1828' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 10, marginBottom: 10, borderBottom: '1px solid #1A1828' }}>
                     <span style={{ fontSize: '9px', color: '#3A3758', letterSpacing: '2px', width: 42, flexShrink: 0 }}>年間予算</span>
                     <span style={{ fontFamily: SAIRA, fontSize: '18px', fontWeight: '900', color: '#C9A84C' }}>{fmtYen(clubBudget)}</span>
@@ -510,7 +508,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
             {/* 歴代成績（折れ線グラフ） */}
             <div>
               <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>歴代成績</div>
-              <div style={{ backgroundColor: '#0E0D17', borderRadius: '12px', padding: '10px 8px 4px', border: '1px solid #1A1828' }}>
+              <div style={{ backgroundColor: '#0E0D17',padding: '10px 8px 4px', border: '1px solid #1A1828' }}>
                 {historyRanks.length === 0 ? (
                   <div style={{ fontSize: '11px', color: '#3A3758', textAlign: 'center', padding: '12px 4px' }}>まだ過去シーズンの記録がありません</div>
                 ) : (
@@ -522,7 +520,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
             {/* トロフィー */}
             <div>
               <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>トロフィー</div>
-              <div style={{ backgroundColor: '#0E0D17', borderRadius: '12px', padding: '12px 16px', border: '1px solid #1A1828' }}>
+              <div style={{ backgroundColor: '#0E0D17',padding: '12px 16px', border: '1px solid #1A1828' }}>
                 {titles.length === 0 ? (
                   <div style={{ fontSize: '11px', color: '#3A3758', textAlign: 'center', padding: '4px' }}>まだタイトル獲得なし</div>
                 ) : (
@@ -548,13 +546,13 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
                   <div style={{ fontSize: '10px', color: '#5C5870', letterSpacing: '2px', marginBottom: '8px', paddingLeft: '4px' }}>ACE</div>
                   <div
                     {...rowHandlers(ace.id)}
-                    style={{ backgroundColor: '#0E0D17', borderRadius: '12px', padding: '12px', border: '1px solid #1A1828', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
+                    style={{ backgroundColor: '#0E0D17',padding: '12px', border: '1px solid #1A1828', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
                   >
                     <PlayerFace playerId={ace.id} nationality={ace.nationality} size={44} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '3px' }}>
                         <span style={{ fontSize: '14px', fontWeight: '700', color: '#F0EDE8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ace.name}</span>
-                        <span style={{ padding: '1px 5px', borderRadius: '6px', backgroundColor: `${specCol}15`, color: specCol, fontSize: '8px', fontWeight: '700', flexShrink: 0 }}>
+                        <span style={{ padding: '1px 5px',backgroundColor: `${specCol}15`, color: specCol, fontSize: '8px', fontWeight: '700', flexShrink: 0 }}>
                           {SPECIALTY_LABELS[ace.specialty]}
                         </span>
                       </div>
@@ -585,9 +583,9 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
               {!isMyTeam && <span style={{ fontSize: 8, color: '#5C5870', marginLeft: 'auto' }}>タップ=交渉 / 長押し=詳細</span>}
             </div>
             {mainPlayers.length === 0
-              ? <div style={{ textAlign: 'center', padding: '20px', color: '#3A3758', fontSize: '12px', backgroundColor: '#0E0D17', borderRadius: '14px', marginBottom: '12px' }}>登録なし</div>
+              ? <div style={{ textAlign: 'center', padding: '20px', color: '#3A3758', fontSize: '12px', backgroundColor: '#0E0D17',marginBottom: '12px' }}>登録なし</div>
               : (
-                <div style={{ borderRadius: '14px', overflow: 'hidden', border: `1px solid ${C.border}`, marginBottom: '80px' }}>
+                <div style={{overflow: 'hidden', border: `1px solid ${C.border}`, marginBottom: '80px' }}>
                   {mainPlayers.map(p => <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} />)}
                 </div>
               )
@@ -601,12 +599,11 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
             <div style={{ fontFamily: SAIRA, fontSize: 16, fontWeight: 900, color: '#F0EDE8', marginBottom: '10px', paddingLeft: '4px' }}>移籍</div>
 
             {/* 入/出 スライド切替 */}
-            <div style={{ position: 'relative', display: 'flex', background: '#0E0D17', border: '1px solid #1A1828', borderRadius: '12px', padding: '3px', marginBottom: '12px' }}>
+            <div style={{ position: 'relative', display: 'flex', background: '#0E0D17', border: '1px solid #1A1828',padding: '3px', marginBottom: '12px' }}>
               <div style={{
                 position: 'absolute', top: 3, bottom: 3,
                 left: moveTab === 'in' ? 3 : '50%',
                 width: 'calc(50% - 3px)',
-                borderRadius: '9px',
                 background: moveTab === 'in' ? 'rgba(76,175,80,0.16)' : 'rgba(232,70,42,0.16)',
                 border: `1px solid ${moveTab === 'in' ? '#4CAF5055' : '#E8462A55'}`,
                 transition: 'left 0.2s, background 0.2s, border-color 0.2s',
@@ -634,7 +631,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
               const rows = moveTab === 'in' ? movesIn : movesOut
               const otherLabel = moveTab === 'in' ? '移籍元' : '移籍先'
               if (rows.length === 0) return (
-                <div style={{ textAlign: 'center', padding: '28px', color: '#3A3758', fontSize: '11px', backgroundColor: '#0E0D17', borderRadius: '12px', border: '1px solid #1A1828' }}>記録なし</div>
+                <div style={{ textAlign: 'center', padding: '28px', color: '#3A3758', fontSize: '11px', backgroundColor: '#0E0D17',border: '1px solid #1A1828' }}>記録なし</div>
               )
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -652,13 +649,13 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
                       <div
                         key={`${row.playerId}-${row.year}`}
                         {...(pl.isRemoved ? {} : longPressP(pl.id))}
-                        style={{ background: '#0E0D17', border: '1px solid #1A1828', borderRadius: '14px', padding: '14px 16px 12px', cursor: pl.isRemoved ? 'default' : 'pointer' }}
+                        style={{ background: '#0E0D17', border: '1px solid #1A1828',padding: '14px 16px 12px', cursor: pl.isRemoved ? 'default' : 'pointer' }}
                       >
                         {/* 真ん中に顔（右下にOVR） */}
                         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
                           <div style={{ position: 'relative' }}>
                             <PlayerFace playerId={pl.id} nationality={pl.nationality} size={52} />
-                            <div style={{ position: 'absolute', bottom: -2, right: -6, background: 'rgba(0,0,0,0.88)', padding: '0 4px', borderRadius: '6px', fontFamily: SAIRA, fontSize: '11px', fontWeight: 900, color: p ? ratingColor(ovr(p)) : C.textGhost, lineHeight: '15px', border: '1px solid #1A1828' }}>
+                            <div style={{ position: 'absolute', bottom: -2, right: -6, background: 'rgba(0,0,0,0.88)', padding: '0 4px',fontFamily: SAIRA, fontSize: '11px', fontWeight: 900, color: p ? ratingColor(ovr(p)) : C.textGhost, lineHeight: '15px', border: '1px solid #1A1828' }}>
                               {p ? ovr(p) : '?'}
                             </div>
                           </div>

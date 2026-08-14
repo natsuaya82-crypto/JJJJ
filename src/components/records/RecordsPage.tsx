@@ -88,10 +88,10 @@ type EvKey = 'd5000' | 'd10000' | 'half' | 'marathon'
 const EV_KEY: Record<EvDist, EvKey> = { 5000: 'd5000', 10000: 'd10000', 21097: 'half', 42195: 'marathon' }
 function EventDistTabs({ value, onChange }: { value: EvDist; onChange: (d: EvDist) => void }) {
   return (
-    <div style={{ display: 'flex', gap: '2px', background: C.surface, borderRadius: '10px', padding: '3px', border: `1px solid ${C.border}`, margin: '4px 0 6px' }}>
+    <div style={{ display: 'flex', gap: '2px', background: C.surface,padding: '3px', border: `1px solid ${C.border}`, margin: '4px 0 6px' }}>
       {EV_DIST_TABS.map(({ dist, label }) => (
         <button key={dist} onClick={() => onChange(dist)} style={{
-          flex: 1, padding: '7px 0', border: 'none', cursor: 'pointer', borderRadius: '8px', fontFamily: SAIRA,
+          flex: 1, padding: '7px 0', border: 'none', cursor: 'pointer',fontFamily: SAIRA,
           fontSize: '11px', fontWeight: value === dist ? 700 : 400,
           background: value === dist ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})` : 'none',
           color: value === dist ? '#5EC8B8' : C.textDim,
@@ -117,10 +117,10 @@ function SectionSwitcher({ sections }: { sections: Section[] }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', gap: '2px', background: C.surface, borderRadius: '10px', padding: '3px', border: `1px solid ${C.border}`, margin: '0 0 10px' }}>
+      <div style={{ display: 'flex', gap: '2px', background: C.surface,padding: '3px', border: `1px solid ${C.border}`, margin: '0 0 10px' }}>
         {sections.map((s, k) => (
           <button key={s.label} onClick={() => setIdx(k)} style={{
-            flex: 1, padding: '8px 0', border: 'none', cursor: 'pointer', borderRadius: '8px', fontFamily: SAIRA,
+            flex: 1, padding: '8px 0', border: 'none', cursor: 'pointer',fontFamily: SAIRA,
             fontSize: '10px', fontWeight: i === k ? 700 : 400, whiteSpace: 'nowrap',
             background: i === k ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})` : 'none',
             color: i === k ? '#5EC8B8' : C.textDim,
@@ -297,7 +297,7 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
                     </span>
                     {isCurrent && (
                       <span style={{
-                        fontFamily: SAIRA, fontSize: '8px', padding: '1px 5px', borderRadius: '3px',
+                        fontFamily: SAIRA, fontSize: '8px', padding: '1px 5px',
                         background: alpha(C.gold, 0.12), color: C.gold, fontWeight: '700',
                       }}>進行中</span>
                     )}
@@ -347,7 +347,7 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
             return (
               <div key={row.id} {...(row.inRoster ? longPress(row.id) : {})} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: `1px solid ${C.border}`, cursor: row.inRoster ? 'pointer' : 'default' }}>
                 <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '900', color: rankCol, width: '18px', textAlign: 'center' }}>{i + 1}</span>
-                <div style={{ width: '28px', height: '28px', borderRadius: '7px', flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={row.id} nationality={row.nationality} size={28} /></div>
+                <div style={{ width: '28px', height: '28px',flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={row.id} nationality={row.nationality} size={28} /></div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{row.name}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, minWidth: 0 }}>
@@ -405,11 +405,11 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
           <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textGhost, padding: '10px 0' }}>まだ記録なし — 自チームで現役を終えた選手がここに並ぶ</div>
         ) : myLegends.map(p => (
           <div key={p.id} {...longPress(p.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: `1px solid ${C.border}`, cursor: 'pointer' }}>
-            <div style={{ width: '28px', height: '28px', borderRadius: '7px', flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={p.id} nationality={p.nationality} size={28} /></div>
+            <div style={{ width: '28px', height: '28px',flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={p.id} nationality={p.nationality} size={28} /></div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                 <span style={{ fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{p.name}</span>
-                <span style={{ fontFamily: SAIRA, fontSize: '8px', padding: '1px 4px', borderRadius: 3, background: alpha(C.textGhost, 0.12), color: C.textGhost }}>引退</span>
+                <span style={{ fontFamily: SAIRA, fontSize: '8px', padding: '1px 4px',background: alpha(C.textGhost, 0.12), color: C.textGhost }}>引退</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, minWidth: 0 }}>
                 {myTeam && <TeamLogoSVG primary={myTeam.colors.primary} secondary={myTeam.colors.secondary} shortName={myTeam.shortName} teamId={myTeam.id} size={12} />}
@@ -509,11 +509,11 @@ function PlayersTab({ players, teams, foreignLeagues, currentSeason, pastSeasons
     return (
       <div {...longPress(p.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: `1px solid ${C.border}`, cursor: 'pointer' }}>
         <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: '900', color: rankCol, width: '18px', textAlign: 'center', textShadow: i <= 2 ? `0 0 6px ${alpha(rankCol, 0.5)}` : 'none' }}>{i + 1}</span>
-        <div style={{ width: '28px', height: '28px', borderRadius: '7px', flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={p.id} nationality={p.nationality} size={28} /></div>
+        <div style={{ width: '28px', height: '28px',flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={p.id} nationality={p.nationality} size={28} /></div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <span style={{ fontFamily: SAIRA, fontSize: '12px', color: C.text }}>{p.name}</span>
-            {isRetired && <span style={{ fontFamily: SAIRA, fontSize: '8px', padding: '1px 4px', borderRadius: 3, background: alpha(C.textGhost, 0.12), color: C.textGhost }}>引退</span>}
+            {isRetired && <span style={{ fontFamily: SAIRA, fontSize: '8px', padding: '1px 4px',background: alpha(C.textGhost, 0.12), color: C.textGhost }}>引退</span>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, minWidth: 0 }}>
             {team && <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={12} />}
@@ -600,8 +600,8 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
             <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim, marginTop: '2px' }}>/ 100点</div>
           </div>
         </div>
-        <div style={{ height: '8px', background: C.surface, borderRadius: '4px', overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${gmRep}%`, background: `linear-gradient(90deg, ${alpha(repColor, 0.55)}, ${repColor})`, borderRadius: '4px', transition: 'width 0.4s' }}/>
+        <div style={{ height: '8px', background: C.surface,overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${gmRep}%`, background: `linear-gradient(90deg, ${alpha(repColor, 0.55)}, ${repColor})`,transition: 'width 0.4s' }}/>
         </div>
       </CardPanel>
   )
@@ -615,7 +615,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
             { label: '優勝回数', value: `${championships}回`, color: championships > 0 ? C.gold : C.textDim },
             { label: '最高順位', value: bestRank <= 10 ? `${bestRank}位` : '—', color: bestRank === 1 ? C.gold : bestRank <= 3 ? C.green : C.textSub },
           ].map(({ label, value, color }) => (
-            <div key={label} style={{ padding: '10px 8px', borderRadius: '10px', background: C.surface, border: `1px solid ${C.border}`, textAlign: 'center' }}>
+            <div key={label} style={{ padding: '10px 8px',background: C.surface, border: `1px solid ${C.border}`, textAlign: 'center' }}>
               <div style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textDim, marginBottom: '4px' }}>{label}</div>
               <div style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color, lineHeight: 1, textShadow: color !== C.textDim && color !== C.textSub ? `0 0 8px ${alpha(color, 0.4)}` : 'none' }}>{value}</div>
             </div>
@@ -726,7 +726,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
                 return (
                   <div key={e.year} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
                     <div style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textDim }}>{e.avg}</div>
-                    <div style={{ width: '100%', height: `${h}px`, background: alpha(teamPrimary, 0.22), border: `1px solid ${alpha(teamPrimary, 0.45)}`, borderRadius: '2px' }}/>
+                    <div style={{ width: '100%', height: `${h}px`, background: alpha(teamPrimary, 0.22), border: `1px solid ${alpha(teamPrimary, 0.45)}`,}}/>
                     <div style={{ fontFamily: SAIRA, fontSize: '7px', color: C.textGhost }}>{String(e.year).slice(2)}</div>
                   </div>
                 )
@@ -760,7 +760,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
             <SectionLabel>通算成績</SectionLabel>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
               {tiles.map(t => (
-                <div key={t.label} style={{ padding: '10px 8px', borderRadius: '10px', background: C.surface, border: `1px solid ${C.border}`, textAlign: 'center' }}>
+                <div key={t.label} style={{ padding: '10px 8px',background: C.surface, border: `1px solid ${C.border}`, textAlign: 'center' }}>
                   <div style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textDim, marginBottom: '4px' }}>{t.label}</div>
                   <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '2px' }}>
                     <span style={{ fontFamily: SAIRA, fontSize: '20px', fontWeight: '900', color: t.color, lineHeight: 1, textShadow: t.color !== C.textDim && t.color !== C.textSub ? `0 0 8px ${alpha(t.color, 0.4)}` : 'none' }}>{t.value}</span>
@@ -774,8 +774,8 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
                 <span style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>勝率</span>
                 <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: C.gold }}>{winRate}<span style={{ fontSize: '9px', color: C.textDim }}>%</span></span>
               </div>
-              <div style={{ height: '7px', background: C.surface, borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${winRate}%`, background: `linear-gradient(90deg, ${alpha(C.gold, 0.55)}, ${C.gold})`, borderRadius: '4px' }}/>
+              <div style={{ height: '7px', background: C.surface,overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${winRate}%`, background: `linear-gradient(90deg, ${alpha(C.gold, 0.55)}, ${C.gold})`,}}/>
               </div>
               <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim, marginTop: '8px', textAlign: 'right' }}>通算獲得ポイント {totalPts}pt</div>
             </div>

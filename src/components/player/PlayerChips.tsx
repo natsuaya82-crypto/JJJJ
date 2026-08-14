@@ -33,7 +33,6 @@ const SIZES: Record<Size, { fontSize: number; padding: string }> = {
 function chipStyle(color: string, size: Size = 'md'): CSSProperties {
   return {
     ...SIZES[size],
-    borderRadius: 4,
     backgroundColor: alpha(color, 0.08),
     border: `1px solid ${alpha(color, 0.25)}`,
     color,

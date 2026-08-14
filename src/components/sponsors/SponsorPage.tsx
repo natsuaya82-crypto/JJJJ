@@ -45,7 +45,7 @@ export default function SponsorPage() {
   const slotsLeft = MAX_SPONSORS - activeSponsors.length
 
   const LogoBox = ({ color, size = 36 }: { color: string; size?: number }) => (
-    <div style={{ width: size, height: size, borderRadius: size * 0.25, flexShrink: 0, background: alpha(color, 0.15), border: `1px solid ${alpha(color, 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ width: size, height: size, flexShrink: 0, background: alpha(color, 0.15), border: `1px solid ${alpha(color, 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <svg width={size * 0.55} height={size * 0.55} viewBox="0 0 24 24" fill="none">
         <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke={color} strokeWidth="1.8" strokeLinejoin="round"/>
       </svg>
@@ -92,7 +92,7 @@ export default function SponsorPage() {
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
                       <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.text }}>{sp.name}</span>
-                      <span style={{ fontFamily: SAIRA, fontSize: 8, padding: '1px 5px', borderRadius: 5, background: alpha(col, 0.18), color: col, fontWeight: 800 }}>{TIER_LABEL[sp.tier]}</span>
+                      <span style={{ fontFamily: SAIRA, fontSize: 8, padding: '1px 5px',background: alpha(col, 0.18), color: col, fontWeight: 800 }}>{TIER_LABEL[sp.tier]}</span>
                     </div>
                     {sp.target && (
                       <div style={{ fontSize: 10, color: C.textDim }}>
@@ -125,7 +125,7 @@ export default function SponsorPage() {
 
                 <button
                   onClick={() => terminateSponsor(sp.id, null)}
-                  style={{ marginTop: 8, padding: '5px 10px', borderRadius: 7, border: `1px solid ${alpha(C.red, 0.28)}`, background: alpha(C.red, 0.08), color: C.red, fontSize: 9, cursor: 'pointer', fontFamily: SAIRA }}
+                  style={{ marginTop: 8, padding: '5px 10px',border: `1px solid ${alpha(C.red, 0.28)}`, background: alpha(C.red, 0.08), color: C.red, fontSize: 9, cursor: 'pointer', fontFamily: SAIRA }}
                 >
                   契約解除
                 </button>
@@ -138,7 +138,7 @@ export default function SponsorPage() {
       {tab === 'offers' && (
         <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {slotsLeft === 0 && (
-            <div style={{ padding: '8px 12px', borderRadius: 8, background: alpha(C.orange, 0.08), border: `1px solid ${alpha(C.orange, 0.3)}`, fontSize: 11, color: C.orange, textAlign: 'center' }}>
+            <div style={{ padding: '8px 12px',background: alpha(C.orange, 0.08), border: `1px solid ${alpha(C.orange, 0.3)}`, fontSize: 11, color: C.orange, textAlign: 'center' }}>
               契約数が上限（3社）です。既存契約を解除してから受諾できます。
             </div>
           )}
@@ -157,7 +157,7 @@ export default function SponsorPage() {
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
                       <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 800, color: C.text }}>{offer.name}</span>
-                      <span style={{ fontFamily: SAIRA, fontSize: 8, padding: '1px 5px', borderRadius: 5, background: alpha(col, 0.18), color: col, fontWeight: 800 }}>{TIER_LABEL[offer.tier]}</span>
+                      <span style={{ fontFamily: SAIRA, fontSize: 8, padding: '1px 5px',background: alpha(col, 0.18), color: col, fontWeight: 800 }}>{TIER_LABEL[offer.tier]}</span>
                     </div>
                     <div style={{ fontSize: 10, color: C.textDim }}>
                       目標: <span style={{ color: C.textSub }}>{targetText(offer.target)}</span>

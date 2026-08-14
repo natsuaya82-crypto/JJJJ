@@ -218,7 +218,7 @@ export default function RacePanel({
           <div style={{ fontSize: 15, fontWeight: 900, color: C.text, marginTop: 4 }}>{course.name}</div>
         </div>
 
-        <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+        <div style={{overflow: 'hidden', border: `1px solid ${C.border}` }}>
           {payload.standings.map(s => {
             const t = teamMap.get(s.teamId)
             const isMe = s.teamId === meId
@@ -283,21 +283,21 @@ export default function RacePanel({
           <span style={{ fontSize: 13, fontWeight: 700, color: C.text, flex: 1 }}>{course.name}</span>
           <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>R{raceNo}/{totalRaces}・{segData?.segmentIndex}/{payload.segments.length}区</span>
         </div>
-        <div style={{ height: 3, backgroundColor: C.border2, borderRadius: 2, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${(pos / payload.segments.length) * 100}%`, background: `linear-gradient(90deg, ${C.red}, ${C.gold})`, borderRadius: 2 }} />
+        <div style={{ height: 3, backgroundColor: C.border2,overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${(pos / payload.segments.length) * 100}%`, background: `linear-gradient(90deg, ${C.red}, ${C.gold})`,}} />
         </div>
       </div>
 
       {stage === 'track' && seg && (<>
         <div style={{ padding: '10px 12px 0', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
           <button onClick={() => setPaused(v => !v)} style={{
-            padding: '8px 16px', borderRadius: 10, cursor: 'pointer',
+            padding: '8px 16px',cursor: 'pointer',
             background: paused ? `linear-gradient(180deg, ${C.gold}, ${alpha(C.gold, 0.7)})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
             border: `1px solid ${paused ? C.gold : C.border2}`, color: paused ? C.bg : C.textSub,
             fontFamily: SAIRA, fontSize: 12, fontWeight: 700,
           }}>{paused ? '再生' : '一時停止'}</button>
           <button onClick={() => { cancelAnimationFrame(rafRef.current); setKmRatio(1); setStage('segresult') }} style={{
-            padding: '8px 16px', borderRadius: 10, cursor: 'pointer',
+            padding: '8px 16px',cursor: 'pointer',
             background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
             border: `1px solid ${C.border2}`, color: C.textSub,
             fontFamily: SAIRA, fontSize: 12, fontWeight: 700,
@@ -342,7 +342,7 @@ export default function RacePanel({
           }}
         />
 
-        <div style={{ margin: '12px 12px 0', borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+        <div style={{ margin: '12px 12px 0',overflow: 'hidden', border: `1px solid ${C.border}` }}>
           <div style={{ padding: '7px 12px', backgroundColor: C.surface2, borderBottom: `1px solid ${C.border}` }}>
             <span style={{ fontFamily: SAIRA, fontSize: 9, color: C.textDim, letterSpacing: 2 }}>暫定順位</span>
           </div>

@@ -60,11 +60,11 @@ export default function DraftHistoryPage() {
               return (
                 <div key={p.id} {...lp(p.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 0', borderBottom: i < list.length - 1 ? `1px solid ${C.border}` : 'none', cursor: 'pointer', opacity: isRetired ? 0.6 : 1 }}>
                   <span style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: 900, color: overall === 1 ? C.gold : overall <= 3 ? C.green : C.textSub, width: '32px', textAlign: 'center', flexShrink: 0 }}>{overall}<span style={{ fontSize: 8, color: C.textDim, fontWeight: 700 }}>位</span></span>
-                  <div style={{ width: '30px', height: '30px', borderRadius: '8px', flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={p.id} nationality={p.nationality} size={30} /></div>
+                  <div style={{ width: '30px', height: '30px',flexShrink: 0, overflow: 'hidden' }}><PlayerFace playerId={p.id} nationality={p.nationality} size={30} /></div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                       <span style={{ fontFamily: SAIRA, fontSize: '13px', color: C.text }}>{p.name}</span>
-                      {isRetired && <span style={{ fontFamily: SAIRA, fontSize: '8px', padding: '1px 4px', borderRadius: 3, background: alpha(C.textGhost, 0.12), color: C.textGhost }}>引退</span>}
+                      {isRetired && <span style={{ fontFamily: SAIRA, fontSize: '8px', padding: '1px 4px',background: alpha(C.textGhost, 0.12), color: C.textGhost }}>引退</span>}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1, minWidth: 0 }}>
                       {team && <TeamLogoSVG primary={team.colors.primary} secondary={team.colors.secondary} shortName={team.shortName} teamId={team.id} size={12} />}
@@ -103,7 +103,7 @@ export default function DraftHistoryPage() {
               justifyContent: 'flex-start', gap: 12, textAlign: 'left', padding: '14px 16px', color: C.text,
             }} onClick={() => navigate(`/records/draft/${y}`)}>
               <span style={{ fontFamily: SAIRA, fontSize: 22, fontWeight: 900, color: C.gold, lineHeight: 1 }}>{y}<span style={{ fontSize: 11, color: C.textDim, fontWeight: 700, marginLeft: 2 }}>年度</span></span>
-              <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim, padding: '2px 8px', borderRadius: 10, background: alpha(C.gold, 0.12) }}>{count}名</span>
+              <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim, padding: '2px 8px',background: alpha(C.gold, 0.12) }}>{count}名</span>
               <span style={{ marginLeft: 'auto', color: C.textGhost, fontSize: 18 }}>›</span>
             </GlassButton>
           )

@@ -29,9 +29,9 @@ const EMPTY_IDS: string[] = []
 function SectionHead({ label, color, count }: { label: string; color: string; count: number }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '14px 20px 8px' }}>
-      <div style={{ width: '3px', height: '16px', borderRadius: '2px', background: color, flexShrink: 0 }}/>
+      <div style={{ width: '3px', height: '16px',background: color, flexShrink: 0 }}/>
       <span style={{ fontFamily: SAIRA, fontSize: '11px', fontWeight: '800', color, letterSpacing: '3px' }}>{label}</span>
-      <span style={{ fontFamily: SAIRA, fontSize: '10px', fontWeight: '800', padding: '1px 7px', borderRadius: '10px', background: alpha(color, 0.2), color }}>{count}</span>
+      <span style={{ fontFamily: SAIRA, fontSize: '10px', fontWeight: '800', padding: '1px 7px',background: alpha(color, 0.2), color }}>{count}</span>
     </div>
   )
 }
@@ -41,10 +41,10 @@ function FaceOvr({ playerId, nationality, pOvr, accentColor }: {
 }) {
   return (
     <div style={{ position: 'relative', flexShrink: 0 }}>
-      <div style={{ width: '42px', height: '42px', borderRadius: '10px', overflow: 'hidden', border: `1px solid ${alpha(accentColor, 0.35)}` }}>
+      <div style={{ width: '42px', height: '42px',overflow: 'hidden', border: `1px solid ${alpha(accentColor, 0.35)}` }}>
         <PlayerFace playerId={playerId} nationality={nationality as import('../../types').Nationality} size={42} />
       </div>
-      <div style={{ position: 'absolute', bottom: -1, right: -1, background: 'rgba(0,0,0,0.88)', padding: '0 3px', borderRadius: '5px 0 5px 0', fontFamily: SAIRA, fontSize: '10px', fontWeight: '900', color: ratingColor(pOvr), lineHeight: '14px' }}>
+      <div style={{ position: 'absolute', bottom: -1, right: -1, background: 'rgba(0,0,0,0.88)', padding: '0 3px',fontFamily: SAIRA, fontSize: '10px', fontWeight: '900', color: ratingColor(pOvr), lineHeight: '14px' }}>
         {pOvr}
       </div>
     </div>
@@ -89,7 +89,7 @@ function FeeCounterCard({ bid, player, targetTeamName, cardStyle, inset, onAccep
             </div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', padding: '8px 12px', borderRadius: '10px', background: alpha(counterRating.color, 0.07), border: `1px solid ${alpha(counterRating.color, 0.2)}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', padding: '8px 12px',background: alpha(counterRating.color, 0.07), border: `1px solid ${alpha(counterRating.color, 0.2)}` }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>提示額</div>
             <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '900', color: C.text }}>{fmtYen(bid.offeredFee)}</div>
@@ -99,7 +99,7 @@ function FeeCounterCard({ bid, player, targetTeamName, cardStyle, inset, onAccep
             <div style={{ fontFamily: SAIRA, fontSize: '10px', color: C.textDim }}>{bid.outbidBy ? '勝つのに必要' : '先方希望'}</div>
             <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '900', color: counterRating.color }}>{fmtYen(counterFee)}</div>
           </div>
-          <span style={{ fontFamily: SAIRA, fontSize: '11px', fontWeight: '700', color: counterRating.color, padding: '2px 7px', borderRadius: '6px', background: alpha(counterRating.color, 0.15), marginLeft: 4 }}>{counterRating.label}</span>
+          <span style={{ fontFamily: SAIRA, fontSize: '11px', fontWeight: '700', color: counterRating.color, padding: '2px 7px',background: alpha(counterRating.color, 0.15), marginLeft: 4 }}>{counterRating.label}</span>
         </div>
 
         {!dialOpen ? (
@@ -107,9 +107,9 @@ function FeeCounterCard({ bid, player, targetTeamName, cardStyle, inset, onAccep
             <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: C.bg }} onClick={onAccept}>{fmtYen(counterFee)}で合意する</Btn>
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => { setDialFee(counterFee || bid.offeredFee); setDialOpen(true) }}
-                style={{ flex: 1, padding: '11px', borderRadius: 10, border: `1.5px solid ${alpha(C.gold, 0.45)}`, backgroundColor: alpha(C.gold, 0.08), color: C.gold, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>金額を提示する</button>
+                style={{ flex: 1, padding: '11px',border: `1.5px solid ${alpha(C.gold, 0.45)}`, backgroundColor: alpha(C.gold, 0.08), color: C.gold, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>金額を提示する</button>
               <button onClick={onGiveUp}
-                style={{ flex: 1, padding: '11px', borderRadius: 10, border: `1.5px solid ${alpha(C.textSub, 0.4)}`, backgroundColor: alpha(C.textSub, 0.06), color: C.textSub, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>あきらめる</button>
+                style={{ flex: 1, padding: '11px',border: `1.5px solid ${alpha(C.textSub, 0.4)}`, backgroundColor: alpha(C.textSub, 0.06), color: C.textSub, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>あきらめる</button>
             </div>
           </div>
         ) : (
@@ -119,7 +119,7 @@ function FeeCounterCard({ bid, player, targetTeamName, cardStyle, inset, onAccep
             <div style={{ display: 'flex', gap: 8 }}>
               <Btn variant="primary" style={{ flex: 1, background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: C.bg }} onClick={() => onReoffer(dialFee)}>この額で再提示</Btn>
               <button onClick={() => setDialOpen(false)}
-                style={{ flex: 1, padding: '11px', borderRadius: 10, border: `1.5px solid ${alpha(C.textSub, 0.4)}`, backgroundColor: alpha(C.textSub, 0.06), color: C.textSub, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>戻る</button>
+                style={{ flex: 1, padding: '11px',border: `1.5px solid ${alpha(C.textSub, 0.4)}`, backgroundColor: alpha(C.textSub, 0.06), color: C.textSub, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>戻る</button>
             </div>
           </div>
         )}
@@ -202,7 +202,7 @@ export default function NotificationsPage() {
   })
 
   const inset: React.CSSProperties = {
-    position: 'absolute', inset: 4, border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, pointerEvents: 'none',
+    position: 'absolute', inset: 4, border: '1px solid rgba(255,255,255,0.06)',pointerEvents: 'none',
   }
 
   return (
@@ -237,7 +237,7 @@ export default function NotificationsPage() {
                         </div>
                       </div>
                       <div style={{ fontFamily: SAIRA, fontSize: '12px', color: C.textSub, lineHeight: 1.6, marginBottom: '10px' }}>{gift.message}</div>
-                      <div style={{ fontFamily: SAIRA, fontSize: '11px', fontWeight: '700', color: C.gold, marginBottom: '12px', padding: '6px 10px', borderRadius: '8px', background: alpha(C.gold, 0.1), border: `1px solid ${alpha(C.gold, 0.25)}` }}>{gift.jewels ? `ジュエル${gift.jewels}個` : `カード${gift.cards.length}枚`}</div>
+                      <div style={{ fontFamily: SAIRA, fontSize: '11px', fontWeight: '700', color: C.gold, marginBottom: '12px', padding: '6px 10px',background: alpha(C.gold, 0.1), border: `1px solid ${alpha(C.gold, 0.25)}` }}>{gift.jewels ? `ジュエル${gift.jewels}個` : `カード${gift.cards.length}枚`}</div>
                       <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.gold}, #FFD54F)`, color: '#111' }} onClick={() => { audio.playSe('reward'); setClaimedGift(gift); claimGift(gift.id) }}>受け取る</Btn>
                     </div>
                   </div>
@@ -300,7 +300,7 @@ export default function NotificationsPage() {
                         <div style={{ fontFamily: SAIRA, fontSize: '11px', color: C.textDim, marginBottom: '12px' }}>ロスター画面で確認できます。</div>
                         <div style={{ display: 'flex', gap: 8 }}>
                           <Btn variant="primary" style={{ flex: 1, background: `linear-gradient(135deg, ${C.cyan}, #4fc3f7)`, color: C.bg }} onClick={() => { dismissJoinNotice(key); navigate('/team/roster') }}>ロスターで確認</Btn>
-                          <button onClick={() => dismissJoinNotice(key)} style={{ flex: 'none', padding: '11px 16px', borderRadius: 10, border: `1.5px solid ${alpha(C.textSub, 0.4)}`, backgroundColor: alpha(C.textSub, 0.06), color: C.textSub, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>確認</button>
+                          <button onClick={() => dismissJoinNotice(key)} style={{ flex: 'none', padding: '11px 16px',border: `1.5px solid ${alpha(C.textSub, 0.4)}`, backgroundColor: alpha(C.textSub, 0.06), color: C.textSub, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>確認</button>
                         </div>
                       </div>
                     </div>
@@ -351,7 +351,7 @@ export default function NotificationsPage() {
                           { p: getP, tag: '獲得', col: C.green },
                           { p: giveP, tag: '放出', col: C.red },
                         ].map(({ p, tag, col }) => (
-                          <div key={p.id} {...longPress(p.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 8px', borderRadius: '10px', background: alpha(col, 0.06), border: `1px solid ${alpha(col, 0.2)}`, marginBottom: '6px', cursor: 'pointer' }}>
+                          <div key={p.id} {...longPress(p.id)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 8px',background: alpha(col, 0.06), border: `1px solid ${alpha(col, 0.2)}`, marginBottom: '6px', cursor: 'pointer' }}>
                             <span style={{ fontFamily: SAIRA, fontSize: '10px', fontWeight: '900', color: col, width: '26px', flexShrink: 0 }}>{tag}</span>
                             <FaceOvr playerId={p.id} nationality={p.nationality} pOvr={ovr(p)} accentColor={col} />
                             <div style={{ flex: 1, minWidth: 0 }}>
@@ -865,7 +865,7 @@ export default function NotificationsPage() {
             <div style={{ fontFamily: SAIRA, fontSize: 24, fontWeight: 900, color: C.gold, marginBottom: 12, textShadow: `0 0 20px ${alpha(C.gold, 0.6)}` }}>受け取りました！</div>
             <div style={{ fontSize: 13, color: C.textSub, marginBottom: 6 }}>{claimedGift.title}</div>
             <div style={{ fontSize: 12, color: C.textDim, marginBottom: 18 }}>{claimedGift.jewels ? `ジュエル${claimedGift.jewels}個を手に入れた` : `カード${claimedGift.cards.length}枚を手に入れた`}</div>
-            <button onClick={() => setClaimedGift(null)} style={{ width: '100%', padding: 13, borderRadius: 12, background: `linear-gradient(135deg, ${C.gold}, #FFD54F)`, border: 'none', color: '#111', fontFamily: SAIRA, fontSize: 14, fontWeight: 900, cursor: 'pointer' }}>OK</button>
+            <button onClick={() => setClaimedGift(null)} style={{ width: '100%', padding: 13,background: `linear-gradient(135deg, ${C.gold}, #FFD54F)`, border: 'none', color: '#111', fontFamily: SAIRA, fontSize: 14, fontWeight: 900, cursor: 'pointer' }}>OK</button>
           </div>
         </div>
       ), document.body)}

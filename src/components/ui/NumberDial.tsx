@@ -55,14 +55,14 @@ function DigitWheel({ digit, onChange, accent }: {
       onPointerUp={onPointerEnd}
       onPointerCancel={onPointerEnd}
       style={{
-        width: 34, height: ITEM_H * 3, borderRadius: 10, overflow: 'hidden', position: 'relative',
+        width: 34, height: ITEM_H * 3,overflow: 'hidden', position: 'relative',
         border: `1.5px solid ${C.border2}`,
         background: `linear-gradient(180deg, ${C.surface} 0%, ${C.surface3} 50%, ${C.surface} 100%)`,
         cursor: 'ns-resize', touchAction: 'none', userSelect: 'none', flexShrink: 0,
       }}
     >
       {/* 中央の選択枠 */}
-      <div style={{ position: 'absolute', top: ITEM_H, left: 2, right: 2, height: ITEM_H, borderRadius: 7, border: `1.5px solid ${alpha(accent, 0.55)}`, background: alpha(accent, 0.1), pointerEvents: 'none' }}/>
+      <div style={{ position: 'absolute', top: ITEM_H, left: 2, right: 2, height: ITEM_H,border: `1.5px solid ${alpha(accent, 0.55)}`, background: alpha(accent, 0.1), pointerEvents: 'none' }}/>
       {/* 上下のフェード */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: ITEM_H, background: `linear-gradient(180deg, ${C.surface} 15%, transparent)`, pointerEvents: 'none', zIndex: 2 }}/>
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: ITEM_H, background: `linear-gradient(0deg, ${C.surface} 15%, transparent)`, pointerEvents: 'none', zIndex: 2 }}/>

@@ -83,7 +83,7 @@ export default function Onboarding() {
           </div>
 
           <button onClick={() => setStep('team_select')} style={{
-            width: '100%', padding: '16px', borderRadius: '14px', border: 'none',
+            width: '100%', padding: '16px',border: 'none',
             background: 'linear-gradient(135deg, #C9A84C, #E8C86A)',
             color: '#0A0912', fontSize: '16px', fontWeight: '900',
             cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '1px',
@@ -148,7 +148,6 @@ export default function Onboarding() {
                           position: 'relative',
                           display: 'flex', alignItems: 'center', gap: '12px',
                           padding: '12px 14px',
-                          borderRadius: '14px',
                           marginBottom: '7px',
                           cursor: 'pointer',
                           overflow: 'hidden',
@@ -170,7 +169,6 @@ export default function Onboarding() {
                           background: selected
                             ? `linear-gradient(180deg, ${team.colors.primary}18 0%, transparent 100%)`
                             : 'linear-gradient(180deg, rgba(255,255,255,0.07) 0%, transparent 100%)',
-                          borderRadius: '13px 13px 50% 50%',
                           pointerEvents: 'none',
                         }}/>
 
@@ -225,7 +223,7 @@ export default function Onboarding() {
           {/* Team preview */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '28px',
-            padding: '16px', borderRadius: '16px',
+            padding: '16px',
             background: `linear-gradient(135deg, ${selectedTeam.colors.primary}25, #1A1828)`,
             border: `1px solid ${selectedTeam.colors.primary}40`,
           }}>
@@ -246,7 +244,7 @@ export default function Onboarding() {
               onClick={() => setLogoSheetOpen(true)}
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', gap: '12px',
-                padding: '10px 12px', borderRadius: '12px', cursor: 'pointer',
+                padding: '10px 12px',cursor: 'pointer',
                 backgroundColor: '#1E1B2E', border: '1px solid #2E2B42',
               }}
             >
@@ -272,7 +270,7 @@ export default function Onboarding() {
               maxLength={20}
               placeholder="例：福岡サザンクロス"
               style={{
-                width: '100%', padding: '14px 16px', borderRadius: '12px', border: 'none',
+                width: '100%', padding: '14px 16px',border: 'none',
                 backgroundColor: '#1E1B2E', color: '#F0EDE8', fontSize: '16px',
                 fontFamily: 'inherit', outline: 'none',
                 boxShadow: 'inset 0 0 0 1px #2E2B42',
@@ -293,7 +291,7 @@ export default function Onboarding() {
               maxLength={3}
               placeholder="例：福岡"
               style={{
-                width: '100%', padding: '14px 16px', borderRadius: '12px', border: 'none',
+                width: '100%', padding: '14px 16px',border: 'none',
                 backgroundColor: '#1E1B2E', color: '#F0EDE8', fontSize: '16px',
                 fontFamily: 'inherit', outline: 'none',
                 boxShadow: 'inset 0 0 0 1px #2E2B42',
@@ -315,7 +313,7 @@ export default function Onboarding() {
                 maxLength={10}
                 placeholder="例：九州"
                 style={{
-                  width: '100%', padding: '14px 16px', borderRadius: '12px', border: 'none',
+                  width: '100%', padding: '14px 16px',border: 'none',
                   backgroundColor: '#1E1B2E', color: '#F0EDE8', fontSize: '16px',
                   fontFamily: 'inherit', outline: 'none',
                   boxShadow: 'inset 0 0 0 1px #2E2B42',
@@ -334,7 +332,7 @@ export default function Onboarding() {
                 maxLength={12}
                 placeholder="例：福岡"
                 style={{
-                  width: '100%', padding: '14px 16px', borderRadius: '12px', border: 'none',
+                  width: '100%', padding: '14px 16px',border: 'none',
                   backgroundColor: '#1E1B2E', color: '#F0EDE8', fontSize: '16px',
                   fontFamily: 'inherit', outline: 'none',
                   boxShadow: 'inset 0 0 0 1px #2E2B42',
@@ -356,7 +354,7 @@ export default function Onboarding() {
               maxLength={15}
               placeholder="例：山田"
               style={{
-                width: '100%', padding: '14px 16px', borderRadius: '12px', border: 'none',
+                width: '100%', padding: '14px 16px',border: 'none',
                 backgroundColor: '#1E1B2E', color: '#F0EDE8', fontSize: '16px',
                 fontFamily: 'inherit', outline: 'none',
                 boxShadow: 'inset 0 0 0 1px #2E2B42',
@@ -366,12 +364,12 @@ export default function Onboarding() {
           </div>
 
           {nameError && (
-            <div style={{ fontSize: '12px', color: '#E8462A', marginBottom: '12px', padding: '8px 12px', borderRadius: '8px', backgroundColor: '#E8462A15' }}>
+            <div style={{ fontSize: '12px', color: '#E8462A', marginBottom: '12px', padding: '8px 12px',backgroundColor: '#E8462A15' }}>
               {nameError}
             </div>
           )}
 
-          <div style={{ fontSize: '11px', color: '#5C5870', marginBottom: '32px', padding: '10px 12px', borderRadius: '8px', backgroundColor: '#1A1828', border: '1px solid #2E2B42' }}>
+          <div style={{ fontSize: '11px', color: '#5C5870', marginBottom: '32px', padding: '10px 12px',backgroundColor: '#1A1828', border: '1px solid #2E2B42' }}>
             初年度のドラフトは<b style={{ color: '#C9A84C' }}>見学</b>です。<br/>
             代わりに、あとで選手を1人つくって加入させられます。<br/>
             指名に参加できるのは2年目からです。

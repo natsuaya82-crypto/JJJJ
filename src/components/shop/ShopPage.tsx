@@ -67,7 +67,6 @@ function ConfirmModal({ item, jewels, onConfirm, onCancel }: {
         width: '100%', maxWidth: 360,
         background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
         border: `2px solid ${alpha(col, 0.5)}`,
-        borderRadius: 18,
         boxShadow: `0 0 40px ${alpha(col, 0.2)}, 0 8px 32px rgba(0,0,0,0.6)`,
         padding: '22px 20px 18px',
       }} onClick={e => e.stopPropagation()}>
@@ -101,7 +100,7 @@ function ConfirmModal({ item, jewels, onConfirm, onCancel }: {
         {/* Price breakdown */}
         <div style={{
           background: alpha(C.bg, 0.6), border: `1px solid ${C.border}`,
-          borderRadius: 10, padding: '10px 14px', marginBottom: 16,
+padding: '10px 14px', marginBottom: 16,
           display: 'flex', flexDirection: 'column', gap: 6,
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -130,7 +129,7 @@ function ConfirmModal({ item, jewels, onConfirm, onCancel }: {
 
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={onCancel} style={{
-            flex: 1, padding: '11px', borderRadius: 10,
+            flex: 1, padding: '11px',
             background: C.surface, border: `1px solid ${C.border}`,
             color: C.textDim, fontSize: 13, fontWeight: 700,
             cursor: 'pointer', fontFamily: SAIRA,
@@ -161,7 +160,6 @@ function ResultModal({ cards, onClose }: { cards: TrainingCard[]; onClose: () =>
         width: '100%', maxWidth: 360,
         background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
         border: `2px solid ${alpha(col, 0.5)}`,
-        borderRadius: 18,
         boxShadow: `0 0 40px ${alpha(col, 0.15)}, 0 8px 32px rgba(0,0,0,0.6)`,
         padding: '20px 18px 16px',
       }} onClick={e => e.stopPropagation()}>
@@ -177,7 +175,7 @@ function ResultModal({ cards, onClose }: { cards: TrainingCard[]; onClose: () =>
             return (
               <div key={card.id} style={{
                 display: 'flex', alignItems: 'center', gap: 10,
-                padding: '8px 12px', borderRadius: 10,
+                padding: '8px 12px',
                 background: alpha(c, 0.07), border: `1px solid ${alpha(c, 0.25)}`,
               }}>
                 <div style={{ filter: `drop-shadow(0 0 5px ${alpha(c, 0.5)})` }}>
@@ -189,7 +187,7 @@ function ResultModal({ cards, onClose }: { cards: TrainingCard[]; onClose: () =>
                   </span>
                 </div>
                 <span style={{
-                  fontSize: 9, padding: '1px 6px', borderRadius: 5, fontWeight: 800,
+                  fontSize: 9, padding: '1px 6px',fontWeight: 800,
                   background: alpha(c, 0.18), color: c, border: `1px solid ${alpha(c, 0.35)}`,
                 }}>
                   {RARITY_LABELS[card.rarity]}
@@ -268,7 +266,7 @@ export default function ShopPage() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
                     <span style={{ fontSize: 15, fontWeight: 900, color: C.text }}>{item.labelJP}</span>
-                    <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 5, background: alpha(col, 0.18), color: col, fontWeight: 800, border: `1px solid ${alpha(col, 0.35)}` }}>
+                    <span style={{ fontSize: 9, padding: '1px 6px',background: alpha(col, 0.18), color: col, fontWeight: 800, border: `1px solid ${alpha(col, 0.35)}` }}>
                       {RARITY_LABELS[item.rarity]}
                     </span>
                   </div>

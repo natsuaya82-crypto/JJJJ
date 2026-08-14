@@ -241,7 +241,7 @@ export default function BudgetPage() {
                   cursor: 'pointer',
                 }}
               >
-                <div style={{ width: 30, height: 30, borderRadius: 7, overflow: 'hidden', border: `1px solid ${C.border2}`, flexShrink: 0 }}>
+                <div style={{ width: 30, height: 30,overflow: 'hidden', border: `1px solid ${C.border2}`, flexShrink: 0 }}>
                   <PlayerFace playerId={p.id} nationality={p.nationality} size={30} />
                 </div>
                 <div style={{ flex: 1 }}>

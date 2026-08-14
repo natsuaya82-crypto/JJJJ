@@ -69,7 +69,7 @@ export default function StampLayer({ feed }: { feed: StampPayload | null }) {
             // 選手スタンプ：顔＋名前＋応援の言葉
             <div style={{
               display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px 5px 5px',
-              borderRadius: 999, background: alpha('#0b1626', 0.92),
+background: alpha('#0b1626', 0.92),
               border: `1.5px solid ${alpha(C.gold, 0.55)}`,
               boxShadow: `0 4px 14px rgba(0,0,0,0.5)`,
             }}>

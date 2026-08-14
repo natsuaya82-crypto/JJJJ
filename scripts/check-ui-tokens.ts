@@ -251,5 +251,27 @@ console.log('\n⑦ 見出し（戻る＋タイトル）を画面で手書きし�
   }
 }
 
+console.log('\n⑧ 角を丸めていない（丸いのは顔・ロゴ・点だけ）')
+{
+  // 角丸はアプリ全体でやめている（オーナー・2026-08-13「角丸全部やめて」）。
+  // 形は「右下だけ斜めに切る」（ui/Panel・PlayerRow・メニュー行）で出す。
+  // ★丸くていいのは**丸いことに意味がある物**だけ＝`50%`（顔・ロゴ・状態の点）と、
+  //   細い棒の端（CSS の 2px）。それ以外は1件でも落とす。
+  //   2026-08-13 に 675 → 0 件（`R` トークンごと廃止）。
+  const hits: string[] = []
+  for (const f of files.filter(f => f.startsWith('src/components') && f.endsWith('.tsx'))) {
+    const code = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+    code.split('\n').forEach((l, i) => {
+      for (const m of l.matchAll(/borderRadius:\s*([^,}\n]+)/g)) {
+        if (/%/.test(m[1])) continue      // 50% は丸い物
+        hits.push(`${f}:${i + 1} ${m[0].trim().slice(0, 60)}`)
+      }
+    })
+  }
+  check('画面で角を丸めていない', hits.length === 0,
+    hits.slice(0, 10).join('\n      ') + (hits.length > 10 ? `\n      …ほか${hits.length - 10}件` : '') +
+    '\n      → 角丸はやめました。形は ui/Panel（右下だけ斜めに切る）で出すこと')
+}
+
 console.log(failed === 0 ? '\n  → OK\n' : `\n  → NG ${failed}件\n`)
 process.exit(failed === 0 ? 0 : 1)

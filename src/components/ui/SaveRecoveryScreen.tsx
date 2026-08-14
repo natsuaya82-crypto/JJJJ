@@ -50,7 +50,7 @@ export default function SaveRecoveryScreen({ reason }: { reason?: string } = {})
       textAlign: 'center', gap: 14,
     }}>
       <div style={{
-        width: 56, height: 56, borderRadius: 16, flexShrink: 0,
+        width: 56, height: 56,flexShrink: 0,
         background: alpha(C.gold, 0.12), border: `1.5px solid ${alpha(C.gold, 0.45)}`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 28, fontWeight: 900, color: C.gold, fontFamily: SAIRA,

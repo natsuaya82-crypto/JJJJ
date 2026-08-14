@@ -205,7 +205,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           {raceInProgress ? null : (<>
           <button
             onClick={() => navigate('/jewels')}
-            style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'linear-gradient(135deg, #0f2240 0%, #0a1729 100%)', border: `1px solid ${alpha('#6dd5fa', 0.3)}`, borderRadius: '20px', padding: '5px 6px 5px 7px', margin: '0 4px', cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'linear-gradient(135deg, #0f2240 0%, #0a1729 100%)', border: `1px solid ${alpha('#6dd5fa', 0.3)}`,padding: '5px 6px 5px 7px', margin: '0 4px', cursor: 'pointer' }}
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
               <path d="M12 2l8.66 5v10L12 22l-8.66-5V7L12 2z" fill="url(#jg)" stroke="#4ab8ea" strokeWidth="1.2" strokeLinejoin="round"/>
@@ -260,9 +260,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               transition: 'color 0.15s ease',
             }}
           >
-            <span style={{ display: 'block', width: '18px', height: '2px', backgroundColor: 'currentColor', borderRadius: '1px', transition: 'transform 0.15s ease', transform: menuOpen ? 'rotate(45deg) translate(4px, 4px)' : 'none' }}/>
-            <span style={{ display: 'block', width: '18px', height: '2px', backgroundColor: 'currentColor', borderRadius: '1px', transition: 'opacity 0.15s ease', opacity: menuOpen ? 0 : 1 }}/>
-            <span style={{ display: 'block', width: '18px', height: '2px', backgroundColor: 'currentColor', borderRadius: '1px', transition: 'transform 0.15s ease', transform: menuOpen ? 'rotate(-45deg) translate(4px, -4px)' : 'none' }}/>
+            <span style={{ display: 'block', width: '18px', height: '2px', backgroundColor: 'currentColor',transition: 'transform 0.15s ease', transform: menuOpen ? 'rotate(45deg) translate(4px, 4px)' : 'none' }}/>
+            <span style={{ display: 'block', width: '18px', height: '2px', backgroundColor: 'currentColor',transition: 'opacity 0.15s ease', opacity: menuOpen ? 0 : 1 }}/>
+            <span style={{ display: 'block', width: '18px', height: '2px', backgroundColor: 'currentColor',transition: 'transform 0.15s ease', transform: menuOpen ? 'rotate(-45deg) translate(4px, -4px)' : 'none' }}/>
           </button>
           </>)}
         </div>
@@ -274,7 +274,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 45 }}/>
           <div style={{
             position: 'fixed', top: `calc(${HEADER_H}px + env(safe-area-inset-top))`, right: 'max(8px, calc(50% - 232px))', zIndex: 46,
-            backgroundColor: C.surface, border: `1px solid ${C.border2}`, borderRadius: '14px',
+            backgroundColor: C.surface, border: `1px solid ${C.border2}`,
             minWidth: '180px', overflow: 'hidden',
             boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
           }}>
@@ -322,7 +322,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         left: NAV_FLOAT, right: NAV_FLOAT, margin: '0 auto',
         width: `calc(100% - ${NAV_FLOAT * 2}px)`, maxWidth: 480 - NAV_FLOAT * 2,
         height: `${NAV_H}px`,
-        borderRadius: 22,
         // スモークガラス。**後ろが透けること**が大事なので塗りを濃くしない
         background: 'linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 100%)',
         backdropFilter: 'blur(14px) saturate(118%)',
@@ -356,7 +355,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             >
               {/* 選んでいるものだけ、光が閉じ込められた小さなガラス */}
               <div style={{
-                width: 46, height: 28, borderRadius: 14,
+                width: 46, height: 28,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 background: active
                   ? `linear-gradient(180deg, ${alpha(C.cyan, 0.24)} 0%, ${alpha(C.cyan, 0.09)} 100%)`

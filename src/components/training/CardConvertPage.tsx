@@ -44,7 +44,7 @@ export default function CardConvertPage() {
       </div>
 
       {lastResult && (
-        <div style={{ margin: '0 14px 12px', padding: '10px 14px', borderRadius: 12, textAlign: 'center', background: alpha(RARITY_COLORS[lastResult.to], 0.12), border: `1px solid ${alpha(RARITY_COLORS[lastResult.to], 0.45)}`, fontSize: 12, fontWeight: 800, color: RARITY_COLORS[lastResult.to] }}>
+        <div style={{ margin: '0 14px 12px', padding: '10px 14px',textAlign: 'center', background: alpha(RARITY_COLORS[lastResult.to], 0.12), border: `1px solid ${alpha(RARITY_COLORS[lastResult.to], 0.45)}`, fontSize: 12, fontWeight: 800, color: RARITY_COLORS[lastResult.to] }}>
           {RARITY_LABELS[lastResult.to]}カードを{lastResult.n}枚獲得しました
         </div>
       )}
@@ -85,7 +85,7 @@ export default function CardConvertPage() {
                 className={bundles > 0 ? 'btn-game btn-game--gold' : undefined}
                 style={bundles > 0
                   ? { width: '100%', padding: '12px', fontFamily: SAIRA, fontSize: 13, fontWeight: 800 }
-                  : { width: '100%', padding: '12px', borderRadius: 12, background: C.surface2, border: `1px solid ${C.border2}`, color: C.textGhost, fontFamily: SAIRA, fontSize: 12, fontWeight: 700, cursor: 'not-allowed' }}
+                  : { width: '100%', padding: '12px',background: C.surface2, border: `1px solid ${C.border2}`, color: C.textGhost, fontFamily: SAIRA, fontSize: 12, fontWeight: 700, cursor: 'not-allowed' }}
               >
                 {bundles > 0
                   ? `まとめて変換（${bundles * ex.need}枚 → ${bundles * ex.produce}枚）`
@@ -112,7 +112,7 @@ export default function CardConvertPage() {
           return (
             <div key={`rest_${ex.fromRarity}`} style={{
               display: 'flex', alignItems: 'center', gap: 10,
-              borderRadius: 14, padding: '10px 12px',
+padding: '10px 12px',
               background: C.surface2, border: `1px solid ${alpha(col, bundles > 0 ? 0.45 : 0.18)}`,
             }}>
               <TrainingCardSVG statKey="recovery" rarity={ex.fromRarity} kind="rest" width={36} />
@@ -124,8 +124,8 @@ export default function CardConvertPage() {
                 onClick={() => bundles > 0 && setConfirming({ ex, statKey: STAT_KEYS[0] })}
                 disabled={bundles === 0}
                 style={bundles > 0
-                  ? { padding: '9px 14px', borderRadius: 11, background: alpha(col, 0.16), border: `2px solid ${alpha(col, 0.55)}`, color: col, fontFamily: SAIRA, fontSize: 12, fontWeight: 800, cursor: 'pointer' }
-                  : { padding: '9px 14px', borderRadius: 11, background: 'transparent', border: `1px solid ${C.border2}`, color: C.textGhost, fontFamily: SAIRA, fontSize: 11, fontWeight: 700, cursor: 'not-allowed' }}
+                  ? { padding: '9px 14px',background: alpha(col, 0.16), border: `2px solid ${alpha(col, 0.55)}`, color: col, fontFamily: SAIRA, fontSize: 12, fontWeight: 800, cursor: 'pointer' }
+                  : { padding: '9px 14px',background: 'transparent', border: `1px solid ${C.border2}`, color: C.textGhost, fontFamily: SAIRA, fontSize: 11, fontWeight: 700, cursor: 'not-allowed' }}
               >
                 {bundles > 0 ? `交換（${bundles}枚ぶん）` : `あと${ex.need - count % ex.need}枚`}
               </button>

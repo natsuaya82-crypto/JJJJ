@@ -28,7 +28,7 @@ const OVERLAY_BG = C.bg
 const CARD: React.CSSProperties = {
   background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
   border: `1px solid ${alpha(C.gold, 0.14)}`,
-  borderRadius: 14, overflow: 'hidden',
+overflow: 'hidden',
 }
 
 // ── アイコン ──
@@ -54,7 +54,7 @@ function SettingRow({ icon, label, sub, onClick, danger }: {
       className="btn-press"
       style={{
         width: '100%', display: 'flex', alignItems: 'center', gap: 13,
-        padding: '13px 14px', marginBottom: 10, borderRadius: 14,
+        padding: '13px 14px', marginBottom: 10,
         background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
         border: `1px solid ${alpha(accent, 0.16)}`,
         boxShadow: '0 2px 10px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.04)',
@@ -62,7 +62,7 @@ function SettingRow({ icon, label, sub, onClick, danger }: {
       }}
     >
       <div style={{
-        width: 40, height: 40, borderRadius: 12, flexShrink: 0,
+        width: 40, height: 40,flexShrink: 0,
         background: `linear-gradient(180deg, ${alpha(accent, 0.22)} 0%, ${alpha(accent, 0.06)} 100%)`,
         border: `1px solid ${alpha(accent, 0.3)}`,
         color: accent, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -153,7 +153,7 @@ function BlockedScreen({ onClose }: { onClose: () => void }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {rows.map(u => (
             <div key={u.id} style={{
-              display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 12,
+              display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px',
               background: C.surface2, border: `1px solid ${C.border2}`,
             }}>
               <TeamLogoSVG primary={u.primary} secondary={u.secondary} shortName={u.shortName} logoId={u.logoId} size={38} />
@@ -168,7 +168,7 @@ function BlockedScreen({ onClose }: { onClose: () => void }) {
                 disabled={busy === u.id}
                 className="btn-press"
                 style={{
-                  padding: '8px 14px', borderRadius: 9, flexShrink: 0, cursor: busy === u.id ? 'default' : 'pointer',
+                  padding: '8px 14px',flexShrink: 0, cursor: busy === u.id ? 'default' : 'pointer',
                   border: `2px solid ${alpha(C.cyan, busy === u.id ? 0.25 : 0.6)}`,
                   background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
                   color: busy === u.id ? C.textGhost : C.cyan, fontSize: 12, fontWeight: 900, fontFamily: SAIRA,
@@ -234,7 +234,7 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
           スロットの入口（下部のバージョン表記）とは別にしてあること。同じにすると
           書き出しを見つけた人にスロットの切り替えまで見えてしまう */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 22 }}>
-        <div style={{ width: 4, height: 34, borderRadius: 2, background: `linear-gradient(180deg, ${C.gold}, ${alpha(C.gold, 0.25)})`, flexShrink: 0 }} />
+        <div style={{ width: 4, height: 34,background: `linear-gradient(180deg, ${C.gold}, ${alpha(C.gold, 0.25)})`, flexShrink: 0 }} />
         <div
           onClick={() => {
             const n = exportTaps + 1
@@ -326,7 +326,7 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
                 onClick={() => goToSlot(s)}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '12px 14px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',
+                  padding: '12px 14px',cursor: 'pointer', textAlign: 'left',
                   background: isCurrent ? alpha(C.gold, 0.12) : C.surface3,
                   border: `1px solid ${isCurrent ? alpha(C.gold, 0.5) : C.border}`,
                 }}
@@ -361,7 +361,7 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
           onClick={async () => { const r = await exportSaveToShare(archivedYears ?? []); setExportMsg(r.detail) }}
           style={{
             width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-            padding: '12px 14px', borderRadius: 12, cursor: 'pointer', textAlign: 'left',
+            padding: '12px 14px',cursor: 'pointer', textAlign: 'left',
             background: C.surface3, border: `1px solid ${C.border}`,
           }}
         >
@@ -405,7 +405,7 @@ function TeamEditScreen({ onClose }: { onClose: () => void }) {
   }
 
   const inputStyle: React.CSSProperties = {
-    width: '100%', padding: '12px 14px', borderRadius: 10, border: 'none',
+    width: '100%', padding: '12px 14px',border: 'none',
     backgroundColor: '#1E1B2E', color: C.text, fontSize: 15,
     fontFamily: SAIRA, outline: 'none', boxShadow: `inset 0 0 0 1px ${alpha(C.gold, 0.14)}`,
     boxSizing: 'border-box',
@@ -421,7 +421,7 @@ function TeamEditScreen({ onClose }: { onClose: () => void }) {
         onClick={() => setSheetOpen(true)}
         style={{
           width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-          padding: '10px 12px', marginBottom: 18, borderRadius: 12, cursor: 'pointer',
+          padding: '10px 12px', marginBottom: 18,cursor: 'pointer',
           backgroundColor: alpha('#000', 0.25), border: `1px solid ${alpha(C.gold, 0.14)}`,
         }}
       >
@@ -460,7 +460,7 @@ function TeamEditScreen({ onClose }: { onClose: () => void }) {
         onClick={handleSave}
         disabled={!dirty || !valid}
         style={{
-          width: '100%', padding: '14px', borderRadius: 12, border: 'none',
+          width: '100%', padding: '14px',border: 'none',
           background: (dirty && valid) ? `linear-gradient(180deg, #E8C86A 0%, #C9A84C 100%)` : alpha(C.gold, 0.12),
           color: (dirty && valid) ? '#0A0912' : alpha(C.text, 0.4),
           fontSize: 15, fontWeight: 900, fontFamily: SAIRA,
@@ -589,16 +589,16 @@ function ResignScreen({ onClose }: { onClose: () => void }) {
         ・全部断ると無職のまま。次のシーズンにまた声がかかります
       </div>
       {booked ? (
-        <div style={{ padding: 14, borderRadius: 10, background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`, color: C.gold, fontSize: 12, fontWeight: 800, textAlign: 'center', lineHeight: 1.8 }}>
+        <div style={{ padding: 14,background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`, color: C.gold, fontSize: 12, fontWeight: 800, textAlign: 'center', lineHeight: 1.8 }}>
           {booked.year}シーズンから<strong style={{ color: C.text }}>{bookedTeam?.name ?? '新クラブ'}</strong>の監督に就任します。<br />
           今季は{myTeam?.shortName ?? '現在のクラブ'}の監督として最後まで指揮してください。
         </div>
       ) : done ? (
-        <div style={{ padding: 14, borderRadius: 10, background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`, color: C.gold, fontSize: 12, fontWeight: 800, textAlign: 'center' }}>
+        <div style={{ padding: 14,background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`, color: C.gold, fontSize: 12, fontWeight: 800, textAlign: 'center' }}>
           打診が届きました。ホームで確認してください。
         </div>
       ) : !gate.ok ? (
-        <div style={{ padding: 14, borderRadius: 10, background: alpha(C.textDim, 0.1), border: `1px solid ${alpha(C.textDim, 0.35)}`, color: C.textDim, fontSize: 12, fontWeight: 700, textAlign: 'center', lineHeight: 1.8 }}>
+        <div style={{ padding: 14,background: alpha(C.textDim, 0.1), border: `1px solid ${alpha(C.textDim, 0.35)}`, color: C.textDim, fontSize: 12, fontWeight: 700, textAlign: 'center', lineHeight: 1.8 }}>
           就任してまだ日が浅いため、いまは退任できません。<br />
           <strong style={{ color: C.text }}>あと{gate.yearsLeft}シーズン</strong>指揮すると退任できます。
         </div>
@@ -640,7 +640,7 @@ function ResetScreen({ resetGame, onClose }: { resetGame: () => void; onClose: (
               <button
                 onClick={() => setConfirming(false)}
                 style={{
-                  flex: 1, padding: '12px', borderRadius: 11,
+                  flex: 1, padding: '12px',
                   border: `1px solid ${C.border}`, background: 'transparent',
                   color: C.textSub, fontSize: '13px', fontWeight: '700', cursor: 'pointer', fontFamily: SAIRA,
                 }}

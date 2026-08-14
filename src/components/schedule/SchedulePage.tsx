@@ -140,17 +140,17 @@ export default function SchedulePage() {
 
       <div style={{ display: 'flex', gap: '16px', padding: '10px 20px', borderBottom: `1px solid ${C.border}` }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <div style={{ width: 3, height: 14, borderRadius: 2, backgroundColor: C.gold }}/>
+          <div style={{ width: 3, height: 14,backgroundColor: C.gold }}/>
           <span style={{ fontSize: '11px', color: C.textSub }}>リーグ戦</span>
         </div>
         {eclS && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <div style={{ width: 3, height: 14, borderRadius: 2, backgroundColor: C.red }}/>
+            <div style={{ width: 3, height: 14,backgroundColor: C.red }}/>
             <span style={{ fontSize: '11px', color: C.textSub }}>ECL</span>
           </div>
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <div style={{ width: 3, height: 14, borderRadius: 2, backgroundColor: waMainYear ? '#A855F7' : '#EC407A' }}/>
+          <div style={{ width: 3, height: 14,backgroundColor: waMainYear ? '#A855F7' : '#EC407A' }}/>
           <span style={{ fontSize: '11px', color: C.textSub }}>{waMainYear ? '世界選手権' : 'アジア予選'}</span>
         </div>
       </div>
@@ -184,9 +184,9 @@ export default function SchedulePage() {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ flex: 1 }}>
-                      <span style={{ fontSize: '10px', fontWeight: '800', letterSpacing: '1px', color: TT_COLOR, padding: '1px 7px', borderRadius: '6px', backgroundColor: alpha(TT_COLOR, 0.14), border: `1px solid ${alpha(TT_COLOR, 0.3)}`, fontFamily: SAIRA }}>記録会</span>
+                      <span style={{ fontSize: '10px', fontWeight: '800', letterSpacing: '1px', color: TT_COLOR, padding: '1px 7px',backgroundColor: alpha(TT_COLOR, 0.14), border: `1px solid ${alpha(TT_COLOR, 0.3)}`, fontFamily: SAIRA }}>記録会</span>
                       {isNextTT && (
-                        <span style={{ fontSize: '10px', fontWeight: '800', color: C.bg, padding: '1px 7px', borderRadius: '6px', backgroundColor: TT_COLOR, fontFamily: SAIRA, marginLeft: 6 }}>NEXT</span>
+                        <span style={{ fontSize: '10px', fontWeight: '800', color: C.bg, padding: '1px 7px',backgroundColor: TT_COLOR, fontFamily: SAIRA, marginLeft: 6 }}>NEXT</span>
                       )}
                       <div style={{ fontSize: '14px', fontWeight: '800', color: it.isDone ? C.textSub : C.text, lineHeight: 1.2, margin: '5px 0 3px' }}>{ev.name}</div>
                       <div style={{ fontSize: '11px', color: C.textDim }}>{ev.date.replace(/-/g, '/')} · {TT_LABEL[ev.distance]}</div>
@@ -216,14 +216,14 @@ export default function SchedulePage() {
                   {notLast && <div style={{ flex: 1, width: 1, backgroundColor: C.border, marginTop: '4px' }}/>}
                 </div>
                 <div style={{
-                  flex: 1, marginLeft: '12px', marginBottom: notLast ? '6px' : '0', padding: '12px 14px', borderRadius: '14px',
+                  flex: 1, marginLeft: '12px', marginBottom: notLast ? '6px' : '0', padding: '12px 14px',
                   border: `1px dashed ${alpha(waColor, 0.5)}`,
                   background: it.isDone ? 'transparent' : alpha(waColor, 0.06),
                   textAlign: 'left', width: '100%',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ flex: 1 }}>
-                      <span style={{ fontSize: '10px', fontWeight: '800', letterSpacing: '1px', color: waColor, padding: '1px 7px', borderRadius: '6px', backgroundColor: alpha(waColor, 0.14), border: `1px solid ${alpha(waColor, 0.3)}`, fontFamily: SAIRA }}>{it.waMainYear ? '世界選手権' : 'アジア予選'}</span>
+                      <span style={{ fontSize: '10px', fontWeight: '800', letterSpacing: '1px', color: waColor, padding: '1px 7px',backgroundColor: alpha(waColor, 0.14), border: `1px solid ${alpha(waColor, 0.3)}`, fontFamily: SAIRA }}>{it.waMainYear ? '世界選手権' : 'アジア予選'}</span>
                       <div style={{ fontSize: '14px', fontWeight: '800', color: it.isDone ? C.textSub : C.text, lineHeight: 1.2, margin: '5px 0 3px' }}>{it.name}</div>
                       <div style={{ fontSize: '11px', color: C.textDim, display: 'flex', alignItems: 'center', gap: 5 }}>
                         {it.date.replace(/-/g, '/')} · 開催国 <Flag code={it.waHost} width={16} /> {NAT_LABEL[it.waHost] ?? ''}
@@ -273,7 +273,6 @@ export default function SchedulePage() {
                   flex: 1, marginLeft: '12px',
                   marginBottom: notLast ? '6px' : '0',
                   padding: '12px 14px',
-                  borderRadius: '14px',
                   border: isNext
                     ? `2px solid ${alpha(accentColor, 0.45)}`
                     : isDone
@@ -298,7 +297,7 @@ export default function SchedulePage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                       <span style={{
                         fontSize: '10px', fontWeight: '800', letterSpacing: '1px',
-                        color: accentColor, padding: '1px 7px', borderRadius: '6px',
+                        color: accentColor, padding: '1px 7px',
                         backgroundColor: alpha(accentColor, 0.12),
                         border: `1px solid ${alpha(accentColor, 0.25)}`,
                         fontFamily: SAIRA,
@@ -308,7 +307,7 @@ export default function SchedulePage() {
                       {isNext && (
                         <span style={{
                           fontSize: '10px', fontWeight: '800', color: C.bg,
-                          padding: '1px 7px', borderRadius: '6px',
+                          padding: '1px 7px',
                           backgroundColor: accentColor,
                           fontFamily: SAIRA,
                         }}>NEXT</span>
@@ -325,10 +324,10 @@ export default function SchedulePage() {
                       const courseCol = getCourseColor(courseType)
                       return (
                         <div style={{ display: 'flex', gap: '5px', marginTop: '5px', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '9px', padding: '1px 6px', borderRadius: '5px', backgroundColor: alpha(courseCol, 0.12), color: courseCol, fontWeight: '700', border: `1px solid ${alpha(courseCol, 0.25)}`, fontFamily: SAIRA }}>
+                          <span style={{ fontSize: '9px', padding: '1px 6px',backgroundColor: alpha(courseCol, 0.12), color: courseCol, fontWeight: '700', border: `1px solid ${alpha(courseCol, 0.25)}`, fontFamily: SAIRA }}>
                             {courseType}
                           </span>
-                          <span style={{ fontSize: '9px', padding: '1px 6px', borderRadius: '5px', backgroundColor: alpha(C.textGhost, 0.08), color: C.textGhost, fontFamily: SAIRA }}>
+                          <span style={{ fontSize: '9px', padding: '1px 6px',backgroundColor: alpha(C.textGhost, 0.08), color: C.textGhost, fontFamily: SAIRA }}>
                             {race.segments.length}区間 · {race.segments.reduce((s, sg) => s + sg.distanceKm, 0).toFixed(1)}km
                           </span>
                         </div>
@@ -343,7 +342,7 @@ export default function SchedulePage() {
                         <div style={{ fontSize: '10px', color: C.textDim, marginTop: '2px' }}>結果</div>
                       </>
                     ) : canEnter ? (
-                      <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 11, marginBottom: 8 }}>
+                      <div style={{ position: 'relative', overflow: 'hidden',marginBottom: 8 }}>
                         <GlassButton size="sm" style={{ gap: 4, padding: '11px 18px' }} onClick={() => navigate('/race')}>
                           <span style={{ fontSize: '11px', fontWeight: '800' }}>出走準備</span>
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none">

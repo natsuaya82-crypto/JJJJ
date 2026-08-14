@@ -92,7 +92,7 @@ export default function PickPanel({
           <div style={{
             fontFamily: SAIRA, fontSize: 12, fontWeight: 900,
             color: left <= 10 ? C.red : C.gold,
-            padding: '2px 8px', borderRadius: 6,
+            padding: '2px 8px',
             background: alpha(left <= 10 ? C.red : C.gold, 0.12),
           }}>
             残り {left} 秒

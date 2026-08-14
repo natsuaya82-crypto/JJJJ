@@ -83,7 +83,7 @@ export default function RatedResultPage() {
                 <div key={s.index} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                   <span style={{ width: 26, fontSize: 9, color: C.textDim, fontFamily: SAIRA, flexShrink: 0 }}>{s.index}区</span>
                   <span style={{ width: 44, fontSize: 10, color: C.textSub, fontFamily: SAIRA, flexShrink: 0 }}>{s.distanceKm}km</span>
-                  <div style={{ flex: 1, height: 7, borderRadius: 4, overflow: 'hidden', display: 'flex', background: C.surface }}>
+                  <div style={{ flex: 1, height: 7,overflow: 'hidden', display: 'flex', background: C.surface }}>
                     <div style={{ width: `${s.uphillPct}%`, background: alpha(C.red, 0.75) }} />
                     <div style={{ width: `${100 - s.uphillPct - s.downhillPct}%`, background: alpha(C.textDim, 0.35) }} />
                     <div style={{ width: `${s.downhillPct}%`, background: alpha(C.blue, 0.75) }} />

@@ -6,7 +6,7 @@ export default function NewBadge({ joinedYear, currentYear, size = 8 }: { joined
   return (
     <span style={{
       fontSize: size, fontWeight: 900, letterSpacing: '0.5px', flexShrink: 0,
-      padding: '1px 5px', borderRadius: 4, lineHeight: 1.3,
+      padding: '1px 5px',lineHeight: 1.3,
       background: `linear-gradient(180deg, ${C.red}, #b01020)`,
       color: '#fff', boxShadow: `0 0 6px ${C.red}66`,
       fontFamily: SAIRA,

@@ -17,7 +17,7 @@ import GlassButton from '../ui/GlassButton'
 function Card({ label, accent, right, grow, bodyJustify, children }: { label: string; accent: string; right?: React.ReactNode; grow?: number; bodyJustify?: 'center' | 'space-between'; children: React.ReactNode }) {
   return (
     <div style={{
-      borderRadius: 14, overflow: 'hidden',
+overflow: 'hidden',
       background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
       border: `1px solid ${alpha(accent, 0.35)}`,
       boxShadow: `0 3px 0 rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)`,
@@ -31,7 +31,7 @@ function Card({ label, accent, right, grow, bodyJustify, children }: { label: st
         background: `linear-gradient(90deg, ${alpha(accent, 0.1)}, transparent)`,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
-          <div style={{ width: 3, height: 14, borderRadius: 2, background: accent, flexShrink: 0 }} />
+          <div style={{ width: 3, height: 14,background: accent, flexShrink: 0 }} />
           <div style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: accent, letterSpacing: '3px' }}>{label}</div>
         </div>
         {right}
@@ -91,7 +91,7 @@ export default function LoginBonusPage() {
         {/* Claim result */}
         {claimResult && (
           <div style={{
-            padding: '14px 16px', borderRadius: 14,
+            padding: '14px 16px',
             background: `linear-gradient(135deg, ${alpha('#6dd5fa', 0.18)}, ${alpha('#6dd5fa', 0.06)})`,
             border: `1px solid ${alpha('#6dd5fa', 0.5)}`,
             textAlign: 'center',
@@ -111,7 +111,7 @@ export default function LoginBonusPage() {
         {/* Already claimed today */}
         {claimedToday && !claimResult && (
           <div style={{
-            padding: '14px 16px', borderRadius: 14,
+            padding: '14px 16px',
             background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
             border: `1px solid ${C.border}`,
             boxShadow: `0 3px 0 rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)`,
@@ -158,14 +158,14 @@ export default function LoginBonusPage() {
               return (
                 <div key={day} style={{
                   background: bg, border: `1px solid ${border}`,
-                  borderRadius: 8, padding: '7px 3px 6px',
+padding: '7px 3px 6px',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3,
                   position: 'relative',
                 }}>
                   {isToday && (
                     <div style={{
                       position: 'absolute', top: -7, left: '50%', transform: 'translateX(-50%)',
-                      background: '#6dd5fa', borderRadius: 3,
+                      background: '#6dd5fa',
                       fontFamily: SAIRA, fontSize: 7, fontWeight: 900, color: C.bg,
                       padding: '1px 4px', letterSpacing: '0.5px', whiteSpace: 'nowrap',
                     }}>TODAY</div>
@@ -199,7 +199,7 @@ export default function LoginBonusPage() {
 
           {weekComplete && (
             <div style={{
-              marginTop: 12, padding: '8px 12px', borderRadius: 8,
+              marginTop: 12, padding: '8px 12px',
               background: alpha('#ffd700', 0.1), border: `1px solid ${alpha('#ffd700', 0.3)}`,
               textAlign: 'center',
               fontFamily: SAIRA, fontSize: 12, color: '#ffd700', fontWeight: 700,
@@ -210,7 +210,7 @@ export default function LoginBonusPage() {
 
           {!claimedToday && (
             <div style={{
-              marginTop: 10, padding: '7px 12px', borderRadius: 8,
+              marginTop: 10, padding: '7px 12px',
               background: alpha('#6dd5fa', 0.07), border: `1px solid ${alpha('#6dd5fa', 0.2)}`,
               textAlign: 'center',
             }}>
@@ -234,7 +234,7 @@ export default function LoginBonusPage() {
                   className="btn-press"
                   style={{
                     display: 'inline-flex', alignItems: 'center', gap: 5, cursor: 'pointer',
-                    padding: '5px 10px', borderRadius: 999,
+                    padding: '5px 10px',
                     background: `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.05)})`,
                     border: `1px solid ${alpha(C.gold, 0.45)}`,
                     fontFamily: SAIRA,

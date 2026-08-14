@@ -114,7 +114,7 @@ export default function AnnouncementsPage() {
       <PageHeader title="お知らせ" onBack={() => navigate(-1)} />
 
       <div style={cardStyle}>
-        <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.15)', borderRadius: 10, pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.15)',pointerEvents: 'none' }} />
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {news.map((item, i) => (
@@ -158,7 +158,7 @@ export function AnnouncementDetailPage() {
         </div>
       ) : (
         <div style={cardStyle}>
-          <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.15)', borderRadius: 10, pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', inset: 4, border: '1px solid rgba(245,200,66,0.15)',pointerEvents: 'none' }} />
           <div style={{ position: 'relative', zIndex: 1 }}>
             <div style={{ fontSize: '9px', color: C.textDim, letterSpacing: '1px', marginBottom: 6, fontFamily: SAIRA }}>{item.date}</div>
             <div style={{ fontSize: '15px', fontWeight: 800, color: C.text, fontFamily: SAIRA, lineHeight: 1.5, marginBottom: 12 }}>

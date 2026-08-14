@@ -55,7 +55,7 @@ export default function StampBar({ myPlayers, onSend, defaultOpen = false }: {
             onClick={e => e.stopPropagation()}
             style={{
               position: 'absolute', right: 12, bottom: 66, width: 'min(300px, calc(100% - 24px))',
-              padding: 10, borderRadius: 14,
+              padding: 10,
               background: alpha('#0b1626', 0.96), border: `1px solid ${C.border2}`,
               boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
             }}
@@ -63,7 +63,7 @@ export default function StampBar({ myPlayers, onSend, defaultOpen = false }: {
             <div style={{ display: 'flex', gap: 6, marginBottom: myPlayers.length > 0 ? 9 : 0 }}>
               {RACE_EMOJI.map((e, i) => (
                 <button key={e} onClick={() => fire({ e: i })} className="btn-press" style={{
-                  flex: 1, padding: '9px 0', borderRadius: 10, cursor: 'pointer', fontSize: 20,
+                  flex: 1, padding: '9px 0',cursor: 'pointer', fontSize: 20,
                   border: `1px solid ${C.border3}`, background: alpha('#000', 0.3), fontFamily: 'inherit',
                 }}>{e}</button>
               ))}
@@ -85,7 +85,7 @@ export default function StampBar({ myPlayers, onSend, defaultOpen = false }: {
                       })}
                       className="btn-press"
                       style={{
-                        flexShrink: 0, width: 52, padding: '5px 0 4px', borderRadius: 10, cursor: 'pointer',
+                        flexShrink: 0, width: 52, padding: '5px 0 4px',cursor: 'pointer',
                         border: `1px solid ${C.border3}`, background: alpha('#000', 0.3), fontFamily: 'inherit',
                       }}
                     >

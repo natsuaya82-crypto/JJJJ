@@ -13,7 +13,6 @@ export default function ForceUpdateModal() {
         width: '100%', maxWidth: '360px',
         background: '#12101e',
         border: '1px solid #2E2B42',
-        borderRadius: '18px',
         padding: '36px 28px',
         textAlign: 'center',
       }}>
@@ -50,7 +49,6 @@ export default function ForceUpdateModal() {
             fontWeight: 700,
             fontSize: '15px',
             padding: '14px 0',
-            borderRadius: '12px',
             textDecoration: 'none',
             letterSpacing: '0.05em',
           }}

@@ -13,9 +13,9 @@ export function OfferResultList({ results, dismiss, spacing = 8 }: {
   spacing?: number
 }) {
   return <>{results.map(r => (
-    <div key={r.id} style={{ borderRadius: 12, background: alpha(r.ok ? C.green : C.red, 0.08), border: `1.5px solid ${alpha(r.ok ? C.green : C.red, 0.45)}`, padding: '10px 12px', marginBottom: spacing, display: 'flex', alignItems: 'center', gap: 10 }}>
+    <div key={r.id} style={{background: alpha(r.ok ? C.green : C.red, 0.08), border: `1.5px solid ${alpha(r.ok ? C.green : C.red, 0.45)}`, padding: '10px 12px', marginBottom: spacing, display: 'flex', alignItems: 'center', gap: 10 }}>
       <div style={{ flex: 1, fontSize: 12, color: C.text, lineHeight: 1.6 }}>{r.text}</div>
-      <button onClick={() => dismiss(r.id)} style={{ flexShrink: 0, padding: '7px 14px', borderRadius: 9, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>確認</button>
+      <button onClick={() => dismiss(r.id)} style={{ flexShrink: 0, padding: '7px 14px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>確認</button>
     </div>
   ))}</>
 }

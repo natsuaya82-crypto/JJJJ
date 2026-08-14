@@ -36,7 +36,7 @@ export default function GmShareCard({ team, code }: { team?: Team; code: string 
 
       {/* ロゴ＋チーム名＋GM名 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 18, position: 'relative' }}>
-        <div style={{ flexShrink: 0, padding: 6, borderRadius: 14, background: `linear-gradient(180deg, ${GOLD}33, ${GOLD}0d)`, border: `2px solid ${GOLD}66` }}>
+        <div style={{ flexShrink: 0, padding: 6,background: `linear-gradient(180deg, ${GOLD}33, ${GOLD}0d)`, border: `2px solid ${GOLD}66` }}>
           <TeamLogoSVG primary={primary} secondary={secondary} shortName={team?.shortName ?? '—'} teamId={team?.id} size={96} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -50,7 +50,7 @@ export default function GmShareCard({ team, code }: { team?: Team; code: string 
       </div>
 
       {/* フレンドコード（主役） */}
-      <div style={{ position: 'relative', borderRadius: 14, padding: '16px 20px', background: 'linear-gradient(180deg, rgba(201,168,76,0.14), rgba(0,0,0,0.35))', border: `2px solid ${GOLD}88`, textAlign: 'center' }}>
+      <div style={{ position: 'relative',padding: '16px 20px', background: 'linear-gradient(180deg, rgba(201,168,76,0.14), rgba(0,0,0,0.35))', border: `2px solid ${GOLD}88`, textAlign: 'center' }}>
         <div style={{ fontSize: 12, fontWeight: 900, letterSpacing: 4, color: GOLD, marginBottom: 6 }}>FRIEND CODE</div>
         <div style={{ fontSize: 46, fontWeight: 900, letterSpacing: 8, color: '#FFE9A8', lineHeight: 1, textShadow: `0 0 18px ${GOLD}66` }}>{code}</div>
       </div>

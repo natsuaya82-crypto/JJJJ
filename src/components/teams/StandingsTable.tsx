@@ -73,7 +73,7 @@ export default function StandingsTable({ rows, onRowClick, onRowLongPress, promo
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0 }}>
               {r.flagCode
-                ? <Flag code={r.flagCode} width={24} radius={3} />
+                ? <Flag code={r.flagCode} width={24} />
                 : <TeamLogoSVG primary={r.primary} secondary={r.secondary} shortName={r.shortName} teamId={r.teamId} size={24} />}
               <span style={{ fontFamily: SAIRA, fontSize: '12px', fontWeight: r.isMe ? '800' : '500', color: r.isMe ? C.text : C.textSub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {r.name}{r.isMe && <span style={{ marginLeft: '4px', fontSize: '8px', color: r.primary }}>自</span>}

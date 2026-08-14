@@ -254,7 +254,7 @@ export function LineupPhase({
           <BackButton onClick={() => setPickerSeg(null)} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1 }}>
             <div style={{
-              width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+              width: 40, height: 40,flexShrink: 0,
               background: `linear-gradient(135deg, ${pickerSegCol}, ${alpha(pickerSegCol, 0.55)})`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 20, fontWeight: 900, color: C.bg, fontFamily: SAIRA,
@@ -273,7 +273,7 @@ export function LineupPhase({
               const eff = effSegOvr(ap, pickerSegData.uphillPct, pickerSegData.downhillPct, pickerSegData.distanceKm, pickerSegData.statWeights)
               return (
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ borderRadius: 5, overflow: 'hidden' }}>
+                  <div style={{overflow: 'hidden' }}>
                     <PlayerFace playerId={ap.id} nationality={ap.nationality as Nationality} size={30} />
                   </div>
                   <div>
@@ -288,7 +288,7 @@ export function LineupPhase({
 
         {/* ソート・絞り込みバー */}
         <div style={{ display: 'flex', gap: 6, padding: '6px 12px', borderBottom: `1px solid ${C.border}`, background: C.bg }}>
-          <select value={pickerSort} onChange={e => setPickerSort(e.target.value as typeof pickerSort)} style={{ flex: 1, padding: '5px 8px', borderRadius: 7, border: `1px solid ${C.border2}`, background: C.surface2, color: C.text, fontSize: 11, fontFamily: 'inherit', cursor: 'pointer' }}>
+          <select value={pickerSort} onChange={e => setPickerSort(e.target.value as typeof pickerSort)} style={{ flex: 1, padding: '5px 8px',border: `1px solid ${C.border2}`, background: C.surface2, color: C.text, fontSize: 11, fontFamily: 'inherit', cursor: 'pointer' }}>
             <option value="seg">区間適性順</option>
             <option value="ovr">OVR順</option>
             <option value="age">年齢順</option>
@@ -317,9 +317,9 @@ export function LineupPhase({
                   selected={isSelected}
                   handlers={pickerRowHandlers(p.id, () => { if (!blockReason) selectPlayer(pickerSeg, p.id) })}
                   extra={<>
-                    {isRec && !isSelected && <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, backgroundColor: alpha(pickerSegCol, 0.15), color: pickerSegCol, fontWeight: 800, flexShrink: 0 }}>最適</span>}
-                    {isAssignedElsewhere && <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(C.cyan, 0.12), color: C.cyan, fontWeight: 700, border: `1px solid ${alpha(C.cyan, 0.35)}`, flexShrink: 0 }}>⇄{assignedSeg}区</span>}
-                    {blockReason && <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(C.red, 0.12), color: C.red, fontWeight: 700, border: `1px solid ${alpha(C.red, 0.3)}`, flexShrink: 0 }}>{blockReason}</span>}
+                    {isRec && !isSelected && <span style={{ fontSize: 8, padding: '1px 4px',backgroundColor: alpha(pickerSegCol, 0.15), color: pickerSegCol, fontWeight: 800, flexShrink: 0 }}>最適</span>}
+                    {isAssignedElsewhere && <span style={{ fontSize: 8, padding: '1px 5px',backgroundColor: alpha(C.cyan, 0.12), color: C.cyan, fontWeight: 700, border: `1px solid ${alpha(C.cyan, 0.35)}`, flexShrink: 0 }}>⇄{assignedSeg}区</span>}
+                    {blockReason && <span style={{ fontSize: 8, padding: '1px 5px',backgroundColor: alpha(C.red, 0.12), color: C.red, fontWeight: 700, border: `1px solid ${alpha(C.red, 0.3)}`, flexShrink: 0 }}>{blockReason}</span>}
                   </>}
                 />
               </div>
@@ -348,7 +348,7 @@ export function LineupPhase({
               { label: '平均上り', value: `${avgUp}%` },
               { label: '平均下り', value: `${avgDown}%` },
             ].map(({ label, value }) => (
-              <div key={label} style={{ padding: '5px 6px', borderRadius: '6px', backgroundColor: alpha(C.border, 0.6) }}>
+              <div key={label} style={{ padding: '5px 6px',backgroundColor: alpha(C.border, 0.6) }}>
                 <div style={{ fontSize: '8px', color: C.textDim, marginBottom: '1px' }}>{label}</div>
                 <div style={{ fontSize: '11px', fontWeight: '700', color: C.text, fontFamily: SAIRA }}>{value}</div>
               </div>
@@ -367,11 +367,11 @@ export function LineupPhase({
         </div>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           {assignedPlayers.length >= 3 && dominantNat && chemBonus > 0 && (
-            <div style={{ fontSize: '9px', padding: '2px 6px', borderRadius: '5px', backgroundColor: alpha('#7EC8A0', 0.08), border: `1px solid ${alpha('#7EC8A0', 0.25)}`, color: '#7EC8A0', fontWeight: '700' }}>
+            <div style={{ fontSize: '9px', padding: '2px 6px',backgroundColor: alpha('#7EC8A0', 0.08), border: `1px solid ${alpha('#7EC8A0', 0.25)}`, color: '#7EC8A0', fontWeight: '700' }}>
               {natLabel(dominantNat as Nationality)} 士気+{chemBonus}
             </div>
           )}
-          <button onClick={() => autoFill(segments, availablePlayers, raceLineup, setRaceLineup)} style={{ fontSize: '11px', fontWeight: 700, padding: '5px 12px', borderRadius: '8px', border: `1.5px solid ${alpha(C.cyan, 0.6)}`, background: alpha(C.cyan, 0.1), color: C.cyan, cursor: 'pointer', fontFamily: 'inherit' }}>自動配置</button>
+          <button onClick={() => autoFill(segments, availablePlayers, raceLineup, setRaceLineup)} style={{ fontSize: '11px', fontWeight: 700, padding: '5px 12px',border: `1.5px solid ${alpha(C.cyan, 0.6)}`, background: alpha(C.cyan, 0.1), color: C.cyan, cursor: 'pointer', fontFamily: 'inherit' }}>自動配置</button>
         </div>
       </div>
 
@@ -386,7 +386,7 @@ export function LineupPhase({
               key={seg.index}
               onClick={() => setPickerSeg(seg.index)}
               style={{
-                padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
+                padding: '10px 12px',cursor: 'pointer',
                 background: player ? `linear-gradient(135deg, ${C.surface3}, ${C.surface2})` : C.surface2,
                 border: `1px solid ${player ? alpha(segCol, 0.4) : C.border2}`,
               }}
@@ -394,7 +394,7 @@ export function LineupPhase({
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 {/* 区番号 */}
                 <div style={{
-                  width: 36, height: 36, borderRadius: 8, flexShrink: 0,
+                  width: 36, height: 36,flexShrink: 0,
                   background: player
                     ? `linear-gradient(135deg, ${segCol}, ${alpha(segCol, 0.55)})`
                     : alpha(segCol, 0.12),
@@ -412,7 +412,7 @@ export function LineupPhase({
                       {terrainLabel(seg.uphillPct, seg.downhillPct, seg.distanceKm)}
                     </div>
                     {seg.recommended && (
-                      <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(SPEC_COLOR[seg.recommended], 0.1), color: SPEC_COLOR[seg.recommended], fontWeight: 700, flexShrink: 0 }}>
+                      <span style={{ fontSize: 8, padding: '1px 5px',backgroundColor: alpha(SPEC_COLOR[seg.recommended], 0.1), color: SPEC_COLOR[seg.recommended], fontWeight: 700, flexShrink: 0 }}>
                         {SPECIALTY_LABELS[seg.recommended]}推奨
                       </span>
                     )}
@@ -427,7 +427,7 @@ export function LineupPhase({
                       <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>{player.name}</div>
                       <div style={{ fontFamily: SAIRA, fontSize: 15, fontWeight: 900, color: segCol, lineHeight: 1 }}>{playerOvr}</div>
                     </div>
-                    <div style={{ borderRadius: 6, overflow: 'hidden' }}>
+                    <div style={{overflow: 'hidden' }}>
                       <PlayerFace playerId={player.id} nationality={player.nationality as Nationality} size={36} />
                     </div>
                   </div>
@@ -469,7 +469,7 @@ export function LineupPhase({
         display: 'flex', alignItems: 'center', gap: '6px',
         zIndex: 35,
       }}>
-        <button onClick={clearRaceLineup} style={{ padding: '10px 12px', borderRadius: '12px', border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>クリア</button>
+        <button onClick={clearRaceLineup} style={{ padding: '10px 12px',border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: '12px', cursor: 'pointer', fontFamily: 'inherit' }}>クリア</button>
         {allSegsFilled ? (
           <>
             {onSkipRace && (
@@ -484,7 +484,7 @@ export function LineupPhase({
             </button>
           </>
         ) : (
-          <button style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', background: C.surface2, color: C.textGhost, fontSize: '14px', fontWeight: '700', cursor: 'default', fontFamily: 'inherit' }}>
+          <button style={{ flex: 1, padding: '12px',border: 'none', background: C.surface2, color: C.textGhost, fontSize: '14px', fontWeight: '700', cursor: 'default', fontFamily: 'inherit' }}>
             {segments.length - filledCount}区間未設定
           </button>
         )}

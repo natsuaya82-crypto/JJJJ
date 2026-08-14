@@ -91,13 +91,13 @@ export default function CardSelectPage() {
         <div style={{ padding: '0 14px 10px' }}>
           <div style={{ fontFamily: SAIRA, fontSize: 9, color: PURPLE, letterSpacing: 2, fontWeight: 900, marginBottom: 6 }}>選択中 {selectedCards.length}/{MAX_FUSION_CARDS}{selectedCards.length > 0 ? '（タップで外す）' : ''}</div>
           {combo && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8, padding: '7px 11px', borderRadius: 9, background: alpha(combo.color, 0.12), border: `1px solid ${alpha(combo.color, 0.4)}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8, padding: '7px 11px',background: alpha(combo.color, 0.12), border: `1px solid ${alpha(combo.color, 0.4)}` }}>
               <span style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: combo.color }}>{combo.name}</span>
               {isMenu && distinctCount >= 2 && (
-                <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: combo.color, background: `${combo.color}22`, padding: '1px 7px', borderRadius: 5 }}>×{MENU_MULT_LABEL[distinctCount] ?? '1.0'}</span>
+                <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: combo.color, background: `${combo.color}22`, padding: '1px 7px',}}>×{MENU_MULT_LABEL[distinctCount] ?? '1.0'}</span>
               )}
               {fatigueDelta > 0 && (
-                <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: combo.color, background: `${combo.color}22`, padding: '1px 7px', borderRadius: 5 }}>疲労 -{fatigueDelta}</span>
+                <span style={{ fontFamily: SAIRA, fontSize: 12, fontWeight: 800, color: combo.color, background: `${combo.color}22`, padding: '1px 7px',}}>疲労 -{fatigueDelta}</span>
               )}
               {combo.name === '通常合成' && (
                 <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim }}>レシピ未成立（ボーナスなし）</span>
@@ -171,7 +171,7 @@ export default function CardSelectPage() {
                 >
                   <TrainingCardSVG statKey={group.statKey} rarity={group.rarity} width={70} count={remaining} dimmed={disabled} kind={group.kind} value={group.value} />
                   {statMaxed && (
-                    <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-12deg)', fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: '#fff', background: alpha(C.red, 0.85), padding: '2px 8px', borderRadius: 5, letterSpacing: 1, pointerEvents: 'none', whiteSpace: 'nowrap' }}>上限</span>
+                    <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(-12deg)', fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: '#fff', background: alpha(C.red, 0.85), padding: '2px 8px',letterSpacing: 1, pointerEvents: 'none', whiteSpace: 'nowrap' }}>上限</span>
                   )}
                 </button>
               )

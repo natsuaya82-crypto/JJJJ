@@ -106,7 +106,7 @@ export default function PlayersStatsPage() {
                 padding: '14px 16px', color: C.text, fontFamily: SAIRA,
               }} onClick={() => { setSelectedRace(name); setSegIdx(null) }}>
                 <span style={{ fontSize: 14, fontWeight: 800, flex: 1 }}>{name}</span>
-                <span style={{ fontSize: 10, color: C.textDim, padding: '2px 8px', borderRadius: 10, background: alpha(accent, 0.12) }}>{segCount}区間</span>
+                <span style={{ fontSize: 10, color: C.textDim, padding: '2px 8px',background: alpha(accent, 0.12) }}>{segCount}区間</span>
                 <span style={{ color: C.textGhost, fontSize: 16 }}>›</span>
               </GlassButton>
             )
@@ -132,7 +132,7 @@ export default function PlayersStatsPage() {
           {activeSeg != null && (() => {
             const top = entriesFor(activeSeg)
             return (
-              <div style={{ borderRadius: '14px', overflow: 'hidden', border: `1px solid ${C.border}` }}>
+              <div style={{overflow: 'hidden', border: `1px solid ${C.border}` }}>
                 {top.map((entry, i) => {
                   // 長期整理で削除された選手は removedPlayers から名前・国籍を引く（顔はIDと国籍から出る）
                   const player = playerLabel(players, removedPlayers, entry.playerId)
@@ -148,7 +148,7 @@ export default function PlayersStatsPage() {
                       }}>
                       <span style={{ fontFamily: SAIRA, fontSize: '13px', fontWeight: '900', color: rankCol, width: '20px', textAlign: 'center', textShadow: i <= 2 ? `0 0 6px ${alpha(rankCol, 0.5)}` : 'none' }}>{i + 1}</span>
                       {player && (
-                        <div style={{ width: '28px', height: '28px', borderRadius: '7px', flexShrink: 0, overflow: 'hidden' }}>
+                        <div style={{ width: '28px', height: '28px',flexShrink: 0, overflow: 'hidden' }}>
                           <PlayerFace playerId={player.id} nationality={player.nationality} size={28} />
                         </div>
                       )}

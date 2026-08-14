@@ -31,7 +31,7 @@ export default function NoSalePage() {
   const rowHandlers = (pid: string) => longPress(pid, () => setSheetPlayerId(pid))
 
   const badge = (label: string, color: string) => (
-    <span key={label} style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(color, 0.15), border: `1px solid ${alpha(color, 0.45)}`, color, fontWeight: 800, flexShrink: 0 }}>{label}</span>
+    <span key={label} style={{ fontSize: 8, padding: '1px 5px',backgroundColor: alpha(color, 0.15), border: `1px solid ${alpha(color, 0.45)}`, color, fontWeight: 800, flexShrink: 0 }}>{label}</span>
   )
 
   const sheetPlayer = sheetPlayerId ? myPlayers.find(p => p.id === sheetPlayerId) ?? null : null
@@ -50,7 +50,7 @@ export default function NoSalePage() {
         </div>
       </div>
 
-      <div style={{ margin: '0 12px', borderRadius: 14, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+      <div style={{ margin: '0 12px',overflow: 'hidden', border: `1px solid ${C.border}` }}>
         {myPlayers.map(p => (
           <PlayerRow
             key={p.id}
@@ -75,7 +75,7 @@ export default function NoSalePage() {
           onClose={() => setSheetPlayerId(null)}
           header={
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
+              <div style={{overflow: 'hidden', flexShrink: 0 }}>
                 <PlayerFace playerId={sheetPlayer.id} nationality={sheetPlayer.nationality} size={44} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>

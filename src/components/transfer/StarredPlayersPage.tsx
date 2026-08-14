@@ -56,7 +56,7 @@ export default function StarredPlayersPage() {
 
       <div style={{ padding: '4px 16px 16px' }}>
         {starredPlayers.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '48px 20px', color: C.textGhost, fontSize: 12, backgroundColor: C.surface, borderRadius: 14, border: `1px solid ${C.border}` }}>
+          <div style={{ textAlign: 'center', padding: '48px 20px', color: C.textGhost, fontSize: 12, backgroundColor: C.surface,border: `1px solid ${C.border}` }}>
             選手ページで ☆ を押すとここに表示されます
           </div>
         ) : starredPlayers.map(({ p, fromProspectList }) => {
@@ -76,7 +76,7 @@ export default function StarredPlayersPage() {
               <div style={panelStyle(specCol)}>
                 <div style={{ position: 'relative', zIndex: 1 }}>
                   <div {...rowProps} style={{ padding: '10px 13px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
-                    <div style={{ flexShrink: 0, position: 'relative', borderRadius: 8, overflow: 'hidden', border: `1px solid ${alpha(specCol, 0.35)}` }}>
+                    <div style={{ flexShrink: 0, position: 'relative',overflow: 'hidden', border: `1px solid ${alpha(specCol, 0.35)}` }}>
                       <PlayerFace playerId={p.id} nationality={p.nationality} size={52} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>

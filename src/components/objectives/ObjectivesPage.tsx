@@ -26,7 +26,7 @@ export default function ObjectivesPage() {
         />
 
         {objectives.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 12px', background: alpha('#a78bfa', 0.07), border: `1px solid ${alpha('#a78bfa', 0.2)}`, borderRadius: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 12px', background: alpha('#a78bfa', 0.07), border: `1px solid ${alpha('#a78bfa', 0.2)}`,}}>
             <span style={{ fontFamily: SAIRA, fontSize: 11, color: alpha('#a78bfa', 0.7) }}>
               全達成で最大
             </span>
@@ -57,14 +57,14 @@ export default function ObjectivesPage() {
                   ? `linear-gradient(135deg, ${alpha(C.green, 0.12)} 0%, ${alpha(C.green, 0.04)} 100%)`
                   : `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
                 border: `2px solid ${obj.done ? alpha(C.green, 0.55) : alpha(C.gold, 0.4)}`,
-                borderRadius: 14, padding: '14px 16px',
+padding: '14px 16px',
                 boxShadow: obj.done
                   ? `0 3px 0 #0d3d22, 0 5px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)`
                   : `0 3px 0 #5a3500, 0 5px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.07)`,
               }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                   <div style={{
-                    width: 22, height: 22, borderRadius: 6, flexShrink: 0, marginTop: 1,
+                    width: 22, height: 22,flexShrink: 0, marginTop: 1,
                     background: obj.done ? C.green : alpha(C.gold, 0.12),
                     border: `2px solid ${obj.done ? C.green : alpha(C.gold, 0.45)}`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -78,7 +78,7 @@ export default function ObjectivesPage() {
                     <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: obj.done ? 400 : 700, color: obj.done ? C.textDim : C.text, marginBottom: 6 }}>{obj.desc}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       {(obj.rewardJewels ?? 0) > 0 && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: alpha('#6dd5fa', obj.done ? 0.05 : 0.08), border: `1px solid ${alpha('#6dd5fa', obj.done ? 0.15 : 0.3)}`, borderRadius: 8, padding: '3px 8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: alpha('#6dd5fa', obj.done ? 0.05 : 0.08), border: `1px solid ${alpha('#6dd5fa', obj.done ? 0.15 : 0.3)}`,padding: '3px 8px' }}>
                           <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
                             <path d="M12 2l8.66 5v10L12 22l-8.66-5V7L12 2z" fill={obj.done ? 'rgba(59,159,212,0.4)' : 'url(#jg-obj)'} stroke={obj.done ? 'rgba(74,184,234,0.4)' : '#4ab8ea'} strokeWidth="1.2" strokeLinejoin="round"/>
                             <defs>
@@ -96,8 +96,8 @@ export default function ObjectivesPage() {
                       )}
                     </div>
                     {hasProgress && (
-                      <div style={{ height: 4, background: C.border, borderRadius: 2, marginTop: 6 }}>
-                        <div style={{ height: '100%', width: `${progress * 100}%`, background: `linear-gradient(90deg, ${C.gold}, #FFD54F)`, borderRadius: 2, transition: 'width 0.3s' }} />
+                      <div style={{ height: 4, background: C.border,marginTop: 6 }}>
+                        <div style={{ height: '100%', width: `${progress * 100}%`, background: `linear-gradient(90deg, ${C.gold}, #FFD54F)`,transition: 'width 0.3s' }} />
                       </div>
                     )}
                   </div>

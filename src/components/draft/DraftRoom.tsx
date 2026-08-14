@@ -44,7 +44,6 @@ const PERSONALITY_COLOR: Record<string, string> = { salary: C.orange, winning: C
 
 const SELECT_STYLE: React.CSSProperties = {
   padding: '6px 24px 6px 10px',
-  borderRadius: '8px',
   border: `1px solid ${C.border2}`,
   backgroundColor: C.surface2,
   color: C.textSub,
@@ -161,7 +160,7 @@ export default function DraftRoom() {
             const isMine = t?.id === playerTeamId
             return (
               <div key={pos} style={{
-                display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 12,
+                display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px',
                 background: revealed ? (isMine ? alpha(C.gold, 0.12) : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`) : C.surface,
                 border: `2px solid ${revealed ? (pos === 1 ? C.gold : isMine ? alpha(C.gold, 0.6) : C.border2) : C.border}`,
                 boxShadow: revealed && pos === 1 ? `0 0 14px ${alpha(C.gold, 0.35)}` : 'none',
@@ -172,7 +171,7 @@ export default function DraftRoom() {
                   <>
                     <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={24}/>
                     <span style={{ flex: 1, fontSize: 13, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
-                    {isMine && <span style={{ fontSize: 9, fontWeight: 900, color: C.gold, padding: '2px 6px', borderRadius: 5, background: alpha(C.gold, 0.15), border: `1px solid ${alpha(C.gold, 0.4)}`, flexShrink: 0 }}>自チーム</span>}
+                    {isMine && <span style={{ fontSize: 9, fontWeight: 900, color: C.gold, padding: '2px 6px',background: alpha(C.gold, 0.15), border: `1px solid ${alpha(C.gold, 0.4)}`, flexShrink: 0 }}>自チーム</span>}
                   </>
                 ) : (
                   <span style={{ flex: 1, fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: C.textGhost, letterSpacing: 4 }}>？？？</span>
@@ -344,7 +343,7 @@ export default function DraftRoom() {
           position: 'fixed', top: '50%', left: '50%',
           transform: 'translate(-50%, -50%)',
           zIndex: 150, pointerEvents: 'none',
-          padding: '18px 28px', borderRadius: '20px', textAlign: 'center',
+          padding: '18px 28px',textAlign: 'center',
           background: `linear-gradient(135deg, ${alpha(pickAnnounce.teamColor, 0.22)}, ${alpha(pickAnnounce.teamColor, 0.06)})`,
           border: `1px solid ${alpha(pickAnnounce.teamColor, 0.5)}`,
           backdropFilter: 'blur(24px)',
@@ -383,7 +382,7 @@ export default function DraftRoom() {
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
             {!isMyPick && picksUntilMyTurn > 0 && (
               <div style={{
-                textAlign: 'center', padding: '5px 10px', borderRadius: '10px',
+                textAlign: 'center', padding: '5px 10px',
                 background: C.surface, border: `1px solid ${C.border2}`,
               }}>
                 <div style={{ fontSize: '16px', fontWeight: '900', color: C.textSub, lineHeight: 1, fontFamily: SAIRA }}>
@@ -394,7 +393,7 @@ export default function DraftRoom() {
             )}
             {/* 初年度はプレイヤーが指名に参加しない（観戦のみ）ので、0/0 のチップは出さない */}
             <div style={{
-              textAlign: 'center', padding: '5px 10px', borderRadius: '10px',
+              textAlign: 'center', padding: '5px 10px',
               background: `linear-gradient(135deg, ${alpha(C.gold, 0.2)}, ${alpha(C.gold, 0.06)})`,
               border: `1px solid ${alpha(C.gold, 0.3)}`,
             }}>
@@ -411,7 +410,7 @@ export default function DraftRoom() {
           </div>
         </div>
 
-        <div style={{ height: '2px', backgroundColor: C.border2, borderRadius: '1px', overflow: 'hidden', marginBottom: '2px' }}>
+        <div style={{ height: '2px', backgroundColor: C.border2,overflow: 'hidden', marginBottom: '2px' }}>
           <div style={{
             height: '100%', width: `${(currentPick / pickOrder.length) * 100}%`,
             background: `linear-gradient(90deg, ${C.blue}, ${C.gold})`,
@@ -436,7 +435,7 @@ export default function DraftRoom() {
                 key={idx}
                 data-current={isCurrent ? 'true' : undefined}
                 style={{
-                  flexShrink: 0, padding: '4px 9px', borderRadius: '8px',
+                  flexShrink: 0, padding: '4px 9px',
                   border: `1px solid ${isCurrent ? alpha(accentColor, 0.7) : isPast ? C.border : alpha(accentColor, 0.22)}`,
                   background: isCurrent
                     ? `linear-gradient(135deg, ${alpha(accentColor, 0.22)}, ${alpha(accentColor, 0.06)})`
@@ -458,7 +457,7 @@ export default function DraftRoom() {
         </div>
 
         <div style={{
-          padding: '8px 12px', borderRadius: '10px', marginBottom: '8px',
+          padding: '8px 12px',marginBottom: '8px',
           background: isMyPick ? `linear-gradient(135deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})` : C.surface,
           border: `1px solid ${isMyPick ? alpha(C.gold, 0.45) : C.border}`,
           display: 'flex', alignItems: 'center', gap: '10px',
@@ -477,7 +476,7 @@ export default function DraftRoom() {
           <div style={{ fontSize: '10px', color: C.textDim, fontFamily: SAIRA }}>残{pool.length}人</div>
         </div>
 
-        <div style={{ display: 'flex', gap: '4px', padding: '4px', borderRadius: '12px', background: C.surface2 }}>
+        <div style={{ display: 'flex', gap: '4px', padding: '4px',background: C.surface2 }}>
           {(['players','board','teams'] as TabKey[]).map(key => {
             const labels: Record<TabKey, string> = { players: '選手プール', board: '指名ボード', teams: 'チーム動向' }
             const active = tab === key
@@ -485,7 +484,6 @@ export default function DraftRoom() {
               <button key={key} onClick={() => setTab(key)} style={{
                 flex: 1, padding: '8px 4px', cursor: 'pointer',
                 fontFamily: 'inherit', fontSize: '11px', fontWeight: active ? 800 : 500,
-                borderRadius: 10,
                 background: active
                   ? `linear-gradient(135deg, ${alpha(C.gold, 0.18)}, ${alpha(C.gold, 0.06)})`
                   : 'transparent',
@@ -526,7 +524,7 @@ export default function DraftRoom() {
                 <span style={{ fontSize: '9px', color: C.textDim }}>必要:</span>
                 <span style={{
                   fontSize: '9px', fontWeight: '800',
-                  color: SPEC_COLOR[needSpec], padding: '2px 7px', borderRadius: '8px',
+                  color: SPEC_COLOR[needSpec], padding: '2px 7px',
                   backgroundColor: alpha(SPEC_COLOR[needSpec], 0.12),
                   border: `1px solid ${alpha(SPEC_COLOR[needSpec], 0.3)}`,
                 }}>
@@ -565,7 +563,7 @@ export default function DraftRoom() {
                   <div style={{
                     fontSize: '10px', color: C.gold, letterSpacing: '3px', fontWeight: '800',
                     marginBottom: '8px', padding: '6px 10px',
-                    background: alpha(C.gold, 0.07), borderRadius: '8px',
+                    background: alpha(C.gold, 0.07),
                     borderLeft: `3px solid ${C.gold}`,
                     fontFamily: SAIRA,
                   }}>
@@ -581,14 +579,14 @@ export default function DraftRoom() {
                     return (
                       <div key={pickNum} {...(pk ? longPress(pk.playerId) : {})} style={{
                         display: 'flex', alignItems: 'center', gap: '8px',
-                        padding: '7px 12px', marginBottom: '2px', borderRadius: '10px',
+                        padding: '7px 12px', marginBottom: '2px',
                         background: isCurr ? alpha(accentColor, 0.12) : pk ? (isMe ? alpha(C.gold, 0.05) : C.surface) : 'transparent',
                         border: `1px solid ${isCurr ? alpha(accentColor, 0.4) : C.border}`,
                         opacity: !pk && !isCurr ? 0.45 : 1,
                         cursor: pk ? 'pointer' : 'default',
                       }}>
                         <span style={{ fontSize: '10px', color: C.textDim, minWidth: '20px', fontFamily: SAIRA }}>{pickNum}</span>
-                        <div style={{ width: '3px', height: '26px', borderRadius: '2px', flexShrink: 0, background: `linear-gradient(180deg, ${accentColor}, ${alpha(accentColor, 0.6)})` }}/>
+                        <div style={{ width: '3px', height: '26px',flexShrink: 0, background: `linear-gradient(180deg, ${accentColor}, ${alpha(accentColor, 0.6)})` }}/>
                         <div style={{ minWidth: '50px', flexShrink: 0 }}>
                           <span style={{ fontSize: '11px', fontWeight: '700', color: isMe ? C.gold : C.textSub }}>{t?.shortName ?? '?'}</span>
                         </div>
@@ -632,12 +630,12 @@ export default function DraftRoom() {
                   marginBottom: '8px', padding: '12px 14px',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: teamPicks.length > 0 ? '8px' : 0 }}>
-                    <div style={{ width: '4px', height: '30px', borderRadius: '2px', flexShrink: 0, background: `linear-gradient(180deg, ${accentColor}, ${alpha(accentColor, 0.6)})` }}/>
+                    <div style={{ width: '4px', height: '30px',flexShrink: 0, background: `linear-gradient(180deg, ${accentColor}, ${alpha(accentColor, 0.6)})` }}/>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span style={{ fontSize: '14px', fontWeight: '800', color: isMe ? C.gold : C.text }}>{t.shortName}</span>
-                        {isMe && <span style={{ fontSize: '8px', color: C.gold, fontWeight: '700', padding: '1px 5px', borderRadius: '4px', backgroundColor: alpha(C.gold, 0.12) }}>自チーム</span>}
-                        {isRival && <span style={{ fontSize: '8px', color: C.red, fontWeight: '700', padding: '1px 5px', borderRadius: '4px', backgroundColor: alpha(C.red, 0.12) }}>競合</span>}
+                        {isMe && <span style={{ fontSize: '8px', color: C.gold, fontWeight: '700', padding: '1px 5px',backgroundColor: alpha(C.gold, 0.12) }}>自チーム</span>}
+                        {isRival && <span style={{ fontSize: '8px', color: C.red, fontWeight: '700', padding: '1px 5px',backgroundColor: alpha(C.red, 0.12) }}>競合</span>}
                       </div>
                       <div style={{ display: 'flex', gap: '8px', marginTop: '2px' }}>
                         <span style={{ fontSize: '10px', color: C.textDim, fontFamily: SAIRA }}>指名{teamPicks.length}名</span>
@@ -650,7 +648,7 @@ export default function DraftRoom() {
                         {needs.map(s => (
                           <span key={s} style={{
                             fontSize: '9px', fontWeight: '700',
-                            color: SPEC_COLOR[s], padding: '2px 5px', borderRadius: '5px',
+                            color: SPEC_COLOR[s], padding: '2px 5px',
                             backgroundColor: alpha(SPEC_COLOR[s], 0.12),
                             border: `1px solid ${alpha(SPEC_COLOR[s], 0.28)}`,
                           }}>
@@ -667,7 +665,7 @@ export default function DraftRoom() {
                         return (
                           <div key={pk.pickNum} {...longPress(pk.playerId)} style={{
                             display: 'flex', alignItems: 'center', gap: '3px',
-                            padding: '2px 7px', borderRadius: '7px',
+                            padding: '2px 7px',
                             backgroundColor: C.surface2,
                             border: `1px solid ${C.border}`,
                             cursor: 'pointer',
@@ -704,7 +702,6 @@ function PlayerFaceCard({ playerId, nationality, color, size = 38 }: {
   return (
     <div style={{ position: 'relative', flexShrink: 0 }}>
       <div style={{
-        borderRadius: Math.floor(size * 0.22),
         border: `1.5px solid ${alpha(color, 0.55)}`,
         overflow: 'hidden',
         flexShrink: 0,
@@ -751,7 +748,6 @@ function PoolCard({ player: p, isMyPick, onPick, isScouted, isRecommend, buzz }:
       <div
         {...longPress(p.id)}
         style={{
-          borderRadius: '14px',
           background: `linear-gradient(180deg, ${C.surface}, ${C.bg})`,
           border: isStarred
             ? `2px solid ${C.gold}`
@@ -782,20 +778,20 @@ function PoolCard({ player: p, isMyPick, onPick, isScouted, isRecommend, buzz }:
               </span>
               <ForeignChip nationality={p.nationality} />
               {isRecommend && (
-                <span style={{ padding: '1px 5px', borderRadius: '4px', flexShrink: 0, backgroundColor: alpha(C.green, 0.18), border: `1px solid ${alpha(C.green, 0.4)}`, fontSize: '8px', color: C.green, fontWeight: '800' }}>補強ニーズ◎</span>
+                <span style={{ padding: '1px 5px',flexShrink: 0, backgroundColor: alpha(C.green, 0.18), border: `1px solid ${alpha(C.green, 0.4)}`, fontSize: '8px', color: C.green, fontWeight: '800' }}>補強ニーズ◎</span>
               )}
               {isScouted && (
-                <span style={{ padding: '1px 5px', borderRadius: '4px', flexShrink: 0, backgroundColor: alpha(C.blue, 0.08), border: `1px solid ${alpha(C.blue, 0.25)}`, fontSize: '8px', color: C.blue, fontWeight: '700' }}>偵察済</span>
+                <span style={{ padding: '1px 5px',flexShrink: 0, backgroundColor: alpha(C.blue, 0.08), border: `1px solid ${alpha(C.blue, 0.25)}`, fontSize: '8px', color: C.blue, fontWeight: '700' }}>偵察済</span>
               )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
               <SpecChip specialty={p.specialty} />
               <span style={{ fontSize: '10px', color: C.textDim }}>{p.age}歳</span>
-              <span style={{ fontSize: '9px', fontWeight: '700', color: growthColor, padding: '1px 5px', borderRadius: '5px', backgroundColor: alpha(growthColor, 0.1) }}>
+              <span style={{ fontSize: '9px', fontWeight: '700', color: growthColor, padding: '1px 5px',backgroundColor: alpha(growthColor, 0.1) }}>
                 {growthLabel}
               </span>
               {personalityLabel && (
-                <span style={{ fontSize: '9px', color: personalityColor, padding: '1px 5px', borderRadius: '5px', backgroundColor: alpha(personalityColor, 0.1) }}>
+                <span style={{ fontSize: '9px', color: personalityColor, padding: '1px 5px',backgroundColor: alpha(personalityColor, 0.1) }}>
                   {personalityIcon} {personalityLabel}
                 </span>
               )}
@@ -931,7 +927,7 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
           if (!c) return null
           const salaryMin = draftSalaryFloor(p)
           const btn = (active: boolean): React.CSSProperties => ({
-            flex: 1, padding: '5px 2px', borderRadius: 6, border: 'none', cursor: 'pointer',
+            flex: 1, padding: '5px 2px',border: 'none', cursor: 'pointer',
             backgroundColor: active ? C.blue : C.surface, color: active ? '#fff' : C.textDim,
             fontSize: 10, fontWeight: active ? 800 : 500, fontFamily: 'inherit',
           })

@@ -14,7 +14,7 @@ export function RankChip({ rating, size = 'md' }: { rating: number; size?: 'sm' 
     <span style={{
       fontSize: size === 'sm' ? 9 : 11, fontWeight: 900, color: col,
       background: alpha(col, 0.14), border: `1px solid ${alpha(col, 0.5)}`,
-      borderRadius: 6, padding: size === 'sm' ? '1px 5px' : '2px 8px', whiteSpace: 'nowrap',
+padding: size === 'sm' ? '1px 5px' : '2px 8px', whiteSpace: 'nowrap',
     }}>{name}</span>
   )
 }
@@ -28,7 +28,7 @@ export function Card({ children, accent = C.cyan, onClick }: {
       className={onClick ? 'btn-press' : undefined}
       style={{
         background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-        border: `1px solid ${alpha(accent, 0.25)}`, borderRadius: 14,
+        border: `1px solid ${alpha(accent, 0.25)}`,
         padding: '12px 14px', marginBottom: 10, cursor: onClick ? 'pointer' : undefined,
       }}>{children}</div>
   )

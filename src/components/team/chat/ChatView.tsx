@@ -821,7 +821,7 @@ export function ChatView({
       />
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderBottom: `1px solid ${C.border}`, background: C.bg, position: 'sticky', top: 0, zIndex: 5 }}>
         <BackButton onClick={onClose} />
-        <div {...longPress(player.id)} style={{ width: 36, height: 36, borderRadius: 18, overflow: 'hidden', border: `2px solid ${alpha(specCol, 0.4)}`, flexShrink: 0, cursor: 'pointer' }}>
+        <div {...longPress(player.id)} style={{ width: 36, height: 36,overflow: 'hidden', border: `2px solid ${alpha(specCol, 0.4)}`, flexShrink: 0, cursor: 'pointer' }}>
           <PlayerFace playerId={player.id} nationality={player.nationality} size={36} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -847,10 +847,10 @@ export function ChatView({
               sp.club
                 // 相手クラブからの話は、そのクラブのロゴ。タップでクラブの詳細へ
                 ? <div onClick={() => goClubPage(sp.club)}
-                    style={{ width: 32, height: 32, borderRadius: 16, overflow: 'hidden', flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.surface2, border: `1.5px solid ${alpha(C.blue, 0.4)}` }}>
+                    style={{ width: 32, height: 32,overflow: 'hidden', flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.surface2, border: `1.5px solid ${alpha(C.blue, 0.4)}` }}>
                     <TeamLogoSVG primary={sp.club.colors.primary} secondary={sp.club.colors.secondary} shortName={sp.club.shortName} teamId={sp.club.id} logoId={sp.club.logoId} size={26} />
                   </div>
-                : <div {...longPress(player.id)} style={{ width: 32, height: 32, borderRadius: 16, overflow: 'hidden', flexShrink: 0, border: `1.5px solid ${alpha(specCol, 0.35)}`, cursor: 'pointer' }}>
+                : <div {...longPress(player.id)} style={{ width: 32, height: 32,overflow: 'hidden', flexShrink: 0, border: `1.5px solid ${alpha(specCol, 0.35)}`, cursor: 'pointer' }}>
                     <PlayerFace playerId={player.id} nationality={player.nationality} size={32} />
                   </div>
             )}
@@ -866,7 +866,6 @@ export function ChatView({
               )}
               <div style={{
                 padding: '10px 13px',
-                borderRadius: msg.from === 'player' ? '4px 16px 16px 16px' : '16px 4px 16px 16px',
                 background: msg.from === 'player'
                   ? `linear-gradient(135deg, ${C.surface3}, ${C.surface2})`
                   : `linear-gradient(135deg, ${alpha(C.blue, 0.25)}, ${alpha(C.blue, 0.15)})`,
@@ -900,11 +899,11 @@ export function ChatView({
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={handleSubmitCounterFee}
-                style={{ flex: 2, padding: '10px', borderRadius: 10, border: 'none', backgroundColor: C.gold, color: '#1a1a1a', fontSize: 13, fontWeight: 900, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ flex: 2, padding: '10px',border: 'none', backgroundColor: C.gold, color: '#1a1a1a', fontSize: 13, fontWeight: 900, cursor: 'pointer', fontFamily: 'inherit' }}>
                 この金額で提示
               </button>
               <button onClick={() => setComposing(false)}
-                style={{ flex: 1, padding: '10px', borderRadius: 10, border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ flex: 1, padding: '10px',border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
                 キャンセル
               </button>
             </div>
@@ -919,7 +918,7 @@ export function ChatView({
               <span style={{ fontSize: 10, color: C.textDim, flexShrink: 0 }}>年数</span>
               {[1, 2, 3, 4].map(y => (
                 <button key={y} onClick={() => setOfferYears(y)}
-                  style={{ flex: 1, padding: '5px', borderRadius: 6, border: 'none', cursor: 'pointer', backgroundColor: offerYears === y ? C.blue : C.surface, color: offerYears === y ? '#fff' : C.textDim, fontSize: 11, fontWeight: 800, fontFamily: 'inherit' }}>
+                  style={{ flex: 1, padding: '5px',border: 'none', cursor: 'pointer', backgroundColor: offerYears === y ? C.blue : C.surface, color: offerYears === y ? '#fff' : C.textDim, fontSize: 11, fontWeight: 800, fontFamily: 'inherit' }}>
                   {y}年
                 </button>
               ))}
@@ -928,11 +927,11 @@ export function ChatView({
             {/* 役割選択UIは非表示（役割は裏で自動保持）。offerTeamRole は未指定のまま提示される */}
             <div style={{ display: 'flex', gap: 6 }}>
               <button onClick={composeMode === 'transfer' ? handleSubmitTransferOffer : composeMode === 'acq' ? handleSubmitAcqOffer : handleSubmitOffer}
-                style={{ flex: 2, padding: '10px', borderRadius: 10, border: 'none', backgroundColor: C.blue, color: '#fff', fontSize: 13, fontWeight: 900, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ flex: 2, padding: '10px',border: 'none', backgroundColor: C.blue, color: '#fff', fontSize: 13, fontWeight: 900, cursor: 'pointer', fontFamily: 'inherit' }}>
                 提示する
               </button>
               <button onClick={() => setComposing(false)}
-                style={{ flex: 1, padding: '10px', borderRadius: 10, border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ flex: 1, padding: '10px',border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
                 キャンセル
               </button>
             </div>
@@ -941,7 +940,7 @@ export function ChatView({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 16px 16px' }}>
             {replyButtons.map((btn, i) => (
               <button key={i} onClick={btn.action} disabled={btn.disabled}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `1.5px solid ${alpha(btn.color, btn.disabled ? 0.2 : 0.5)}`, backgroundColor: alpha(btn.color, btn.disabled ? 0.04 : 0.1), color: btn.disabled ? C.textGhost : btn.color, fontSize: 13, fontWeight: 700, cursor: btn.disabled ? 'default' : 'pointer', fontFamily: 'inherit', lineHeight: 1.4 }}>
+                style={{ width: '100%', padding: '10px 12px',border: `1.5px solid ${alpha(btn.color, btn.disabled ? 0.2 : 0.5)}`, backgroundColor: alpha(btn.color, btn.disabled ? 0.04 : 0.1), color: btn.disabled ? C.textGhost : btn.color, fontSize: 13, fontWeight: 700, cursor: btn.disabled ? 'default' : 'pointer', fontFamily: 'inherit', lineHeight: 1.4 }}>
                 {btn.label}{btn.disabled ? '（枠が満杯）' : ''}
               </button>
             ))}

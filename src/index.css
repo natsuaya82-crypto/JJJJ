@@ -51,10 +51,11 @@
   --pink:      #EC407A;
 
   /* Radius */
-  --r-sm:  8px;
-  --r-md:  12px;
-  --r-lg:  16px;
-  --r-xl:  20px;
+  /* 角の丸み。**全部0**（tokens.ts の R と同じ。丸いのは顔・ロゴ・点だけ） */
+  --r-sm:  0;
+  --r-md:  0;
+  --r-lg:  0;
+  --r-xl:  0;
 
   /* Nav */
   --nav-h:     64px;
@@ -244,13 +245,11 @@ button { font-family: inherit; }
 .card {
   background: var(--surface2);
   border: 1px solid var(--border);
-  border-radius: var(--r-lg);
 }
 
 .card-gold {
   background: linear-gradient(135deg, rgba(201,168,76,0.1), var(--surface));
   border: 1px solid rgba(201,168,76,0.3);
-  border-radius: var(--r-lg);
 }
 
 /* ── Typography Utilities ─────────────────── */
@@ -412,7 +411,6 @@ button { font-family: inherit; }
 .card-frame {
   background: linear-gradient(180deg, var(--bg-card-lt) 0%, var(--bg-card) 100%);
   border: 2px solid var(--gold-dark);
-  border-radius: var(--r-lg);
   position: relative;
   box-shadow:
     0 4px 0 #5a3500,
@@ -424,7 +422,6 @@ button { font-family: inherit; }
   position: absolute;
   inset: 3px;
   border: 1px solid rgba(245,200,66,0.2);
-  border-radius: calc(var(--r-lg) - 4px);
   pointer-events: none;
 }
 .card-frame.hero {
@@ -464,7 +461,6 @@ button { font-family: inherit; }
 .standings-card {
   background: linear-gradient(180deg, var(--bg-card-lt) 0%, var(--bg-card) 100%);
   border: 2px solid var(--gold-dark);
-  border-radius: var(--r-lg);
   overflow: hidden;
   position: relative;
   box-shadow:
@@ -476,7 +472,6 @@ button { font-family: inherit; }
   position: absolute;
   inset: 3px;
   border: 1px solid rgba(245,200,66,0.15);
-  border-radius: calc(var(--r-lg) - 4px);
   pointer-events: none;
   z-index: 1;
 }
@@ -489,7 +484,6 @@ button { font-family: inherit; }
   padding: 3px 12px;
   background: linear-gradient(180deg, #1a3a5c 0%, #0f2440 100%);
   border: 1px solid var(--accent-cyan);
-  border-radius: 12px;
   color: var(--accent-cyan);
   font-family: var(--font-saira);
   font-weight: 700;

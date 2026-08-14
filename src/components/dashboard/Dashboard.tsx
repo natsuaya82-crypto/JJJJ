@@ -156,7 +156,7 @@ function PreseasonHub({
           {preseasonCardDist(lastRank).map(({ rarity, count }) => (
             <span key={rarity} style={{
               fontFamily: SAIRA, fontSize: 10, fontWeight: 900, letterSpacing: 1,
-              padding: '3px 8px', borderRadius: 4,
+              padding: '3px 8px',
               color: RARITY_COLOR[rarity], background: `${RARITY_COLOR[rarity]}1f`,
             }}>{RARITY_LABEL[rarity]} ×{count}</span>
           ))}
@@ -175,7 +175,7 @@ function PreseasonHub({
         className="btn-press"
         style={{
           position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          width: '100%', margin: '14px 0 0', padding: '15px 0', borderRadius: 16, overflow: 'hidden',
+          width: '100%', margin: '14px 0 0', padding: '15px 0',overflow: 'hidden',
           fontFamily: 'inherit', cursor: rosterShort ? 'default' : 'pointer',
           // ★もとが金のボタンなので、金のガラスにする（色は元のまま）
           color: rosterShort ? C.textGhost : C.goldHi,
@@ -280,7 +280,7 @@ export default function Dashboard() {
 
   // 四角の見た目（スモークガラス）。ここ以外で書かないこと
   const sqStyle: React.CSSProperties = {
-    aspectRatio: '1 / 1', padding: '13px 13px 12px', borderRadius: 16, overflow: 'hidden',
+    aspectRatio: '1 / 1', padding: '13px 13px 12px',overflow: 'hidden',
     display: 'flex', flexDirection: 'column',
     background: 'linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 100%)',
     backdropFilter: 'blur(10px) saturate(118%)',
@@ -427,7 +427,7 @@ export default function Dashboard() {
           {eclNextCard}
           {!waDone && waJapanIn && (
             <button onClick={() => navigate('/national/select')} className="btn-press" style={{
-              width: '100%', marginTop: 10, padding: '11px 14px', borderRadius: 12, cursor: 'pointer',
+              width: '100%', marginTop: 10, padding: '11px 14px',cursor: 'pointer',
               background: `linear-gradient(180deg, ${alpha(C.purple, 0.16)}, ${alpha(C.purple, 0.06)})`,
               border: `2px solid ${C.purpleDark}`, display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'inherit',
             }}>
@@ -442,7 +442,7 @@ export default function Dashboard() {
               入口を隠すと、選考をしていない人からはその年の大会が消える） */}
           {!waDone && (
             <button onClick={goWorldAthletics} className="btn-game btn-game--purple" style={{ width: '100%', marginTop: 8 }}>
-              <span className="btn-game__inner" style={{ fontSize: 13, padding: '10px 14px', borderRadius: 12 }}>{waTitle}へ進む →</span>
+              <span className="btn-game__inner" style={{ fontSize: 13, padding: '10px 14px',}}>{waTitle}へ進む →</span>
             </button>
           )}
         </div>
@@ -462,26 +462,26 @@ export default function Dashboard() {
             <div style={{ padding: '14px 18px', position: 'relative', display: 'flex', flexDirection: 'column', gap: 8 }}>
               {waInProgress ? (
                 <button onClick={() => navigate('/national/tournament')} className="btn-game btn-game--purple" style={{ width: '100%' }}>
-                  <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px', borderRadius: 12 }}>駅伝 第{(worldTournament?.raceIndex ?? 0) + 1}戦へ →</span>
+                  <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px',}}>駅伝 第{(worldTournament?.raceIndex ?? 0) + 1}戦へ →</span>
                 </button>
               ) : !waJapanIn ? (
                 <button onClick={goWorldAthletics} className="btn-game btn-game--purple" style={{ width: '100%' }}>
-                  <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px', borderRadius: 12 }}>大会を観戦する</span>
+                  <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px',}}>大会を観戦する</span>
                 </button>
               ) : (<>
               {waSquadReady ? (
                 <button onClick={() => navigate('/national/select')} className="btn-press" style={{
-                  width: '100%', padding: '12px 14px', borderRadius: 11, cursor: 'pointer', fontFamily: 'inherit',
+                  width: '100%', padding: '12px 14px',cursor: 'pointer', fontFamily: 'inherit',
                   background: C.surface2, border: `2px solid ${C.border2}`, color: C.textSub, fontSize: 14, fontWeight: 900,
                 }}>選考をやり直す</button>
               ) : (
                 <button onClick={() => navigate('/national/select')} className="btn-game btn-game--purple" style={{ width: '100%' }}>
-                  <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px', borderRadius: 12 }}>日本代表を選考する</span>
+                  <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px',}}>日本代表を選考する</span>
                 </button>
               )}
               {waSquadReady && (
                 <button onClick={goWorldAthletics} className="btn-game btn-game--purple" style={{ width: '100%' }}>
-                  <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px', borderRadius: 12 }}>大会へ進む →</span>
+                  <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px',}}>大会へ進む →</span>
                 </button>
               )}
               </>)}
@@ -502,8 +502,8 @@ export default function Dashboard() {
               <div style={{ padding: '12px 18px', borderBottom: `1px solid ${alpha(C.gold, 0.1)}`, display: 'flex', gap: 8, position: 'relative', zIndex: 1 }}>
                 {/* 選出基準（平均区間順位）は内部ロジック。表示は誰が選ばれたかだけ */}
                 {mvp && (
-                  <div style={{ flex: 1, padding: 10, borderRadius: 10, background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${alpha(C.gold, 0.3)}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 8, overflow: 'hidden', flexShrink: 0, border: `1px solid ${alpha(C.gold, 0.4)}` }}>
+                  <div style={{ flex: 1, padding: 10,background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${alpha(C.gold, 0.3)}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 36, height: 36,overflow: 'hidden', flexShrink: 0, border: `1px solid ${alpha(C.gold, 0.4)}` }}>
                       <PlayerFace playerId={mvp.id} nationality={mvp.nationality} size={36}/>
                     </div>
                     <div style={{ minWidth: 0 }}>
@@ -514,8 +514,8 @@ export default function Dashboard() {
                   </div>
                 )}
                 {rookie && (
-                  <div style={{ flex: 1, padding: 10, borderRadius: 10, background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${alpha('#4FC3F7', 0.3)}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 8, overflow: 'hidden', flexShrink: 0, border: `1px solid ${alpha('#4FC3F7', 0.4)}` }}>
+                  <div style={{ flex: 1, padding: 10,background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${alpha('#4FC3F7', 0.3)}`, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 36, height: 36,overflow: 'hidden', flexShrink: 0, border: `1px solid ${alpha('#4FC3F7', 0.4)}` }}>
                       <PlayerFace playerId={rookie.id} nationality={rookie.nationality} size={36}/>
                     </div>
                     <div style={{ minWidth: 0 }}>
@@ -534,7 +534,7 @@ export default function Dashboard() {
                   const delta = e.ovrAfter - e.ovrBefore
                   const col = delta > 0 ? C.green : delta < 0 ? C.red : C.textDim
                   return (
-                    <div key={e.playerId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px', borderRadius: 8, marginBottom: 3, background: delta !== 0 ? alpha(col, 0.06) : 'transparent', border: `1px solid ${delta !== 0 ? alpha(col, 0.15) : C.border}` }}>
+                    <div key={e.playerId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px',marginBottom: 3, background: delta !== 0 ? alpha(col, 0.06) : 'transparent', border: `1px solid ${delta !== 0 ? alpha(col, 0.15) : C.border}` }}>
                       <span style={{ flex: 1, fontSize: 12, color: C.text }}>{e.name}</span>
                       <span style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim }}>{e.ovrBefore}</span>
                       <span style={{ fontSize: 10, color: C.border3 }}>→</span>
@@ -549,7 +549,7 @@ export default function Dashboard() {
             )}
             <div style={{ padding: '14px 18px', position: 'relative', zIndex: 1 }}>
               {waDone && (
-                <button onClick={() => navigate(`/national/result?y=${currentSeason.year}`)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', marginBottom: 10, borderRadius: 10, border: `1px solid ${alpha(C.purple, 0.4)}`, background: alpha(C.purple, 0.08), cursor: 'pointer' }}>
+                <button onClick={() => navigate(`/national/result?y=${currentSeason.year}`)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', marginBottom: 10,border: `1px solid ${alpha(C.purple, 0.4)}`, background: alpha(C.purple, 0.08), cursor: 'pointer' }}>
                   <span style={{ fontSize: 13, fontWeight: 900, color: C.purple }}>{waTitle} の結果</span>
                   <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 800, color: C.textDim }}>›</span>
                 </button>
@@ -607,7 +607,7 @@ export default function Dashboard() {
               {/* CTA */}
               <div style={{ padding: '10px 14px 12px', position: 'relative', zIndex: 2 }}>
                 <button className="btn-game btn-game--gold" style={{ width: '100%', border: 'none', cursor: 'pointer' }}>
-                  <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px', borderRadius: 12 }}>
+                  <span className="btn-game__inner" style={{ fontSize: 14, padding: '11px 14px',}}>
                     記録会を開催
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
                   </span>
@@ -625,7 +625,7 @@ export default function Dashboard() {
               onClick={() => navigate('/race')}
             />
           ) : (
-            <div style={{ padding: 16, textAlign: 'center', color: C.border3, fontSize: 13, background: C.surface2, border: `1px solid ${C.border2}`, borderRadius: 14 }}>
+            <div style={{ padding: 16, textAlign: 'center', color: C.border3, fontSize: 13, background: C.surface2, border: `1px solid ${C.border2}`,}}>
               レーススケジュール未設定
             </div>
           )}
@@ -787,7 +787,7 @@ export default function Dashboard() {
             onClick={() => { setSeasonAdAsk(false); setGmPassOpen(true) }}
             className="btn-press"
             style={{
-              width: '100%', padding: '11px 12px', borderRadius: 11, cursor: 'pointer',
+              width: '100%', padding: '11px 12px',cursor: 'pointer',
               background: `linear-gradient(180deg, ${alpha(C.gold, 0.2)}, ${alpha(C.gold, 0.06)})`,
               border: `1.5px solid ${alpha(C.gold, 0.5)}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,

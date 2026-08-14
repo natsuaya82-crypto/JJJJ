@@ -154,7 +154,7 @@ export default function RecordsHub() {
                 const rank = rankOfTeam(seasonDivisionStandings(season, teamIdAt(season.year)), teamIdAt(season.year))
                 const rankCol = rank === 1 ? C.gold : rank <= 3 ? C.green : C.textDim
                 return (
-                  <div key={season.year} style={{ flex: 1, textAlign: 'center', padding: '6px', borderRadius: '8px', background: C.surface }}>
+                  <div key={season.year} style={{ flex: 1, textAlign: 'center', padding: '6px',background: C.surface }}>
                     <div style={{ fontFamily: SAIRA, fontSize: '9px', color: C.textDim, marginBottom: '3px' }}>{season.year}</div>
                     <div style={{ fontFamily: SAIRA, fontSize: '15px', fontWeight: '900', color: rankCol, textShadow: rank <= 3 ? `0 0 6px ${alpha(rankCol, 0.5)}` : 'none' }}>{rank > 0 ? rank : '—'}</div>
                     <div style={{ fontFamily: SAIRA, fontSize: '8px', color: C.textGhost }}>位</div>

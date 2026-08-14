@@ -20,7 +20,7 @@ function J({ n, dim }: { n: number; dim?: boolean }) {
 function Section({ title }: { title: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 16px 8px' }}>
-      <div style={{ width: 3, height: 14, borderRadius: 2, background: '#6dd5fa' }}/>
+      <div style={{ width: 3, height: 14,background: '#6dd5fa' }}/>
       <span style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 800, color: '#6dd5fa', letterSpacing: '3px' }}>{title}</span>
     </div>
   )
@@ -43,7 +43,7 @@ function LinkCard({ label, sub, path, onClick }: { label: string; sub: string; p
   return (
     <button
       onClick={() => { if (path) navigate(path); onClick?.() }}
-      style={{ width: '100%', background: alpha(C.surface3, 0.5), border: `1px solid ${C.border}`, borderRadius: 12, padding: '12px 16px', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+      style={{ width: '100%', background: alpha(C.surface3, 0.5), border: `1px solid ${C.border}`,padding: '12px 16px', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
     >
       <div>
         <div style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 700, color: C.text }}>{label}</div>
@@ -97,7 +97,7 @@ export default function JewelsPage() {
       </div>
 
       {/* 残高 */}
-      <div style={{ margin: '16px 16px 8px', background: 'linear-gradient(135deg, #0f2240 0%, #0a1729 100%)', border: `1px solid ${alpha('#6dd5fa', 0.35)}`, borderRadius: 16, padding: '20px', textAlign: 'center', boxShadow: `0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(168,228,255,0.1)` }}>
+      <div style={{ margin: '16px 16px 8px', background: 'linear-gradient(135deg, #0f2240 0%, #0a1729 100%)', border: `1px solid ${alpha('#6dd5fa', 0.35)}`,padding: '20px', textAlign: 'center', boxShadow: `0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(168,228,255,0.1)` }}>
         <div style={{ fontFamily: SAIRA, fontSize: 11, color: alpha('#6dd5fa', 0.6), letterSpacing: '3px', marginBottom: 8 }}>保有ジュエル</div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
           <JewelIcon size={28}detailed />
@@ -107,7 +107,7 @@ export default function JewelsPage() {
 
       {/* 広告視聴 */}
       <div style={{ margin: '12px 16px 0' }}>
-        <div style={{ background: 'linear-gradient(135deg, #0f2240 0%, #0a1729 100%)', border: `1px solid ${alpha('#6dd5fa', adsLeft > 0 ? 0.4 : 0.15)}`, borderRadius: 14, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ background: 'linear-gradient(135deg, #0f2240 0%, #0a1729 100%)', border: `1px solid ${alpha('#6dd5fa', adsLeft > 0 ? 0.4 : 0.15)}`,padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: adsLeft > 0 ? '#6dd5fa' : C.textDim }}>広告を見る</div>
             <div style={{ fontFamily: SAIRA, fontSize: 11, color: C.textDim, marginTop: 3 }}>残り {adsLeft} / 3 回 · 1日3回まで</div>
@@ -122,7 +122,7 @@ export default function JewelsPage() {
             disabled={adsLeft <= 0}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
-              padding: '10px 18px', borderRadius: 10, cursor: adsLeft > 0 ? 'pointer' : 'default',
+              padding: '10px 18px',cursor: adsLeft > 0 ? 'pointer' : 'default',
               background: adsLeft > 0 ? 'linear-gradient(180deg, #1a4a7a 0%, #0f2a4a 100%)' : C.surface2,
               border: `1px solid ${adsLeft > 0 ? alpha('#6dd5fa', 0.5) : C.border}`,
               fontFamily: SAIRA, fontSize: 15, fontWeight: 900,
@@ -137,7 +137,7 @@ export default function JewelsPage() {
 
       {/* 入手方法 */}
       <Section title="入手方法"/>
-      <div style={{ margin: '0 16px', background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 12, overflow: 'hidden' }}>
+      <div style={{ margin: '0 16px', background: C.surface2, border: `1px solid ${C.border}`,overflow: 'hidden' }}>
         <Row label="レース1位" right={<J n={20}/>}/>
         <Row label="レース2位" right={<J n={10}/>}/>
         <Row label="レース3位" right={<J n={5}/>}/>

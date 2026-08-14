@@ -234,9 +234,9 @@ export function ResultsPhase({
                               <span style={{ fontSize: 12, fontWeight: 700, color: '#7986CB', fontFamily: SAIRA }}>{cur}</span>
                               <span style={{ fontSize: 9, fontWeight: 700, color: C.green, fontFamily: SAIRA }}>+{gained}</span>
                             </div>
-                            <div style={{ height: 4, borderRadius: 2, background: alpha(C.border, 0.8), overflow: 'hidden', position: 'relative' }}>
-                              <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${basePct * 100}%`, background: alpha(C.textSub, 0.4), borderRadius: 2 }}/>
-                              <div style={{ position: 'absolute', left: `${basePct * 100}%`, top: 0, height: '100%', width: `${gainPct * 100}%`, background: '#7986CB', borderRadius: 2, boxShadow: `0 0 6px #7986CB` }}/>
+                            <div style={{ height: 4,background: alpha(C.border, 0.8), overflow: 'hidden', position: 'relative' }}>
+                              <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${basePct * 100}%`, background: alpha(C.textSub, 0.4),}}/>
+                              <div style={{ position: 'absolute', left: `${basePct * 100}%`, top: 0, height: '100%', width: `${gainPct * 100}%`, background: '#7986CB',boxShadow: `0 0 6px #7986CB` }}/>
                             </div>
                           </div>
                         )
@@ -364,13 +364,12 @@ export function ResultsPhase({
               <div style={{
                 margin: '10px 12px 16px',
                 padding: '12px 16px',
-                borderRadius: 12,
                 background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
                 border: `2px solid ${alpha(moment.color, 0.45)}`,
                 boxShadow: `0 4px 0 rgba(0,0,0,0.4), 0 0 20px ${alpha(moment.color, 0.12)}`,
                 position: 'relative', overflow: 'hidden',
               }}>
-                <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(moment.color, 0.15)}`, borderRadius: 8, pointerEvents: 'none' }} />
+                <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(moment.color, 0.15)}`,pointerEvents: 'none' }} />
                 <div style={{ position: 'relative', zIndex: 1 }}>
                   <div style={{ fontSize: '9px', fontWeight: '800', color: moment.color, letterSpacing: '3px', marginBottom: '5px', textShadow: `0 0 10px ${alpha(moment.color, 0.5)}` }}>
                     {moment.label}
@@ -393,7 +392,7 @@ export function ResultsPhase({
             <span style={{ color: C.cyan }}>● 区間賞</span>
           </div>
         </div>
-        <div style={{ borderRadius: '12px', overflow: 'hidden', border: `1px solid ${C.border2}`, background: C.border }}>
+        <div style={{overflow: 'hidden', border: `1px solid ${C.border2}`, background: C.border }}>
           {results.teamRankings.map((tr, i) => {
             const t = teamMap.get(tr.teamId)
             const isPlayer = tr.teamId === playerTeamId
@@ -431,13 +430,13 @@ export function ResultsPhase({
       <div style={{ padding: '0 12px', marginBottom: '20px' }}>
         <button onClick={() => setView('segments')} style={{
           width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-          padding: '13px 16px', borderRadius: 14, cursor: 'pointer',
+          padding: '13px 16px',cursor: 'pointer',
           background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
           border: `2px solid ${C.border2}`,
           boxShadow: '0 4px 0 rgba(0,0,0,0.4), 0 6px 16px rgba(0,0,0,0.3)',
           fontFamily: 'inherit',
         }}>
-          <div style={{ width: 30, height: 30, borderRadius: 8, flexShrink: 0, background: `linear-gradient(135deg, ${C.gold}, ${C.goldDark})`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 30, height: 30,flexShrink: 0, background: `linear-gradient(135deg, ${C.gold}, ${C.goldDark})`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
               <path d="M4 6h16M4 12h16M4 18h10" stroke={C.bg} strokeWidth="2.4" strokeLinecap="round"/>
             </svg>
@@ -464,7 +463,7 @@ export function ResultsPhase({
         return (
           <div style={{ margin: '14px 12px 0' }}>
             <div style={{
-              padding: '8px 12px', borderRadius: 10,
+              padding: '8px 12px',
               background: alpha(C.gold, 0.08), border: `1px solid ${alpha(C.gold, 0.3)}`,
               display: 'flex', alignItems: 'center', gap: 8,
             }}>
@@ -473,7 +472,7 @@ export function ResultsPhase({
               <div style={{ flex: 1 }} />
               <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 {segWins.map(w => (
-                  <span key={w.segmentIndex} style={{ fontSize: 9, fontWeight: 700, color: C.gold, fontFamily: SAIRA, padding: '1px 5px', borderRadius: 4, background: alpha(C.gold, 0.12) }}>{w.segmentIndex}区</span>
+                  <span key={w.segmentIndex} style={{ fontSize: 9, fontWeight: 700, color: C.gold, fontFamily: SAIRA, padding: '1px 5px',background: alpha(C.gold, 0.12) }}>{w.segmentIndex}区</span>
                 ))}
               </div>
             </div>
@@ -529,7 +528,7 @@ export function ResultsPhase({
                   flexShrink: 0,
                   background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
                   border: `1.5px solid ${RARITY_COLORS[card.rarity]}`,
-                  borderRadius: 10, padding: '8px 10px',
+padding: '8px 10px',
                   textAlign: 'center', minWidth: 68,
                 }}>
                   <div style={{ fontSize: 8, color: RARITY_COLORS[card.rarity], fontWeight: 700, marginBottom: 4 }}>

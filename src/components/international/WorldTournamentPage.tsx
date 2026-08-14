@@ -135,7 +135,7 @@ export default function WorldTournamentPage() {
       <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, paddingBottom: bottomStack(adH, { aboveNav: true, extra: 88 }) }}>
         <PageHeader title={`${title} 代表発表`} onBack={() => navigate('/')} />
         <div style={{ padding: '2px 16px 8px', fontSize: 11, color: C.textDim }}>個人種目 {indStep + 1}/{inds.length} ・ 長押しで選手詳細</div>
-        <div style={{ margin: '4px 12px 0', borderRadius: 14, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.purpleDark}`, overflow: 'hidden' }}>
+        <div style={{ margin: '4px 12px 0',background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.purpleDark}`, overflow: 'hidden' }}>
           <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: C.purple }}>{WA_EVENT_LABEL[ir.event]} 出場選手</span>
             <span style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 800, color: C.textDim, marginLeft: 'auto' }}>{ir.placings.length}名</span>
@@ -181,7 +181,7 @@ export default function WorldTournamentPage() {
       <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, paddingBottom: bottomStack(adH, { aboveNav: true, extra: 88 }) }}>
         <PageHeader title={`${WA_EVENT_LABEL[ir.event]} 決勝`} onBack={() => navigate('/')} />
         <div style={{ padding: '2px 16px 8px', fontSize: 11, color: C.textDim }}>{title} ・ 長押しで選手詳細</div>
-        <div style={{ margin: '4px 12px 0', borderRadius: 14, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.purpleDark}`, overflow: 'hidden' }}>
+        <div style={{ margin: '4px 12px 0',background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.purpleDark}`, overflow: 'hidden' }}>
           <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: C.purple }}>{WA_EVENT_LABEL[ir.event]} 結果</div>
           <div style={{ padding: '8px 12px 12px' }}>
             {ir.placings.map(pl => {

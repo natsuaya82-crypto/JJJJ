@@ -63,7 +63,7 @@ export default function MatchEntryPage() {
         {stats.loading ? <LoadingBox /> : stats.error ? <ErrorBox onRetry={stats.reload} /> : (
           <div style={{ display: 'flex', gap: 8 }}>
             {[['対戦数', `${s?.played ?? 0}`], ['優勝', `${s?.wins ?? 0}`], ['不戦敗', `${s?.forfeits ?? 0}`]].map(([k, v]) => (
-              <div key={k} style={{ flex: 1, padding: '10px 8px', borderRadius: 10, background: C.surface2, border: `1px solid ${C.border}`, textAlign: 'center' }}>
+              <div key={k} style={{ flex: 1, padding: '10px 8px',background: C.surface2, border: `1px solid ${C.border}`, textAlign: 'center' }}>
                 <div style={{ fontSize: 8, color: C.textDim, marginBottom: 2 }}>{k}</div>
                 <div style={{ fontSize: 17, fontWeight: 900, color: C.text, fontFamily: SAIRA }}>{v}</div>
               </div>
@@ -88,11 +88,11 @@ export default function MatchEntryPage() {
             onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
             inputMode="numeric"
             placeholder="000000"
-            style={{ flex: 1, minWidth: 0, width: 0, padding: '11px 14px', borderRadius: 10, border: `1px solid ${C.border2}`, background: C.surface2, color: C.text, fontSize: 20, fontWeight: 900, fontFamily: SAIRA, letterSpacing: '10px', textAlign: 'center', outline: 'none' }}
+            style={{ flex: 1, minWidth: 0, width: 0, padding: '11px 14px',border: `1px solid ${C.border2}`, background: C.surface2, color: C.text, fontSize: 20, fontWeight: 900, fontFamily: SAIRA, letterSpacing: '10px', textAlign: 'center', outline: 'none' }}
           />
           <button onClick={onJoin} disabled={!!busy || code.length !== 6} style={{
             flexShrink: 0, minWidth: 72, whiteSpace: 'nowrap',
-            padding: '0 16px', borderRadius: 10, border: `2px solid ${C.cyan}`,
+            padding: '0 16px',border: `2px solid ${C.cyan}`,
             background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, color: C.cyan,
             fontSize: 13, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer',
             opacity: busy || code.length !== 6 ? 0.45 : 1,

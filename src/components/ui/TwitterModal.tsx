@@ -16,12 +16,11 @@ export default function TwitterModal({ onClose }: { onClose: () => void }) {
         width: '100%', maxWidth: '360px',
         background: C.surface,
         border: `1px solid ${C.border2}`,
-        borderRadius: '18px',
         padding: '32px 26px',
         textAlign: 'center',
       }}>
         <div style={{
-          width: 56, height: 56, borderRadius: 14, margin: '0 auto 18px',
+          width: 56, height: 56,margin: '0 auto 18px',
           background: '#000',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
@@ -45,7 +44,6 @@ export default function TwitterModal({ onClose }: { onClose: () => void }) {
             fontWeight: 800,
             fontSize: '15px',
             padding: '14px 0',
-            borderRadius: '12px',
             textDecoration: 'none',
             letterSpacing: '0.05em',
             marginBottom: '10px',

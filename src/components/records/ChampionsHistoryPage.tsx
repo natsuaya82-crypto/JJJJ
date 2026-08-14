@@ -293,7 +293,7 @@ export default function ChampionsHistoryPage() {
           ) : overallChampYears(cat).map(({ year: y, champ }) => (
             <button key={y} onClick={() => setYear(y)} style={{
               display: 'flex', alignItems: 'center', gap: 10, width: '100%', cursor: 'pointer', textAlign: 'left',
-              padding: '12px 14px', borderRadius: 12,
+              padding: '12px 14px',
               background: champ.isMe ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${C.surface2})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
               border: `2px solid ${champ.isMe ? alpha(C.gold, 0.5) : C.border2}`, color: C.text,
               boxShadow: '0 3px 0 rgba(0,0,0,0.45)', fontFamily: SAIRA,
@@ -318,7 +318,7 @@ export default function ChampionsHistoryPage() {
         return (
           <div style={{ padding: '0 14px' }}>
             <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: GOLD, paddingLeft: 2, marginBottom: 8 }}>{year}年 {CAT_LABEL[cat]} 総合順位</div>
-            <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+            <div style={{overflow: 'hidden', border: `1px solid ${C.border}` }}>
               {rows.map((r, i, arr) => (
                 <button key={r.teamId} onClick={() => goToTeam(r.teamId)} style={{
                   display: 'flex', alignItems: 'center', gap: 9, padding: '9px 12px', width: '100%', textAlign: 'left', cursor: 'pointer',
@@ -342,7 +342,7 @@ export default function ChampionsHistoryPage() {
         <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <button onClick={() => setRaceName(OVERALL)} style={{
             display: 'flex', alignItems: 'center', gap: 12, width: '100%', cursor: 'pointer', textAlign: 'left',
-            padding: '14px 16px', borderRadius: 12,
+            padding: '14px 16px',
             background: `linear-gradient(180deg, ${alpha(GOLD, 0.18)}, ${C.surface2})`,
             border: `2px solid ${alpha(GOLD, 0.5)}`, color: C.text,
             boxShadow: '0 3px 0 rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)', fontFamily: SAIRA,
@@ -355,14 +355,14 @@ export default function ChampionsHistoryPage() {
           ) : [...byCategory[cat].entries()].map(([name, rows]) => (
             <button key={name} onClick={() => setRaceName(name)} style={{
               display: 'flex', alignItems: 'center', gap: 12, width: '100%', cursor: 'pointer', textAlign: 'left',
-              padding: '14px 16px', borderRadius: 12,
+              padding: '14px 16px',
               background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
               border: `2px solid ${C.border2}`, color: C.text,
               boxShadow: '0 3px 0 rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)',
               fontFamily: SAIRA,
             }}>
               <span style={{ fontSize: 14, fontWeight: 800, flex: 1 }}>{name}</span>
-              <span style={{ fontSize: 10, color: C.textDim, padding: '2px 8px', borderRadius: 10, background: alpha(accent, 0.12) }}>{rows.length}回開催</span>
+              <span style={{ fontSize: 10, color: C.textDim, padding: '2px 8px',background: alpha(accent, 0.12) }}>{rows.length}回開催</span>
               <span style={{ color: C.textGhost, fontSize: 16 }}>›</span>
             </button>
           ))}
@@ -377,14 +377,14 @@ export default function ChampionsHistoryPage() {
             return (
               <button key={d} onClick={() => setTtDist(d)} style={{
                 display: 'flex', alignItems: 'center', gap: 12, width: '100%', cursor: 'pointer', textAlign: 'left',
-                padding: '14px 16px', borderRadius: 12,
+                padding: '14px 16px',
                 background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
                 border: `2px solid ${C.border2}`, color: C.text,
                 boxShadow: '0 3px 0 rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)',
                 fontFamily: SAIRA,
               }}>
                 <span style={{ fontSize: 14, fontWeight: 800, flex: 1 }}>{DIST_LABEL[d]}</span>
-                <span style={{ fontSize: 10, color: C.textDim, padding: '2px 8px', borderRadius: 10, background: alpha(CAT_COLOR.tt, 0.12) }}>{rows.length}シーズン</span>
+                <span style={{ fontSize: 10, color: C.textDim, padding: '2px 8px',background: alpha(CAT_COLOR.tt, 0.12) }}>{rows.length}シーズン</span>
                 <span style={{ color: C.textGhost, fontSize: 16 }}>›</span>
               </button>
             )
@@ -405,7 +405,7 @@ export default function ChampionsHistoryPage() {
             return (
               <button key={y} onClick={() => setYear(y)} style={{
                 display: 'flex', alignItems: 'center', gap: 10, width: '100%', cursor: 'pointer', textAlign: 'left',
-                padding: '12px 14px', borderRadius: 12,
+                padding: '12px 14px',
                 background: isMe ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${C.surface2})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
                 border: `2px solid ${isMe ? alpha(C.gold, 0.5) : C.border2}`, color: C.text,
                 boxShadow: '0 3px 0 rgba(0,0,0,0.45)',
@@ -413,7 +413,7 @@ export default function ChampionsHistoryPage() {
               }}>
                 <span style={{ fontSize: 17, fontWeight: 900, color: CAT_COLOR.tt }}>{y}</span>
                 {first && (
-                  <div style={{ width: 26, height: 26, borderRadius: 7, overflow: 'hidden', flexShrink: 0 }}>
+                  <div style={{ width: 26, height: 26,overflow: 'hidden', flexShrink: 0 }}>
                     <PlayerFace playerId={first.playerId} nationality={resolvePlayer(first.playerId)?.nationality ?? 'JPN'} size={26} />
                   </div>
                 )}
@@ -422,7 +422,7 @@ export default function ChampionsHistoryPage() {
                     <span style={{ fontSize: 12, fontWeight: 700, color: isMe ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{first ? (resolvePlayer(first.playerId)?.name || first.playerName || '—') : '—'}</span>
                     {first && (() => {
                       const rb = recordBadge(ttDist, first.playerId, first.timeSec)
-                      return rb ? <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 5px', borderRadius: 4, flexShrink: 0, color: rb.color, background: alpha(rb.color, 0.14), border: `1px solid ${alpha(rb.color, 0.45)}` }}>{rb.label}</span> : null
+                      return rb ? <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 5px',flexShrink: 0, color: rb.color, background: alpha(rb.color, 0.14), border: `1px solid ${alpha(rb.color, 0.45)}` }}>{rb.label}</span> : null
                     })()}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 1 }}>
@@ -442,7 +442,7 @@ export default function ChampionsHistoryPage() {
       {cat === 'tt' && ttDist != null && year != null && (
         <div style={{ padding: '0 14px' }}>
           <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: CAT_COLOR.tt, paddingLeft: 2, marginBottom: 6 }}>{year}年 {DIST_LABEL[ttDist]}</div>
-          <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+          <div style={{overflow: 'hidden', border: `1px solid ${C.border}` }}>
             {((ttByDist.get(ttDist) ?? []).find(r => r.year === year)?.top ?? []).map((e, i, arr) => {
               const t = resolveClub(e.teamId)
               const pl = resolvePlayer(e.playerId)
@@ -455,7 +455,7 @@ export default function ChampionsHistoryPage() {
                   cursor: pl ? 'pointer' : 'default',
                 }}>
                   <span style={{ fontSize: 14, fontWeight: 900, width: 22, textAlign: 'center', color: i === 0 ? C.gold : i < 3 ? C.textSub : C.textGhost }}>{i + 1}</span>
-                  <div style={{ width: 28, height: 28, borderRadius: 7, overflow: 'hidden', flexShrink: 0 }}>
+                  <div style={{ width: 28, height: 28,overflow: 'hidden', flexShrink: 0 }}>
                     <PlayerFace playerId={e.playerId} nationality={pl?.nationality ?? 'JPN'} size={28} />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -463,7 +463,7 @@ export default function ChampionsHistoryPage() {
                       <span style={{ fontSize: 12, fontWeight: 700, color: isMe ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pl?.name || e.playerName || '—'}</span>
                       {(() => {
                         const rb = recordBadge(ttDist, e.playerId, e.timeSec)
-                        return rb ? <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 5px', borderRadius: 4, flexShrink: 0, color: rb.color, background: alpha(rb.color, 0.14), border: `1px solid ${alpha(rb.color, 0.45)}` }}>{rb.label}</span> : null
+                        return rb ? <span style={{ fontSize: 8, fontWeight: 900, padding: '1px 5px',flexShrink: 0, color: rb.color, background: alpha(rb.color, 0.14), border: `1px solid ${alpha(rb.color, 0.45)}` }}>{rb.label}</span> : null
                       })()}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 1 }}>
@@ -491,13 +491,13 @@ export default function ChampionsHistoryPage() {
             return (
               <button key={r.year} onClick={() => setYear(r.year)} style={{
                 display: 'flex', alignItems: 'center', gap: 10, width: '100%', cursor: 'pointer', textAlign: 'left',
-                padding: '12px 14px', borderRadius: 12,
+                padding: '12px 14px',
                 background: isJp ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${C.surface2})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
                 border: `2px solid ${isJp ? alpha(C.gold, 0.5) : C.border2}`, color: C.text,
                 boxShadow: '0 3px 0 rgba(0,0,0,0.45)', fontFamily: SAIRA,
               }}>
                 <span style={{ fontSize: 17, fontWeight: 900, color: CAT_COLOR.waqual }}>{r.year}</span>
-                {champ && <Flag code={champ.nat} width={26} radius={3} />}
+                {champ && <Flag code={champ.nat} width={26} />}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: isJp ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{champ ? natName(champ.nat) : '—'}</div>
                   <div style={{ fontSize: 8, color: C.textGhost }}>年間優勝{r.host ? ` ・ ${natName(r.host)}開催` : ''}</div>
@@ -516,13 +516,13 @@ export default function ChampionsHistoryPage() {
           {([['d5000', '5000m'], ['d10000', '10000m'], ['marathon', 'マラソン'], ['ekiden', '駅伝']] as const).map(([ev, label]) => (
             <button key={ev} onClick={() => setWaEvent(ev)} style={{
               display: 'flex', alignItems: 'center', gap: 12, width: '100%', cursor: 'pointer', textAlign: 'left',
-              padding: '14px 16px', borderRadius: 12,
+              padding: '14px 16px',
               background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
               border: `2px solid ${C.border2}`, color: C.text,
               boxShadow: '0 3px 0 rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)', fontFamily: SAIRA,
             }}>
               <span style={{ fontSize: 14, fontWeight: 800, flex: 1 }}>{label}</span>
-              <span style={{ fontSize: 10, color: C.textDim, padding: '2px 8px', borderRadius: 10, background: alpha(CAT_COLOR.wamain, 0.12) }}>{waMain.length}回開催</span>
+              <span style={{ fontSize: 10, color: C.textDim, padding: '2px 8px',background: alpha(CAT_COLOR.wamain, 0.12) }}>{waMain.length}回開催</span>
               <span style={{ color: C.textGhost, fontSize: 16 }}>›</span>
             </button>
           ))}
@@ -544,19 +544,19 @@ export default function ChampionsHistoryPage() {
               // タップ=年度へ / 長押し=優勝者の選手詳細
               <button key={r.year} onClick={() => setYear(r.year)} {...lp(first.playerId)} style={{
                 display: 'flex', alignItems: 'center', gap: 10, width: '100%', cursor: 'pointer', textAlign: 'left',
-                padding: '12px 14px', borderRadius: 12,
+                padding: '12px 14px',
                 background: isJp ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${C.surface2})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
                 border: `2px solid ${isJp ? alpha(C.gold, 0.5) : C.border2}`, color: C.text,
                 boxShadow: '0 3px 0 rgba(0,0,0,0.45)', fontFamily: SAIRA,
               }}>
                 <span style={{ fontSize: 17, fontWeight: 900, color: CAT_COLOR.wamain }}>{r.year}</span>
-                <div style={{ width: 26, height: 26, borderRadius: 7, overflow: 'hidden', flexShrink: 0 }}>
+                <div style={{ width: 26, height: 26,overflow: 'hidden', flexShrink: 0 }}>
                   <PlayerFace playerId={first.playerId} nationality={first.nat} size={26} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: isJp ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{resolvePlayer(first.playerId)?.name || first.playerName}</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 1 }}>
-                    <Flag code={first.nat} width={13} radius={2} />
+                    <Flag code={first.nat} width={13} />
                     <span style={{ fontSize: 8, color: C.textGhost }}>{natName(first.nat)} ・ 優勝</span>
                   </div>
                 </div>
@@ -576,7 +576,7 @@ export default function ChampionsHistoryPage() {
         return (
           <div style={{ padding: '0 14px' }}>
             <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: CAT_COLOR.wamain, paddingLeft: 2, marginBottom: 6 }}>{year}年 世界選手権 {waEvent === 'd5000' ? '5000m' : waEvent === 'd10000' ? '10000m' : 'マラソン'}</div>
-            <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+            <div style={{overflow: 'hidden', border: `1px solid ${C.border}` }}>
               {rows.map((e, i, arr) => {
                 const isJp = e.nat === 'JPN'
                 return (
@@ -588,13 +588,13 @@ export default function ChampionsHistoryPage() {
                     cursor: 'pointer',
                   }}>
                     <span style={{ fontSize: 14, fontWeight: 900, width: 22, textAlign: 'center', color: i === 0 ? C.gold : i < 3 ? C.textSub : C.textGhost }}>{e.rank}</span>
-                    <div style={{ width: 28, height: 28, borderRadius: 7, overflow: 'hidden', flexShrink: 0 }}>
+                    <div style={{ width: 28, height: 28,overflow: 'hidden', flexShrink: 0 }}>
                       <PlayerFace playerId={e.playerId} nationality={e.nat} size={28} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: isJp ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{resolvePlayer(e.playerId)?.name || e.playerName}</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 1 }}>
-                        <Flag code={e.nat} width={13} radius={2} />
+                        <Flag code={e.nat} width={13} />
                         <span style={{ fontSize: 8, color: C.textGhost }}>{natName(e.nat)}</span>
                       </div>
                     </div>
@@ -619,13 +619,13 @@ export default function ChampionsHistoryPage() {
             return (
               <button key={r.year} onClick={() => setYear(r.year)} style={{
                 display: 'flex', alignItems: 'center', gap: 10, width: '100%', cursor: 'pointer', textAlign: 'left',
-                padding: '12px 14px', borderRadius: 12,
+                padding: '12px 14px',
                 background: isJp ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${C.surface2})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
                 border: `2px solid ${isJp ? alpha(C.gold, 0.5) : C.border2}`, color: C.text,
                 boxShadow: '0 3px 0 rgba(0,0,0,0.45)', fontFamily: SAIRA,
               }}>
                 <span style={{ fontSize: 17, fontWeight: 900, color: CAT_COLOR.wamain }}>{r.year}</span>
-                {champ && <Flag code={champ.nat} width={26} radius={3} />}
+                {champ && <Flag code={champ.nat} width={26} />}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: isJp ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{champ ? natName(champ.nat) : '—'}</div>
                   <div style={{ fontSize: 8, color: C.textGhost }}>駅伝優勝{r.host ? ` ・ ${natName(r.host)}開催` : ''}</div>
@@ -654,7 +654,7 @@ export default function ChampionsHistoryPage() {
               return (
                 <button key={rc.id} onClick={() => setWaRace(rc)} style={{
                   display: 'flex', alignItems: 'center', gap: 10, width: '100%', cursor: 'pointer', textAlign: 'left',
-                  padding: '12px 14px', borderRadius: 12,
+                  padding: '12px 14px',
                   background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
                   border: `2px solid ${C.border2}`, color: C.text,
                   boxShadow: '0 3px 0 rgba(0,0,0,0.45)', fontFamily: SAIRA,
@@ -662,7 +662,7 @@ export default function ChampionsHistoryPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rc.name}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                      {nat && <Flag code={nat} width={14} radius={2} />}
+                      {nat && <Flag code={nat} width={14} />}
                       <span style={{ fontSize: 9, color: C.textGhost }}>{nat ? `${natName(nat)} 優勝` : ''}</span>
                     </div>
                   </div>
@@ -679,7 +679,7 @@ export default function ChampionsHistoryPage() {
       {waRace != null && teamId == null && (
         <div style={{ padding: '0 14px' }}>
           <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: cat === 'waqual' ? CAT_COLOR.waqual : CAT_COLOR.wamain, paddingLeft: 2, marginBottom: 8 }}>{waRace.name}</div>
-          <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+          <div style={{overflow: 'hidden', border: `1px solid ${C.border}` }}>
             {[...waRace.results!.teamRankings].sort((a, b) => a.rank - b.rank).map((tr, i, arr) => {
               const nat = natOfTeamId(tr.teamId)
               const isJp = nat === 'JPN'
@@ -692,7 +692,7 @@ export default function ChampionsHistoryPage() {
                   color: C.text, fontFamily: SAIRA,
                 }}>
                   <span style={{ fontSize: 14, fontWeight: 900, width: 22, textAlign: 'center', color: tr.rank === 1 ? C.gold : tr.rank <= 3 ? C.textSub : C.textGhost }}>{tr.rank}</span>
-                  {nat && <Flag code={nat} width={22} radius={3} />}
+                  {nat && <Flag code={nat} width={22} />}
                   <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: isJp ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nat ? natName(nat) : '—'}</span>
                   <span style={{ fontSize: 11, fontWeight: 800, color: tr.rank === 1 ? C.gold : C.textSub }}>
                     {tr.rank === 1 ? formatRaceTime(tr.totalTimeSec) : `+${formatRaceTime(diff)}`}
@@ -713,8 +713,8 @@ export default function ChampionsHistoryPage() {
         const segs = [...waRace.segments].sort((a, b) => a.index - b.index)
         return (
           <div style={{ padding: '0 14px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, padding: '12px 14px', borderRadius: 12, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.border2}` }}>
-              {nat && <Flag code={nat} width={34} radius={4} />}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, padding: '12px 14px',background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.border2}` }}>
+              {nat && <Flag code={nat} width={34} />}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nat ? `${natName(nat)} 代表` : '—'}</div>
                 <div style={{ fontSize: 10, color: C.textDim }}>{waRace.name}</div>
@@ -724,7 +724,7 @@ export default function ChampionsHistoryPage() {
                 <div style={{ fontSize: 10, color: C.textDim }}>{myRanking ? formatRaceTime(myRanking.totalTimeSec) : ''}</div>
               </div>
             </div>
-            <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+            <div style={{overflow: 'hidden', border: `1px solid ${C.border}` }}>
               {segs.map((seg, i) => {
                 const sr = results.segmentResults.find(x => x.segmentIndex === seg.index)
                 const runner = sr?.runners.find(x => x.teamId === teamId)
@@ -743,13 +743,13 @@ export default function ChampionsHistoryPage() {
                       <div style={{ fontSize: 8, color: C.textGhost }}>{seg.distanceKm}km</div>
                     </div>
                     {pl && (
-                      <div style={{ width: 26, height: 26, borderRadius: 7, overflow: 'hidden', flexShrink: 0 }}>
+                      <div style={{ width: 26, height: 26,overflow: 'hidden', flexShrink: 0 }}>
                         <PlayerFace playerId={pl.id} nationality={pl.nationality} size={26} />
                       </div>
                     )}
                     <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
                       <span style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pl?.name ?? '—'}</span>
-                      {isSegWin && <span style={{ fontSize: 8, fontWeight: 800, color: C.gold, padding: '1px 5px', borderRadius: 4, background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`, flexShrink: 0 }}>区間賞</span>}
+                      {isSegWin && <span style={{ fontSize: 8, fontWeight: 800, color: C.gold, padding: '1px 5px',background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`, flexShrink: 0 }}>区間賞</span>}
                     </div>
                     <span style={{ fontSize: 10, fontWeight: 800, color: isSegWin ? C.gold : C.textDim, flexShrink: 0 }}>区間{runner?.rank ?? '—'}位</span>
                     <span style={{ fontSize: 12, fontWeight: 800, color: isSegWin ? C.gold : C.textSub, flexShrink: 0 }}>{runner ? formatRaceTime(runner.timeSec) : '—'}</span>
@@ -772,7 +772,7 @@ export default function ChampionsHistoryPage() {
             return (
               <button key={y} onClick={() => setYear(y)} style={{
                 display: 'flex', alignItems: 'center', gap: 10, width: '100%', cursor: 'pointer', textAlign: 'left',
-                padding: '12px 14px', borderRadius: 12,
+                padding: '12px 14px',
                 background: isMe ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${C.surface2})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
                 border: `2px solid ${isMe ? alpha(C.gold, 0.5) : C.border2}`, color: C.text,
                 boxShadow: '0 3px 0 rgba(0,0,0,0.45)',
@@ -796,7 +796,7 @@ export default function ChampionsHistoryPage() {
       {currentEntry && teamId == null && year != null && (
         <div style={{ padding: '0 14px' }}>
           <div style={{ fontFamily: SAIRA, fontSize: 14, fontWeight: 900, color: accent, paddingLeft: 2, marginBottom: 8 }}>{year}年 {raceName}</div>
-          <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+          <div style={{overflow: 'hidden', border: `1px solid ${C.border}` }}>
             {[...currentEntry.race.results!.teamRankings].sort((a, b) => a.rank - b.rank).map((tr, i, arr) => {
               const t = resolveClub(tr.teamId)
               const isMe = year != null && tr.teamId === teamIdAt(year)
@@ -830,7 +830,7 @@ export default function ChampionsHistoryPage() {
         const segs = [...currentEntry.race.segments].sort((a, b) => a.index - b.index)
         return (
           <div style={{ padding: '0 14px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, padding: '12px 14px', borderRadius: 12, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.border2}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, padding: '12px 14px',background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.border2}` }}>
               {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={34} />}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t?.name ?? '—'}</div>
@@ -841,7 +841,7 @@ export default function ChampionsHistoryPage() {
                 <div style={{ fontSize: 10, color: C.textDim }}>{myRanking ? formatRaceTime(myRanking.totalTimeSec) : ''}</div>
               </div>
             </div>
-            <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+            <div style={{overflow: 'hidden', border: `1px solid ${C.border}` }}>
               {segs.map((seg, i) => {
                 const sr = results.segmentResults.find(s => s.segmentIndex === seg.index)
                 const runner = sr?.runners.find(r => r.teamId === teamId)
@@ -859,13 +859,13 @@ export default function ChampionsHistoryPage() {
                       <div style={{ fontSize: 8, color: C.textGhost }}>{seg.distanceKm}km</div>
                     </div>
                     {pl && (
-                      <div style={{ width: 26, height: 26, borderRadius: 7, overflow: 'hidden', flexShrink: 0 }}>
+                      <div style={{ width: 26, height: 26,overflow: 'hidden', flexShrink: 0 }}>
                         <PlayerFace playerId={pl.id} nationality={pl.nationality} size={26} />
                       </div>
                     )}
                     <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
                       <span style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pl?.name ?? '—'}</span>
-                      {isSegWin && <span style={{ fontSize: 8, fontWeight: 800, color: C.gold, padding: '1px 5px', borderRadius: 4, background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`, flexShrink: 0 }}>区間賞</span>}
+                      {isSegWin && <span style={{ fontSize: 8, fontWeight: 800, color: C.gold, padding: '1px 5px',background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`, flexShrink: 0 }}>区間賞</span>}
                     </div>
                     <span style={{ fontSize: 10, fontWeight: 800, color: isSegWin ? C.gold : C.textDim, flexShrink: 0 }}>区間{runner?.rank ?? '—'}位</span>
                     <span style={{ fontSize: 12, fontWeight: 800, color: isSegWin ? C.gold : C.textSub, flexShrink: 0 }}>{runner ? formatRaceTime(runner.timeSec) : '—'}</span>

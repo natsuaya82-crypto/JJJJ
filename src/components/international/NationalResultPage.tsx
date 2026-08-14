@@ -45,7 +45,7 @@ export default function NationalResultPage() {
     </div>
   )
   const card = (title: string, body: React.ReactNode) => (
-    <div style={{ margin: '0 12px 12px', borderRadius: 14, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.purpleDark}`, overflow: 'hidden' }}>
+    <div style={{ margin: '0 12px 12px',background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.purpleDark}`, overflow: 'hidden' }}>
       <div style={{ padding: '10px 14px', borderBottom: `1px solid ${C.border}`, fontFamily: SAIRA, fontSize: 13, fontWeight: 900, color: C.purple }}>{title}</div>
       <div style={{ padding: '8px 12px 12px' }}>{body}</div>
     </div>
@@ -110,7 +110,7 @@ export default function NationalResultPage() {
     </div>
   )
   const pointsGuide = (
-    <div style={{ margin: '0 12px 12px', borderRadius: 12, background: C.surface2, border: `1px solid ${C.border}`, padding: '11px 13px' }}>
+    <div style={{ margin: '0 12px 12px',background: C.surface2, border: `1px solid ${C.border}`, padding: '11px 13px' }}>
       <div style={{ fontFamily: SAIRA, fontSize: 11, fontWeight: 900, color: C.purple, letterSpacing: 2, marginBottom: 6 }}>ポイントの付き方</div>
       <div style={{ fontSize: 11, color: C.textSub, lineHeight: 1.7, marginBottom: 8 }}>
         個人種目と駅伝でとった点を国ごとに全部足して、その合計で総合順位が決まります。
@@ -187,7 +187,7 @@ export default function NationalResultPage() {
     {isFinished && staged && (
       <div style={{ padding: '0 12px' }}>
         <button onClick={() => navigate('/')} className="btn-press" style={{
-          width: '100%', padding: '14px 0', borderRadius: 12, cursor: 'pointer', fontFamily: SAIRA,
+          width: '100%', padding: '14px 0',cursor: 'pointer', fontFamily: SAIRA,
           background: C.surface2, border: `2px solid ${C.border2}`, color: C.text, fontSize: 14, fontWeight: 900,
         }}>閉じる（シーズン終了へ）</button>
       </div>

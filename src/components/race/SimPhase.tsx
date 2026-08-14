@@ -180,7 +180,7 @@ export function RaceTrack({
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
-            width: 36, height: 36, borderRadius: 10,
+            width: 36, height: 36,
             background: `linear-gradient(135deg, ${segCol}, ${alpha(segCol, 0.45)})`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 17, fontWeight: 900, color: C.bg, flexShrink: 0,
@@ -266,9 +266,9 @@ export function RaceTrack({
                       </span>
                     )}
                   </div>
-                  <div style={{ position: 'relative', height: 5, borderRadius: 3, background: C.border2 }}>
+                  <div style={{ position: 'relative', height: 5,background: C.border2 }}>
                     <div style={{
-                      position: 'absolute', left: 0, top: 0, height: '100%', borderRadius: 3,
+                      position: 'absolute', left: 0, top: 0, height: '100%',
                       width: `${pct}%`,
                       background: isMe
                         ? `linear-gradient(90deg, ${segCol}, ${alpha(segCol, 0.5)})`
@@ -474,7 +474,7 @@ export function SimPhase({
               <button onClick={() => setPeekRace(true)} style={{
                 alignSelf: 'flex-start', marginTop: 16,
                 display: 'flex', alignItems: 'center', gap: 6,
-                padding: '8px 14px', borderRadius: 10, cursor: 'pointer',
+                padding: '8px 14px',cursor: 'pointer',
                 background: 'transparent', border: `1px solid ${alpha(segCol, 0.5)}`,
                 color: segCol, fontFamily: SAIRA, fontSize: 12, fontWeight: 700,
               }}>
@@ -502,7 +502,7 @@ export function SimPhase({
                     onClick={() => handleChoice(i)}
                     disabled={selectedChoice !== null}
                     style={{
-                      width: '100%', textAlign: 'left', padding: '14px 16px', borderRadius: 12,
+                      width: '100%', textAlign: 'left', padding: '14px 16px',
                       cursor: selectedChoice !== null ? 'default' : 'pointer',
                       border: `2px solid ${sel ? segCol : C.border2}`,
                       background: sel ? alpha(segCol, 0.2) : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
@@ -518,7 +518,7 @@ export function SimPhase({
                     <span style={{
                       flexShrink: 0, fontSize: 11, fontWeight: 900, color: probCol,
                       background: alpha(probCol, 0.13), border: `1px solid ${alpha(probCol, 0.4)}`,
-                      borderRadius: 8, padding: '3px 8px', textAlign: 'center', minWidth: 52,
+padding: '3px 8px', textAlign: 'center', minWidth: 52,
                     }}>
                       {isSure ? '確実' : `成功 ${probPct}%`}
                     </span>
@@ -561,8 +561,8 @@ export function SimPhase({
           <span style={{ fontSize: 13, fontWeight: 700, color: C.text, flex: 1 }}>{race.name}</span>
           <span style={{ fontSize: 10, color: C.textDim }}>{currentSegIdx}/{totalSegs}区</span>
         </div>
-        <div style={{ height: 3, backgroundColor: C.border2, borderRadius: 2, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${progressPct}%`, background: `linear-gradient(90deg, ${C.red}, ${C.gold})`, borderRadius: 2 }}/>
+        <div style={{ height: 3, backgroundColor: C.border2,overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${progressPct}%`, background: `linear-gradient(90deg, ${C.red}, ${C.gold})`,}}/>
         </div>
       </div>
 
@@ -573,7 +573,7 @@ export function SimPhase({
             onClick={() => setManualPause(v => !v)}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 16px', borderRadius: 10, cursor: 'pointer',
+              padding: '8px 16px',cursor: 'pointer',
               background: manualPause ? `linear-gradient(180deg, ${C.gold}, ${alpha(C.gold, 0.7)})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
               border: `1px solid ${manualPause ? C.gold : C.border2}`, color: manualPause ? C.bg : C.textSub,
               fontFamily: SAIRA, fontSize: 12, fontWeight: 700,
@@ -588,7 +588,7 @@ export function SimPhase({
             onClick={() => { cancelAnimationFrame(rafRef.current); setAnimKmRatio(1); setAnimDone(true); setSkipped(true); onSkipSegment?.() }}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 16px', borderRadius: 10, cursor: 'pointer',
+              padding: '8px 16px',cursor: 'pointer',
               background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
               border: `1px solid ${C.border2}`, color: C.textSub,
               fontFamily: SAIRA, fontSize: 12, fontWeight: 700,
@@ -636,7 +636,7 @@ export function SimPhase({
 
       {/* 暫定順位（区間結果後） */}
       {showResult && sortedStandings.length > 0 && (
-        <div style={{ margin: '12px 12px 0', borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+        <div style={{ margin: '12px 12px 0',overflow: 'hidden', border: `1px solid ${C.border}` }}>
           <div style={{ padding: '7px 12px', backgroundColor: C.surface2, borderBottom: `1px solid ${C.border}` }}>
             <span style={{ fontSize: 9, color: C.textDim, letterSpacing: 2 }}>暫定順位</span>
           </div>
@@ -714,7 +714,7 @@ export function SegmentResultCard({
           borderBottom: `1px solid ${alpha(segCol, 0.2)}`,
         }}>
           <div style={{
-            width: 34, height: 34, borderRadius: 9, flexShrink: 0,
+            width: 34, height: 34,flexShrink: 0,
             background: `linear-gradient(135deg, ${segCol}, ${alpha(segCol, 0.5)})`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 16, fontWeight: 900, color: C.bg,
@@ -748,11 +748,11 @@ export function SegmentResultCard({
                   {/* 国別対抗（nat_）は国旗＋国名で表示 */}
                   {r.teamId.startsWith('nat_') && (
                     <img src={`/flags/${r.teamId.slice(4)}.svg`} alt="" width={18} height={13} draggable={false}
-                      style={{ width: 18, height: 13, borderRadius: 2, objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(0,0,0,0.35)' }} />
+                      style={{ width: 18, height: 13,objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(0,0,0,0.35)' }} />
                   )}
                   <span style={{ fontSize: 12, fontWeight: isMe ? 800 : 500, color: isMe ? C.gold : C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t?.name ?? r.teamId}</span>
                   {isNewRecord && r.rank === 1 && (
-                    <span style={{ fontSize: 8, padding: '1px 4px', borderRadius: 4, backgroundColor: alpha(C.red, 0.15), border: `1px solid ${alpha(C.red, 0.5)}`, color: C.red, fontWeight: 900, flexShrink: 0 }}>区間新！</span>
+                    <span style={{ fontSize: 8, padding: '1px 4px',backgroundColor: alpha(C.red, 0.15), border: `1px solid ${alpha(C.red, 0.5)}`, color: C.red, fontWeight: 900, flexShrink: 0 }}>区間新！</span>
                   )}
                 </div>
                 {p && <div style={{ fontSize: 9, color: C.textSub }}>{p.name}</div>}

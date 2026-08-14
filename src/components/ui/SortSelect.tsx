@@ -16,7 +16,7 @@ export default function SortSelect<T extends string>({
       value={value}
       onChange={e => onChange(e.target.value as T)}
       style={{
-        padding: '7px 10px', borderRadius: '10px',
+        padding: '7px 10px',
         background: C.surface2, border: `1px solid ${C.border2}`,
         color: C.textSub, fontSize: '11px', fontFamily: SAIRA, outline: 'none', cursor: 'pointer',
         ...style,

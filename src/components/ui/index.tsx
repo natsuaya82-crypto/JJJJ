@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { C, R, alpha } from '../../styles/tokens'
+import { C, alpha } from '../../styles/tokens'
 
 /* ── SectionLabel ─────────────────────────── */
 export function SectionLabel({ children, className, style }: { children: ReactNode; className?: string; style?: CSSProperties }) {
@@ -22,7 +22,6 @@ interface CardProps {
 }
 export function Card({ children, variant = 'default', onClick, style, className, padding = '14px 16px' }: CardProps) {
   const base: CSSProperties = {
-    borderRadius: R.lg,
     padding,
     ...(variant === 'gold'
       ? { background: `linear-gradient(135deg, ${alpha(C.gold, 0.1)}, ${C.surface})`, border: `1px solid ${alpha(C.gold, 0.3)}` }
@@ -106,7 +105,6 @@ export function Btn({ children, variant = 'primary', onClick, disabled, fullWidt
         height: heights[size],
         width: fullWidth ? '100%' : undefined,
         padding: '0 20px',
-        borderRadius: R.md,
         fontSize: fontSizes[size],
         fontWeight: '700',
         cursor: disabled ? 'not-allowed' : 'pointer',
@@ -134,7 +132,6 @@ export function Badge({ children, color = C.gold, style }: BadgeProps) {
       display: 'inline-flex',
       alignItems: 'center',
       padding: '2px 8px',
-      borderRadius: R.full,
       backgroundColor: alpha(color, 0.15),
       border: `1px solid ${alpha(color, 0.35)}`,
       fontSize: '10px',
@@ -163,7 +160,6 @@ export function InfoTile({ label, value, color }: { label: string; value: string
   return (
     <div style={{
       backgroundColor: 'rgba(0,0,0,0.3)',
-      borderRadius: R.sm,
       padding: '9px 6px',
       border: '1px solid rgba(255,255,255,0.04)',
       textAlign: 'center',

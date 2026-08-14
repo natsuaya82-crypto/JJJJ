@@ -341,7 +341,7 @@ export default function TransferPage() {
               const hasBid = activeBids.some(b => b.playerId === p.id)
               const bidLocked = p.transferLockedUntilYear != null && currentSeason.year < p.transferLockedUntilYear
               const ownerTeam = clubIndex.byId(p.teamId)
-              const badge: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 8, padding: '1px 5px', borderRadius: 0, fontWeight: 700, flexShrink: 0 }
+              const badge: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 8, padding: '1px 5px',fontWeight: 700, flexShrink: 0 }
               return (
                 <div key={p.id} style={{ opacity: bidLocked ? 0.5 : 1 }}>
                   <PlayerRow
@@ -389,7 +389,7 @@ export default function TransferPage() {
                   onClose={() => setMenuPlayerId(null)}
                   header={
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
+                      <div style={{overflow: 'hidden', flexShrink: 0 }}>
                         <PlayerFace playerId={mp.id} nationality={mp.nationality} size={44} />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -543,12 +543,12 @@ export default function TransferPage() {
                             <div style={{ fontSize: '13px', fontWeight: '600', color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: SAIRA }}>
                               {p.name}
                             </div>
-                            {isPeakSell && !isListed && <span style={{ fontSize: '8px', padding: '1px 5px', borderRadius: 0, backgroundColor: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.3)}`, color: C.gold, fontWeight: '800', fontFamily: SAIRA, flexShrink: 0 }}>売り時</span>}
+                            {isPeakSell && !isListed && <span style={{ fontSize: '8px', padding: '1px 5px',backgroundColor: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.3)}`, color: C.gold, fontWeight: '800', fontFamily: SAIRA, flexShrink: 0 }}>売り時</span>}
                           </div>
                           <div style={{ display: 'flex', gap: '5px', alignItems: 'center', marginTop: '2px', flexWrap: 'wrap' }}>
                             <SpecChip specialty={p.specialty} size="sm" />
                             <span style={{ fontSize: '9px', color: C.textDim, fontFamily: SAIRA }}>{p.age}歳</span>
-                            <span style={{ fontSize: '9px', padding: '1px 4px', borderRadius: 0, backgroundColor: alpha(stageCol, 0.08), color: stageCol, fontWeight: '700', fontFamily: SAIRA }}>{CAREER_STAGE_LABEL[stage]}</span>
+                            <span style={{ fontSize: '9px', padding: '1px 4px',backgroundColor: alpha(stageCol, 0.08), color: stageCol, fontWeight: '700', fontFamily: SAIRA }}>{CAREER_STAGE_LABEL[stage]}</span>
                             <span style={{ fontSize: '9px', color: C.textSub, fontFamily: SAIRA }}>{fmtYen(val)}</span>
                           </div>
                         </div>
@@ -564,7 +564,7 @@ export default function TransferPage() {
                                 )}
                               </div>
                               <button onClick={() => delistMyPlayer(p.id)} style={{
-                                padding: '5px 9px', borderRadius: 0,
+                                padding: '5px 9px',
                                 border: `1px solid ${alpha(C.textDim, 0.25)}`, background: 'transparent',
                                 color: C.textDim, fontSize: '10px', cursor: 'pointer', fontFamily: SAIRA,
                               }}>取下</button>
@@ -599,7 +599,7 @@ export default function TransferPage() {
                         <GlassButton full style={{ flex: 1 }} onClick={() => { listMyPlayerForSale(p.id, listingPrice); setListingPlayerId(null) }}>
                           出品を確定
                         </GlassButton>
-                        <button onClick={() => setListingPlayerId(null)} style={{ padding: '10px 14px', borderRadius: 0, border: `1px solid ${alpha(C.border3, 0.7)}`, background: 'transparent', color: C.textDim, fontSize: '12px', cursor: 'pointer', fontFamily: SAIRA, flexShrink: 0 }}>取消</button>
+                        <button onClick={() => setListingPlayerId(null)} style={{ padding: '10px 14px',border: `1px solid ${alpha(C.border3, 0.7)}`, background: 'transparent', color: C.textDim, fontSize: '12px', cursor: 'pointer', fontFamily: SAIRA, flexShrink: 0 }}>取消</button>
                       </div>
                     </div>
                   )}
@@ -699,7 +699,7 @@ export default function TransferPage() {
                       return (
                         <button key={t.id} onClick={() => navigate(`/team/chat?trade=${t.id}`)} className="btn-press" style={{
                           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '7px',
-                          padding: '14px 8px', borderRadius: 0,
+                          padding: '14px 8px',
                           // スモークガラス（クラブの色で染める）
                           background: `linear-gradient(180deg, ${alpha(t.colors.primary, 0.16)}, ${alpha(t.colors.primary, 0.03)})`,
                           backdropFilter: 'blur(10px) saturate(118%)',

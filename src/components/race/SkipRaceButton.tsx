@@ -11,7 +11,7 @@ export function SkipRaceButton({ onClick, label = 'スキップ' }: { onClick: (
       onClick={onClick}
       title="イベントなしで一気に結果へ"
       style={{
-        flexShrink: 0, padding: '11px 14px', borderRadius: 11,
+        flexShrink: 0, padding: '11px 14px',
         background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
         border: `2px solid ${C.border2}`, color: C.textSub,
         fontSize: '12px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',

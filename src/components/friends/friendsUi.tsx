@@ -69,7 +69,7 @@ export function useFriendsQuery<T>(fn: () => Promise<T>, deps: unknown[] = [], c
 
 const boxStyle: React.CSSProperties = {
   textAlign: 'center', color: C.textGhost, fontSize: 12, padding: '28px 16px',
-  background: C.surface2, borderRadius: 12, border: `1px solid ${C.border2}`,
+  background: C.surface2,border: `1px solid ${C.border2}`,
   fontFamily: SAIRA,
 }
 
@@ -84,7 +84,7 @@ export function ErrorBox({ onRetry }: { onRetry?: () => void }) {
       <div style={{ fontSize: 10, color: C.textDim, marginTop: 4 }}>電波の良い場所で、もう一度お試しください</div>
       {onRetry && (
         <button onClick={onRetry} className="btn-press" style={{
-          marginTop: 12, padding: '8px 18px', borderRadius: 9, cursor: 'pointer',
+          marginTop: 12, padding: '8px 18px',cursor: 'pointer',
           border: `2px solid ${alpha(C.gold, 0.5)}`, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
           color: C.gold, fontSize: 12, fontWeight: 900, fontFamily: SAIRA,
         }}>再読み込み</button>

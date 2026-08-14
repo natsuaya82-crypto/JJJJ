@@ -48,7 +48,7 @@ export default function FriendListPage() {
                   // 外側がボタンなので、中にボタンは置けない（入れ子は駄目）。
                   <div
                     onClick={e => { e.stopPropagation(); navigate(`/friends/club?code=${clubs.data!.get(f.id)!.code}`) }}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 3, maxWidth: '100%', padding: '2px 6px 2px 4px', marginLeft: -4, borderRadius: 8, border: `1px solid ${C.border}`, background: alpha(C.bg, 0.35), cursor: 'pointer' }}>
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 3, maxWidth: '100%', padding: '2px 6px 2px 4px', marginLeft: -4,border: `1px solid ${C.border}`, background: alpha(C.bg, 0.35), cursor: 'pointer' }}>
                     <img src={clubLogoSrc(clubs.data.get(f.id)!.logoId)} alt="" width={14} height={14} draggable={false} style={{ objectFit: 'contain', display: 'block', flexShrink: 0 }} />
                     <div style={{ fontSize: 10, color: C.textSub, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{clubs.data.get(f.id)!.name}</div>
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" style={{ color: C.goldDark, flexShrink: 0 }}><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>

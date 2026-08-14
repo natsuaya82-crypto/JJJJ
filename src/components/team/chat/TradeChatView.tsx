@@ -88,7 +88,7 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: Team; onC
   )
   const primaryBtn = (label: string, onClick: () => void, enabled = true) => (
     <button onClick={() => enabled && onClick()} disabled={!enabled}
-      style={{ flex: 1, padding: '14px', borderRadius: 12, border: 'none', cursor: enabled ? 'pointer' : 'not-allowed', opacity: enabled ? 1 : 0.4, background: C.gold, color: '#1a0d00', fontSize: 15, fontWeight: 900, fontFamily: SAIRA }}>
+      style={{ flex: 1, padding: '14px',border: 'none', cursor: enabled ? 'pointer' : 'not-allowed', opacity: enabled ? 1 : 0.4, background: C.gold, color: '#1a0d00', fontSize: 15, fontWeight: 900, fontFamily: SAIRA }}>
       {label}
     </button>
   )
@@ -140,19 +140,19 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: Team; onC
       {step === 3 && (
         <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
           {submitted && !neg && (
-            <div style={{ borderRadius: 12, padding: '14px', textAlign: 'center', background: alpha(C.green, 0.12), border: `1.5px solid ${alpha(C.green, 0.5)}` }}>
+            <div style={{padding: '14px', textAlign: 'center', background: alpha(C.green, 0.12), border: `1.5px solid ${alpha(C.green, 0.5)}` }}>
               <div style={{ fontFamily: SAIRA, fontSize: 18, fontWeight: 900, color: C.green, marginBottom: 4 }}>トレード成立！</div>
               <div style={{ fontSize: 11, color: C.textSub, lineHeight: 1.6 }}>加入選手は2軍へ。契約体系は「移籍・獲得」タブの契約交渉で確定してください。</div>
-              <button onClick={onClose} style={{ marginTop: 10, padding: '10px 20px', borderRadius: 10, border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: SAIRA }}>閉じる</button>
+              <button onClick={onClose} style={{ marginTop: 10, padding: '10px 20px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: SAIRA }}>閉じる</button>
             </div>
           )}
           {submitted && neg && (
-            <div style={{ borderRadius: 12, padding: '10px 12px', background: alpha(neg.status === 'rejected' ? C.red : C.gold, 0.1), border: `1.5px solid ${alpha(neg.status === 'rejected' ? C.red : C.gold, 0.5)}` }}>
+            <div style={{padding: '10px 12px', background: alpha(neg.status === 'rejected' ? C.red : C.gold, 0.1), border: `1.5px solid ${alpha(neg.status === 'rejected' ? C.red : C.gold, 0.5)}` }}>
               <div style={{ fontSize: 12, color: C.text, lineHeight: 1.6 }}>{neg.message}</div>
               {neg.status === 'countered' && (
                 <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                  <button onClick={() => { acceptTradeCounter(neg.id) }} style={{ flex: 1, padding: 10, borderRadius: 9, border: 'none', background: C.green, color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: SAIRA }}>条件を飲んで成立</button>
-                  <button onClick={() => { dismissTradeNegotiation(neg.id); setSubmitted(false); setStep(1) }} style={{ padding: '10px 12px', borderRadius: 9, border: `1px solid ${C.border}`, background: 'transparent', color: C.textDim, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: SAIRA }}>組み替え</button>
+                  <button onClick={() => { acceptTradeCounter(neg.id) }} style={{ flex: 1, padding: 10,border: 'none', background: C.green, color: '#fff', fontSize: 13, fontWeight: 800, cursor: 'pointer', fontFamily: SAIRA }}>条件を飲んで成立</button>
+                  <button onClick={() => { dismissTradeNegotiation(neg.id); setSubmitted(false); setStep(1) }} style={{ padding: '10px 12px',border: `1px solid ${C.border}`, background: 'transparent', color: C.textDim, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: SAIRA }}>組み替え</button>
                 </div>
               )}
               {neg.status === 'rejected' && (
@@ -160,14 +160,14 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: Team; onC
                   {tradeOutlook.blockNote
                     ? <div style={{ fontSize: 10, color: C.red, marginTop: 6, lineHeight: 1.5 }}>{tradeOutlook.blockNote}</div>
                     : tradeOutlook.shortage > 0 && <div style={{ fontSize: 10, color: C.textDim, marginTop: 6, lineHeight: 1.5 }}>あと約{fmtYen(tradeOutlook.shortage)}相当が不足しています。出す選手か指名権を追加して再提案してください</div>}
-                  <button onClick={() => { dismissTradeNegotiation(neg.id); setSubmitted(false); setStep(1) }} style={{ marginTop: 8, padding: '8px 14px', borderRadius: 9, border: `1px solid ${C.border}`, background: 'transparent', color: C.textDim, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: SAIRA }}>組み替えて再提案</button>
+                  <button onClick={() => { dismissTradeNegotiation(neg.id); setSubmitted(false); setStep(1) }} style={{ marginTop: 8, padding: '8px 14px',border: `1px solid ${C.border}`, background: 'transparent', color: C.textDim, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: SAIRA }}>組み替えて再提案</button>
                 </>
               )}
               <div style={{ fontSize: 9, color: C.textGhost, marginTop: 6, fontFamily: SAIRA }}>交渉 {neg.round}/3 回目</div>
             </div>
           )}
 
-          <div style={{ borderRadius: 12, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${C.border2}`, padding: '12px 14px' }}>
+          <div style={{background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${C.border2}`, padding: '12px 14px' }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: C.red, marginBottom: 6 }}>出す（自チーム）</div>
             {giveCount === 0
               ? <div style={{ fontSize: 11, color: C.textGhost }}>なし</div>
@@ -182,12 +182,12 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: Team; onC
             const barColor = rate >= 70 ? C.green : rate >= 30 ? C.gold : C.red
             const filled = Math.round(rate / 10)
             return (
-              <div style={{ borderRadius: 12, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${C.border2}`, padding: '12px 14px' }}>
+              <div style={{background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${C.border2}`, padding: '12px 14px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 10, color: C.textDim, fontFamily: SAIRA, flexShrink: 0 }}>成功率</span>
                   <div style={{ display: 'flex', gap: 3, flex: 1 }}>
                     {Array.from({ length: 10 }).map((_, i) => (
-                      <div key={i} style={{ flex: 1, height: 6, borderRadius: 3, background: i < filled ? barColor : C.border2 }} />
+                      <div key={i} style={{ flex: 1, height: 6,background: i < filled ? barColor : C.border2 }} />
                     ))}
                   </div>
                   <span style={{ fontSize: 13, fontWeight: 900, color: barColor, fontFamily: SAIRA, flexShrink: 0, minWidth: 38, textAlign: 'right' }}>{rate}%</span>
@@ -218,9 +218,9 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: Team; onC
 function TradeSelRow({ player, selected, color, onToggle }: { player: Player; selected: boolean; color: string; onToggle: () => void }) {
   const specCol = SPEC_COLOR[player.specialty]
   return (
-    <button onClick={onToggle} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10, cursor: 'pointer', textAlign: 'left', width: '100%', background: selected ? alpha(color, 0.14) : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1.5px solid ${selected ? color : C.border}`, fontFamily: 'inherit' }}>
+    <button onClick={onToggle} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',cursor: 'pointer', textAlign: 'left', width: '100%', background: selected ? alpha(color, 0.14) : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1.5px solid ${selected ? color : C.border}`, fontFamily: 'inherit' }}>
       <div style={{ width: 20, height: 20, borderRadius: '50%', flexShrink: 0, border: `2px solid ${selected ? color : C.border2}`, background: selected ? color : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0A0912', fontSize: 12, fontWeight: 900 }}>{selected ? '✓' : ''}</div>
-      <div style={{ flexShrink: 0, borderRadius: 8, overflow: 'hidden', border: `1.5px solid ${alpha(specCol, 0.4)}` }}><PlayerFace playerId={player.id} nationality={player.nationality} size={40} /></div>
+      <div style={{ flexShrink: 0,overflow: 'hidden', border: `1.5px solid ${alpha(specCol, 0.4)}` }}><PlayerFace playerId={player.id} nationality={player.nationality} size={40} /></div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <span style={{ fontSize: 13, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.name}</span>
@@ -235,7 +235,7 @@ function TradeSelRow({ player, selected, color, onToggle }: { player: Player; se
 
 function PickChip({ label, selected, color, onToggle }: { label: string; selected: boolean; color: string; onToggle: () => void }) {
   return (
-    <button onClick={onToggle} style={{ padding: '6px 10px', borderRadius: 8, cursor: 'pointer', fontFamily: SAIRA, fontSize: 11, fontWeight: 800, background: selected ? alpha(color, 0.18) : C.surface2, border: `1.5px solid ${selected ? color : C.border2}`, color: selected ? color : C.textDim }}>
+    <button onClick={onToggle} style={{ padding: '6px 10px',cursor: 'pointer', fontFamily: SAIRA, fontSize: 11, fontWeight: 800, background: selected ? alpha(color, 0.18) : C.surface2, border: `1.5px solid ${selected ? color : C.border2}`, color: selected ? color : C.textDim }}>
       {label}指名権
     </button>
   )

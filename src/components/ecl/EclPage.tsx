@@ -232,7 +232,7 @@ export default function EclPage() {
             <BackButton onClick={() => setViewTeamId(null)}/>
           </div>
           <div style={{ padding: '0 14px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, padding: '12px 14px', borderRadius: 12, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.border2}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, padding: '12px 14px',background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `2px solid ${C.border2}` }}>
               {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={34} />}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 900, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t?.name ?? '—'}</div>
@@ -243,7 +243,7 @@ export default function EclPage() {
                 <div style={{ fontSize: 10, color: C.textDim, fontFamily: SAIRA }}>{myRanking ? formatRaceTime(myRanking.totalTimeSec) : ''}</div>
               </div>
             </div>
-            <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+            <div style={{overflow: 'hidden', border: `1px solid ${C.border}` }}>
               {segs.map((seg, i) => {
                 const sr = results.segmentResults.find(s => s.segmentIndex === seg.index)
                 const runner = sr?.runners.find(r => r.teamId === viewTeamId)
@@ -262,13 +262,13 @@ export default function EclPage() {
                       <div style={{ fontSize: 8, color: C.textGhost }}>{seg.distanceKm}km</div>
                     </div>
                     {pl && (
-                      <div style={{ width: 26, height: 26, borderRadius: 7, overflow: 'hidden', flexShrink: 0 }}>
+                      <div style={{ width: 26, height: 26,overflow: 'hidden', flexShrink: 0 }}>
                         <PlayerFace playerId={pl.id} nationality={pl.nationality} size={26} />
                       </div>
                     )}
                     <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 5 }}>
                       <span style={{ fontSize: 12, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pl?.name ?? '—'}</span>
-                      {isSegWin && <span style={{ fontSize: 8, fontWeight: 800, color: C.gold, padding: '1px 5px', borderRadius: 4, background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`, flexShrink: 0 }}>区間賞</span>}
+                      {isSegWin && <span style={{ fontSize: 8, fontWeight: 800, color: C.gold, padding: '1px 5px',background: alpha(C.gold, 0.12), border: `1px solid ${alpha(C.gold, 0.4)}`, flexShrink: 0 }}>区間賞</span>}
                     </div>
                     <span style={{ fontSize: 10, fontWeight: 800, color: isSegWin ? C.gold : C.textDim, flexShrink: 0, fontFamily: SAIRA }}>区間{runner?.rank ?? '—'}位</span>
                     <span style={{ fontSize: 12, fontWeight: 800, color: isSegWin ? C.gold : C.textSub, flexShrink: 0, fontFamily: SAIRA }}>{runner ? formatRaceTime(runner.timeSec) : '—'}</span>
@@ -398,7 +398,7 @@ export default function EclPage() {
       {/* 開催スケジュール（消化済みの戦はタップで結果再生） */}
       <div style={{ margin: '0 14px' }}>
         <div style={{ fontFamily: SAIRA, fontSize: 10, color: C.gold, letterSpacing: 3, fontWeight: 900, marginBottom: 8 }}>開催スケジュール</div>
-        <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+        <div style={{overflow: 'hidden', border: `1px solid ${C.border}` }}>
           {series.races.map((r, i) => {
             const done = !!r.results
             const winner = done ? (r.results!.teamRankings.find(tr => tr.rank === 1) ?? r.results!.teamRankings[0]) : null

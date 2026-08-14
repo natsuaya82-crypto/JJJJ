@@ -52,7 +52,7 @@ export default function MenuButton({ icon, label, en, badge = 0, badgeColor = C.
           {label}
           {badge > 0 && (
             <span style={{
-              marginLeft: 7, padding: '1px 7px', borderRadius: 6,
+              marginLeft: 7, padding: '1px 7px',
               background: badgeColor, color: C.bg, fontSize: 10, fontWeight: 900,
               verticalAlign: 'middle',
             }}>{badge}</span>

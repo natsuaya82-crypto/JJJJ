@@ -42,7 +42,7 @@ export default function KeyPlayersSection({ players, team }: Props) {
               className="btn-press"
               style={{
                 display: 'flex', alignItems: 'center', gap: 12,
-                padding: '12px 14px', borderRadius: 14, cursor: 'pointer',
+                padding: '12px 14px',cursor: 'pointer',
                 background: isTop
                   ? `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`
                   : `linear-gradient(180deg, ${C.surface} 0%, ${C.bg} 100%)`,
@@ -60,7 +60,7 @@ export default function KeyPlayersSection({ players, team }: Props) {
 
               {/* Player face */}
               <div style={{
-                width: 42, borderRadius: 11, flexShrink: 0, overflow: 'hidden',
+                width: 42,flexShrink: 0, overflow: 'hidden',
                 background: `linear-gradient(135deg, ${alpha(team.colors.primary, 0.45)}, ${alpha(team.colors.primary, 0.18)})`,
                 border: `2px solid ${alpha(team.colors.primary, 0.5)}`,
                 boxShadow: `inset 0 1px 0 rgba(255,255,255,0.2), 0 2px 6px rgba(0,0,0,0.4)`,
@@ -74,7 +74,7 @@ export default function KeyPlayersSection({ players, team }: Props) {
                   <span style={{ fontSize: 14, fontWeight: 700, color: isTop ? C.text : C.textSub }}>{p.name}</span>
                   {isForeignNat(p.nationality) && (
                     <span style={{ fontSize: 9, color: '#6B7BE8', fontWeight: 600,
-                      padding: '1px 5px', borderRadius: 4, backgroundColor: '#6B7BE815', border: '1px solid #6B7BE830' }}>
+                      padding: '1px 5px',backgroundColor: '#6B7BE815', border: '1px solid #6B7BE830' }}>
                       海外
                     </span>
                   )}
@@ -88,11 +88,11 @@ export default function KeyPlayersSection({ players, team }: Props) {
                   return (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
                       <span style={{ fontFamily: SAIRA, fontSize: 10, color: C.textDim, letterSpacing: '0.06em' }}>{p.age}歳</span>
-                      <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(stageCol, 0.15), color: stageCol, fontWeight: 700, border: `1px solid ${alpha(stageCol, 0.25)}` }}>
+                      <span style={{ fontSize: 9, padding: '1px 5px',backgroundColor: alpha(stageCol, 0.15), color: stageCol, fontWeight: 700, border: `1px solid ${alpha(stageCol, 0.25)}` }}>
                         {CAREER_STAGE_LABEL[stage]}
                       </span>
                       {frm !== 0 && (
-                        <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, backgroundColor: alpha(frmCol, 0.12), color: frmCol, fontWeight: 700 }}>
+                        <span style={{ fontSize: 9, padding: '1px 5px',backgroundColor: alpha(frmCol, 0.12), color: frmCol, fontWeight: 700 }}>
                           {frmLabel}
                         </span>
                       )}

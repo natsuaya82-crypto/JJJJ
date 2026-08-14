@@ -7,7 +7,7 @@
 // 同意するまで先へ進めない（枠の外を押しても閉じない）。
 
 import { useState } from 'react'
-import { C, R, alpha, SAIRA, JP } from '../../styles/tokens'
+import { C, alpha, SAIRA, JP } from '../../styles/tokens'
 import { TERMS_UPDATED, TERMS_INTRO, TERMS_HIGHLIGHT, TERMS_SECTIONS } from '../../data/termsText'
 
 
@@ -41,8 +41,7 @@ export default function TermsGate({ onAgree }: { onAgree: () => void }) {
       <div style={{
         width: '100%', maxWidth: '380px', maxHeight: 'min(100%, 600px)',
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
-        background: '#050d1c', borderRadius: R.lg,
-        border: `1px solid ${alpha(C.gold, 0.3)}`,
+        background: '#050d1c',        border: `1px solid ${alpha(C.gold, 0.3)}`,
         boxShadow: '0 24px 64px rgba(0, 0, 0, 0.65)',
       }}>
 
@@ -74,8 +73,7 @@ export default function TermsGate({ onAgree }: { onAgree: () => void }) {
           </div>
 
           <div style={{
-            border: `1px solid ${alpha(C.gold, 0.3)}`, borderRadius: R.md,
-            background: alpha(C.gold, 0.05), padding: '13px 15px', marginBottom: '8px',
+            border: `1px solid ${alpha(C.gold, 0.3)}`,            background: alpha(C.gold, 0.05), padding: '13px 15px', marginBottom: '8px',
           }}>
             <div style={{ fontSize: '12px', lineHeight: 1.9, color: C.text, fontWeight: 700 }}>
               {TERMS_HIGHLIGHT}
@@ -125,7 +123,7 @@ export default function TermsGate({ onAgree }: { onAgree: () => void }) {
               cursor: reachedEnd ? 'pointer' : 'default', opacity: reachedEnd ? 1 : 0.4,
             }}>
             <div style={{
-              width: '22px', height: '22px', borderRadius: '6px', flexShrink: 0,
+              width: '22px', height: '22px',flexShrink: 0,
               border: `1.5px solid ${checked ? C.gold : alpha(C.text, 0.35)}`,
               background: checked ? C.gold : 'transparent',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -148,7 +146,7 @@ export default function TermsGate({ onAgree }: { onAgree: () => void }) {
             onClick={() => { if (canAgree) onAgree() }}
             disabled={!canAgree}
             style={{
-              width: '100%', padding: '15px', borderRadius: R.md, border: 'none',
+              width: '100%', padding: '15px', border: 'none',
               background: canAgree
                 ? `linear-gradient(135deg, ${C.goldDark}, ${C.gold} 55%, ${C.goldHi})`
                 : alpha(C.text, 0.08),

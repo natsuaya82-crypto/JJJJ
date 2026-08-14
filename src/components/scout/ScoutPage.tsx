@@ -50,7 +50,7 @@ export default function ScoutPage() {
     }}>
       <PageHeader title="スカウト" />
       <div style={{ padding: '0 16px 8px' }}>
-        <div style={{ padding: '8px 12px', borderRadius: '10px', background: alpha(C.blue, 0.08), border: `1px solid ${alpha(C.blue, 0.2)}`, marginBottom: '10px' }}>
+        <div style={{ padding: '8px 12px',background: alpha(C.blue, 0.08), border: `1px solid ${alpha(C.blue, 0.2)}`, marginBottom: '10px' }}>
           <div style={{ fontFamily: SAIRA, fontSize: '9px', color: C.blue, fontWeight: '700', marginBottom: '4px', letterSpacing: '1px' }}>ドラフトの仕組み</div>
           <div style={{ fontSize: '10px', color: C.textDim, lineHeight: 1.5 }}>
             候補選手の能力はすべて公開。長押しで詳細を確認できる。シーズン終了後のドラフトで指名する。
@@ -66,7 +66,7 @@ export default function ScoutPage() {
         <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
           <SortSelect options={SORT_OPTIONS} value={sortBy} onChange={setSortBy} style={{ flex: 1 }} />
           <select value={filterSpec ?? 'all'} onChange={e => setFilterSpec(e.target.value === 'all' ? null : e.target.value as Specialty)} style={{
-            flex: 1, padding: '7px 10px', borderRadius: '10px',
+            flex: 1, padding: '7px 10px',
             background: C.surface2, border: `1px solid ${C.border2}`,
             color: C.textSub, fontSize: '11px', fontFamily: SAIRA, outline: 'none',
           }}>
@@ -78,7 +78,7 @@ export default function ScoutPage() {
         </div>
       </div>
 
-      <div style={{ margin: '0 12px', borderRadius: 14, overflow: 'hidden', border: `1px solid ${C.border}` }}>
+      <div style={{ margin: '0 12px',overflow: 'hidden', border: `1px solid ${C.border}` }}>
         {sorted.map(p => (
           <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} extra={starredProspects.includes(p.id) ? <span style={{ color: '#F5C842', fontSize: 13, flexShrink: 0 }}>★</span> : undefined} />
         ))}

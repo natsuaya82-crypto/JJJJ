@@ -36,7 +36,7 @@ export default function GlassButton({
       style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         width: full ? '100%' : undefined,
-        padding: pad, borderRadius: 0,
+        padding: pad,
         fontSize: fs, fontWeight: 900, letterSpacing: size === 'lg' ? '2px' : '0.5px',
         fontFamily: 'inherit', lineHeight: 1.25, whiteSpace: 'nowrap',
         cursor: disabled ? 'default' : 'pointer',

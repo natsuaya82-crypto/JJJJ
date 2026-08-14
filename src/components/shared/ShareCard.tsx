@@ -65,7 +65,7 @@ export default function ShareCard({ player, team }: { player: Player; team?: Clu
 
       {/* 顔＋名前＋OVR */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 18, position: 'relative' }}>
-        <div style={{ flexShrink: 0, borderRadius: 12, overflow: 'hidden', border: `2px solid ${specCol}66` }}>
+        <div style={{ flexShrink: 0,overflow: 'hidden', border: `2px solid ${specCol}66` }}>
           <PlayerFace playerId={player.id} nationality={player.nationality} size={104} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -74,7 +74,7 @@ export default function ShareCard({ player, team }: { player: Player; team?: Clu
             <span style={{ fontSize: 15, fontWeight: 900, color: specCol }}>{SPECIALTY_LABELS[player.specialty]}</span>
             <span style={{ fontSize: 14, color: '#8C93A5' }}>{player.age}歳</span>
             {shareBadge && (
-              <span style={{ fontSize: 11, fontWeight: 900, padding: '2px 8px', borderRadius: 6, background: `${badgeColor(shareBadge)}26`, border: `1px solid ${badgeColor(shareBadge)}88`, color: badgeColor(shareBadge) }}>
+              <span style={{ fontSize: 11, fontWeight: 900, padding: '2px 8px',background: `${badgeColor(shareBadge)}26`, border: `1px solid ${badgeColor(shareBadge)}88`, color: badgeColor(shareBadge) }}>
                 <BadgeContent badge={shareBadge} iconSize={11} />
               </span>
             )}
@@ -95,8 +95,8 @@ export default function ShareCard({ player, team }: { player: Player; team?: Clu
           return (
             <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 12, color: '#8C93A5', width: 40, flexShrink: 0 }}>{label}</span>
-              <div style={{ flex: 1, height: 8, borderRadius: 4, background: '#1c2a3d', overflow: 'hidden' }}>
-                <div style={{ width: `${Math.min(100, v)}%`, height: '100%', background: col, borderRadius: 4 }} />
+              <div style={{ flex: 1, height: 8,background: '#1c2a3d', overflow: 'hidden' }}>
+                <div style={{ width: `${Math.min(100, v)}%`, height: '100%', background: col,}} />
               </div>
               <span style={{ fontSize: 15, fontWeight: 900, color: col, width: 26, textAlign: 'right', fontFamily: 'monospace' }}>{v}</span>
             </div>

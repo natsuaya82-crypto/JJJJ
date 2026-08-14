@@ -33,13 +33,13 @@ export default function RatedStandingsPage() {
 
   return (
     <RatedShell title="順位表">
-      <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${C.border}`, marginBottom: 10 }}>
+      <div style={{overflow: 'hidden', border: `1px solid ${C.border}`, marginBottom: 10 }}>
         {st.top.map((r, i) => <Row key={r.userId} r={r} rank={i + 1} />)}
       </div>
 
       {/* トップ100に入っていないときだけ、自分の行を下に足す */}
       {st.me && !inTop && (
-        <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${alpha(C.gold, 0.4)}` }}>
+        <div style={{overflow: 'hidden', border: `1px solid ${alpha(C.gold, 0.4)}` }}>
           <Row r={st.me} rank={st.meRank} />
         </div>
       )}

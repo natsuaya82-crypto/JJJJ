@@ -23,7 +23,6 @@ export function panelStyle(accent?: string): React.CSSProperties {
   return {
     position: 'relative',
     overflow: 'hidden',
-    borderRadius: 0,
     // 右下だけ斜めに切る（選手カードと同じ形）
     clipPath: 'polygon(0 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%)',
     background: `linear-gradient(180deg, ${C.surface}, ${C.bg})`,

@@ -33,7 +33,7 @@ export default function BadgeContent({ badge, iconSize = 11 }: { badge: PlayerBa
       {badge.flag && (
         <img
           src={`/flags/${badge.flag}.svg`} alt="" draggable={false}
-          style={{ width: iconSize, height: Math.round(iconSize * 0.75), borderRadius: 1, objectFit: 'cover', display: 'inline-block', verticalAlign: '-1px', margin: '0 1px' }}
+          style={{ width: iconSize, height: Math.round(iconSize * 0.75),objectFit: 'cover', display: 'inline-block', verticalAlign: '-1px', margin: '0 1px' }}
         />
       )}
       {badge.labelSuffix}

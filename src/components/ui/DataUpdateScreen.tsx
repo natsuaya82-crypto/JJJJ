@@ -146,7 +146,7 @@ export default function DataUpdateScreen({ onDone }: { onDone: () => void }) {
             <span style={{ fontWeight: 600 }}>{finished ? '完了' : label}</span>
             <span style={{ fontFamily: SAIRA, fontWeight: 900, fontSize: 14, letterSpacing: 1, color: C.gold }}>{pct}%</span>
           </div>
-          <div style={{ position: 'relative', height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+          <div style={{ position: 'relative', height: 6,background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
             <div className="jpel-du-fill" style={{ width: `${pct}%` }} />
           </div>
           <div style={{ marginTop: 9, fontFamily: SAIRA, fontSize: 11, letterSpacing: 3, color: C.textGhost }}>

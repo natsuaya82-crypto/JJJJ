@@ -113,7 +113,6 @@ export default function TrainingCardSVG({
           position: 'absolute', top: -5, right: -5,
           minWidth: width * 0.26, height: width * 0.26,
           padding: '0 4px',
-          borderRadius: width * 0.13,
           background: col, color: '#fff',
           fontFamily: SAIRA, fontSize: width * 0.16, fontWeight: 900,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
