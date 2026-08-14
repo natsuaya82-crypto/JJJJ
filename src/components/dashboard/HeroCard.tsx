@@ -2,7 +2,6 @@ import type { Team } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useTeamHistory } from '../../lib/useTeamHistory'
 import { titleRows } from '../../utils/teamHistory'
-import { DIVISION_LABEL } from '../../utils/league'
 import { C, alpha, SAIRA } from '../../styles/tokens'
 import { panelStyle } from '../ui/Panel'
 
@@ -20,11 +19,11 @@ interface Props {
 
 export default function HeroCard({ team, seasonYear, rank, totalRaces, completedRaces, gmRep, avgMorale, seasonDone }: Props) {
   // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
-  // ★**部ごと**に出す（オーナー・2026-08-12「全部部ごと」）。
-  //   合計にすると3部優勝と1部優勝が同じ「優勝1回」になる。
-  //   ここは狭いので「1部2 / 3部1」の形（`titleRows` の順＝上の部から）
+  // ★**ホームはJPELの数だけ**（オーナー・2026-08-14「流石にjpelだけでいい」）。
+  //   部ごとの内訳（1部2 / 3部1）は、幅のある記録室とチーム画面で出す。
+  //   ここは3つ並ぶ数字の1つなので、他の2つ（GM評判・モラール）と同じく数字1つにする。
   const titles = useTeamHistory(team.id).titles
-  const titleText = titleRows(titles).map(r => `${DIVISION_LABEL[r.division]}${r.count}`).join(' / ')
+  const jpelTitles = titleRows(titles).reduce((n, r) => n + r.count, 0)
   const moraleColor = avgMorale >= 75 ? C.green : avgMorale >= 50 ? C.gold : C.red
 
   return (
@@ -92,7 +91,7 @@ export default function HeroCard({ team, seasonYear, rank, totalRaces, completed
         borderTop: `1px solid ${alpha(C.border3, 0.6)}`, borderBottom: `1px solid ${alpha(C.border3, 0.6)}`,
       }}>
         {[
-          { label: '優勝', value: titleText || '0', color: C.text },
+          { label: 'JPEL優勝', value: `${jpelTitles}`, color: C.text },
           { label: 'GM評判', value: `${gmRep}`, color: gmRep >= 70 ? C.green : gmRep >= 40 ? C.text : C.red },
           { label: 'モラール', value: `${avgMorale}`, color: moraleColor },
         ].map((item, i) => (
