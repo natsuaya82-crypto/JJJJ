@@ -65,7 +65,7 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
    *   別実装を作らないこと。
    */
   runCpuMarketRound: (date) => set(state => {
-    const { rounds, nextDate } = cpuMarketRounds(state.currentSeason.lastCpuMarketDate, date)
+    const { rounds, dates, nextDate } = cpuMarketRounds(state.currentSeason.lastCpuMarketDate, date)
     if (rounds <= 0) return {}
     let players = state.players
     let teams = state.teams
@@ -74,7 +74,8 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
     const news: NewsItem[] = []
     // 上限で切り捨てたぶんは繰り越さない（cpuMarketRounds 側の決まり）
     const draftPickCounts = 0
-    for (let i = 0; i < rounds; i++) {
+    // ★1回ごとに違う日付を渡すこと。使い回すと2回目以降が空振りする（cpuMarketRounds のコメント）
+    for (const roundDate of dates) {
       const r = runCpuMarketTick({ players, teams, foreignLeagues }, {
         playerTeamId: state.playerTeamId,
         year: state.currentSeason.year,
@@ -86,7 +87,7 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
         rosterCapFor: (id) => (state.teams.some(t => t.id === id) ? rosterCapOf(draftPickCounts) : ROSTER_MAX),
         destinationOf: get().destinationOf,
         tradeValueCtx: tradeValueCtxOf(state),
-        date })
+        date: roundDate })
       players = r.players
       teams = r.teams
       foreignLeagues = r.foreignLeagues

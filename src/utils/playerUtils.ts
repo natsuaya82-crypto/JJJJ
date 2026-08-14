@@ -534,18 +534,20 @@ export function transferFeeAgeMultiplier(age: number): number {
  *   ポテンシャル係数は廃止した。伸びしろは「若さ」で表す（年齢倍率がその役割）。
  *
  * ■ 契約年数
- *   残り契約が長いほど高い。**1年 1.1倍 → 4年以上 1.4倍**（1年につき +0.1）。
+ *   残り契約が長いほど高い。**1年 1.1倍 → 5年以上 1.5倍**（1年につき +0.1）。
  *   オーナー判断（2026-08-14）。切れかけの選手は安く買える。
+ *   上限が5年なのは `newContractYears` が最長5年を結ぶから。**両方を一緒に動かすこと。**
  *
  *   ★これは**値段の話であって、移籍を止める力はありません。**実測で、
  *     1.1〜1.4倍にしても移籍率は 16.41% / 16.48% / 15.52% / 15.31%（残り1〜4年）と
  *     ほぼ動かず、**残り4年を3.0倍にしても14.90%**にしかなりませんでした。
  *     買う側の上限（`transferCapOf` ＝ 格の年間予算の20%）が移籍金に対して大きく、
  *     関門ごとの実測でも「金が足りない」で落ちる件数は**0件**です。
- *     止めたいときは関門を作ること（`transferDecision` の格差の関門と同じ形）。
+ *     止めているのは `transferDecision` の `willRelease`（出す側が渋る）のほうで、
+ *     この係数は「渋るぶん高く付く」を値段側で表しているだけです。
  */
 export function calcTransferValue(p: Player, perf?: PerfProfile): number {
-  const ctFactor = 1.1 + Math.min(Math.max(0, p.contract.yearsLeft - 1) * 0.1, 0.3)
+  const ctFactor = 1.1 + Math.min(Math.max(0, p.contract.yearsLeft - 1) * 0.1, 0.4)
   const raw = faMarketSalary(p, perf) * transferFeeAgeMultiplier(p.age) * ctFactor
   return Math.round(raw / 1_000_000) * 1_000_000
 }

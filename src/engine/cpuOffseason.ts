@@ -381,20 +381,28 @@ const CPU_MARKET_MAX_CATCHUP = 3
  *   1部12回・2部11回・3部12回のように差が残ります。21日ずつ進めれば余りが次へ繰り越され、
  *   **どの部でも年14回**に揃います（3/8〜12/27 の295日 ÷ 21日）。
  *
+ * ★**まとめて2回以上回すときは、1回ごとに違う日付を渡すこと**（`dates`）。
+ *   同じ日付を使い回すと、その日に「出せる」と決まった選手だけで2回目・3回目を
+ *   回すことになります（`utils/transferDecision` の `willRelease` は日付で引く）。
+ *   1回目が在庫を全部さらうので、実測で **77件 → 2件** と落ちていました。
+ *   遊ぶ側から見ると「移籍が固まって起きる年」になり、2026-08-12 に均した
+ *   「年に一度の塊」が形を変えて戻ってきます。
+ *
  * @param lastDate 最後に回した基準日（`YYYY-MM-DD`）。無ければ今日を初回として1回
  * @param today    その日程の日付
- * @returns rounds＝回す回数（0なら今回は回さない）／nextDate＝次に控える基準日
+ * @returns rounds＝回す回数（0なら今回は回さない）／dates＝1回ごとの日付／nextDate＝次に控える基準日
  */
-export function cpuMarketRounds(lastDate: string | undefined, today: string): { rounds: number; nextDate: string } {
-  if (!lastDate) return { rounds: 1, nextDate: today }
+export function cpuMarketRounds(lastDate: string | undefined, today: string): { rounds: number; dates: string[]; nextDate: string } {
+  if (!lastDate) return { rounds: 1, dates: [today], nextDate: today }
   const days = (Date.parse(today) - Date.parse(lastDate)) / 86_400_000
-  if (!Number.isFinite(days) || days < CPU_MARKET_INTERVAL_DAYS) return { rounds: 0, nextDate: lastDate }
+  if (!Number.isFinite(days) || days < CPU_MARKET_INTERVAL_DAYS) return { rounds: 0, dates: [], nextDate: lastDate }
   const due = Math.floor(days / CPU_MARKET_INTERVAL_DAYS)
   const rounds = Math.min(CPU_MARKET_MAX_CATCHUP, due)
+  const at = (n: number) => new Date(Date.parse(lastDate) + n * CPU_MARKET_INTERVAL_DAYS * 86_400_000)
+    .toISOString().slice(0, 10)
   // 進めるのは**実際に回したぶんだけ**。上限で切り捨てたぶんは繰り越さない
   // （セーブを長く開かなかったときに、あとからまとめて動くのを防ぐ）
-  const next = new Date(Date.parse(lastDate) + rounds * CPU_MARKET_INTERVAL_DAYS * 86_400_000)
-  return { rounds, nextDate: next.toISOString().slice(0, 10) }
+  return { rounds, dates: Array.from({ length: rounds }, (_, i) => at(i + 1)), nextDate: at(rounds) }
 }
 
 /**

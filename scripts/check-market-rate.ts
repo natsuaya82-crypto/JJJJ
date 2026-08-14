@@ -73,12 +73,13 @@ for (const date of dates) {
   const step = cpuMarketRounds(last, date)
   if (step.rounds <= 0) continue
   last = step.nextDate
-  for (let i = 0; i < step.rounds; i++) {
+  // ★1回ごとに違う日付を渡す（同じ日付を使い回すと2回目以降が空振りする）
+  for (const roundDate of step.dates) {
     rounds++
     const r = runTransferMarket({ players, teams, foreignLeagues: leagues }, {
       playerTeamId: MY, year: YEAR, season, pastSeasons: [],
       rosterCapFor: () => ROSTER_MAX, destinationOf,
-      excludeIds: new Set<string>(), maxMoves: CPU_TICK_TRANSFERS, date })
+      excludeIds: new Set<string>(), maxMoves: CPU_TICK_TRANSFERS, date: roundDate })
     players = r.players; teams = r.teams; leagues = r.foreignLeagues
     total += r.records.length
     perRound.push(r.records.length)

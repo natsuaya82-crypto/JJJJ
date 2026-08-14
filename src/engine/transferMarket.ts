@@ -45,7 +45,7 @@ import { movePlayer } from '../utils/movePlayer'
 import { roundRobin } from '../utils/roundRobin'
 import { needsPlayer } from '../utils/squadNeeds'
 import { isOwnedBy } from '../utils/transferEligibility'
-import { isSurplus, seeksPlayingTime, type Destination } from '../utils/transferDecision'
+import { isSurplus, seeksPlayingTime, willRelease, type Destination } from '../utils/transferDecision'
 import {
   acquisitionDesiredSalary, faMarketSalary, newContractYears, ovr, perfOf, playerConsentToMove,
   transferFeeFor,
@@ -196,8 +196,11 @@ export function runTransferMarket(
     return sellRoster
       .map((p, i) => ({ p, sellClub, sellRoster, rank: i + 1, surplus: isSurplus({ squadRank: i + 1 }), ovr: ovr(p) }))
       .slice(1)
-      // 借りている選手は出せない（保有権が無い）
-      .filter(({ p }) => isOwnedBy(p, sellClub.id) && !ctx.excludeIds.has(p.id) && p.joinedYear !== ctx.year)
+      // 借りている選手は出せない（保有権が無い）。
+      // ★契約が長く残っている選手は、出す側が渋る（`willRelease`）。壁ではなく坂で、
+      //   残り5年でも0ではない。詳しくは utils/transferDecision の willRelease
+      .filter(({ p }) => isOwnedBy(p, sellClub.id) && !ctx.excludeIds.has(p.id)
+        && p.joinedYear !== ctx.year && willRelease(p, ctx.date))
   }
   const sellCandidateCache = new Map<string, SellCandidate[]>(clubs.map(c => [c.id, sellCandidatesOf(c)]))
 
