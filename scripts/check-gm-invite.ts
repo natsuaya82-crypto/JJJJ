@@ -38,6 +38,8 @@ import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/
 import { generateSeasonRaces } from '../src/data/races'
 import { DIVISIONS, DIVISION_RACES, divisionOf, newSeasonStandings } from '../src/utils/league'
 import { appraiseMove, buildDestination } from '../src/utils/transferDecision'
+import { appraiseGmInvite } from '../src/utils/gmInvite'
+import { gmInviteNoLine } from '../src/utils/chatLines'
 import { ovr } from '../src/utils/playerUtils'
 import type { Player, Race, SeasonStanding, Team } from '../src/types'
 
@@ -79,7 +81,7 @@ function buildWorld() {
     isInitialized: true, playerTeamId: MY, teams, players,
     foreignLeagues: fgen.updatedLeagues,
     gmTenures: [{ teamId: MY, fromYear: TENURE_FROM }],
-    gmOffers: [], pendingGmMove: null, gmInviteResult: null,
+    gmOffers: [], pendingGmMove: null,
     currentSeason: {
       year: YEAR, phase: 'postseason', currentRaceIndex: races.length,
       races, standings, foreignStandings, newsFeed: [], objectives: [],
@@ -97,17 +99,24 @@ function runInvite(pickPlayer: (roster: Player[]) => Player | undefined) {
   const target = pickPlayer(before)
   S().resignAsGm()
   const destId = (S().gmOffers ?? [])[0]?.teamId ?? ''
+  // ★声をかけた「その場」で返事が決まる（チャットで見せているのと同じ関数・同じ世界）。
+  //   実際に動かすのは applyGmMove で、そちらも同じ関数を通る
+  const st = S()
+  const verdict = target ? appraiseGmInvite({
+    players: st.players, teams: st.teams, foreignLeagues: st.foreignLeagues,
+    currentSeason: st.currentSeason, fromTeamId: MY, destinationOf: st.destinationOf,
+  }, target.id, destId) : null
   S().acceptGmOffer(destId, target?.id)
   S().endSeason()
   const after = S().players.find(p => p.id === target?.id)
-  return { destId, target, after, res: S().gmInviteResult, moved: !!target && after?.teamId === destId }
+  return { destId, target, after, verdict, moved: !!target && after?.teamId === destId }
 }
 
 console.log('[①] 声をかけなければ誰も動かない')
 {
   const r = runInvite(() => undefined)
   check('行き先が決まっている（前提）', !!r.destId, r.destId)
-  check('返事の札が出ていない', S().gmInviteResult == null)
+  check('誰も移っていない', !r.moved)
   const stillOld = S().players.filter(p => p.teamId === MY && p.status === 'active').length
   check('旧クラブの人数が0でない（世界が空でない）', stillOld > 0, `${stillOld}人`)
 }
@@ -127,15 +136,19 @@ console.log('\n[②③] 声をかけると、選手が自分で決める')
       return i % 2 === 0 ? sorted[i >> 1] : sorted[sorted.length - 1 - (i >> 1)]
     })
     if (!r.target) continue
-    if (r.res?.ok) {
+    if (r.verdict?.ok) {
       joined++
       if (joined <= 3) console.log(`      行く例： ${r.target.name}（OVR${ovr(r.target)}）`)
+      // ★チャットで「ついて行きます」と言われたら**必ず移る**（オーナー・2026-08-14）
       if (!r.moved) check('頷いたのに移っていない', false, r.target.name)
     }
-    else if (r.res) {
-      declined++; declineReason = r.res.reason
-      if (declined <= 3) console.log(`      断った例： ${r.target.name} — ${r.res.reason}`)
+    else if (r.verdict) {
+      declined++; declineReason = r.verdict.reason
+      if (declined <= 3) console.log(`      断った例： ${r.target.name} — ${r.verdict.shortReason}`)
       if (r.moved) check('断ったのに移っている', false, r.target.name)
+      // 断り文句はそのままチャットの吹き出しになる。文章として読めること
+      const line = gmInviteNoLine(r.verdict.shortReason).text
+      if (!line.endsWith('ので、このチームに残らせてください。')) check('断りの文が組み立てられていない', false, line)
     }
   }
   console.log(`      12人に声をかけた結果： 行く ${joined}人 / 断る ${declined}人`)
@@ -163,14 +176,21 @@ console.log('\n[④] 愛着の向き先が監督になっている')
 
 console.log('\n[⑤] 判定を2本目に増やしていない')
 {
-  const src = readFileSync('src/store/slices/seasonSlice.ts', 'utf8')
-  check('appraiseMove を通している', /appraiseMove\(invited/.test(src))
+  // 判定の本体は utils/gmInvite の1本だけ。**呼ぶ側（ストア・画面）に書かないこと**
+  const src = readFileSync('src/utils/gmInvite.ts', 'utf8')
+  check('appraiseMove を通している', /appraiseMove\(/.test(src))
   check('followGm を渡している', /followGm:\s*true/.test(src))
   // 「監督への信頼」のような独自の点数を作っていないこと
   // ★コメントで「監督への信頼」に触れるのは構わない（作るなと書いてある）。
   //   **識別子**が生えていないかを見る（最初の版は自分のコメントに当たって落ちた）
   check('独自の点数表を作っていない', !/\b(gmTrust|loyaltyToGm|trustScore)\b/.test(src))
-  check('移籍金は transferFeeFor 1本', /transferFeeFor\(invited/.test(src))
+  check('移籍金は transferFeeFor 1本', /transferFeeFor\(/.test(src))
+
+  // 呼ぶ側が自分で判定していないか（ストアも画面も appraiseGmInvite を呼ぶだけ）
+  for (const f of ['src/store/slices/seasonSlice.ts', 'src/components/team/GmInviteChat.tsx']) {
+    const t = readFileSync(f, 'utf8')
+    check(`${f} は判定を書いていない`, /appraiseGmInvite\(/.test(t) && !/followGm/.test(t))
+  }
 }
 
 console.log('')

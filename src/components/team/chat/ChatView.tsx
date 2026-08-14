@@ -27,6 +27,7 @@ import { tierOfPlayerClub, allTieredClubs } from '../../../utils/clubTier'
 import { fmtYen } from '../../../utils/money'
 import { buildMessages, buildAcqMessages, buildTransferMessages, buildIncomingOfferMessages, buildIncomingLoanMessages, buildStayOrLeaveMessages } from '../../../utils/chatTalk'
 import { fmtDuration } from '../../../utils/chatFormat'
+import { bubbleStyle } from './ChatBubble'
 
 // 選手のチャット雑談イベント（疲労・士気・出場機会など）は廃止済み。
 // 判定が「常に対象なし」の空リストのまま各所に分岐だけ残っていたので、分岐ごと消した
@@ -864,17 +865,7 @@ export function ChatView({
                   {sp.name}{sp.club ? ' ▸' : ''}
                 </span>
               )}
-              <div style={{
-                padding: '10px 13px',
-                background: msg.from === 'player'
-                  ? `linear-gradient(135deg, ${C.surface3}, ${C.surface2})`
-                  : `linear-gradient(135deg, ${alpha(C.blue, 0.25)}, ${alpha(C.blue, 0.15)})`,
-                border: `1px solid ${msg.from === 'player' ? C.border : alpha(C.blue, 0.35)}`,
-                fontSize: 13,
-                color: C.text,
-                lineHeight: 1.6,
-                whiteSpace: 'pre-wrap',
-              }}>
+              <div style={bubbleStyle(msg.from)}>
                 {sp.text}
               </div>
             </div>

@@ -125,3 +125,36 @@ export function settledLineOf(player: Player | undefined): ChatMessage | null {
     default: return null
   }
 }
+
+// ── 退任について来てもらう声かけ（utils/gmInvite が答えを出す）──────────
+//
+// ★断り文句は**移籍と同じ1本**（`transferDecision` の断り文句を appraiseGmInvite が
+//   そのまま返す）。ここで断る理由を書き直さないこと。
+//   ただしチャットは本人のセリフなので、三人称の文（「◯◯は…ない」）をそのまま
+//   吹き出しに入れると他人事になる。**言い回しだけ**をここで整える。
+
+/** 監督から「一緒に来てほしい」。行き先のクラブ名を出す */
+export function gmInviteAskLine(clubName: string): ChatMessage {
+  return { from: 'gm', kind: 'gm_invite_ask', text: `${clubName}へ移ることになりました。一緒に来てもらえませんか。` }
+}
+
+/** ついて行く、の返事 */
+export function gmInviteYesLine(): ChatMessage {
+  return { from: 'player', kind: 'gm_invite_yes', text: 'わかりました。監督について行きます。よろしくお願いします。' }
+}
+
+/**
+ * 断りの返事。理由は `appraiseGmInvite` が返す短い形（名前が入っていない）を使う。
+ * 例：「今のチームへの愛着が強い」→「今のチームへの愛着が強いので、このチームに残らせてください。」
+ */
+export function gmInviteNoLine(shortReason: string): ChatMessage {
+  return { from: 'player', kind: 'gm_invite_no', text: `${shortReason}ので、このチームに残らせてください。` }
+}
+
+/**
+ * 移籍金が足りなくて流れたとき。**本人は断っていない**ので選手には言わせない
+ * （話し手の区別は「本人＝括弧なし／相手クラブGM＝（◯◯GM）／代理人＝（代理人）」）。
+ */
+export function gmInviteFeeLine(clubName: string): ChatMessage {
+  return { from: 'player', kind: 'gm_invite_fee', text: `（代理人）${clubName}が移籍金を用意できませんでした。今回は見送りになります。` }
+}

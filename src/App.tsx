@@ -266,32 +266,9 @@ function GmOfferNotice() {
       </div>
     </div>
     {inviteOpen && (
-      <GmInvitePicker roster={myRoster} invite={invite} onPick={setInvite} onClose={() => setInviteOpen(false)} />
+      <GmInvitePicker roster={myRoster} dest={dest} invite={invite} onPick={setInvite} onClose={() => setInviteOpen(false)} />
     )}
     </>
-  )
-}
-
-// 退任について行くか、の返事。**行くかどうかは選手が決める**ので、
-// 断られたときはその理由をそのまま出す（移籍の断り文句と同じ1本・utils/transferDecision）。
-function GmInviteResultNotice() {
-  const res = useGameStore(s => s.gmInviteResult)
-  const dismiss = useGameStore(s => s.dismissGmInviteResult)
-  const offers = useGameStore(s => s.gmOffers) ?? []
-  if (offers.length > 0 || !res) return null
-  return (
-    <div onClick={dismiss} style={MODAL_VEIL(1002)}>
-      <div onClick={e => e.stopPropagation()} style={{
-        ...MODAL_CARD, maxWidth: 340, ...panelStyle(res.ok ? C.green : C.textGhost),
-        boxShadow: MODAL_CARD.boxShadow, padding: MODAL_CARD.padding, textAlign: 'center',
-      }}>
-        <div style={{ fontFamily: SAIRA, fontSize: 11, color: res.ok ? C.green : C.textDim, letterSpacing: '3px', fontWeight: 900, marginBottom: 12 }}>{res.ok ? 'JOINED' : 'DECLINED'}</div>
-        <div style={{ fontSize: 15, fontWeight: 800, color: C.text, lineHeight: 1.7, marginBottom: 18 }}>
-          {res.ok ? `${res.name}が一緒に来てくれました` : res.reason}
-        </div>
-        <GlassButton full size="lg" color={C.gold} onClick={dismiss} style={{ fontFamily: SAIRA }}>OK</GlassButton>
-      </div>
-    </div>
   )
 }
 
@@ -365,7 +342,6 @@ function AppRoutes({ onBackToTitle }: { resetGame: () => void; onBackToTitle: ()
     <>
       <ContractInfoModal />
       <GmOfferNotice />
-      <GmInviteResultNotice />
       <SeasonBudgetNotice />
       <Layout>
         <Routes>

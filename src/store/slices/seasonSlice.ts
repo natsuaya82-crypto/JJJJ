@@ -9,7 +9,7 @@ import { buildEclParticipants, buildEclRaces } from '../../engine/eclSeries'
 import { initForeignStandings } from '../../engine/foreignLeague'
 import { growPlayer } from '../../engine/growth'
 import { generateDraftPool, generateForeignLeaguePlayers, refreshForeignLeagues } from '../../engine/playerGenerator'
-import { type Division, type GmInviteResult, type GmOffer, type Player, SPECIALTY_LABELS, type SeasonAward } from '../../types'
+import { type Division, type GmOffer, type Player, SPECIALTY_LABELS, type SeasonAward } from '../../types'
 import { archiveSeason } from '../../utils/archiveSeason'
 import { computeSeasonAwards } from '../../utils/awards'
 import { processContractExpiry } from '../../engine/contractExpiry'
@@ -29,6 +29,7 @@ import { processSeasonSponsors } from '../../engine/sponsorSeason'
 import { settleBonusClauses } from '../../engine/bonusPayout'
 import { computeSeasonBudgets } from '../../engine/seasonBudget'
 import { allTieredClubs, tierBudget, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
+import { appraiseGmInvite, gmInviteFeeFor } from '../../utils/gmInvite'
 import { foreignClubIdSet } from '../../utils/clubs'
 import { MORALE_DEFAULT, setMorale } from '../../utils/condition'
 import { backfillDomesticClubs } from '../../utils/domesticClubs'
@@ -86,40 +87,25 @@ function applyGmMove(state: GameStore, offer: GmOffer, inviteId?: string): Parti
   // ── 1人だけ連れて行く（オーナー判断・2026-08-13）────────────────────
   //
   // 声はかけられるが、**行くかどうかは選手が決める**。
-  // 判定は移籍とまったく同じ `appraiseMove` 1本で、違うのは愛着の向き先だけ
-  // （`followGm`：クラブへの愛着 → 監督への愛着。`utils/transferDecision`）。
+  // 判定は `utils/gmInvite` の `appraiseGmInvite` 1本（中身は移籍と同じ
+  // `appraiseMove` で、変わるのは愛着の向き先だけ）。**ここで判定を書かないこと。**
   //
-  // ★ここに専用の物差し（監督への信頼など）を作らないこと。
-  //   同じ問いに2本目の式ができると、必ず片方だけが更新されてズレる。
-  //
-  // ★移籍金は**ふつうの移籍と同じ**（`transferFeeFor` 1本。余剰かどうかと今季の出場を渡す）。
-  //   移った先が払い、元のクラブが受け取る。払えなければ連れて行けない。
+  // ★`inviteId` が入っているのは「チャットで頷いてもらった相手」だけ
+  //   （関門は `acceptGmOffer`。頷いていない相手はそこで落ちるので予約に入らない）。
+  //   **ここで聞き直さないこと。** 退任からの就任は動くのが来季の入れ替わりのときで、
+  //   そのあいだに年を取り名簿も変わる。聞き直すと「ついて行きます」と言った選手が
+  //   来なくなる（実測で12人中4人）。引き直すのは移籍金だけ。
   const invited = inviteId ? players.find(p => p.id === inviteId) : undefined
-  let inviteResult: GmInviteResult = null
-  if (invited && invited.teamId === oldTeamId && invited.status === 'active') {
-    const tieredClubs = allTieredClubs(state.teams, state.foreignLeagues ?? [])
-    // ★出場率は「そのクラブが走っている日程」で数える（utils/playRate の1本）
-    const { fraction, teamRaces: ranRaces } = playRateOf(
-      invited.id, oldTeamId, state.currentSeason, state.teams, state.foreignLeagues)
-    const a = appraiseMove(invited, state.destinationOf(offer.teamId, invited), {
-      srcTier: tierOfPlayerClub(oldTeamId, tieredClubs),
-      playFraction: fraction, teamRaces: ranRaces,
-      followGm: true })
-    // 余剰か（出す側での序列）と、今季の出場。どちらも移籍と同じ引き方
-    const oldRoster = players
-      .filter(p => p.teamId === oldTeamId && p.status === 'active')
-      .sort(comparePlayers('ovr'))
-    const surplus = isSurplus({ squadRank: oldRoster.findIndex(p => p.id === invited.id) + 1 })
-    const fee = transferFeeFor(invited, surplus, perfOf(state.currentSeason, invited.id, ranRaces))
-    const destTeam = state.teams.find(t => t.id === offer.teamId)
-    if (!a.ok) {
-      inviteResult = { name: invited.name, ok: false, reason: a.reason }
-    } else if ((destTeam?.finance.budget ?? 0) < fee) {
-      inviteResult = { name: invited.name, ok: false, reason: `${invited.name}の移籍金を用意できませんでした` }
-    } else {
+  if (invited) {
+    const fee = gmInviteFeeFor({
+      players, teams: state.teams, foreignLeagues: state.foreignLeagues,
+      currentSeason: state.currentSeason, fromTeamId: oldTeamId,
+      destinationOf: state.destinationOf,
+    }, invited.id)
+    if (fee != null) {
       const m = movePlayer({ players, teams }, invited.id, offer.teamId, {
         year: offer.year, date: `${offer.year}-02-01`, fee })
-      if (m.ok) { players = m.players; inviteResult = { name: invited.name, ok: true, reason: '' } }
+      if (m.ok) players = m.players
     }
   }
 
@@ -135,7 +121,6 @@ function applyGmMove(state: GameStore, offer: GmOffer, inviteId?: string): Parti
     teams,
     players,
     gmOffers: [],
-    gmInviteResult: inviteResult,
     // 予約は使い切る（残すと毎年ここへ来る）
     pendingGmMove: null,
     // 前のチームのオーダーは「前回のオーダー」として残さない
@@ -809,6 +794,14 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       if (!offer) return {}
       const dest = state.teams.find(t => t.id === offer.teamId)
       if (!dest) return { gmOffers: [] }
+      // ★**頷いた相手だけを連れて行く関門はここ1つ。**
+      //   画面はチャットで同じ関数の答えを見せているだけなので、
+      //   ここを通っていない相手（断られた・そもそも聞いていない）は落ちる
+      const agreed = inviteId && appraiseGmInvite({
+        players: state.players, teams: state.teams, foreignLeagues: state.foreignLeagues,
+        currentSeason: state.currentSeason, fromTeamId: state.playerTeamId,
+        destinationOf: state.destinationOf,
+      }, inviteId, offer.teamId)?.ok ? inviteId : undefined
       // ★**就任するのは来季**（オーナー判断★13・2026-08-12「次シーズンの開始になるからね」）。
       //   分岐の材料は「そのオファーが何年のものか」1つだけ。
       //     ・自分から退任して届いた打診 … offer.year は来季 → **予約するだけ**。
@@ -819,9 +812,9 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       if (offer.year > state.currentSeason.year) {
         // ★受けたら取り消せない（★13-a）。gmOffers を空にして予約だけ残す。
         //   連れて行きたい選手も予約に入れる（実際に聞くのは来季の入れ替わりのとき）
-        return { gmOffers: [], pendingGmMove: { teamId: offer.teamId, year: offer.year, inviteId } }
+        return { gmOffers: [], pendingGmMove: { teamId: offer.teamId, year: offer.year, inviteId: agreed } }
       }
-      return applyGmMove(state, offer, inviteId)
+      return applyGmMove(state, offer, agreed)
     })
   },
 

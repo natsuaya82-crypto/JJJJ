@@ -3,7 +3,7 @@
 import type { GameStore, SetGame } from '../gameStore'
 
 type Slice = Pick<GameStore,
-  'signSponsor' | 'terminateSponsor' | 'acceptSponsorOffer' | 'collectSponsorIncome' | 'upgradeFacility' | 'dismissBudgetNotice' | 'dismissGmInviteResult'>
+  'signSponsor' | 'terminateSponsor' | 'acceptSponsorOffer' | 'collectSponsorIncome' | 'upgradeFacility' | 'dismissBudgetNotice'>
 
 export const createEconomySlice = (set: SetGame, get: () => GameStore): Slice => ({
 
@@ -135,5 +135,4 @@ export const createEconomySlice = (set: SetGame, get: () => GameStore): Slice =>
 
   dismissBudgetNotice: () => set({ seasonBudgetNotice: null }),
 
-  dismissGmInviteResult: () => set({ gmInviteResult: null }),
 })

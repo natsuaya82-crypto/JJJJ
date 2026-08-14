@@ -314,7 +314,6 @@ export type GameStore = GameState & {
   dismissDroppedCards: () => void
   dismissBudgetNotice: () => void
   /** 退任について行くか、の返事を閉じる */
-  dismissGmInviteResult: () => void
   // 監督オファーを受ける／断る（utils/gmOffer.ts）
   /** 殿堂入りチームに登録（既にいればそのときの数値で上書き）。入れたら true */
   registerHofPlayer: (playerId: string) => boolean

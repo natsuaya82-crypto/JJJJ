@@ -1,6 +1,8 @@
-import type { Player } from '../../types'
+import { useState } from 'react'
+import type { Player, Team } from '../../types'
 import PlayerRow from '../player/PlayerRow'
 import PageHeader from '../ui/PageHeader'
+import GmInviteChat from './GmInviteChat'
 import { useAdHeight } from '../layout/Layout'
 import { C, alpha, bottomStack } from '../../styles/tokens'
 
@@ -16,15 +18,19 @@ import { C, alpha, bottomStack } from '../../styles/tokens'
 //   下から出るシートではなく画面ごと差し替えるので BottomSheet は通さない。
 // ============================================================================
 
-export default function GmInvitePicker({ roster, invite, onPick, onClose }: {
+export default function GmInvitePicker({ roster, dest, invite, onPick, onClose }: {
   /** 声をかけられる相手（いま指揮しているクラブの在籍選手） */
   roster: Player[]
+  /** 行き先のクラブ。返事の判定に要る */
+  dest: Team
   /** いま選んでいる相手。空文字＝誰にも声をかけない */
   invite: string
   onPick: (id: string) => void
   onClose: () => void
 }) {
   const adH = useAdHeight()
+  // タップした相手とその場でチャットする。**返事はその1往復で決まる**
+  const [talking, setTalking] = useState<Player | null>(null)
   return (
     <div style={{
       position: 'fixed', top: 0, bottom: bottomStack(adH), left: 0, right: 0,
@@ -56,10 +62,19 @@ export default function GmInvitePicker({ roster, invite, onPick, onClose }: {
             key={p.id}
             player={p}
             selected={p.id === invite}
-            handlers={{ onClick: () => { onPick(p.id); onClose() } }}
+            handlers={{ onClick: () => setTalking(p) }}
           />
         ))}
       </div>
+
+      {talking && (
+        <GmInviteChat
+          player={talking}
+          dest={dest}
+          onAgreed={() => { onPick(talking.id); onClose() }}
+          onClose={() => setTalking(null)}
+        />
+      )}
     </div>
   )
 }
