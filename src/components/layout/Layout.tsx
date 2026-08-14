@@ -179,27 +179,23 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }}>
 
       {/* ── Header（実機で固定：viewport上端＋safe-area） ──
-          下タブと同じ**浮いているガラスの島**（オーナー・2026-08-14「上タブもリキッドグラスに」）。
-          ベタ塗り＋下線の板をやめたので、四方のあき・丸み・ガラスの配合は下タブと揃える
-          （`NAV_FLOAT` / `.top-bar` / 同じ boxShadow）。**片方だけ数字を変えないこと。** */}
-      <header className="top-bar" style={{
-        position: 'fixed', top: `calc(env(safe-area-inset-top) + ${NAV_FLOAT}px)`,
-        left: NAV_FLOAT, right: NAV_FLOAT, margin: '0 auto',
-        width: `calc(100% - ${NAV_FLOAT * 2}px)`, maxWidth: 480 - NAV_FLOAT * 2, zIndex: 40,
-        // スモークガラス。**後ろが透けること**が大事なので塗りを濃くしない（下タブと同じ配合）
+          面はスモークガラス（オーナー・2026-08-14「上タブもリキッドグラスに」）。
+          ★**丸めない・浮かせない。** 画面の上端に貼り付いた板のまま、材質だけガラスにする。
+            配合は下タブと同じ（`blur(14px) saturate(118%)` ＋ 上のふちの光 ＋ 下の屈折）。 */}
+      <header style={{
+        position: 'fixed', top: 'env(safe-area-inset-top)', left: 0, right: 0, margin: '0 auto',
+        width: '100%', maxWidth: '480px', zIndex: 40,
+        // 後ろが透けることが大事なので塗りを濃くしない（下タブと同じ配合）
         background: 'linear-gradient(180deg, rgba(255,255,255,0.045) 0%, rgba(255,255,255,0.012) 100%)',
         backdropFilter: 'blur(14px) saturate(118%)',
         WebkitBackdropFilter: 'blur(14px) saturate(118%)',
         border: 'none',
-        padding: '2px 14px',
+        padding: '2px 16px 2px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         boxShadow: [
-          'inset 0 0 0 1px rgba(255,255,255,0.16)', // 細い縁
           'inset 0 1px 0 rgba(255,255,255,0.26)',   // 上のふちの光
           'inset 0 -1px 0 rgba(0,0,0,0.35)',        // 下の屈折
-          '0 12px 28px -14px rgba(0,0,0,0.95)',     // 浮いている影
         ].join(', '),
-        overflow: 'hidden',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {team && (
