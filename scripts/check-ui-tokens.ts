@@ -197,7 +197,12 @@ console.log('\n⑥ 押すボタンを画面で手書きしていない（今日�
   // ★色は16進とは限らない（`${alpha(...)}` / `${C.goldDark}` / `${opt.shadow}`）。
   //   以前は `0 [2-6]px 0 #hex` しか見ておらず、**26か所が網の外**だった
   //   （財務の「今シーズンの予算」が `0 8px 0 #8b6914` で、px も色も外れていた）。
-  const SLAB = /box-?[Ss]hadow[^\n]*?\b0 \d+px 0 (?:#[0-9a-fA-F]{3,6}|\$\{)/g
+  // ★**行をまたぐものも見ること。** `[^\n]*` にしていたので
+  //     boxShadow: news.major
+  //       ? `0 4px 0 #5a3500, …`
+  //   のように値が次の行にある4件（ニュース・シーズン目標・新規作成・日程）が
+  //   丸ごと網の外にいた。**「0件です」と言う前に、その網が何を見ていないかを確かめること。**
+  const SLAB = /box-?[Ss]hadow[\s\S]{0,240}?\b0 \d+px 0 (?:#[0-9a-fA-F]{3,6}|\$\{)/g
   const counts: Record<string, number> = {}
   for (const f of files.filter(f => f.startsWith('src/components') && f.endsWith('.tsx'))) {
     // コメントで形を説明するのは構わない。落とすのは実際に書いているときだけ

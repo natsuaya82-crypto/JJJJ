@@ -6,6 +6,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 import { ALL_DOMESTIC_TEAMS } from '../../utils/domesticClubs'
 import LogoSelectSheet from '../shared/LogoSelectSheet'
 import GlassButton from '../ui/GlassButton'
+import { panelStyle } from '../ui/Panel'
 
 type Step = 'welcome' | 'team_select' | 'customize' | 'confirm'
 
@@ -151,15 +152,9 @@ export default function Onboarding() {
                           marginBottom: '7px',
                           cursor: 'pointer',
                           overflow: 'hidden',
-                          background: selected
-                            ? `linear-gradient(160deg, ${team.colors.primary}28 0%, ${team.colors.primary}0E 100%)`
-                            : 'linear-gradient(180deg, #24223A 0%, #1A1828 100%)',
-                          border: selected
-                            ? `1px solid ${team.colors.primary}65`
-                            : '1px solid #2E2B42',
-                          boxShadow: selected
-                            ? `0 3px 0 ${team.colors.primary}30, 0 6px 18px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07)`
-                            : '0 3px 0 #0D0B1A, 0 6px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.05)',
+                          // カードは ui/Panel 1本。選んだチームは左の帯がそのチームの色になる。
+                          // **枠＋下に影の板を書かないこと**（他の画面と揃わなくなる）
+                          ...panelStyle(selected ? team.colors.primary : undefined),
                           transition: 'all 0.15s',
                         }}
                       >

@@ -108,12 +108,10 @@ export default function NewsPage() {
 
             return (
               <div key={i} {...lp(relPlayer.id)} style={{
-                background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`,
-                border: news.major ? `2px solid ${C.gold}` : `2px solid ${alpha(col, 0.55)}`,
-                boxShadow: news.major
-                  ? `0 4px 0 #5a3500, 0 6px 22px ${alpha(C.gold, 0.28)}, inset 0 1px 0 rgba(255,255,255,0.08)`
-                  : `0 4px 0 #2a1800, 0 6px 18px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07)`,
-                overflow: 'hidden', cursor: 'pointer',
+                // 見た目は下の「見出しだけの行」と同じカード（ui/Panel）。
+                // 大ニュースは左の帯が金になる。**枠2px＋下に影の板を書かないこと**
+                ...panelStyle(news.major ? C.gold : col),
+                cursor: 'pointer',
               }}>
                 {/* Top row */}
                 <div style={{ padding: '10px 12px 8px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: `1px solid ${alpha(col, 0.18)}` }}>
