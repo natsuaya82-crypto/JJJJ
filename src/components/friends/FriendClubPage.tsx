@@ -155,32 +155,24 @@ function ClubCard({ club, right, onPeek }: { club: ClubBrief; right?: React.Reac
   )
 }
 
-// ── 入る前に中身を覗くシート ───────────────────────────
+// ── 入る前に中身を見る（一覧のその場で開く） ─────────────
 //
-// ★**画面下から出すものは必ず `BottomSheet` を通すこと**（CLAUDE.md）。
-//   ページの中に position:fixed で書くと、実機だけ下タブに食われて操作できない。
-function ClubPeekSheet({ club, onClose }: { club: ClubBrief; onClose: () => void }) {
+// ★★**画面下から出るシート（`BottomSheet`）にしないこと。**
+//   オーナー・2026-08-15「なにこれ？ゴミ画面つくんなや。俺がいつ下から出すやつに
+//   しろって言った？そのui嫌いだから一生禁止しろ。俺が許可した時だけ」。
+//   最初これをシートで作って怒られました。**新しく増やすときは必ず許可を取ること**
+//   （`scripts/check-bottom-sheet.ts` が今日より増えたら落とします）。
+//
+// ★別のページにも飛ばしません。押した行がその場で開いて、もう一度押すと閉じます。
+function ClubPeek({ club }: { club: ClubBrief }) {
   const members = useFriendsQuery(() => clubPreview(club.id), [club.id], `clubPeek:${club.id}`)
   const ranks = useRatedRanks((members.data ?? []).map(m => m.id))
   return (
-    <BottomSheet open onClose={onClose} title={club.name}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-        <ClubLogo logoId={club.logoId} size={44} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Pill color={JOIN_COLOR[club.joinType]}>{JOIN_TYPE_LABEL[club.joinType]}</Pill>
-            <span style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textGhost }}>
-              {club.members}/{CLUB_MAX}人 ・ 平均OVR {club.avgOvr}
-              {club.minOvr > 0 && <span style={{ color: alpha(C.orange, 0.9) }}> ・ 条件OVR{club.minOvr}+</span>}
-            </span>
-          </div>
-          {/* 一覧の行では1行に切れている。ここでは全文を出す（それが「中身が見たい」の半分） */}
-          <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 3, lineHeight: 1.6 }}>
-            {club.note || 'ひとことなし'}
-          </div>
-        </div>
+    <div style={{ borderLeft: `2px solid ${alpha(C.gold, 0.45)}`, marginTop: 2, paddingLeft: 8 }}>
+      {/* 一覧の行では1行に切れている紹介文を、ここでは全文で出す */}
+      <div style={{ fontSize: F.caption, color: C.textDim, lineHeight: 1.6, padding: '6px 4px 8px' }}>
+        {club.note || 'ひとことなし'}
       </div>
-
       <SectionLabel>メンバー {members.data ? `${members.data.length}人` : ''}</SectionLabel>
       {members.loading ? <LoadingBox /> :
        members.error ? <ErrorBox onRetry={members.reload} /> :
@@ -209,7 +201,7 @@ function ClubPeekSheet({ club, onClose }: { club: ClubBrief; onClose: () => void
            ))}
          </div>
        )}
-    </BottomSheet>
+    </div>
   )
 }
 
@@ -315,8 +307,8 @@ function ClubSearch({ onChanged, initialCode = '' }: { onChanged: () => void; in
   const [busy, setBusy] = useState('')
   const [making, setMaking] = useState(false)
   const [confirm, setConfirm] = useState<ClubBrief | null>(null)
-  // 入る前に中身を覗いている走友会（長押しで開く）
-  const [peek, setPeek] = useState<ClubBrief | null>(null)
+  // 入る前に中身を覗いている走友会（長押しで、その行がその場で開く）
+  const [peek, setPeek] = useState('')
   const [notice, setNotice] = useState<{ title: string; message?: string } | null>(null)
 
   const requested = new Set(sent.data ?? [])
@@ -392,7 +384,8 @@ function ClubSearch({ onChanged, initialCode = '' }: { onChanged: () => void; in
          ) : (
            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
              {(list.data ?? []).map(c => (
-               <ClubCard key={c.id} club={c} onPeek={() => setPeek(c)} right={
+               <div key={c.id}>
+               <ClubCard club={c} onPeek={() => setPeek(peek === c.id ? '' : c.id)} right={
                  requested.has(c.id) ? (
                    <button onClick={() => onCancelReq(c)} disabled={busy === c.id} className="btn-press" style={actionButton(C.textDim)}>
                      申請中
@@ -408,6 +401,8 @@ function ClubSearch({ onChanged, initialCode = '' }: { onChanged: () => void; in
                    </button>
                  )
                } />
+               {peek === c.id && <ClubPeek club={c} />}
+               </div>
              ))}
            </div>
          )}
@@ -431,7 +426,6 @@ function ClubSearch({ onChanged, initialCode = '' }: { onChanged: () => void; in
           <div style={{ marginTop: 10 }}><ClubCard club={confirm} /></div>
         </ConfirmDialog>
       )}
-      {peek && <ClubPeekSheet club={peek} onClose={() => setPeek(null)} />}
       {notice && <NoticeDialog title={notice.title} message={notice.message} onClose={() => setNotice(null)} />}
     </>
   )
