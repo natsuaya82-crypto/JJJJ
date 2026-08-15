@@ -211,6 +211,25 @@ export default function ChatPage() {
     + offersByPlayer(freeContactOffers).length
     + asCardCount(incomingLoanOffers)
 
+  // ★**自分が出したオファーの行き先**（オーナー・2026-08-15「チャット欄に〇〇にオファー中
+  //   返事待ちとかは？」）。移籍金の入札とレンタルの申し込みは、出したあと**画面のどこにも
+  //   出ていませんでした**——どのクラブに誰の話を出しているのか、返事を待っているのかどうかが
+  //   分からない。2026-08-06 にオファー一覧のページを廃止したとき、受けた側はチャットに
+  //   移したのに、出した側は移し忘れて消えたままでした。
+  //
+  //   ★ここは**状況を出すだけ**。返事の操作は今までどおりで、増やしません
+  //   （逆提示への返事＝通知ページ／移籍金合意後の契約交渉＝下の「契約交渉待ち」の会話）。
+  //   ★`fee_accepted` はここに出しません（下の「契約交渉待ち」に出るので二重になる）。
+  const OUTGOING_BID = {
+    pending: { label: '返事待ち', color: C.blue, sub: '相手クラブの返事を待っています' },
+    countered: { label: '逆提示あり', color: C.gold, sub: '通知から返事ができます' },
+    player_neg: { label: '本人と交渉中', color: C.blue, sub: '移籍金は合意済み。本人と契約交渉中' },
+  } as const
+  const outgoingBids = (currentSeason.transferBids ?? [])
+    .filter((b): b is typeof b & { status: keyof typeof OUTGOING_BID } => b.status in OUTGOING_BID)
+  const outgoingLoans = currentSeason.loanRequests ?? []
+  const outgoingCount = outgoingBids.length + outgoingLoans.length
+
   const closeConversation = (clear: () => void) => {
     if (cameFromParamRef.current) { cameFromParamRef.current = false; navigate(-1) }
     else clear()
@@ -477,7 +496,32 @@ export default function ChatPage() {
           </>
         )}
 
-        {activeTab === 'transfer' && acqPlayers.length === 0 && inboundCount === 0 && contractPendingPlayers.length === 0 && (
+        {activeTab === 'transfer' && outgoingCount > 0 && (
+          <>
+            <div style={{ fontSize: F.caption, fontWeight: 800, color: C.blue, letterSpacing: '0.1em', marginBottom: 2, marginTop: (inboundCount > 0 || acqPlayers.length > 0 || contractPendingPlayers.length > 0) ? 12 : 4 }}>
+              出したオファー · {outgoingCount}件
+            </div>
+            {outgoingBids.map(b => {
+              const p = players.find(pl => pl.id === b.playerId)
+              if (!p) return null
+              const s = OUTGOING_BID[b.status]
+              return <OfferChatRow key={b.id} player={p} accent={s.color} badge={s.label}
+                title={`${teamName(b.targetTeamId)}に${p.name}をオファー中`}
+                sub={`移籍金 ${fmtYen(b.counterFee ?? b.offeredFee)} — ${s.sub}`}
+                onOpen={() => { if (b.status === 'countered') navigate('/notifications'); else openPlayerSheet(p.id) }} />
+            })}
+            {outgoingLoans.map(r => {
+              const p = players.find(pl => pl.id === r.playerId)
+              if (!p) return null
+              return <OfferChatRow key={r.id} player={p} accent={C.blue} badge="返事待ち"
+                title={`${teamName(r.targetTeamId)}に${p.name}のレンタルを申し込み中`}
+                sub={`${r.years}年 — 相手クラブの返事を待っています`}
+                onOpen={() => openPlayerSheet(p.id)} />
+            })}
+          </>
+        )}
+
+        {activeTab === 'transfer' && acqPlayers.length === 0 && inboundCount === 0 && outgoingCount === 0 && contractPendingPlayers.length === 0 && (
           <div style={{ padding: '40px 20px', textAlign: 'center', color: C.textGhost, fontFamily: SAIRA, fontSize: F.body, lineHeight: 1.7 }}>
             進行中の交渉・オファーはありません。<br/>移籍市場や他チームの選手から交渉を始めてください。
           </div>

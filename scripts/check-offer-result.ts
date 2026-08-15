@@ -126,5 +126,23 @@ check('status を問わない札で除いていない', !chat.includes('!offerPl
 check('レンタルで借りている選手に説明を出す', chat.includes("kind: 'loaned_in'"))
 check('その説明は保存ログと突き合わせる側にも入っている', (chat.match(/loanNote/g) ?? []).length >= 4)
 
+console.log('\n[6] 出したオファーの行き先がチャットに出る')
+// オーナー・2026-08-15「チャット欄に〇〇にオファー中返事待ちとかは？」。
+// 2026-08-06 にオファー一覧のページを廃止したとき、**受けた側だけをチャットに移して
+// 出した側を移し忘れて**いた。移籍金の入札とレンタルの申し込みは、出したあと画面の
+// どこにも出ておらず、どのクラブに誰の話を出しているのか分からなくなっていた。
+check('移籍金の入札が一覧に出る', chat.includes('outgoingBids.map('))
+check('レンタルの申し込みも一覧に出る', chat.includes('outgoingLoans.map('))
+check('返事待ち・逆提示あり・本人と交渉中を出し分ける',
+  ['pending:', 'countered:', 'player_neg:'].every(k => chat.includes(k)))
+// ★fee_accepted はここに出さない（下の「契約交渉待ち」に出るので二重になる）
+check('費用合意ぶんは「出したオファー」に出さない（契約交渉待ちと二重になる）',
+  !/OUTGOING_BID = \{[^}]*fee_accepted/s.test(chat))
+// 行は既にある OfferChatRow を使う（受けた側と同じ見た目）
+check('行は OfferChatRow を使う（自前で組み直していない）',
+  (chat.match(/<OfferChatRow/g) ?? []).length >= 4)
+// 空のときの文言も出したオファーを見る（1件あるのに「ありません」と出ないこと）
+check('空判定に出したオファーが入っている', chat.includes('outgoingCount === 0'))
+
 console.log(failed === 0 ? '\n全部OK\n' : `\n${failed}件 NG\n`)
 if (failed > 0) process.exit(1)
