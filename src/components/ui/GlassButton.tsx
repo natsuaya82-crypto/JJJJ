@@ -1,4 +1,4 @@
-import { C, alpha } from '../../styles/tokens'
+import { C, glassStyle } from '../../styles/tokens'
 
 // ============================================================================
 // **押すボタン（ガラス）。画面の中で実行するもの全部これ。**
@@ -40,15 +40,7 @@ export default function GlassButton({
         fontSize: fs, fontWeight: 900, letterSpacing: size === 'lg' ? '2px' : '0.5px',
         fontFamily: 'inherit', lineHeight: 1.25, whiteSpace: 'nowrap',
         cursor: disabled ? 'default' : 'pointer',
-        color: disabled ? C.textGhost : color,
-        background: disabled
-          ? 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))'
-          : `linear-gradient(180deg, ${alpha(color, 0.16)}, ${alpha(color, 0.04)})`,
-        backdropFilter: 'blur(10px) saturate(118%)',
-        WebkitBackdropFilter: 'blur(10px) saturate(118%)',
-        border: `1px solid ${disabled ? alpha(C.border3, 0.6) : alpha(color, 0.65)}`,
-        boxShadow: disabled ? 'none'
-          : `inset 0 1px 0 rgba(255,255,255,0.22), 0 8px 20px rgba(0,0,0,0.4)`,
+        ...glassStyle(color, disabled),
         ...style,
       }}
     >{children}</button>

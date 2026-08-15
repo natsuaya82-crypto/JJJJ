@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 /* Design tokens — JS 側で inline style に使う定数 */
 
 export const C = {
@@ -240,3 +241,25 @@ export const PURPLE = '#A855F7'
  * キーは Division だが、tokens が types に依存しないよう数値で持つ。
  */
 export const DIV_STAR: Record<number, string> = { 1: C.gold, 2: '#9FB4CC', 3: '#7A6E58' }
+
+/**
+ * **ガラスの配合そのもの。** 色・面・枠・影の4つ。
+ *
+ * ★押すボタンは `ui/GlassButton` と `ui/Btn` の2つあるが、**配合はここ1本**。
+ *   以前は Btn 側に同じ式が手で写してあり、そこに金が焼き付いていたので、
+ *   緑や赤にしたい呼び出しが `background` と `color` を塗り直して
+ *   **ベタ塗りに戻していた**（通知ページで14か所）。色は `color` で渡すこと。
+ */
+export function glassStyle(color: string = C.gold, disabled = false): CSSProperties {
+  return {
+    color: disabled ? C.textGhost : color,
+    background: disabled
+      ? 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))'
+      : `linear-gradient(180deg, ${alpha(color, 0.16)}, ${alpha(color, 0.04)})`,
+    backdropFilter: 'blur(10px) saturate(118%)',
+    WebkitBackdropFilter: 'blur(10px) saturate(118%)',
+    border: `1px solid ${disabled ? alpha(C.border3, 0.6) : alpha(color, 0.65)}`,
+    boxShadow: disabled ? 'none'
+      : 'inset 0 1px 0 rgba(255,255,255,0.22), 0 8px 20px rgba(0,0,0,0.4)',
+  }
+}

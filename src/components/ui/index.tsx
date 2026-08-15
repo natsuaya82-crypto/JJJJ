@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
-import { C, alpha, F } from '../../styles/tokens'
+import { C, alpha, F, glassStyle } from '../../styles/tokens'
 
 /* ── SectionLabel ─────────────────────────── */
 export function SectionLabel({ children, className, style }: { children: ReactNode; className?: string; style?: CSSProperties }) {
@@ -52,29 +52,27 @@ type BtnVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
 interface BtnProps {
   children: ReactNode
   variant?: BtnVariant
+  /** primary のときの色。**呼ぶ側で background / color を塗らないこと**（既定は金） */
+  color?: string
   onClick?: () => void
   disabled?: boolean
   fullWidth?: boolean
   size?: 'sm' | 'md' | 'lg'
   style?: CSSProperties
 }
-export function Btn({ children, variant = 'primary', onClick, disabled, fullWidth, size = 'md', style }: BtnProps) {
+export function Btn({ children, variant = 'primary', color, onClick, disabled, fullWidth, size = 'md', style }: BtnProps) {
   const heights = { sm: '38px', md: '46px', lg: '52px' }
   const fontSizes = { sm: '12px', md: '14px', lg: '15px' }
 
   const variantStyle: CSSProperties = (() => {
     switch (variant) {
       case 'primary':
-        return {
-          // ★金でベタ塗りして黒い字、はやめる（オーナー・2026-08-14）。
-          //   配合は ui/GlassButton 1本に合わせる
-          background: `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})`,
-          backdropFilter: 'blur(10px) saturate(118%)',
-          WebkitBackdropFilter: 'blur(10px) saturate(118%)',
-          color: C.gold,
-          border: `1px solid ${alpha(C.gold, 0.65)}`,
-          boxShadow: `inset 0 1px 0 rgba(255,255,255,0.22), 0 8px 20px rgba(0,0,0,0.4)`,
-        }
+        // ★金でベタ塗りして黒い字、はやめる（オーナー・2026-08-14）。
+        //   **配合は ui/GlassButton の glassStyle 1本**。ここに書き写さないこと——
+        //   写した結果ここに金が焼き付いていたので、緑や赤にしたい呼び出しが
+        //   `background` と `color` を塗り直して**ベタ塗りに戻していた**（通知ページで12か所）。
+        //   色を変えたいときは `color` を渡す。
+        return glassStyle(color)
       case 'secondary':
         return {
           background: alpha(C.gold, 0.1),

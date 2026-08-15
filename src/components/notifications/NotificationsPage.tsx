@@ -104,7 +104,7 @@ function FeeCounterCard({ bid, player, targetTeamName, cardStyle, inset, onAccep
 
         {!dialOpen ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: C.bg }} onClick={onAccept}>{fmtYen(counterFee)}で合意する</Btn>
+            <Btn variant="primary" color={C.green} style={{ width: '100%'}} onClick={onAccept}>{fmtYen(counterFee)}で合意する</Btn>
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => { setDialFee(counterFee || bid.offeredFee); setDialOpen(true) }}
                 style={{ flex: 1, padding: '11px',border: `1.5px solid ${alpha(C.gold, 0.45)}`, backgroundColor: alpha(C.gold, 0.08), color: C.gold, fontSize: F.bodyLg, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>金額を提示する</button>
@@ -117,7 +117,7 @@ function FeeCounterCard({ bid, player, targetTeamName, cardStyle, inset, onAccep
             <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>提示する移籍金</div>
             <NumberDial value={dialFee} onChange={v => setDialFee(Math.max(1_000_000, v))} min={1_000_000} accent={C.green} />
             <div style={{ display: 'flex', gap: 8 }}>
-              <Btn variant="primary" style={{ flex: 1, background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: C.bg }} onClick={() => onReoffer(dialFee)}>この額で再提示</Btn>
+              <Btn variant="primary" color={C.green} style={{ flex: 1}} onClick={() => onReoffer(dialFee)}>この額で再提示</Btn>
               <button onClick={() => setDialOpen(false)}
                 style={{ flex: 1, padding: '11px',border: `1.5px solid ${alpha(C.textSub, 0.4)}`, backgroundColor: alpha(C.textSub, 0.06), color: C.textSub, fontSize: F.bodyLg, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>戻る</button>
             </div>
@@ -184,6 +184,8 @@ export default function NotificationsPage() {
     clubGiftsCount: clubGifts.length,
   })
   const renewalNeeded = renewalPlayers.length
+  // 「交渉中で応対待ち」の人数。まとめカードの一行に出す
+  const renewalWaiting = renewalPlayers.filter(r => r.req).length
   const myRosterCount = players.filter(p => p.teamId === playerTeamId && p.status === 'active').length
   const myTeamFinance = teams.find(t => t.id === playerTeamId)?.finance
 
@@ -265,7 +267,7 @@ export default function NotificationsPage() {
                       <Btn
                         variant="primary"
                         disabled={claiming === g.id}
-                        style={{ width: '100%', background: `linear-gradient(135deg, ${C.green}, #58d68d)`, color: '#111' }}
+                        color={C.green} style={{ width: '100%'}}
                         onClick={() => { void onClaimClubGift(g.id) }}
                       >
                         {claiming === g.id ? '受け取り中…' : '受け取る'}
@@ -300,7 +302,7 @@ export default function NotificationsPage() {
                         </div>
                         <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim, marginBottom: '12px' }}>ロスター画面で確認できます。</div>
                         <div style={{ display: 'flex', gap: 8 }}>
-                          <Btn variant="primary" style={{ flex: 1, background: `linear-gradient(135deg, ${C.cyan}, #4fc3f7)`, color: C.bg }} onClick={() => { dismissJoinNotice(key); navigate('/team/roster') }}>ロスターで確認</Btn>
+                          <Btn variant="primary" color={C.cyan} style={{ flex: 1}} onClick={() => { dismissJoinNotice(key); navigate('/team/roster') }}>ロスターで確認</Btn>
                           <button onClick={() => dismissJoinNotice(key)} style={{ flex: 'none', padding: '11px 16px',border: `1.5px solid ${alpha(C.textSub, 0.4)}`, backgroundColor: alpha(C.textSub, 0.06), color: C.textSub, fontSize: F.bodyLg, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>確認</button>
                         </div>
                       </div>
@@ -322,7 +324,7 @@ export default function NotificationsPage() {
                     <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: '800', color: C.text, marginBottom: 6 }}>
                       本日のログインボーナスが未受取です
                     </div>
-                    <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, #4ab8ea, #1a8bbf)`, color: '#fff' }} onClick={() => navigate('/login-bonus')}>受け取る</Btn>
+                    <Btn variant="primary" color={C.cyan} style={{ width: '100%'}} onClick={() => navigate('/login-bonus')}>受け取る</Btn>
                   </div>
                 </div>
               </div>
@@ -402,7 +404,7 @@ export default function NotificationsPage() {
                           </div>
                         ))}
                         <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                          <Btn variant="primary" style={{ flex: 1, background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: C.bg }} onClick={() => acceptTradeOffer(o.id)}>承諾する</Btn>
+                          <Btn variant="primary" color={C.green} style={{ flex: 1}} onClick={() => acceptTradeOffer(o.id)}>承諾する</Btn>
                           <Btn style={{ flex: 1 }} onClick={() => rejectTradeOffer(o.id)}>断る</Btn>
                         </div>
                       </div>
@@ -413,40 +415,40 @@ export default function NotificationsPage() {
             </section>
           )}
 
-          {/* 契約更新。「まだ話していない（満了間近）」と「交渉中で応対待ち」を1つの節にまとめる。
-              別々の節にして数え方も違っていたので、チャットを開いた瞬間にベルの数字が勝手に減っていた */}
+          {/* 契約更新。**1人1枚にしない**（オーナー・2026-08-14「◯人ってまとめてたのに
+              なんで全員出てくるようになったの」→「まとめ」）。人数だけ出して、
+              交渉はチャットの一覧でまとめて片づける。
+              ★「まだ話していない（満了間近）」と「交渉中で応対待ち」は1つの節のまま。
+                別々の節にして数え方も違っていたので、チャットを開いた瞬間にベルの数字が
+                勝手に減っていた（0cf1feb）。 */}
           {renewalNeeded > 0 && (
             <section>
               <SectionHead label="契約更新" color={C.orange} count={renewalNeeded}/>
-              <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {renewalPlayers.map(({ p, months, req }) => {
-                  const pOvr = ovr(p)
-                  const accent = req ? C.gold : C.red
-                  const shadow = req ? '#5a3500' : '#660e10'
-                  return (
-                    <div key={p.id} style={cardStyle(alpha(accent, 0.45), shadow)}>
-                      <div style={inset}/>
-                      <div style={{ padding: '14px 16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
-                          <FaceOvr playerId={p.id} nationality={p.nationality} pOvr={pOvr} accentColor={accent} />
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: '700', color: C.text }}>{p.name}</div>
-                            <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.textSub, marginTop: '2px' }}>{p.age}歳</div>
-                          </div>
-                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                            <div style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: '900', color: accent }}>{req ? '交渉中' : `残り${Math.max(0, months)}ヶ月`}</div>
-                            <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: req ? C.gold : C.red }}>{req ? 'あなたの返事待ちです' : '今季で満了・早急に更新を'}</div>
-                          </div>
+              <div style={{ padding: '0 16px' }}>
+                <div style={cardStyle(alpha(C.orange, 0.45), '#5a3500')}>
+                  <div style={inset}/>
+                  <div style={{ padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
+                      {/* 顔は先頭3人だけ。人数が増えても行の高さが変わらない。
+                          ★**重ねないこと。** FaceOvr は右下にOVRの札を出すので、
+                            負のマージンで重ねると隣の顔に隠れて数字が読めなくなる */}
+                      <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                        {renewalPlayers.slice(0, 3).map(({ p }) => (
+                          <FaceOvr key={p.id} playerId={p.id} nationality={p.nationality} pOvr={ovr(p)} accentColor={C.orange} />
+                        ))}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: '700', color: C.text }}>
+                          {renewalNeeded}人
                         </div>
-                        {/* ★色を上書きしないこと。ベタ塗り＋黒い字は 2f75efa でやめたのに、
-                            ここが background と color を自分で塗り直していたので残っていた
-                            （オーナー・2026-08-14「契約を交渉するのベタ塗りボタンやめて」）。
-                            見た目は ui/Btn の primary 1本。**呼ぶ側で塗らない。** */}
-                        <Btn variant="primary" style={{ width: '100%' }} onClick={() => navigate(`/team/chat?player=${p.id}`)}>契約を交渉する</Btn>
+                        <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textSub, marginTop: '2px' }}>
+                          {renewalWaiting > 0 ? `うち${renewalWaiting}人があなたの返事待ち` : '今季で満了・早急に更新を'}
+                        </div>
                       </div>
                     </div>
-                  )
-                })}
+                    <Btn variant="primary" color={C.orange} style={{ width: '100%' }} onClick={() => navigate('/team/chat')}>契約を交渉する</Btn>
+                  </div>
+                </div>
               </div>
             </section>
           )}
@@ -507,7 +509,7 @@ export default function NotificationsPage() {
                         判定に使っている金額と、黒字化に必要な額は財務画面に表示されています。
                       </div>
                     </div>
-                    <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.red}, #FF6B6B)`, color: C.bg }} onClick={() => navigate('/budget')}>財務を確認する</Btn>
+                    <Btn variant="primary" color={C.red} style={{ width: '100%'}} onClick={() => navigate('/budget')}>財務を確認する</Btn>
                   </div>
                 </div>
               </div>
@@ -524,7 +526,7 @@ export default function NotificationsPage() {
                   <div style={{ padding: '14px 16px' }}>
                     <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: '700', color: C.text, marginBottom: '4px' }}>ロスターが上限を超えています（{myRosterCount}/{ROSTER_MAX}）</div>
                     <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.red, marginBottom: '14px' }}>{rosterOver}名分オーバーしています。放出して{ROSTER_MAX}人以下に整理してください（超過中は新規補強ができません）</div>
-                    <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.red}, #FF6B6B)`, color: C.bg }} onClick={() => navigate('/team/roster')}>ロスターを整理する</Btn>
+                    <Btn variant="primary" color={C.red} style={{ width: '100%'}} onClick={() => navigate('/team/roster')}>ロスターを整理する</Btn>
                   </div>
                 </div>
               </div>
@@ -552,7 +554,7 @@ export default function NotificationsPage() {
                           </div>
                         </div>
                         {/* 引退の承認/引き留めはチャットで行う（選手ページには承認ボタンが無い） */}
-                        <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.blue}, #42A5F5)`, color: C.bg }} onClick={() => navigate(`/team/chat?player=${req.playerId}`)}>チャットで対応する</Btn>
+                        <Btn variant="primary" color={C.blue} style={{ width: '100%'}} onClick={() => navigate(`/team/chat?player=${req.playerId}`)}>チャットで対応する</Btn>
                       </div>
                     </div>
                   )
@@ -571,7 +573,7 @@ export default function NotificationsPage() {
                   <div style={{ padding: '14px 16px' }}>
                     <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: '700', color: C.text, marginBottom: '4px' }}>{transferReqs.length}人が移籍を希望</div>
                     <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.orange, marginBottom: '14px' }}>チャットで対応してください</div>
-                    <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.orange}, #FFA726)`, color: C.bg }} onClick={() => navigate('/team/chat')}>チャットへ</Btn>
+                    <Btn variant="primary" color={C.orange} style={{ width: '100%'}} onClick={() => navigate('/team/chat')}>チャットへ</Btn>
                   </div>
                 </div>
               </div>
@@ -588,7 +590,7 @@ export default function NotificationsPage() {
                   <div style={{ padding: '14px 16px' }}>
                     <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: '700', color: C.text, marginBottom: '4px' }}>{overseasReqs.length}人が海外挑戦を希望</div>
                     <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.blue, marginBottom: '14px' }}>チャットで対応してください</div>
-                    <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.blue}, #64B5F6)`, color: C.bg }} onClick={() => navigate('/team/chat')}>チャットへ</Btn>
+                    <Btn variant="primary" color={C.blue} style={{ width: '100%'}} onClick={() => navigate('/team/chat')}>チャットへ</Btn>
                   </div>
                 </div>
               </div>
@@ -611,7 +613,7 @@ export default function NotificationsPage() {
                         「3件があなたの返事待ち」だけだと、それがレンタルの話なのか
                         獲得の話なのか分からなかった */}
                     <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.cyan, marginBottom: '14px' }}>{chatReplyLine(chatReplies)}</div>
-                    <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.cyan}, #9ae4ff)`, color: C.bg }} onClick={() => navigate('/team/chat')}>チャットへ</Btn>
+                    <Btn variant="primary" color={C.cyan} style={{ width: '100%'}} onClick={() => navigate('/team/chat')}>チャットへ</Btn>
                   </div>
                 </div>
               </div>
@@ -668,7 +670,7 @@ export default function NotificationsPage() {
                           </div>
                         </div>
                         <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim, marginBottom: '12px' }}>次は選手本人と年俸・役割を交渉します。</div>
-                        <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: C.bg }} onClick={() => navigate(`/team/chat?player=${bid.playerId}`)}>選手と契約交渉へ</Btn>
+                        <Btn variant="primary" color={C.green} style={{ width: '100%'}} onClick={() => navigate(`/team/chat?player=${bid.playerId}`)}>選手と契約交渉へ</Btn>
                       </div>
                     </div>
                   )
@@ -854,7 +856,7 @@ export default function NotificationsPage() {
                   <div style={{ padding: '14px 16px' }}>
                     <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: '700', color: C.text, marginBottom: '4px' }}>{sponsorOffers.length}社からスポンサーオファー</div>
                     <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.green, marginBottom: '14px' }}>契約内容を確認してください</div>
-                    <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${C.green}, #66BB6A)`, color: C.bg }} onClick={() => navigate('/sponsors')}>スポンサーページへ</Btn>
+                    <Btn variant="primary" color={C.green} style={{ width: '100%'}} onClick={() => navigate('/sponsors')}>スポンサーページへ</Btn>
                   </div>
                 </div>
               </div>
