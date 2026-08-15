@@ -191,6 +191,31 @@ export async function myClub(): Promise<MyClub | null> {
   }
 }
 
+// ── 入る前に中身を見る（長押しのプレビュー） ─────────────
+/**
+ * **入っていない走友会のメンバーを覗く。**
+ * オーナー・2026-08-15「入るしかないせいで中身が見れない。誰がいてどういう
+ * 自己紹介か長押しで見れるようにしてほしい」。
+ *
+ * ★**フレンドコードは返ってきません**（サーバー側で外してある）。
+ *   一覧を舐めるだけで誰にでも申請が送れてしまうため。`code` は空文字になるので、
+ *   `MemberRow` の「＋フレンド」は自然に出ません（`m.code !== ''` の条件）。
+ * ★見えるのはメンバーだけ。掲示板・カードは入ってから。
+ */
+export async function clubPreview(clubId: string): Promise<ClubMember[]> {
+  await uid()
+  const { data, error } = await supabase.rpc('club_preview', { p_club: clubId })
+  if (error) throw new FriendsOffline()
+  const rows = (data ?? []) as (Omit<ProfileRow, 'code'> & { role: ClubRole; joined_at: string })[]
+  const blocked = await blockedIds()
+  return rows.map(r => ({
+    ...toFriend({ ...r, code: '' } as ProfileRow),
+    role: r.role,
+    joinedAt: r.joined_at,
+    blocked: blocked.has(r.user_id),
+  }))
+}
+
 // ── 作る・入る ────────────────────────────────────────
 /** 走友会を作る。作った人が会長になる */
 export async function createClub(f: ClubForm): Promise<void> {

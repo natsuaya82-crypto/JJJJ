@@ -542,6 +542,7 @@ drop function if exists public.club_open_stats(uuid, text, text[], text)     cas
 drop function if exists public.club_open_stats(text, text[], text, integer[]) cascade;
 drop function if exists public.search_clubs(text, integer)                   cascade;
 drop function if exists public.find_club_by_code(text)                       cascade;
+drop function if exists public.club_preview(uuid)                            cascade;
 drop function if exists public.create_club(text, text)                       cascade;  -- 旧い形
 drop function if exists public.create_club(text, text, text, text, integer)  cascade;
 drop function if exists public.rename_club(text, text)                       cascade;  -- 廃止。update_club に一本化
@@ -824,6 +825,40 @@ as $$
   order by (c.join_type <> 'closed' and c.members < public.club_member_cap()) desc,
            c.members desc, c.created_at desc
   limit least(greatest(coalesce(p_limit, 30), 1), 50)
+$$;
+
+-- ── 入る前に中身を見る（長押しのプレビュー） ──────────────
+--
+-- オーナー・2026-08-15「入るしかないせいで中身が見れない。誰がいてどういう
+-- 自己紹介か長押しで見れるようにしてほしい」。
+--
+-- ★**入っていない走友会のメンバーは、ふつうの経路では読めません。**
+--   `club_members` も `profiles` も「同じ走友会の人」に閲覧を絞ってあるためで、
+--   ここだけ security definer で通します。
+--
+-- ★**フレンドコード（profiles.code）は返しません。** 入っていない走友会の
+--   全員のコードが引けると、一覧を舐めるだけで誰にでも申請を送れてしまう。
+--   プレビューは「誰がいるか」を見るためのもので、そこから申請は送らせない。
+create function public.club_preview(p_club uuid)
+returns table (
+  user_id uuid, team_name text, short_name text, gm_name text,
+  logo_id text, color_primary text, color_secondary text,
+  champs integer, titles jsonb, avg_ovr integer,
+  role text, joined_at timestamptz, updated_at timestamptz
+)
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select p.user_id, p.team_name, p.short_name, p.gm_name, p.logo_id,
+         p.color_primary, p.color_secondary, p.champs, p.titles, p.avg_ovr,
+         m.role, m.joined_at, p.updated_at
+  from public.club_members m
+  join public.profiles p on p.user_id = m.user_id
+  where m.club_id = p_club
+  -- 会長・副会長を上に、あとは入った順
+  order by case m.role when 'owner' then 0 when 'admin' then 1 else 2 end, m.joined_at
 $$;
 
 -- コードちょうど1件（コード入力欄から使う）
@@ -2338,6 +2373,7 @@ begin
     'remove_friend(uuid)',
     'search_clubs(text, integer)',
     'find_club_by_code(text)',
+    'club_preview(uuid)',
     'create_club(text, text, text, text, integer)',
     'join_club(uuid)',
     'cancel_club_request(uuid)',

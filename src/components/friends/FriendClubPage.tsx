@@ -13,7 +13,7 @@ import { CLUB_LOGOS, CLUB_LOGO_DEFAULT, clubLogoSrc } from '../../data/clubLogos
 import { formatCode, offlineDetail, listFriends, listSent, sendRequest, SEND_RESULT_TEXT, relativeTime } from '../../lib/friendsApi'
 import {
   CLUB_MAX, JOIN_TYPE_LABEL, searchClubs, myClub, myClubRequests, createClub, joinClub,
-  cancelClubRequest, listClubRequests, approveClubRequest, rejectClubRequest,
+  cancelClubRequest, clubPreview, listClubRequests, approveClubRequest, rejectClubRequest,
   leaveClub, kickClubMember, updateClub, setClubRole, CLUB_ADMIN_MAX,
   CLUB_PHRASES, CLUB_REACTIONS, clubReactions, reactClubPost, CLUB_REQ_CAP, CLUB_REQ_STATS, clubFeed, postClubRequest,
   CLUB_TEXT_MAX, postClubText, postClubRoom,
@@ -114,12 +114,21 @@ function actionButton(color: string, disabled = false): React.CSSProperties {
 }
 
 // ── 検索結果の1件 ─────────────────────────────────────
-function ClubCard({ club, right }: { club: ClubBrief; right?: React.ReactNode }) {
+//
+// ★**長押しで中身を覗ける**（`onPeek`。オーナー・2026-08-15
+//   「入るしかないせいで中身が見れない。誰がいてどういう自己紹介か長押しで
+//   見れるようにしてほしい」）。長押しを付けるのは**ロゴ〜本文のところだけ**で、
+//   右のボタン（入る／申請）には付けない——ボタンの上で長押しして離すと
+//   押した扱いにもなるため（`MemberRow` と同じ理由）。
+function ClubCard({ club, right, onPeek }: { club: ClubBrief; right?: React.ReactNode; onPeek?: () => void }) {
+  const longPress = useLongPress()
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
       background: C.surface2, border: `1px solid ${C.border2}`,
     }}>
+      <div {...(onPeek ? longPress(onPeek) : {})}
+        style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, cursor: onPeek ? 'pointer' : 'default' }}>
       <ClubLogo logoId={club.logoId} size={44} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -139,8 +148,67 @@ function ClubCard({ club, right }: { club: ClubBrief; right?: React.ReactNode })
           {club.minOvr > 0 && <span style={{ color: alpha(C.orange, 0.9) }}> ・ 条件OVR{club.minOvr}+</span>}
         </div>
       </div>
+      </div>
       {right}
     </div>
+  )
+}
+
+// ── 入る前に中身を覗くシート ───────────────────────────
+//
+// ★**画面下から出すものは必ず `BottomSheet` を通すこと**（CLAUDE.md）。
+//   ページの中に position:fixed で書くと、実機だけ下タブに食われて操作できない。
+function ClubPeekSheet({ club, onClose }: { club: ClubBrief; onClose: () => void }) {
+  const members = useFriendsQuery(() => clubPreview(club.id), [club.id], `clubPeek:${club.id}`)
+  const ranks = useRatedRanks((members.data ?? []).map(m => m.id))
+  return (
+    <BottomSheet open onClose={onClose} title={club.name}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+        <ClubLogo logoId={club.logoId} size={44} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Pill color={JOIN_COLOR[club.joinType]}>{JOIN_TYPE_LABEL[club.joinType]}</Pill>
+            <span style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textGhost }}>
+              {club.members}/{CLUB_MAX}人 ・ 平均OVR {club.avgOvr}
+              {club.minOvr > 0 && <span style={{ color: alpha(C.orange, 0.9) }}> ・ 条件OVR{club.minOvr}+</span>}
+            </span>
+          </div>
+          {/* 一覧の行では1行に切れている。ここでは全文を出す（それが「中身が見たい」の半分） */}
+          <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 3, lineHeight: 1.6 }}>
+            {club.note || 'ひとことなし'}
+          </div>
+        </div>
+      </div>
+
+      <SectionLabel>メンバー {members.data ? `${members.data.length}人` : ''}</SectionLabel>
+      {members.loading ? <LoadingBox /> :
+       members.error ? <ErrorBox onRetry={members.reload} /> :
+       (members.data ?? []).length === 0 ? <EmptyBox label="まだ誰もいません" /> : (
+         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+           {(members.data ?? []).map(m => (
+             <div key={m.id} style={{
+               display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
+               background: C.surface2, border: `1px solid ${C.border2}`, opacity: m.blocked ? 0.5 : 1,
+             }}>
+               <TeamLogoSVG primary={m.primary} secondary={m.secondary} shortName={m.shortName} logoId={m.logoId} size={36} />
+               <div style={{ flex: 1, minWidth: 0 }}>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                   <span style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: m.blocked ? C.textDim : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                     {m.blocked ? 'ブロック中の利用者' : m.teamName}
+                   </span>
+                   {!m.blocked && <RankBadge rating={ranks.get(m.id)} size={17} />}
+                   {m.role === 'owner' && <Pill color={C.gold}>会長</Pill>}
+                   {m.role === 'admin' && <Pill color={C.cyan}>副会長</Pill>}
+                 </div>
+                 <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 2 }}>
+                   {m.blocked ? 'この相手は表示していません' : `GM ${m.gmName} ・ ${m.lastLogin}`}
+                 </div>
+               </div>
+             </div>
+           ))}
+         </div>
+       )}
+    </BottomSheet>
   )
 }
 
@@ -246,6 +314,8 @@ function ClubSearch({ onChanged, initialCode = '' }: { onChanged: () => void; in
   const [busy, setBusy] = useState('')
   const [making, setMaking] = useState(false)
   const [confirm, setConfirm] = useState<ClubBrief | null>(null)
+  // 入る前に中身を覗いている走友会（長押しで開く）
+  const [peek, setPeek] = useState<ClubBrief | null>(null)
   const [notice, setNotice] = useState<{ title: string; message?: string } | null>(null)
 
   const requested = new Set(sent.data ?? [])
@@ -321,7 +391,7 @@ function ClubSearch({ onChanged, initialCode = '' }: { onChanged: () => void; in
          ) : (
            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
              {(list.data ?? []).map(c => (
-               <ClubCard key={c.id} club={c} right={
+               <ClubCard key={c.id} club={c} onPeek={() => setPeek(c)} right={
                  requested.has(c.id) ? (
                    <button onClick={() => onCancelReq(c)} disabled={busy === c.id} className="btn-press" style={actionButton(C.textDim)}>
                      申請中
@@ -360,6 +430,7 @@ function ClubSearch({ onChanged, initialCode = '' }: { onChanged: () => void; in
           <div style={{ marginTop: 10 }}><ClubCard club={confirm} /></div>
         </ConfirmDialog>
       )}
+      {peek && <ClubPeekSheet club={peek} onClose={() => setPeek(null)} />}
       {notice && <NoticeDialog title={notice.title} message={notice.message} onClose={() => setNotice(null)} />}
     </>
   )
@@ -1465,6 +1536,9 @@ export default function FriendClubPage() {
         <div style={{ padding: '2px 16px 10px' }}>
           <div style={{ fontSize: F.label, color: C.textDim, lineHeight: 1.6 }}>
             同じ走友会に入ると、仲間のチームが同じ名簿に並びます。1人1つまで。
+            {/* ★長押しは見えない操作なので、必ずどこかに書いておくこと。
+                書かないと「入るしかない」ままで、作った意味が無くなる */}
+            <br />入る前に長押しすると、メンバーと紹介文を見られます。
           </div>
         </div>
       )}
