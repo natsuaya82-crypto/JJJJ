@@ -3,6 +3,7 @@
 // まるごとコピーされていて、片方だけ直すとベルとページの件数がズレていた）
 import { useGameStore } from '../../store/gameStore'
 import { useClubGifts } from '../../lib/useClubGifts'
+import { useFriendRequests } from '../../lib/useFriendRequests'
 import { collectNotifications } from '../../utils/notifItems'
 
 const EMPTY_IDS: string[] = []
@@ -10,6 +11,7 @@ const EMPTY_IDS: string[] = []
 export function useNotifCount(): number {
   const { currentSeason, players, teams, playerTeamId, lastLoginDate } = useGameStore()
   const clubGifts = useClubGifts()
+  const friendReqs = useFriendRequests()
   // ※セレクタで `?? []` すると毎回新しい配列になり無限レンダリングするので、フィールドをそのまま取る
   const pendingGifts = useGameStore(s => s.pendingGifts)
   const seenJoinIds = useGameStore(s => s.seenJoinIds)
@@ -21,5 +23,6 @@ export function useNotifCount(): number {
     seenInjuryIds: seenInjuryIds ?? EMPTY_IDS,
     pendingGiftsCount: (pendingGifts ?? []).length,
     clubGiftsCount: clubGifts.length,
+    friendRequestsCount: friendReqs.length,
   }).total
 }

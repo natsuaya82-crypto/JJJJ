@@ -20,6 +20,7 @@ import { ROSTER_MAX } from '../../data/rosterRules'
 import { feeRatingOf } from '../../data/economy'
 import TrainingCardSVG from '../training/TrainingCardSVG'
 import { CARD_NAMES, RARITY_LABELS } from '../../utils/cardCombo'
+import { useFriendRequests } from '../../lib/useFriendRequests'
 import { useClubGifts, dropClubGift } from '../../lib/useClubGifts'
 import { claimClubGift } from '../../lib/clubsApi'
 import { stashGifts, peekGifts, clearGifts } from '../../lib/giftInbox'
@@ -148,6 +149,8 @@ export default function NotificationsPage() {
   // 走友会のなかまから届いたカード
   const addTrainingCards = useGameStore(s => s.addTrainingCards)
   const clubGifts = useClubGifts()
+  // 届いているフレンド申請。ここは件数と入口だけで、承認・拒否は申請ページでする
+  const friendReqs = useFriendRequests()
   const [claiming, setClaiming] = useState('')
   const onClaimClubGift = async (id: string) => {
     setClaiming(id)
@@ -182,6 +185,7 @@ export default function NotificationsPage() {
     seenInjuryIds: seenInjuryIdsRaw ?? EMPTY_IDS,
     pendingGiftsCount: pendingGifts.length,
     clubGiftsCount: clubGifts.length,
+    friendRequestsCount: friendReqs.length,
   })
   const renewalNeeded = renewalPlayers.length
   // 「交渉中で応対待ち」の人数。まとめカードの一行に出す
@@ -275,6 +279,33 @@ export default function NotificationsPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </section>
+          )}
+
+          {/* 届いているフレンド申請。
+              ★ここは**入口だけ**。承認・拒否は申請ページ（/friends/requests）でする——
+                返事の窓口を2つ持つと、片方で承認したのにもう片方に残る、が必ず起きる。
+              オーナー・2026-08-15「フレンド申請来てたのに1ってついてなかったから
+              気づかなかった」。ベルの数字（useNotifCount）と同じ数え方でここにも出す。 */}
+          {friendReqs.length > 0 && (
+            <section style={{ marginTop: (pendingGifts.length > 0 || clubGifts.length > 0) ? '20px' : 0 }}>
+              <SectionHead label="フレンド申請" color={C.gold} count={friendReqs.length}/>
+              <div style={{ padding: '0 16px' }}>
+                <div style={cardStyle(alpha(C.gold, 0.5), '#3a2a06')}>
+                  <div style={inset}/>
+                  <div style={{ padding: '14px 16px' }}>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: '800', color: C.text, lineHeight: 1.6, marginBottom: '10px' }}>
+                      {friendReqs.length === 1
+                        ? `${friendReqs[0].teamName}からフレンド申請が届いています`
+                        : `${friendReqs.length}件のフレンド申請が届いています`}
+                    </div>
+                    <Btn variant="primary" color={C.gold} style={{ width: '100%' }}
+                      onClick={() => navigate('/friends/requests')}>
+                      承認する
+                    </Btn>
+                  </div>
+                </div>
               </div>
             </section>
           )}

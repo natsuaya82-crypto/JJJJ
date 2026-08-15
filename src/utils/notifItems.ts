@@ -88,6 +88,12 @@ export type NotifInput = {
   pendingGiftsCount: number
   /** 走友会のなかまから届いたカードの数 */
   clubGiftsCount: number
+  /**
+   * **届いているフレンド申請の数**（オーナー・2026-08-15
+   * 「フレンド申請来てたのに1ってついてなかったから気づかなかった」）。
+   * 走友会のカードと同じで、サーバーから読んだ数をここへ渡す。
+   */
+  friendRequestsCount: number
 }
 
 /**
@@ -135,7 +141,7 @@ export function offersByPlayer<T extends { playerId: string }>(offers: readonly 
 }
 
 export function collectNotifications(input: NotifInput) {
-  const { currentSeason, players, teams, playerTeamId, lastLoginDate, seenJoinIds, seenInjuryIds, pendingGiftsCount, clubGiftsCount } = input
+  const { currentSeason, players, teams, playerTeamId, lastLoginDate, seenJoinIds, seenInjuryIds, pendingGiftsCount, clubGiftsCount, friendRequestsCount } = input
 
   // 自チームの現役選手か。退団・引退した選手あての通知（幽霊通知）を数から外すのに使う。
   // ケガ中(status === 'injured')も現役。ここを 'active' だけで見ていたので、
@@ -287,6 +293,7 @@ export function collectNotifications(input: NotifInput) {
     + asCardCount(sponsorOffers)
     + pendingGiftsCount
     + clubGiftsCount
+    + friendRequestsCount
     + joinNotices.length
     + expiredNegotiations.length
     + loanResponses.length

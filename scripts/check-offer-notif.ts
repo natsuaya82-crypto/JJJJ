@@ -55,7 +55,7 @@ const teams = [{ id: MY, shortName: MY, division: 1, tier: 10,
 const call = (offers: IncomingOffer[]) => collectNotifications({
   players, teams, playerTeamId: MY,
   lastLoginDate: undefined, seenJoinIds: [], seenInjuryIds: [],
-  pendingGiftsCount: 0, clubGiftsCount: 0,
+  pendingGiftsCount: 0, clubGiftsCount: 0, friendRequestsCount: 0,
   currentSeason: {
     year: YEAR, races: [], currentRaceIndex: 0, incomingOffers: offers,
     transferBids: [], contractRequests: [], transferListings: [], newsFeed: [],

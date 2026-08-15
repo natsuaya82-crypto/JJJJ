@@ -15,6 +15,9 @@ import {
 } from '../../lib/friendsApi'
 import type { FriendRequest } from '../../lib/friendsApi'
 import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox, invalidateFriendsCache } from './friendsUi'
+// ★ベルの数字も一緒に動かす。ここで落とさないと、承認したのにベルが3分（COOL_MS）
+//   減らないまま残る（オーナー・2026-08-15「1ってついてなかったから気づかなかった」の裏返し）
+import { dropFriendRequest, loadFriendRequests } from '../../lib/useFriendRequests'
 import { useRatedRank } from '../../lib/useRatedRanks'
 import { RankBadge } from '../rated/ratedUi'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
@@ -118,6 +121,7 @@ export default function FriendRequestsPage() {
         setAddCode('')
         invalidateFriendsCache('friends', 'sent', 'received')
         recvQ.reload(); sentQ.reload()
+        loadFriendRequests(true)   // 相手からの申請と行き違いで成立したときはベルも減る
       }
       setNotice({ ...SEND_RESULT_TEXT[res], target: res === 'not_found' || res === 'self' ? undefined : target })
     } catch { offline() }
@@ -130,6 +134,7 @@ export default function FriendRequestsPage() {
     try {
       await acceptRequest(r.id)
       recvQ.setData(received.filter(x => x.id !== r.id))
+      dropFriendRequest(r.id)
       invalidateFriendsCache('friends')
       setNotice({ title: 'フレンドになりました', target: r })
     } catch { offline() }
@@ -139,7 +144,7 @@ export default function FriendRequestsPage() {
   const onReject = async (r: FriendRequest) => {
     if (busy) return
     setBusy(r.id)
-    try { await rejectRequest(r.id); recvQ.setData(received.filter(x => x.id !== r.id)) }
+    try { await rejectRequest(r.id); recvQ.setData(received.filter(x => x.id !== r.id)); dropFriendRequest(r.id) }
     catch { offline() }
     finally { setBusy(null) }
   }

@@ -36,7 +36,7 @@ const base = (season: Season, players: Player[] = [], teams: Team[] = [T('a')]) 
   currentSeason: season, players, teams, playerTeamId: 'a',
   lastLoginDate: loginTodayKey(),
   seenJoinIds: [] as string[], seenInjuryIds: [] as string[],
-  myPlayerCreated: true, pendingGiftsCount: 0, clubGiftsCount: 0,
+  myPlayerCreated: true, pendingGiftsCount: 0, clubGiftsCount: 0, friendRequestsCount: 0,
 })
 
 console.log('\n[1] 何も無ければ0件')
@@ -79,6 +79,9 @@ console.log('\n[2] 用件を1つ足すと数がちょうど1つ増える')
     { label: 'ログインボーナス未受け取り', input: { ...base(S()), lastLoginDate: '2000-01-01' } },
     { label: '運営からのプレゼント', input: { ...base(S()), pendingGiftsCount: 1 } },
     { label: '走友会のなかまからのカード', input: { ...base(S()), clubGiftsCount: 1 } },
+    // ★フレンド申請（オーナー・2026-08-15「1ってついてなかったから気づかなかった」）。
+    //   走友会のカードと同じで、サーバーから読んだ数をベルに入れる
+    { label: 'フレンド申請', input: { ...base(S()), friendRequestsCount: 1 } },
   ]
   for (const c of cases) check(`${c.label}で1件`, collectNotifications(c.input).total === 1, `${collectNotifications(c.input).total}件`)
 }
@@ -273,7 +276,7 @@ const expected = [
   // ★アップデート記念（マイプレイヤー未作成）は廃止済みなので、ここは5つではなく4つ。
   //   配布枠560が終了し、GameState.myPlayerCreated は古いセーブに残るだけになった
   '1', '1', '1', '1',
-  'pendingGifts.length', 'clubGifts.length', 'joinNotices.length', 'tradeOffers.length',
+  'pendingGifts.length', 'clubGifts.length', 'friendReqs.length', 'joinNotices.length', 'tradeOffers.length',
   'renewalNeeded', 'injuredPlayers.length', 'retirementRequests.length', 'transferReqs.length',
   'overseasReqs.length', 'chatReplies.length',
   'counteredBids.length', 'feeAcceptedBids.length', 'freeContacts.length', 'departureNotices.length',
