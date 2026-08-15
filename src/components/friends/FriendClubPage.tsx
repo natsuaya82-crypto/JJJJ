@@ -33,6 +33,7 @@ import { loadClubGifts, clearClubGifts } from '../../lib/useClubGifts'
 import { CLUB_CHAT_ENABLED } from '../../data/featureFlags'
 import { useFriendsQuery, invalidateFriendsCache, LoadingBox, ErrorBox, EmptyBox } from './friendsUi'
 import { useLongPress } from '../../lib/useLongPress'
+import { useStickyTab } from '../../lib/useStickyTab'
 import { useRatedRank, useRatedRanks } from '../../lib/useRatedRanks'
 import { RankBadge } from '../rated/ratedUi'
 import { C, alpha, SAIRA, contentHeight, F } from '../../styles/tokens'
@@ -441,6 +442,9 @@ function ClubSearch({ onChanged, initialCode = '' }: { onChanged: () => void; in
 // unknown はフレンド一覧がまだ取れていないとき（通信できない時に「＋フレンド」が
 // 全員に出てしまうのを防ぐため、分かるまでは何も出さない）
 type FriendState = 'unknown' | 'me' | 'friend' | 'sent' | 'none'
+
+/** 走友会のタブ。URLに覚えさせるので、取りうる値をここに1本で置く（`useStickyTab`） */
+const CLUB_TABS = ['members', 'board', 'cards'] as const
 
 function MemberRow({ m, canKick, isMe, friendState, onKick, onMenu, onOpen, onAddFriend }: {
   m: ClubMember; canKick: boolean; isMe: boolean; friendState: FriendState
@@ -1198,7 +1202,11 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
   const [confirmLeave, setConfirmLeave] = useState(false)
   const [confirmKick, setConfirmKick] = useState<ClubMember | null>(null)
   const [notice, setNotice] = useState<{ title: string; message?: string } | null>(null)
-  const [tab, setTab] = useState<'members' | 'board' | 'cards'>(CLUB_CHAT_ENABLED ? 'board' : 'cards')
+  // ★見ているタブは**URLに覚えさせる**（`?tab=cards`）。`useState` だとメンバーの
+  //   ロスターを覗いて戻ったときに必ず先頭のタブへ戻る（オーナー・2026-08-15
+  //   「カードタブを見てる → 誰かをタップ → 戻ると『メンバー』に戻ってる」）
+  const [tab, setTab] = useStickyTab<'members' | 'board' | 'cards'>(
+    'tab', CLUB_TABS, CLUB_CHAT_ENABLED ? 'board' : 'cards')
   const [menuMember, setMenuMember] = useState<ClubMember | null>(null)
   const [menuClub, setMenuClub] = useState(false)
   const [reporting, setReporting] = useState<ReportTarget | null>(null)

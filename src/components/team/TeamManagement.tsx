@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { squadPlayersOf } from '../../utils/rosterSync'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useStickyTab } from '../../lib/useStickyTab'
 import PageHeader from '../ui/PageHeader'
 import GlassButton from '../ui/GlassButton'
 import { useGameStore } from '../../store/gameStore'
@@ -90,7 +91,10 @@ export default function TeamManagement() {
   const { teams, players: allPlayers, playerTeamId, currentSeason, openPlayerSheet, openContractInfo, getTeamPlayers, raceStrategy, setRaceStrategy, setTrainingPlan, setTrainingFocus } = useGameStore()
   const navigate = useNavigate()
   const { section } = useParams<{ section: string }>()
-  const [activeTab, setActiveTab] = useState<'main' | 'loan'>('main')
+  // ★見ているのは1軍か、借りている選手か。**URLに覚えさせる**（`?tab=loan`）。
+  //   `useState` だとチャットやカード練習へ飛んで戻ったときに1軍へ戻る
+  //   （オーナー・2026-08-15「詳細とか見ると別ページに飛ばされるの地味に嫌だ」）
+  const [activeTab, setActiveTab] = useStickyTab<'main' | 'loan'>('tab', ['main', 'loan'], 'main')
   const [sortKey, setSortKey] = useState<PlayerSortKey>('ovr')
   const [searchQuery, setSearchQuery] = useState('')
   const [specFilter, setSpecFilter] = useState<string>('all')

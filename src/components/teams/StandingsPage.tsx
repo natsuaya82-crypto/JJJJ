@@ -1,5 +1,5 @@
-import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { useStickyTab } from '../../lib/useStickyTab'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { clubRoutePath } from '../../utils/clubs'
@@ -35,10 +35,13 @@ export default function StandingsPage() {
   const { teams, currentSeason, playerTeamId } = useGameStore()
   // 部の指定が無いとき（ホームのFULL→）は自チームのいる部。いちばん見たいのは自分の部なので
   const myDivision = divisionOf(teams.find(t => t.id === playerTeamId))
-  // 部の切り替えはページ内で持つ（URLを書き換えるとページごと切り替わる扱いになり、
-  // 毎回ページの出現アニメが走る）。ECLで開いたときは切り替えを出さない
+  // ECLで開いたときは切り替えを出さない
   const isEcl = league === 'ecl'
-  const [division, setDivision] = useState<Division>(divisionOfLeague(league) ?? myDivision)
+  // ★見ている部は**URLに覚えさせる**（`?div=3`）。`useState` だとクラブ詳細へ行って
+  //   戻ったときに必ず1部へ戻る（オーナー・2026-08-15「3部の詳細見てて戻ったら
+  //   1部になってるとか」）。**パスにはしないこと**——出現アニメが `location.pathname`
+  //   で動いているので、押すたびにページごと出直す（`lib/useStickyTab` の注記）
+  const [division, setDivision] = useStickyTab<Division>('div', DIVISIONS, divisionOfLeague(league) ?? myDivision)
   const clubIndex = useClubIndex()
 
   // 国内チームは詳細ページへ。ECLは海外クラブが混ざるので clubRoutePath で出し分ける
