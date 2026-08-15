@@ -100,6 +100,19 @@ export default function FriendDetailPage() {
     return () => setPreview([])
   }, [id, list.data, page]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 名前の横の段位と、下に並べるレート。**未参加なら紋章は出ず、レートは「—」**
+  //
+  // ★★**フックは必ず早期リターンより上に書くこと。**
+  //   これは下（`champsText` の隣）にありました。読み込み中は `head.loading` の
+  //   return で抜けるのでフックは6個、読み込めたら7個目が走る——`useRatedRank` が
+  //   **レンダーごとに呼ばれたり呼ばれなかったり**する形です。React はフックを
+  //   呼ばれた順番で数えるので、数が変わった瞬間に落ちます
+  //   （Minified React error 310・「フレンドを見ようとすると何回もこうなる」
+  //     オーナー・2026-08-15）。**必ず落ちる**ので、この画面は開けませんでした。
+  //   `friend`（＝`head.data`）が undefined のときは `useRatedRank` が空で返すだけで、
+  //   上へ動かしても出るものは変わりません。
+  const rating = useRatedRank(head.data?.id)
+
   if (head.loading) {
     return (
       <div style={{ fontFamily: SAIRA, padding: '12px 16px', minHeight: '100%' }}>
@@ -131,8 +144,6 @@ export default function FriendDetailPage() {
   //   数え方は utils/teamHistory の topTitleCount 1本。**合計を出さないこと**——
   //   3部優勝と1部優勝が混ざるので、足すのではなく下の部を数えないことで解決している。
   const champsText = `${topTitleCount(friend?.titles)}回`
-  // 名前の横の段位と、下に並べるレート。**未参加なら紋章は出ず、レートは「—」**
-  const rating = useRatedRank(friend?.id)
 
   const sorted = [...roster].sort((a, b) => {
     if (sortKey === 'age') return a.age - b.age || ovr(b) - ovr(a)
