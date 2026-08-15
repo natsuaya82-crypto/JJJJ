@@ -73,7 +73,7 @@ const inputStyle: React.CSSProperties = {
   color: C.text, fontSize: F.sub, fontFamily: 'inherit', outline: 'none',
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 900, color: C.gold, letterSpacing: '1px', margin: '16px 4px 6px' }}>
       {children}
@@ -82,7 +82,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 /** 走友会のロゴ。チームのロゴとは別のプリセット（public/logos/club）を使う */
-function ClubLogo({ logoId, size = 44 }: { logoId: string; size?: number }) {
+export function ClubLogo({ logoId, size = 44 }: { logoId: string; size?: number }) {
   return (
     <img
       src={clubLogoSrc(logoId)}
@@ -95,7 +95,7 @@ function ClubLogo({ logoId, size = 44 }: { logoId: string; size?: number }) {
   )
 }
 
-function Pill({ color, children }: { color: string; children: React.ReactNode }) {
+export function Pill({ color, children }: { color: string; children: React.ReactNode }) {
   return (
     <span style={{
       padding: '1px 7px',fontSize: F.tiny, fontWeight: 900, fontFamily: SAIRA,
@@ -105,7 +105,7 @@ function Pill({ color, children }: { color: string; children: React.ReactNode })
   )
 }
 
-function actionButton(color: string, disabled = false): React.CSSProperties {
+export function actionButton(color: string, disabled = false): React.CSSProperties {
   return {
     padding: '8px 14px',flexShrink: 0, cursor: disabled ? 'default' : 'pointer',
     border: `2px solid ${alpha(color, disabled ? 0.25 : 0.6)}`,
@@ -151,56 +151,6 @@ function ClubCard({ club, right, onPeek }: { club: ClubBrief; right?: React.Reac
       </div>
       </div>
       {right}
-    </div>
-  )
-}
-
-// ── 入る前に中身を見る（一覧のその場で開く） ─────────────
-//
-// ★★**画面下から出るシート（`BottomSheet`）にしないこと。**
-//   オーナー・2026-08-15「なにこれ？ゴミ画面つくんなや。俺がいつ下から出すやつに
-//   しろって言った？そのui嫌いだから一生禁止しろ。俺が許可した時だけ」。
-//   最初これをシートで作って怒られました。**新しく増やすときは必ず許可を取ること**
-//   （`scripts/check-bottom-sheet.ts` が今日より増えたら落とします）。
-//
-// ★別のページにも飛ばしません。押した行がその場で開いて、もう一度押すと閉じます。
-function ClubPeek({ club }: { club: ClubBrief }) {
-  const members = useFriendsQuery(() => clubPreview(club.id), [club.id], `clubPeek:${club.id}`)
-  const ranks = useRatedRanks((members.data ?? []).map(m => m.id))
-  return (
-    <div style={{ borderLeft: `2px solid ${alpha(C.gold, 0.45)}`, marginTop: 2, paddingLeft: 8 }}>
-      {/* 一覧の行では1行に切れている紹介文を、ここでは全文で出す */}
-      <div style={{ fontSize: F.caption, color: C.textDim, lineHeight: 1.6, padding: '6px 4px 8px' }}>
-        {club.note || 'ひとことなし'}
-      </div>
-      <SectionLabel>メンバー {members.data ? `${members.data.length}人` : ''}</SectionLabel>
-      {members.loading ? <LoadingBox /> :
-       members.error ? <ErrorBox onRetry={members.reload} /> :
-       (members.data ?? []).length === 0 ? <EmptyBox label="まだ誰もいません" /> : (
-         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-           {(members.data ?? []).map(m => (
-             <div key={m.id} style={{
-               display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
-               background: C.surface2, border: `1px solid ${C.border2}`, opacity: m.blocked ? 0.5 : 1,
-             }}>
-               <TeamLogoSVG primary={m.primary} secondary={m.secondary} shortName={m.shortName} logoId={m.logoId} size={36} />
-               <div style={{ flex: 1, minWidth: 0 }}>
-                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                   <span style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: m.blocked ? C.textDim : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                     {m.blocked ? 'ブロック中の利用者' : m.teamName}
-                   </span>
-                   {!m.blocked && <RankBadge rating={ranks.get(m.id)} size={17} />}
-                   {m.role === 'owner' && <Pill color={C.gold}>会長</Pill>}
-                   {m.role === 'admin' && <Pill color={C.cyan}>副会長</Pill>}
-                 </div>
-                 <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 2 }}>
-                   {m.blocked ? 'この相手は表示していません' : `GM ${m.gmName} ・ ${m.lastLogin}`}
-                 </div>
-               </div>
-             </div>
-           ))}
-         </div>
-       )}
     </div>
   )
 }
@@ -299,6 +249,7 @@ function ClubEditor({ initial, title, okLabel, busy, onSubmit, onCancel }: {
 
 // ── 未所属：検索画面 ───────────────────────────────────
 function ClubSearch({ onChanged, initialCode = '' }: { onChanged: () => void; initialCode?: string }) {
+  const navigate = useNavigate()
   // フレンドの走友会の行から来たときは、そのコードで検索した状態で開く
   const [q, setQ] = useState(initialCode)
   const [term, setTerm] = useState(initialCode) // 実際に検索に使っている言葉
@@ -307,8 +258,6 @@ function ClubSearch({ onChanged, initialCode = '' }: { onChanged: () => void; in
   const [busy, setBusy] = useState('')
   const [making, setMaking] = useState(false)
   const [confirm, setConfirm] = useState<ClubBrief | null>(null)
-  // 入る前に中身を覗いている走友会（長押しで、その行がその場で開く）
-  const [peek, setPeek] = useState('')
   const [notice, setNotice] = useState<{ title: string; message?: string } | null>(null)
 
   const requested = new Set(sent.data ?? [])
@@ -384,8 +333,7 @@ function ClubSearch({ onChanged, initialCode = '' }: { onChanged: () => void; in
          ) : (
            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
              {(list.data ?? []).map(c => (
-               <div key={c.id}>
-               <ClubCard club={c} onPeek={() => setPeek(peek === c.id ? '' : c.id)} right={
+               <ClubCard key={c.id} club={c} onPeek={() => navigate(`/friends/club/${c.id}`)} right={
                  requested.has(c.id) ? (
                    <button onClick={() => onCancelReq(c)} disabled={busy === c.id} className="btn-press" style={actionButton(C.textDim)}>
                      申請中
@@ -401,8 +349,6 @@ function ClubSearch({ onChanged, initialCode = '' }: { onChanged: () => void; in
                    </button>
                  )
                } />
-               {peek === c.id && <ClubPeek club={c} />}
-               </div>
              ))}
            </div>
          )}
@@ -440,7 +386,7 @@ type FriendState = 'unknown' | 'me' | 'friend' | 'sent' | 'none'
 /** 走友会のタブ。URLに覚えさせるので、取りうる値をここに1本で置く（`useStickyTab`） */
 const CLUB_TABS = ['members', 'board', 'cards'] as const
 
-function MemberRow({ m, canKick, isMe, friendState, onKick, onMenu, onOpen, onAddFriend }: {
+export function MemberRow({ m, canKick, isMe, friendState, onKick, onMenu, onOpen, onAddFriend }: {
   m: ClubMember; canKick: boolean; isMe: boolean; friendState: FriendState
   onKick: () => void; onMenu: () => void; onOpen: () => void; onAddFriend: () => void
 }) {
