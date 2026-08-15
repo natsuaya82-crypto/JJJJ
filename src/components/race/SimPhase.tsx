@@ -6,7 +6,7 @@ import { choiceSuccessProb } from '../../engine/interactiveRace'
 import { formatDiff } from '../../engine/raceEngine'
 import { formatRaceTime } from '../../utils/eventTime'
 import { terrainColor, terrainLabel } from './raceUtils'
-import { C, alpha, rankColor, SAIRA, bottomStack, F } from '../../styles/tokens'
+import { C, alpha, glassStyle, rankColor, SAIRA, bottomStack, F } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import { audio } from '../../utils/audio'
 import { useAdHeight } from '../layout/Layout'
@@ -504,10 +504,9 @@ export function SimPhase({
                     style={{
                       width: '100%', textAlign: 'left', padding: '14px 16px',
                       cursor: selectedChoice !== null ? 'default' : 'pointer',
-                      border: `2px solid ${sel ? segCol : C.border2}`,
-                      background: sel ? alpha(segCol, 0.2) : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                      boxShadow: sel ? `0 0 18px ${alpha(segCol, 0.4)}` : `0 4px 0 rgba(0,0,0,0.4)`,
-                      color: sel ? C.text : C.textSub,
+                      ...glassStyle(sel ? segCol : C.textSub),
+                      // 選んだ肢だけ光らせる（ガラスの影に足す）
+                      ...(sel ? { boxShadow: `inset 0 1px 0 rgba(255,255,255,0.22), 0 0 18px ${alpha(segCol, 0.4)}`, color: C.text } : null),
                       fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 800,
                       opacity: selectedChoice !== null && !sel ? 0.4 : 1,
                       transition: 'all 0.15s ease',

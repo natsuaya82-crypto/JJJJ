@@ -11,7 +11,7 @@ import {
   CARD_STAT_LABELS,
   detectCombo, MAX_FUSION_CARDS,
 } from '../../utils/cardCombo'
-import { C, alpha, SAIRA, FONT, PURPLE, F, insideMainBottom } from '../../styles/tokens'
+import { C, alpha, glassStyle, SAIRA, FONT, PURPLE, F, insideMainBottom } from '../../styles/tokens'
 import { CardTrainingHeaderSVG } from '../icons/StatIcons'
 import PlayerFace from '../player/PlayerFace'
 import PlayerRow from '../player/PlayerRow'
@@ -552,10 +552,8 @@ padding: '9px 16px',
               onClick={() => setApplied(null)}
               style={{
                 marginTop: 8, width: '100%',
-                background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                border: `2px solid ${C.border2}`,
+                ...glassStyle(C.textSub),
 padding: '12px',
-                boxShadow: `0 3px 0 rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07)`,
                 fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 800, color: C.text, cursor: 'pointer',
                 letterSpacing: '2px',
               }}

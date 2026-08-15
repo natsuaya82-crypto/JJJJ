@@ -76,11 +76,11 @@ function makeHof(userId: string, strength: number, r: () => number): HofPlayer[]
   return out
 }
 
-function makeEntrants(n: number, seed = 7): RatedEntrant[] {
+function makeEntrants(n: number, seed = 7, rating = 0): RatedEntrant[] {
   const r = rng(seed)
   return Array.from({ length: n }, (_, i) => ({
     userId: `u${String(i).padStart(3, '0')}`,
-    rating: 0,
+    rating,
     team: {
       id: `u${String(i).padStart(3, '0')}`, name: `チーム${i}`, shortName: `T${i}`,
       gmName: `GM${i}`, primary: '#122440', secondary: '#f5c842', logoId: 'logo_01',
@@ -133,8 +133,16 @@ console.log('[1] 提出したとおりに走る／出さなかった人も走る
     lazy.join(',') === entrants.slice(10).map(e => e.userId).sort().join(','), lazy.join(','))
   check('不戦敗の人も順位が付いている（走っている）',
     out.rows.filter(x => x.forfeit).every(x => x.place >= 1 && x.timeSec > 0))
+  // ★**下限から離れた場所で見ること。** 全員レート0だと、負けた不戦敗の人は0で止まって
+  //   増減が0になる（下限が正しく効いているだけ）。ここは「不戦敗でも勝負として数える」
+  //   ことを見たいので、床から離した回でもう一度回す。以前は同じ回で見ていて、
+  //   不戦敗の誰か1人がたまたま中位に入った日だけ通る**ゆらぐ網**だった。
+  const above = runRatedRound({
+    dateISO: START, day: 1, entrants: makeEntrants(20, 7, 1500), lineups,
+  })
   check('不戦敗でもレートは動く',
-    out.rows.filter(x => x.forfeit).some(x => x.delta !== 0))
+    above.rows.filter(x => x.forfeit).every(x => x.delta !== 0),
+    above.rows.filter(x => x.forfeit && x.delta === 0).map(x => x.userId).join(','))
 
   // ⑦ 他人の選手IDを出しても走れない（おまかせで埋まるだけ・不戦敗にはならない）
   const cheat = runRatedRound({

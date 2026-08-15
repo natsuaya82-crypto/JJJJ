@@ -14,7 +14,7 @@ import Flag from '../ui/Flag'
 import { NAT_LABEL } from '../../data/nationalities'
 import type { Nationality } from '../../types'
 import PlayerFace from '../player/PlayerFace'
-import { C, alpha, DIV_STAR, SAIRA, F } from '../../styles/tokens'
+import { C, alpha, DIV_STAR, glassStyle, SAIRA, F } from '../../styles/tokens'
 import { DIVISION_LABEL, rankedStandings, seasonDivisionStandings } from '../../utils/league'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
@@ -32,6 +32,20 @@ const GOLD = '#FFD700'
 const DIST_LABEL: Record<DistKey, string> = { d5000: '5000m', d10000: '10000m', half: 'ハーフ', marathon: 'マラソン' }
 const DIST_KEYS: DistKey[] = ['d5000', 'd10000', 'half', 'marathon']
 const DIST_TO_KEY: Record<number, DistKey> = { 5000: 'd5000', 10000: 'd10000', 21097: 'half', 42195: 'marathon' }
+
+// ドリルダウンの行（年を選ぶ・大会を選ぶ・種目を選ぶ）の見た目。**この画面の11か所が全部これ。**
+// 以前は同じ塊（枠2px＋下に3pxの影＋グラデーション）が11か所に写してあり、飴玉の影をやめたときに
+// この画面だけ取り残された。押すものはガラス（`glassStyle`）で、色は大会の色をそのまま渡す。
+//   hl … その年が自分（または日本）だったときの強調。金のガラスにする
+//   wide … 大会・種目を選ぶ行（年の行より少し広い）
+function rowStyle(hl = false, wide = false): React.CSSProperties {
+  return {
+    display: 'flex', alignItems: 'center', gap: wide ? 12 : 10, width: '100%',
+    cursor: 'pointer', textAlign: 'left', padding: wide ? '14px 16px' : '12px 14px',
+    ...glassStyle(hl ? C.gold : C.textSub),
+    color: C.text, fontFamily: SAIRA,
+  }
+}
 
 // 大会別の歴代記録。カテゴリ → 大会 → 年度 → 順位表 → チームの区間配置、とドリルダウンで見る
 export default function ChampionsHistoryPage() {
@@ -291,13 +305,7 @@ export default function ChampionsHistoryPage() {
           {overallChampYears(cat).length === 0 ? (
             <div style={{ textAlign: 'center', color: C.textDim, fontSize: F.bodyLg, padding: '30px 0' }}>まだ記録がありません</div>
           ) : overallChampYears(cat).map(({ year: y, champ }) => (
-            <button key={y} onClick={() => setYear(y)} style={{
-              display: 'flex', alignItems: 'center', gap: 10, width: '100%', cursor: 'pointer', textAlign: 'left',
-              padding: '12px 14px',
-              background: champ.isMe ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${C.surface2})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-              border: `2px solid ${champ.isMe ? alpha(C.gold, 0.5) : C.border2}`, color: C.text,
-              boxShadow: '0 3px 0 rgba(0,0,0,0.45)', fontFamily: SAIRA,
-            }}>
+            <button key={y} onClick={() => setYear(y)} style={rowStyle(champ.isMe)}>
               <span style={{ fontSize: F.title, fontWeight: 900, color: GOLD }}>{y}</span>
               {champ.colors && <TeamLogoSVG primary={champ.colors.primary} secondary={champ.colors.secondary} shortName={champ.name} teamId={champ.teamId} size={24} />}
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -340,27 +348,14 @@ export default function ChampionsHistoryPage() {
       {/* Level 1: 大会一覧（先頭に総合優勝） */}
       {cat != null && cat !== 'tt' && cat !== 'waqual' && cat !== 'wamain' && raceName == null && (
         <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <button onClick={() => setRaceName(OVERALL)} style={{
-            display: 'flex', alignItems: 'center', gap: 12, width: '100%', cursor: 'pointer', textAlign: 'left',
-            padding: '14px 16px',
-            background: `linear-gradient(180deg, ${alpha(GOLD, 0.18)}, ${C.surface2})`,
-            border: `2px solid ${alpha(GOLD, 0.5)}`, color: C.text,
-            boxShadow: '0 3px 0 rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)', fontFamily: SAIRA,
-          }}>
+          <button onClick={() => setRaceName(OVERALL)} style={rowStyle(true, true)}>
             <span style={{ fontSize: F.sub, fontWeight: 900, color: GOLD, flex: 1 }}>総合優勝（年間王者）</span>
             <span style={{ color: C.textGhost, fontSize: F.title }}>›</span>
           </button>
           {byCategory[cat].size === 0 ? (
             <div style={{ textAlign: 'center', color: C.textDim, fontSize: F.bodyLg, padding: '30px 0' }}>まだ大会結果がありません</div>
           ) : [...byCategory[cat].entries()].map(([name, rows]) => (
-            <button key={name} onClick={() => setRaceName(name)} style={{
-              display: 'flex', alignItems: 'center', gap: 12, width: '100%', cursor: 'pointer', textAlign: 'left',
-              padding: '14px 16px',
-              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-              border: `2px solid ${C.border2}`, color: C.text,
-              boxShadow: '0 3px 0 rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)',
-              fontFamily: SAIRA,
-            }}>
+            <button key={name} onClick={() => setRaceName(name)} style={rowStyle(false, true)}>
               <span style={{ fontSize: F.sub, fontWeight: 800, flex: 1 }}>{name}</span>
               <span style={{ fontSize: F.caption, color: C.textDim, padding: '2px 8px',background: alpha(accent, 0.12) }}>{rows.length}回開催</span>
               <span style={{ color: C.textGhost, fontSize: F.title }}>›</span>
@@ -375,14 +370,7 @@ export default function ChampionsHistoryPage() {
           {DIST_KEYS.map(d => {
             const rows = ttByDist.get(d) ?? []
             return (
-              <button key={d} onClick={() => setTtDist(d)} style={{
-                display: 'flex', alignItems: 'center', gap: 12, width: '100%', cursor: 'pointer', textAlign: 'left',
-                padding: '14px 16px',
-                background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                border: `2px solid ${C.border2}`, color: C.text,
-                boxShadow: '0 3px 0 rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)',
-                fontFamily: SAIRA,
-              }}>
+              <button key={d} onClick={() => setTtDist(d)} style={rowStyle(false, true)}>
                 <span style={{ fontSize: F.sub, fontWeight: 800, flex: 1 }}>{DIST_LABEL[d]}</span>
                 <span style={{ fontSize: F.caption, color: C.textDim, padding: '2px 8px',background: alpha(CAT_COLOR.tt, 0.12) }}>{rows.length}シーズン</span>
                 <span style={{ color: C.textGhost, fontSize: F.title }}>›</span>
@@ -403,14 +391,7 @@ export default function ChampionsHistoryPage() {
             const t = first ? resolveClub(first.teamId) : undefined
             const isMe = first?.teamId === teamIdAt(y)
             return (
-              <button key={y} onClick={() => setYear(y)} style={{
-                display: 'flex', alignItems: 'center', gap: 10, width: '100%', cursor: 'pointer', textAlign: 'left',
-                padding: '12px 14px',
-                background: isMe ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${C.surface2})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                border: `2px solid ${isMe ? alpha(C.gold, 0.5) : C.border2}`, color: C.text,
-                boxShadow: '0 3px 0 rgba(0,0,0,0.45)',
-                fontFamily: SAIRA,
-              }}>
+              <button key={y} onClick={() => setYear(y)} style={rowStyle(isMe)}>
                 <span style={{ fontSize: F.title, fontWeight: 900, color: CAT_COLOR.tt }}>{y}</span>
                 {first && (
                   <div style={{ width: 26, height: 26,overflow: 'hidden', flexShrink: 0 }}>
@@ -489,13 +470,7 @@ export default function ChampionsHistoryPage() {
             const champ = r.standings[0]
             const isJp = champ?.nat === 'JPN'
             return (
-              <button key={r.year} onClick={() => setYear(r.year)} style={{
-                display: 'flex', alignItems: 'center', gap: 10, width: '100%', cursor: 'pointer', textAlign: 'left',
-                padding: '12px 14px',
-                background: isJp ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${C.surface2})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                border: `2px solid ${isJp ? alpha(C.gold, 0.5) : C.border2}`, color: C.text,
-                boxShadow: '0 3px 0 rgba(0,0,0,0.45)', fontFamily: SAIRA,
-              }}>
+              <button key={r.year} onClick={() => setYear(r.year)} style={rowStyle(isJp)}>
                 <span style={{ fontSize: F.title, fontWeight: 900, color: CAT_COLOR.waqual }}>{r.year}</span>
                 {champ && <Flag code={champ.nat} width={26} />}
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -514,13 +489,7 @@ export default function ChampionsHistoryPage() {
       {cat === 'wamain' && waEvent == null && (
         <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {([['d5000', '5000m'], ['d10000', '10000m'], ['marathon', 'マラソン'], ['ekiden', '駅伝']] as const).map(([ev, label]) => (
-            <button key={ev} onClick={() => setWaEvent(ev)} style={{
-              display: 'flex', alignItems: 'center', gap: 12, width: '100%', cursor: 'pointer', textAlign: 'left',
-              padding: '14px 16px',
-              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-              border: `2px solid ${C.border2}`, color: C.text,
-              boxShadow: '0 3px 0 rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)', fontFamily: SAIRA,
-            }}>
+            <button key={ev} onClick={() => setWaEvent(ev)} style={rowStyle(false, true)}>
               <span style={{ fontSize: F.sub, fontWeight: 800, flex: 1 }}>{label}</span>
               <span style={{ fontSize: F.caption, color: C.textDim, padding: '2px 8px',background: alpha(CAT_COLOR.wamain, 0.12) }}>{waMain.length}回開催</span>
               <span style={{ color: C.textGhost, fontSize: F.title }}>›</span>
@@ -542,13 +511,7 @@ export default function ChampionsHistoryPage() {
             const isJp = first.nat === 'JPN'
             return (
               // タップ=年度へ / 長押し=優勝者の選手詳細
-              <button key={r.year} onClick={() => setYear(r.year)} {...lp(first.playerId)} style={{
-                display: 'flex', alignItems: 'center', gap: 10, width: '100%', cursor: 'pointer', textAlign: 'left',
-                padding: '12px 14px',
-                background: isJp ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${C.surface2})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                border: `2px solid ${isJp ? alpha(C.gold, 0.5) : C.border2}`, color: C.text,
-                boxShadow: '0 3px 0 rgba(0,0,0,0.45)', fontFamily: SAIRA,
-              }}>
+              <button key={r.year} onClick={() => setYear(r.year)} {...lp(first.playerId)} style={rowStyle(isJp)}>
                 <span style={{ fontSize: F.title, fontWeight: 900, color: CAT_COLOR.wamain }}>{r.year}</span>
                 <div style={{ width: 26, height: 26,overflow: 'hidden', flexShrink: 0 }}>
                   <PlayerFace playerId={first.playerId} nationality={first.nat} size={26} />
@@ -617,13 +580,7 @@ export default function ChampionsHistoryPage() {
             const champ = (r.meet?.ekiden ?? []).find(e => e.rank === 1)
             const isJp = champ?.nat === 'JPN'
             return (
-              <button key={r.year} onClick={() => setYear(r.year)} style={{
-                display: 'flex', alignItems: 'center', gap: 10, width: '100%', cursor: 'pointer', textAlign: 'left',
-                padding: '12px 14px',
-                background: isJp ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${C.surface2})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                border: `2px solid ${isJp ? alpha(C.gold, 0.5) : C.border2}`, color: C.text,
-                boxShadow: '0 3px 0 rgba(0,0,0,0.45)', fontFamily: SAIRA,
-              }}>
+              <button key={r.year} onClick={() => setYear(r.year)} style={rowStyle(isJp)}>
                 <span style={{ fontSize: F.title, fontWeight: 900, color: CAT_COLOR.wamain }}>{r.year}</span>
                 {champ && <Flag code={champ.nat} width={26} />}
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -652,13 +609,7 @@ export default function ChampionsHistoryPage() {
               const top = rc.results!.teamRankings.find(tr => tr.rank === 1) ?? rc.results!.teamRankings[0]
               const nat = top ? natOfTeamId(top.teamId) : null
               return (
-                <button key={rc.id} onClick={() => setWaRace(rc)} style={{
-                  display: 'flex', alignItems: 'center', gap: 10, width: '100%', cursor: 'pointer', textAlign: 'left',
-                  padding: '12px 14px',
-                  background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                  border: `2px solid ${C.border2}`, color: C.text,
-                  boxShadow: '0 3px 0 rgba(0,0,0,0.45)', fontFamily: SAIRA,
-                }}>
+                <button key={rc.id} onClick={() => setWaRace(rc)} style={rowStyle()}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: F.body, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rc.name}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
@@ -770,14 +721,7 @@ export default function ChampionsHistoryPage() {
             const t = top ? resolveClub(top.teamId) : undefined
             const isMe = top?.teamId === teamIdAt(y)
             return (
-              <button key={y} onClick={() => setYear(y)} style={{
-                display: 'flex', alignItems: 'center', gap: 10, width: '100%', cursor: 'pointer', textAlign: 'left',
-                padding: '12px 14px',
-                background: isMe ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${C.surface2})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                border: `2px solid ${isMe ? alpha(C.gold, 0.5) : C.border2}`, color: C.text,
-                boxShadow: '0 3px 0 rgba(0,0,0,0.45)',
-                fontFamily: SAIRA,
-              }}>
+              <button key={y} onClick={() => setYear(y)} style={rowStyle(isMe)}>
                 <span style={{ fontSize: F.title, fontWeight: 900, color: accent }}>{y}</span>
                 {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={22} />}
                 <div style={{ flex: 1, minWidth: 0 }}>

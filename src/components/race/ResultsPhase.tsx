@@ -9,7 +9,7 @@ import { useClubIndex } from '../../lib/useClubIndex'
 import { clubRoutePath } from '../../utils/clubs'
 import { useAdHeight } from '../layout/Layout'
 import { RARITY_COLORS, RARITY_LABELS, CARD_STAT_LABELS, CARD_NAMES, REST_CARD_NAME } from '../../utils/cardCombo'
-import { C, alpha, COMPETITION_BTN, rankColor, SAIRA, bottomStack, F } from '../../styles/tokens'
+import { C, alpha, COMPETITION_BTN, glassStyle, rankColor, SAIRA, bottomStack, F } from '../../styles/tokens'
 import type { Competition } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import StandingsTable from '../teams/StandingsTable'
@@ -431,9 +431,7 @@ export function ResultsPhase({
         <button onClick={() => setView('segments')} style={{
           width: '100%', display: 'flex', alignItems: 'center', gap: 10,
           padding: '13px 16px',cursor: 'pointer',
-          background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-          border: `2px solid ${C.border2}`,
-          boxShadow: '0 4px 0 rgba(0,0,0,0.4), 0 6px 16px rgba(0,0,0,0.3)',
+          ...glassStyle(C.gold),
           fontFamily: 'inherit',
         }}>
           <div style={{ width: 30, height: 30,flexShrink: 0, background: `linear-gradient(135deg, ${C.gold}, ${C.goldDark})`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

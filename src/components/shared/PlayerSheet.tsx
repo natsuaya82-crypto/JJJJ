@@ -17,7 +17,7 @@ import { TeamLogoSVG, LeagueLogoSVG } from '../icons/Icons'
 import { buildPlayerHistory, type HistComp, type HistoryRow } from '../../utils/careerStats'
 import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isStatMaxed } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
-import { rankColor, FONT, SAIRA, bottomStack, F } from '../../styles/tokens'
+import { C, glassStyle, rankColor, FONT, SAIRA, bottomStack, F } from '../../styles/tokens'
 import { getPlayerBadges } from '../../utils/badges'
 import { HOF_MAX, isHofEligible } from '../../utils/hofRoster'
 import BadgeContent, { badgeColor } from '../player/BadgeContent'
@@ -1124,10 +1124,8 @@ export default function PlayerSheet() {
                 onClick={() => { renamePlayer(player.id, renameDraft); setRenameDraft(null) }}
                 style={{
                   flex: 1, padding: '12px',cursor: renameDraft.trim() === '' ? 'default' : 'pointer',
-                  border: '2px solid #C9A84C', opacity: renameDraft.trim() === '' ? 0.4 : 1,
-                  background: 'linear-gradient(180deg, rgba(201,168,76,0.25), rgba(201,168,76,0.1))',
-                  color: '#C9A84C', fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900,
-                  boxShadow: '0 4px 0 rgba(201,168,76,0.25), inset 0 1px 0 rgba(255,255,255,0.1)',
+                  ...glassStyle(C.gold, renameDraft.trim() === ''),
+                  fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900,
                 }}
               >
                 決定
