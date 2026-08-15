@@ -17,7 +17,7 @@ import { calcTransferValue, faMarketSalary, ovr, perfOf } from '../utils/playerU
 import { roundRobin } from '../utils/roundRobin'
 import { saleAnsweredIds } from '../utils/saleAnswer'
 import { needsPlayer, thinSpecialties, wouldMakeLineup } from '../utils/squadNeeds'
-import { MAX_OFFERS_PER_PLAYER, hasNoPlayingTime, regionOfLeague } from '../utils/transferDecision'
+import { MAX_OFFERS_PER_PLAYER, MAX_TIER_DROP_FOR_STARTER, hasNoPlayingTime, regionOfLeague } from '../utils/transferDecision'
 import { canBePoached, canClubApproachAgain, canGoOverseasDream, canLoanOut, canReceiveFreeContact, isOwnedBy } from '../utils/transferEligibility'
 
 export function cpuStrategy(lastRank: number, totalTeams: number, avgAge: number): 'contend' | 'rebuild' | 'balanced' {
@@ -457,6 +457,22 @@ export function generateTransferActivity(
   const offerClubs: (Team | ForeignClub)[] = raceIndex < OFFER_START_RACE ? []
     : [...aiTeams, ...foreignClubs].sort(() => Math.random() - 0.5)
 
+  // ★**強い選手には格上のクラブから声が掛かる**（オーナー・2026-08-15
+  //   「強い選手は上から声かけれる仕様にして」）。
+  //
+  //   線は**移籍の同意と同じ `MAX_TIER_DROP_FOR_STARTER`（2）1本**で、ここで別の数字を
+  //   作らないこと。`appraiseMove` は「いま走れている選手は2段以上下のクラブへは行かない」で
+  //   関門にしていますが、**打診を作るこちら側はその線を見ていませんでした。**
+  //   その結果、格下のクラブが主力に声を掛け→GMが承諾→本人が断る、という
+  //   最初から決まっている往復で1レース1件の枠を使い切っていました
+  //   （実測・格5のクラブ：OVR85+への打診の23%、OVR80-84への打診の46%が2段以上下から）。
+  //
+  //   ★「走れているか」は**序列**（走れる7人に入るか）で見ます。出場率で見ると
+  //     シーズンの頭は全員0＝主力も控えも区別が付かない（レンタルの打診で同じ形を踏んでいる）。
+  //   ★止めるのは**主力への打診だけ**。控えに格下から声が掛かるのは現実にあるので止めない。
+  const myTier = tierOf(teams.find(t => t.id === playerTeamId) ?? { tier: 20 } as Team)
+  const myRoster = players.filter(p => p.teamId === playerTeamId && p.status === 'active').sort(comparePlayers('ovr'))
+
   for (const club of offerClubs) {
     if (newIncoming.length >= MAX_NEW_OFFERS_PER_RACE) break
     if (offeringTeams.has(club.id)) continue
@@ -508,6 +524,8 @@ export function generateTransferActivity(
     }
     // 本人が今季そのクラブを断っていたら、もう来ない（canClubApproachAgain）
     targets = targets.filter(p => canClubApproachAgain(p, club.id, currentYear))
+    // ★2段以上格下のクラブは、主力（走れる7人）には声を掛けない（上の myTier のコメント）
+    if (tier - myTier >= MAX_TIER_DROP_FOR_STARTER) targets = targets.filter(p => !wouldMakeLineup(myRoster, p))
     if (targets.length === 0) continue
     targets = [...targets].sort((a, b) => effectiveOvr(b) - effectiveOvr(a))
     const target = targets[0]
