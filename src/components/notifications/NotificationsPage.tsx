@@ -302,7 +302,7 @@ export default function NotificationsPage() {
                     </div>
                     <Btn variant="primary" color={C.gold} style={{ width: '100%' }}
                       onClick={() => navigate('/friends/requests')}>
-                      承認する
+                      確認する
                     </Btn>
                   </div>
                 </div>

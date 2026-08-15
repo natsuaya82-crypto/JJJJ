@@ -1,6 +1,4 @@
 import { useNavigate } from 'react-router-dom'
-import { listReceived } from '../../lib/friendsApi'
-import { useFriendsQuery } from '../friends/friendsUi'
 import { C, SAIRA, FONT, F } from '../../styles/tokens'
 import MenuButton from '../ui/MenuButton'
 import { onlineAvailable } from '../../data/featureFlags'
@@ -10,11 +8,6 @@ import { onlineAvailable } from '../../data/featureFlags'
 // この下にさらにハブがある（例：フレンド → フレンド一覧／申請・承認）。
 export default function OnlinePage() {
   const navigate = useNavigate()
-  // 公開していない間はサーバーに一切つながない（申請件数のバッジも出さない）
-  const received = useFriendsQuery(
-    () => (onlineAvailable() ? listReceived() : Promise.resolve([])),
-    [], 'received',
-  )
 
   const SECTIONS: {
     key: string; label: string; en: string; badge: number; color: string
@@ -23,8 +16,11 @@ export default function OnlinePage() {
     alwaysOn?: boolean
   }[] = [
     {
+      // ★申請の数字はここに出さない（オーナー・2026-08-15「フレンドってとこに①って
+      //   つくやついらんな。申請はあってもいい」）。ベルが出すようになったので、
+      //   ここに出すと同じ数が2段重なる。出すのは1つ下の「申請・承認」の行だけ
       key: '/friends', label: 'フレンド', en: 'FRIENDS',
-      badge: received.data?.length ?? 0, color: C.gold,
+      badge: 0, color: C.gold,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
           <circle cx="9" cy="7" r="3" stroke="currentColor" strokeWidth="1.8"/>
