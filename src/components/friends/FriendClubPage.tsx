@@ -247,6 +247,55 @@ function ClubEditor({ initial, title, okLabel, busy, onSubmit, onCancel }: {
   )
 }
 
+// ── 走友会カード（名前・ひとこと・人数/平均OVR/入会条件・コード） ─────
+//
+// ★**自分の走友会のページと、入る前に見るページで同じもの**を出す。
+//   オーナー・2026-08-15「普通にこの画面のメンバーだけ出せばいいじゃん」——
+//   見せ方を新しく組まず、いま出ている画面をそのまま使う。
+//   右側のボタン（設定・メニュー）だけ、呼ぶ側から渡す。
+export function ClubHeaderCard({ club, right }: { club: ClubBrief; right?: React.ReactNode }) {
+  return (
+    <div style={{
+      padding: 14,background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+      border: `2px solid ${C.goldDark}`,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <ClubLogo logoId={club.logoId} size={54} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: 900, color: C.text }}>{club.name}</span>
+            <Pill color={JOIN_COLOR[club.joinType]}>{JOIN_TYPE_LABEL[club.joinType]}</Pill>
+          </div>
+          <div style={{ fontSize: F.label, color: C.textDim, marginTop: 3 }}>{club.note || 'ひとことなし'}</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+        {[
+          { k: '人数', v: `${club.members}/${CLUB_MAX}` },
+          { k: '平均OVR', v: String(club.avgOvr) },
+          { k: '入会条件', v: club.minOvr > 0 ? `OVR${club.minOvr}+` : 'なし' },
+        ].map(s => (
+          <div key={s.k} style={{ flex: 1, textAlign: 'center', padding: '7px 0',background: alpha('#000', 0.25) }}>
+            <div style={{ fontSize: F.tiny, color: C.textGhost }}>{s.k}</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900, color: C.gold }}>{s.v}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: F.tiny, color: C.textGhost }}>走友会コード（友達に教えると探せます）</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: 900, color: C.text, letterSpacing: '2px' }}>
+            {formatCode(club.code)}
+          </div>
+        </div>
+        {right}
+      </div>
+    </div>
+  )
+}
+
 // ── 未所属：検索画面 ───────────────────────────────────
 function ClubSearch({ onChanged, initialCode = '' }: { onChanged: () => void; initialCode?: string }) {
   const navigate = useNavigate()
@@ -1268,49 +1317,14 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
         {/* 走友会カード。人数・平均OVR・入会条件・走友会コード・設定は、
             どのタブにいても同じ位置に出す。タブごとに畳んでいたときは、
             見たい数字がどのタブに出るのかを覚えていないと探せなかった */}
-        <div style={{
-          padding: 14,background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-          border: `2px solid ${C.goldDark}`,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <ClubLogo logoId={club.logoId} size={54} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: 900, color: C.text }}>{club.name}</span>
-                <Pill color={JOIN_COLOR[club.joinType]}>{JOIN_TYPE_LABEL[club.joinType]}</Pill>
-              </div>
-              <div style={{ fontSize: F.label, color: C.textDim, marginTop: 3 }}>{club.note || 'ひとことなし'}</div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-            {[
-              { k: '人数', v: `${club.members}/${CLUB_MAX}` },
-              { k: '平均OVR', v: String(club.avgOvr) },
-              { k: '入会条件', v: club.minOvr > 0 ? `OVR${club.minOvr}+` : 'なし' },
-            ].map(s => (
-              <div key={s.k} style={{ flex: 1, textAlign: 'center', padding: '7px 0',background: alpha('#000', 0.25) }}>
-                <div style={{ fontSize: F.tiny, color: C.textGhost }}>{s.k}</div>
-                <div style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900, color: C.gold }}>{s.v}</div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: F.tiny, color: C.textGhost }}>走友会コード（友達に教えると探せます）</div>
-              <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: 900, color: C.text, letterSpacing: '2px' }}>
-                {formatCode(club.code)}
-              </div>
-            </div>
-            {canEdit && (
-              <button onClick={() => setEditing(true)} className="btn-press" style={actionButton(C.cyan)}>設定</button>
-            )}
-            <button onClick={() => setMenuClub(true)} className="btn-press" aria-label="走友会のメニュー" style={{
-              ...actionButton(C.textDim), padding: '8px 10px', letterSpacing: '1px',
-            }}>···</button>
-          </div>
-        </div>
+        <ClubHeaderCard club={club} right={<>
+          {canEdit && (
+            <button onClick={() => setEditing(true)} className="btn-press" style={actionButton(C.cyan)}>設定</button>
+          )}
+          <button onClick={() => setMenuClub(true)} className="btn-press" aria-label="走友会のメニュー" style={{
+            ...actionButton(C.textDim), padding: '8px 10px', letterSpacing: '1px',
+          }}>···</button>
+        </>} />
 
         {/* 横タブ */}
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
