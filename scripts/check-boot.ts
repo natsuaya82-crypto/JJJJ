@@ -81,6 +81,7 @@ async function main() {
   const browser = await chromium.launch({ executablePath: CHROME })
   const errors: string[] = []
   let bodyText: string
+  let artOk = false
   try {
     const page = await browser.newPage()
     page.on('pageerror', e => errors.push(`pageerror: ${e.message}`))
@@ -89,6 +90,12 @@ async function main() {
     // 最初の描画と、そのあとに走る効果（persist の復元など）まで待つ
     await page.waitForTimeout(4000)
     bodyText = await page.locator('body').innerText().catch(() => '')
+    // ★タイトルは**1枚の絵**。文字は読み上げ用に持たせているだけなので、
+    //   「文字が出ている」だけでは**絵が出ていなくても緑**になる。絵が読めたかを見る
+    artOk = await page.evaluate(() => {
+      const el = document.querySelector('[data-title-art]') as HTMLImageElement | null
+      return !!el && el.complete && el.naturalWidth > 0
+    }).catch(() => false)
   } finally {
     await browser.close()
     dev.stop()
@@ -107,6 +114,7 @@ async function main() {
   check('画面に何か出ている（真っ白でない）', bodyText.trim().length > 0, `${bodyText.length}文字`)
   check('ErrorBoundary の画面になっていない', !bodyText.includes('エラーが発生しました'))
   check('タイトル画面が出ている（TAP TO START）', bodyText.includes('TAP TO START'))
+  check('タイトルの絵が読み込めている', artOk)
   check('描画中の例外が出ていない', real.filter(e => e.startsWith('pageerror')).length === 0)
   check('console.error が出ていない', real.filter(e => e.startsWith('console.error')).length === 0)
 
