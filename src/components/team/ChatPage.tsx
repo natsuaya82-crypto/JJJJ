@@ -514,7 +514,7 @@ export default function ChatPage() {
               const p = players.find(pl => pl.id === r.playerId)
               if (!p) return null
               return <OfferChatRow key={r.id} player={p} accent={C.blue} badge="返事待ち"
-                title={`${teamName(r.targetTeamId)}に${p.name}のレンタルを申し込み中`}
+                title={`${teamName(r.targetTeamId)}に${p.name}をレンタル申請中`}
                 sub={`${r.years}年 — 相手クラブの返事を待っています`}
                 onOpen={() => openPlayerSheet(p.id)} />
             })}
