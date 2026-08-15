@@ -59,6 +59,7 @@ import FriendDetailPage from './components/friends/FriendDetailPage'
 import FriendRequestsPage from './components/friends/FriendRequestsPage'
 import FriendClubPage from './components/friends/FriendClubPage'
 import ClubViewPage from './components/friends/ClubViewPage'
+import { RatedHelpPage } from './components/rated/ratedRules'
 import OnlinePage from './components/online/OnlinePage'
 import MatchEntryPage from './components/online/MatchEntryPage'
 import RoomLobbyPage from './components/online/RoomLobbyPage'
@@ -402,6 +403,8 @@ function AppRoutes({ onBackToTitle }: { resetGame: () => void; onBackToTitle: ()
           {onlineAvailable() && <Route path="/friends/club" element={<FriendClubPage />} />}
           {/* 入っていない走友会を見るページ（一覧から長押しで来る） */}
           {onlineAvailable() && <Route path="/friends/club/:id" element={<ClubViewPage />} />}
+          {/* ランクマッチの遊びかた。下から出すのをやめて普通のページにした */}
+          <Route path="/rated/help" element={<RatedHelpPage />} />
           {onlineAvailable() && <Route path="/friends/team/:id" element={<FriendDetailPage />} />}
           <Route path="/records" element={<RecordsHub />} />
           <Route path="/records/franchise" element={<FranchiseRecordsPage />} />

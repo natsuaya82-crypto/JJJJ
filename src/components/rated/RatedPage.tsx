@@ -6,7 +6,7 @@ import PressButton from '../ui/PressButton'
 import { courseDistanceKm } from '../../engine/ratedCourse'
 import { rankProgressOf } from '../../engine/rating'
 import { RANK_ART } from './rankArt'
-import { RatedHelpButton, RatedHelpSheet } from './ratedRules'
+import { RatedHelpButton } from './ratedRules'
 import {
   canJoin, fetchMe, fetchResult, fetchToday, joinRated, SUBMIT_DEADLINE_HHMM,
   type RatedMe, type RatedResult, type RatedToday,
@@ -74,7 +74,6 @@ export default function RatedPage() {
   const [left, setLeft] = useState(0)
   // 参加の申し込みが通らなかったときの一言。**黙って何も起きない、にしない**
   const [notice, setNotice] = useState('')
-  const [help, setHelp] = useState(false)
 
   useEffect(() => {
     void fetchMe().then(setMe)
@@ -113,10 +112,9 @@ export default function RatedPage() {
         <PageHeader
           eyebrow="RANKED MATCH"
           title="ランクマッチ"
-          right={<RatedHelpButton onClick={() => setHelp(true)} />}
+          right={<RatedHelpButton onClick={() => navigate('/rated/help')} />}
         />
       </div>
-      <RatedHelpSheet open={help} onClose={() => setHelp(false)} />
 
       {/* ── レート ── */}
       <div style={{ padding: '4px 18px 18px', borderTop: `1px solid ${alpha(C.border3, 0.55)}` }}>

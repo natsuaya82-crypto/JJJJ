@@ -10,23 +10,19 @@
 // ★新しい見た目は1つも作りません。使うのは全部いまあるもの：
 //     `PageHeader`（44画面）／`MemberRow`（自分の走友会のメンバー一覧と同じ行）／
 //     `SectionLabel` / `ClubLogo` / `Pill` / `LoadingBox` / `ErrorBox` / `EmptyBox`
-import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import PageHeader from '../ui/PageHeader'
-import ReportSheet, { type ReportTarget } from './ReportSheet'
 import { clubPreview, searchClubs, type ClubBrief, type ClubMember } from '../../lib/clubsApi'
 import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox } from './friendsUi'
 import { MemberRow, SectionLabel, ClubHeaderCard } from './FriendClubPage'
-import { C, FONT, F } from '../../styles/tokens'
+import { FONT } from '../../styles/tokens'
 
 export default function ClubViewPage() {
   const { id = '' } = useParams<{ id: string }>()
-  const navigate = useNavigate()
   // 走友会そのものの中身（名前・紹介文・人数）は、一覧を引くのと同じ口から取る。
   // ここへは一覧から来るので、たいてい覚えているぶんがそのまま出る
   const clubs = useFriendsQuery(() => searchClubs(''), [], 'clubReco')
   const members = useFriendsQuery(() => clubPreview(id), [id], `clubPeek:${id}`)
-  const [reporting, setReporting] = useState<ReportTarget | null>(null)
   const club: ClubBrief | undefined = (clubs.data ?? []).find(c => c.id === id)
 
   return (
@@ -39,7 +35,6 @@ export default function ClubViewPage() {
 
       <div style={{ padding: '0 12px' }}>
         <SectionLabel>メンバー {members.data ? `${members.data.length}人` : ''}</SectionLabel>
-        <div style={{ fontSize: F.caption, color: C.textDim, margin: '0 4px 6px' }}>長押しでその人のロスターを見られます</div>
         {members.loading ? <LoadingBox /> :
          members.error ? <ErrorBox onRetry={members.reload} /> :
          (members.data ?? []).length === 0 ? <EmptyBox label="まだ誰もいません" /> : (
@@ -48,22 +43,22 @@ export default function ClubViewPage() {
                <MemberRow
                  key={m.id}
                  m={m}
-                 // 入っていない走友会なので、外すことも自分の行もない。
-                 // フレンド申請もここからは出さない（コードをサーバーが返していない）
+                 // ★**見るだけ**（オーナー・2026-08-15「通報ボタンと長押しはいらんやろ」）。
+                 //   入っていない走友会なので、外すことも自分の行もフレンド申請もない
+                 //   （コードはサーバーが返していない）。
+                 readOnly
                  canKick={false}
                  isMe={false}
                  friendState="unknown"
                  onKick={() => {}}
-                 onMenu={() => setReporting({ userId: m.id, name: m.teamName })}
-                 onOpen={() => navigate(`/friends/team/${m.id}`)}
+                 onMenu={() => {}}
+                 onOpen={() => {}}
                  onAddFriend={() => {}}
                />
              ))}
            </div>
          )}
       </div>
-
-      {reporting && <ReportSheet target={reporting} onClose={() => setReporting(null)} onDone={() => setReporting(null)} />}
     </div>
   )
 }

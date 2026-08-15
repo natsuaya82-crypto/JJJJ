@@ -435,9 +435,15 @@ type FriendState = 'unknown' | 'me' | 'friend' | 'sent' | 'none'
 /** 走友会のタブ。URLに覚えさせるので、取りうる値をここに1本で置く（`useStickyTab`） */
 const CLUB_TABS = ['members', 'board', 'cards'] as const
 
-export function MemberRow({ m, canKick, isMe, friendState, onKick, onMenu, onOpen, onAddFriend }: {
+export function MemberRow({ m, canKick, isMe, friendState, onKick, onMenu, onOpen, onAddFriend, readOnly }: {
   m: ClubMember; canKick: boolean; isMe: boolean; friendState: FriendState
   onKick: () => void; onMenu: () => void; onOpen: () => void; onAddFriend: () => void
+  /**
+   * **見るだけ**（入っていない走友会を外から見るとき）。
+   * 長押しでロスターも開かず、「···」のメニューも出さない
+   * （オーナー・2026-08-15「通報ボタンと長押しはいらんやろ」）。
+   */
+  readOnly?: boolean
 }) {
   const longPress = useLongPress()
   const rank = useRatedRank(m.id)
@@ -452,8 +458,8 @@ export function MemberRow({ m, canKick, isMe, friendState, onKick, onMenu, onOpe
           長押しはロゴ〜名前のところだけに付ける。
           自分の行はフレンド詳細に飛ばしても意味が無いので何もしない */}
       <div
-        {...(m.blocked || isMe ? {} : longPress(onOpen))}
-        style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, cursor: m.blocked || isMe ? 'default' : 'pointer' }}
+        {...(m.blocked || isMe || readOnly ? {} : longPress(onOpen))}
+        style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, cursor: m.blocked || isMe || readOnly ? 'default' : 'pointer' }}
       >
         <TeamLogoSVG primary={m.primary} secondary={m.secondary} shortName={m.shortName} logoId={m.logoId} size={40} />
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -480,7 +486,7 @@ export function MemberRow({ m, canKick, isMe, friendState, onKick, onMenu, onOpe
       {canKick && (
         <button onClick={onKick} className="btn-press" style={actionButton(C.red)}>外す</button>
       )}
-      {!isMe && (
+      {!isMe && !readOnly && (
         <button onClick={onMenu} className="btn-press" aria-label="メニュー" style={{
           ...actionButton(C.textDim), padding: '8px 10px', letterSpacing: '1px',
         }}>···</button>

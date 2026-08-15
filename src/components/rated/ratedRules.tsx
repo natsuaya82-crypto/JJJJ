@@ -1,4 +1,4 @@
-import BottomSheet from '../ui/BottomSheet'
+import PageHeader from '../ui/PageHeader'
 import { HOF_MAX } from '../../utils/hofRoster'
 import { GROUP_MAX, GROUP_MIN, RANK_BANDS } from '../../engine/rating'
 import { SEG_MIN, SEG_MAX } from '../../engine/ratedCourse'
@@ -59,7 +59,7 @@ const RULES: { title: string; lines: string[] }[] = [
   },
 ]
 
-/** `?` のボタン。押すと下から出る */
+/** `?` のボタン。押すと遊びかたのページへ */
 export function RatedHelpButton({ onClick }: { onClick: () => void }) {
   return (
     <button
@@ -76,10 +76,19 @@ export function RatedHelpButton({ onClick }: { onClick: () => void }) {
   )
 }
 
-export function RatedHelpSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+/**
+ * ランクマッチの遊びかた。**普通のページ**（`/rated/help`）。
+ *
+ * ★以前は画面下から出るシートでした（オーナー・2026-08-15
+ *   「そのui嫌いだから一生禁止しろ。俺が許可した時だけ」「全部それが基本だから
+ *   下から出てきたりとかは俺が許可した時だけな？」）。
+ *   見せ方は他の画面と同じ「ページ ＋ `PageHeader` ＋ 戻る矢印」に揃えます。
+ */
+export function RatedHelpPage() {
   return (
-    <BottomSheet open={open} onClose={onClose} title="ランクマッチの遊びかた">
-      <div style={{ fontFamily: FONT, padding: '2px 4px 8px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+    <div style={{ fontFamily: FONT, paddingBottom: 90, minHeight: '100%' }}>
+      <PageHeader eyebrow="RANKED MATCH" title="遊びかた" />
+      <div style={{ fontFamily: FONT, padding: '2px 16px 8px', display: 'flex', flexDirection: 'column', gap: 18 }}>
         {RULES.map(r => (
           <div key={r.title}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7 }}>
@@ -94,6 +103,6 @@ export function RatedHelpSheet({ open, onClose }: { open: boolean; onClose: () =
           </div>
         ))}
       </div>
-    </BottomSheet>
+    </div>
   )
 }
