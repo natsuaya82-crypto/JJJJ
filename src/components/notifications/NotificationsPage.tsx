@@ -355,7 +355,11 @@ export default function NotificationsPage() {
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                          <Btn variant="primary" style={{ flex: 1 }} onClick={() => navigate('/team/chat')}>チャットで返事</Btn>
+                          {/* ★**必ず ?player= を付ける。** 付けないとチャットの一覧（契約更新のタブ）に
+                              着くだけで、その選手の会話が開かない＝「押しても飛ばない」に見える。
+                              45c5a6b で一度直したのに、2f70214 でこの節を足したとき素の
+                              `/team/chat` に戻っていた。 */}
+                          <Btn variant="primary" style={{ flex: 1 }} onClick={() => navigate(`/team/chat?player=${playerId}`)}>チャットで返事</Btn>
                         </div>
                       </div>
                     </div>
@@ -434,7 +438,11 @@ export default function NotificationsPage() {
                             <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: req ? C.gold : C.red }}>{req ? 'あなたの返事待ちです' : '今季で満了・早急に更新を'}</div>
                           </div>
                         </div>
-                        <Btn variant="primary" style={{ width: '100%', background: `linear-gradient(135deg, ${accent}, ${req ? '#FFD54F' : '#FF6B6B'})`, color: req ? '#111' : C.bg }} onClick={() => navigate(`/team/chat?player=${p.id}`)}>契約を交渉する</Btn>
+                        {/* ★色を上書きしないこと。ベタ塗り＋黒い字は 2f75efa でやめたのに、
+                            ここが background と color を自分で塗り直していたので残っていた
+                            （オーナー・2026-08-14「契約を交渉するのベタ塗りボタンやめて」）。
+                            見た目は ui/Btn の primary 1本。**呼ぶ側で塗らない。** */}
+                        <Btn variant="primary" style={{ width: '100%' }} onClick={() => navigate(`/team/chat?player=${p.id}`)}>契約を交渉する</Btn>
                       </div>
                     </div>
                   )
