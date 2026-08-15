@@ -164,8 +164,11 @@ alter table public.club_posts add column if not exists body      text not null d
 alter table public.club_posts add column if not exists room_code text not null default '';
 
 alter table public.club_posts drop constraint if exists club_posts_kind;
+-- 'join' ＝「◯◯が参加しました」。誰かが入ったときにサーバーが自分で1件置く
+-- （オーナー・2026-08-15「参加しましたって掲示板に出るようにしよ！スタンプ押せるように」）。
+-- スタンプは投稿ごとに付くので、種類を足すだけで押せるようになる（react_club_post は kind を見ない）
 alter table public.club_posts add  constraint club_posts_kind
-  check (kind in ('msg', 'req', 'room'));
+  check (kind in ('msg', 'req', 'room', 'join'));
 
 -- お願い1件まるごとの種類指定（旧）。いまは stats を見るが、古いアプリ向けに残す
 alter table public.club_posts add column if not exists stat  text     not null default '';
@@ -561,6 +564,7 @@ drop function if exists public.clubs_of_users(uuid[])                        cas
 drop function if exists public.post_club_message(integer)                    cascade;
 drop function if exists public.post_club_text(text)                          cascade;
 drop function if exists public.post_club_room(text)                          cascade;
+drop function if exists public.post_club_join(uuid, uuid)                     cascade;
 drop function if exists public.post_club_request(text)                       cascade;  -- 旧い形
 drop function if exists public.post_club_request(text, text)                 cascade;  -- 旧い形
 drop function if exists public.post_club_request(text, text, text[])         cascade;
@@ -900,6 +904,34 @@ end $$;
 -- ── 入る ─────────────────────────────────────────────
 -- 'joined' その場で加入 / 'requested' 承認待ち / 'already' すでに所属
 -- 'full' 満員 / 'closed' 募集停止 / 'low_ovr' 条件に届かない / 'not_found'
+-- ── 「◯◯が参加しました」を掲示板に置く ────────────────────
+--
+-- オーナー・2026-08-15「走友会参加したら 参加しましたって掲示板に出るようにしよ！
+-- スタンプ押せるように」。スタンプ（react_club_post）は投稿ごとに付くので、
+-- 投稿を1件置けばそのまま押せる。
+--
+-- ★**入る道は2つある**（誰でも歓迎＝`join_club` ／ 承認制＝`approve_club_request`）。
+--   置くのはここ1本にして、両方から呼ぶこと。片方に書き忘れると
+--   「承認で入った人だけ挨拶が出ない」になる。
+--
+-- ★**アプリからは呼ばせない**（下の権限のところで revoke するだけで grant しない）。
+--   それでも中で2つ確かめる——**本当にそのクラブの一員か**（他人になりすませない）と、
+--   **同じ人のぶんが1日に2件出ないか**（申請と承認が重なったとき）。
+create function public.post_club_join(p_club uuid, p_user uuid) returns void
+language sql
+security definer
+set search_path = public
+as $$
+  insert into public.club_posts (club_id, user_id, kind)
+  select p_club, p_user, 'join'
+  where exists (
+      select 1 from public.club_members m where m.user_id = p_user and m.club_id = p_club)
+    and not exists (
+      select 1 from public.club_posts t
+       where t.club_id = p_club and t.user_id = p_user and t.kind = 'join'
+         and t.created_at > now() - interval '1 day')
+$$;
+
 create function public.join_club(p_club uuid) returns text
 language plpgsql
 security definer
@@ -925,6 +957,7 @@ begin
 
   insert into public.club_members (user_id, club_id, role) values (me, c.id, 'member');
   delete from public.club_requests where user_id = me;
+  perform public.post_club_join(c.id, me);
   return 'joined';
 end $$;
 
@@ -981,6 +1014,7 @@ begin
   if exists (select 1 from public.club_members where user_id = p_user) then return 'already'; end if;
   insert into public.club_members (user_id, club_id, role) values (p_user, c.id, 'member');
   delete from public.club_requests where user_id = p_user;   -- 他所への申請も消す
+  perform public.post_club_join(c.id, p_user);
   return 'joined';
 end $$;
 
@@ -2426,6 +2460,11 @@ begin
     execute format('grant execute on function public.%s to authenticated', f);
   end loop;
 end $$;
+
+-- ★**アプリからは呼ばせないもの。** 既定では新しい関数は誰でも実行できるので、
+--   grant しないだけでは足りず、明示的に取り上げる。
+--   `post_club_join` は `join_club` / `approve_club_request` の中からだけ呼ぶ。
+revoke all on function public.post_club_join(uuid, uuid) from public, anon, authenticated;
 
 commit;
 

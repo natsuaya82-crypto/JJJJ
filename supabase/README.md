@@ -109,6 +109,23 @@ build 88 のまとめを流した走友会で `open_stats` が返らなくなり
 | 同じ人 | `club_members` を直接 select | **permission denied**（ポリシーは効いたまま） |
 | — | 返す列に `code` があるか | **無い**（フレンドコードは渡さない） |
 
+走友会に入ると掲示板に「参加しました」が出るようにしたとき（2026-08-15）も同じやり方です。
+`all.sql` を2回、エラー0・行数の変化0（profiles 3 / clubs 2 / club_members 3 /
+club_posts 2 / club_reactions 1）。
+
+| 何を | 結果 |
+|---|---|
+| 誰でも歓迎の会に入る（`join_club`） | 掲示板に `join` が1件 |
+| 承認制の会に申請 → 会長が承認（`approve_club_request`） | こちらも `join` が1件（**入る道は2つある**） |
+| その投稿にスタンプ（`react_club_post`） | 押せる（種類を見ていないので、投稿があれば押せる） |
+| 掲示板（`club_feed`）に出るか | 出る |
+| アプリから `post_club_join` を直接呼ぶ | **permission denied**（`join_club` などの中からだけ） |
+| 同じ人がもう一度入る | 増えない（1日1件） |
+
+★このとき **`INSERT has more target columns than expressions` で1回落ちました**
+（`select p_club, p_user` に `'join'` を書き忘れていた）。
+**流さなければ気づけないもの**です。
+
 このとき見つけて直したものが3つあります（**流さなければ気づけないもの**でした）。
 
 - `rated_standings` が一時表を作っていて、`stable` な関数では

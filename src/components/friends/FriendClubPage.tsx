@@ -924,6 +924,13 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
               <div style={{ fontSize: F.bodyLg, color: C.text, marginTop: 1, lineHeight: 1.5, wordBreak: 'break-word' }}>
                 {p.body ? maskText(p.body) : (CLUB_PHRASES[p.phrase] ?? '')}
               </div>
+            ) : p.kind === 'join' ? (
+              /* 「◯◯が参加しました」。サーバーが置く投稿なので本文は無く、ここで組む。
+                 名前は上の行（チーム名・GM名）に出ているので、ここでは繰り返さない */
+              <div style={{ fontSize: F.bodyLg, color: C.text, marginTop: 1 }}>
+                <span style={{ color: C.green, fontWeight: 900 }}>参加しました</span>
+                <span style={{ fontSize: F.caption, color: C.textGhost, marginLeft: 6 }}>よろしくお願いします</span>
+              </div>
             ) : p.kind === 'room' ? (
               /* 対戦の募集。部屋が閉じていたら入るときに分かるので、ここでは確かめない */
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>

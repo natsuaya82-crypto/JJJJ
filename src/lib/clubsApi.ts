@@ -371,7 +371,12 @@ export const CLUB_REQ_STATS: CardStatKey[] =
 export type ClubPost = {
   id: string
   userId: string
-  kind: 'msg' | 'req' | 'room'
+  /**
+   * `msg` 書き込み ／ `req` カードのお願い ／ `room` 対戦の募集 ／
+   * `join` **「◯◯が参加しました」**（誰かが入ったときにサーバーが自分で置く。
+   * 本文は無いので、画面で文を組む。スタンプは種類に関係なく押せる）
+   */
+  kind: 'msg' | 'req' | 'room' | 'join'
   /** 定型文の番号。**もう書けない**（build 126 までの古い投稿だけが持つ） */
   phrase: number
   /** 本文（kind='msg'）。**画面に出すときは必ず utils/wordFilter の maskText を通すこと** */
