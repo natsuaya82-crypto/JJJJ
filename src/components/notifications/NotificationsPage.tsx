@@ -430,18 +430,15 @@ export default function NotificationsPage() {
                   <div style={{ padding: '14px 16px' }}>
                     {/* ★形は**他のカードと同じ**（左に顔・中央に見出しと補足・右に状態）。
                         ここだけ別の組み方をしないこと（オーナー・2026-08-14
-                        「他のやつと同じような見た目にしろよ」）。違うのは
-                        顔が3つ並ぶことと、名前のところが人数になることだけ。 */}
+                        「他のやつと同じような見た目にしろよ」）。**違うのは
+                        名前のところが人数になることだけ。** */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
-                      {/* ★顔を**重ねないこと。** FaceOvr は右下にOVRの札を出すので、
-                          負のマージンで重ねると隣の顔に隠れて数字が読めなくなる。
-                          ★**2人まで。** 3人並べると 390px で中央が潰れて
-                            「今季で満了」が2行に折り返す（実寸で組んで確認した） */}
-                      <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                        {renewalPlayers.slice(0, 2).map(({ p }) => (
-                          <FaceOvr key={p.id} playerId={p.id} nationality={p.nationality} pOvr={ovr(p)} accentColor={C.orange} />
-                        ))}
-                      </div>
+                      {/* ★顔は**1つだけ**。この画面のカードは全部「顔1つ＋中央＋右」で、
+                          2つ以上並べているものは1枚も無い。まとめだからと顔を並べると
+                          ここだけ別物になる（オーナー・2026-08-14「カード2枚なら別やつ
+                          他のカードでやってねえだろ」）。 */}
+                      <FaceOvr playerId={renewalPlayers[0].p.id} nationality={renewalPlayers[0].p.nationality}
+                        pOvr={ovr(renewalPlayers[0].p)} accentColor={C.orange} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: '700', color: C.text }}>{renewalNeeded}人</div>
                         <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.textSub, marginTop: '2px' }}>今季で満了</div>
