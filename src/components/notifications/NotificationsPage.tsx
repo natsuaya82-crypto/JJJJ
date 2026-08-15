@@ -428,21 +428,30 @@ export default function NotificationsPage() {
                 <div style={cardStyle(alpha(C.orange, 0.45), '#5a3500')}>
                   <div style={inset}/>
                   <div style={{ padding: '14px 16px' }}>
+                    {/* ★形は**他のカードと同じ**（左に顔・中央に見出しと補足・右に状態）。
+                        ここだけ別の組み方をしないこと（オーナー・2026-08-14
+                        「他のやつと同じような見た目にしろよ」）。違うのは
+                        顔が3つ並ぶことと、名前のところが人数になることだけ。 */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
-                      {/* 顔は先頭3人だけ。人数が増えても行の高さが変わらない。
-                          ★**重ねないこと。** FaceOvr は右下にOVRの札を出すので、
-                            負のマージンで重ねると隣の顔に隠れて数字が読めなくなる */}
+                      {/* ★顔を**重ねないこと。** FaceOvr は右下にOVRの札を出すので、
+                          負のマージンで重ねると隣の顔に隠れて数字が読めなくなる。
+                          ★**2人まで。** 3人並べると 390px で中央が潰れて
+                            「今季で満了」が2行に折り返す（実寸で組んで確認した） */}
                       <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                        {renewalPlayers.slice(0, 3).map(({ p }) => (
+                        {renewalPlayers.slice(0, 2).map(({ p }) => (
                           <FaceOvr key={p.id} playerId={p.id} nationality={p.nationality} pOvr={ovr(p)} accentColor={C.orange} />
                         ))}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: '700', color: C.text }}>
-                          {renewalNeeded}人
+                        <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: '700', color: C.text }}>{renewalNeeded}人</div>
+                        <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.textSub, marginTop: '2px' }}>今季で満了</div>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <div style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: '900', color: renewalWaiting > 0 ? C.gold : C.red }}>
+                          {renewalWaiting > 0 ? `交渉中 ${renewalWaiting}` : '未交渉'}
                         </div>
-                        <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textSub, marginTop: '2px' }}>
-                          {renewalWaiting > 0 ? `うち${renewalWaiting}人があなたの返事待ち` : '今季で満了・早急に更新を'}
+                        <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: renewalWaiting > 0 ? C.gold : C.red }}>
+                          {renewalWaiting > 0 ? 'あなたの返事待ちです' : '早急に更新を'}
                         </div>
                       </div>
                     </div>
