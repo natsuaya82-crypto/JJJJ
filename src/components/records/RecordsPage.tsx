@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo } from 'react'
+import { useStickyTab } from '../../lib/useStickyTab'
 import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import type { GameStore } from '../../store/gameStore'
@@ -109,7 +110,11 @@ function EventDistTabs({ value, onChange }: { value: EvDist; onChange: (d: EvDis
 type Section = { label: string; node: React.ReactNode }
 
 function SectionSwitcher({ sections }: { sections: Section[] }) {
-  const [idx, setIdx] = useState(0)
+  // ★どのセクションを見ているかは**URLに覚えさせる**（`?sec=2`。`lib/useStickyTab`）。
+  //   `useState` だと、そこから選手やクラブの詳細へ行って戻ったとき必ず左端へ戻る
+  //   （オーナー・2026-08-15「上に3つとか並んでるやつ基本1番左に戻る」）。
+  //   記録室は3画面がこの部品を使うが、同時に出るのは1つなのでキーは1つでよい
+  const [idx, setIdx] = useStickyTab<number>('sec', sections.map((_, i) => i), 0)
   const touch = useRef<{ x: number; y: number } | null>(null)
   const n = sections.length
   // 記録が無くなってセクションが減った場合にはみ出さないように丸める

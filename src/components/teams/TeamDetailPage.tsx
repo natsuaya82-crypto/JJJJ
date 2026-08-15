@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { useStickyTab } from '../../lib/useStickyTab'
 import { comparePlayers } from '../../utils/playerSort'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
@@ -134,8 +135,24 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   }
   const scrollRef = useRef<HTMLDivElement>(null)
   const longPressP = usePlayerLongPress()
-  const [activePage, setActivePage] = useState(0)
-  const [moveTab, setMoveTab] = useState<'in' | 'out'>('in')
+  // 横スワイプで見ているページ（概要／選手／出入り）。**URLに覚えさせる**（`?page=1`。
+  // `lib/useStickyTab`）。`useState` だと選手やクラブの詳細から戻ったとき必ず左端へ戻る
+  // （オーナー・2026-08-15「上に3つとか並んでるやつ基本1番左に戻る」）
+  const [activePage, setActivePage] = useStickyTab<number>('page', [0, 1, 2], 0)
+  // ★見ているのは加入か放出か。URLに覚えさせる（`?move=out`。`lib/useStickyTab`）
+  const [moveTab, setMoveTab] = useStickyTab<'in' | 'out'>('move', ['in', 'out'], 'in')
+  // 覚えていたページへ寄せ直す。**開いた直後に一度だけ**、なめらかにせず飛ばす
+  // （`behavior: 'smooth'` にすると開いた瞬間に横へ流れて見える）
+  const restored = useRef(false)
+  useEffect(() => {
+    if (restored.current) return
+    const el = scrollRef.current
+    if (!el || !el.clientWidth) return
+    restored.current = true
+    const want = activePage * el.clientWidth
+    if (Math.abs(el.scrollLeft - want) > 1) el.scrollLeft = want
+  })
+
   // 他チーム選手：タップ＝吹き出しメニュー / 長押し＝詳細（共有フック）
   const { rowHandlers, overlay } = useOpponentMenu()
   // ページ確定はスクロールが止まってから。スワイプ中に activePage を切り替えると

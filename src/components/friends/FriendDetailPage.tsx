@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useStickyTab } from '../../lib/useStickyTab'
 import { useParams, useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
 import ConfirmDialog from '../ui/ConfirmDialog'
@@ -66,8 +67,11 @@ export default function FriendDetailPage() {
 
   const [sortKey, setSortKey] = useState<SortKey>('ovr')
 
-  // 横スワイプで見ているページ。0＝ロスター / 1＝殿堂入り
-  const [page, setPage] = useState(0)
+  // 横スワイプで見ているページ。0＝ロスター / 1＝殿堂入り。
+  // ★**URLに覚えさせる**（`?page=1`。`lib/useStickyTab`）。`useState` だと選手の詳細を
+  //   開いて戻ったとき必ず左端（ロスター）へ戻る（オーナー・2026-08-15
+  //   「上に3つとか並んでるやつ基本1番左に戻る」）
+  const [page, setPage] = useStickyTab<number>('page', [0, 1], 0)
   const pagerRef = useRef<HTMLDivElement>(null)
   const goPage = (i: number) => {
     const el = pagerRef.current
@@ -77,7 +81,8 @@ export default function FriendDetailPage() {
     const el = pagerRef.current
     if (!el) return
     const i = Math.round(el.scrollLeft / Math.max(1, el.clientWidth))
-    setPage(p => (p === i ? p : i))
+    // ★更新関数（`p => …`）は渡せない。URLに書く入れものなので値をそのまま渡す
+    if (page !== i) setPage(i)
   }
 
   // 自前のポップアップ（端末標準の alert / confirm は使わない）
@@ -99,6 +104,15 @@ export default function FriendDetailPage() {
     setPreview(page === 0 ? share.players : share.hof.map(h => h.player))
     return () => setPreview([])
   }, [id, list.data, page]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 覚えていたページへ寄せ直す。**中身が出てから**でないと幅が0で寄せられない。
+  // `behavior: 'smooth'` にしないこと（開いた瞬間に横へ流れて見える）
+  useEffect(() => {
+    const el = pagerRef.current
+    if (!el || !el.clientWidth) return
+    const want = page * el.clientWidth
+    if (Math.abs(el.scrollLeft - want) > 1) el.scrollLeft = want
+  }, [list.data]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 名前の横の段位と、下に並べるレート。**未参加なら紋章は出ず、レートは「—」**
   //

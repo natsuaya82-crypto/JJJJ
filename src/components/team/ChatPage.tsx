@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useStickyTab } from '../../lib/useStickyTab'
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
@@ -95,7 +96,10 @@ export default function ChatPage() {
   const wantParam = searchParams.get('want')
   // チャット履歴は store（currentSeason.chatLogs）に保存。画面を離れても・解決後も年内は見返せる。
   const chatLogs = currentSeason.chatLogs ?? {}
-  const [activeTab, setActiveTab] = useState<'own' | 'transfer'>((searchParams.get('trade') || locState?.tradeTeamId) ? 'transfer' : 'own')
+  // ★見ているタブはURLに覚えさせる（`?tab=transfer`。`lib/useStickyTab`）。
+  //   トレードの相手から飛んできたときは「移籍・獲得」で開く（既定を切り替える）
+  const [activeTab, setActiveTab] = useStickyTab<'own' | 'transfer'>(
+    'tab', ['own', 'transfer'], (searchParams.get('trade') || locState?.tradeTeamId) ? 'transfer' : 'own')
   // 買い取り・レンタル打診に対応した結果（オファーはストアから消えるため、ここで結果を見せて確認で消す）。
   // 状態も見た目も transfer/OfferResultList の1本（移籍画面・オファー一覧と同じもの）。
   // ここに残るのはオファー一覧など他画面から飛んできた結果だけで、チャットでの返事の結果は会話に出る
@@ -109,7 +113,9 @@ export default function ChatPage() {
     const tr = searchParams.get('trade')
     if (pl) { setChatPlayerId(pl); setTradeTeamId(null); cameFromParamRef.current = true }
     else if (tr) { setTradeTeamId(tr); setChatPlayerId(null); setActiveTab('transfer'); cameFromParamRef.current = true }
-    if (pl || tr) navigate('/team/chat', { replace: true })
+    // ★タブは URL に持っているので、ここで消さないこと。トレードから来たら
+    //   「移籍・獲得」を付けたまま書き換える（消すと閉じたあと自チームへ戻る）
+    if (pl || tr) navigate(tr ? '/team/chat?tab=transfer' : '/team/chat', { replace: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 

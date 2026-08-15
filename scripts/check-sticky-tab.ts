@@ -41,10 +41,19 @@ console.log('[1] 入れものの中身（URLの読み書き）')
 console.log('\n[2] タブを持つ画面が実際に通しているか')
 {
   // ★**画面を名指しで見る**。関数を叩くだけの点検だと、画面が useState に戻っても緑になる
+  //
+  // ★**上に並ぶ切り替えを新しく作ったら、ここへ1行足すこと。**
+  //   足さないと「その画面だけ左端に戻る」が黙って戻ってくる。
   const SCREENS: [string, string, string][] = [
     ['順位表の部（1部/2部/3部）', 'src/components/teams/StandingsPage.tsx', 'division'],
     ['走友会のタブ（メンバー/カード/掲示板）', 'src/components/friends/FriendClubPage.tsx', 'tab'],
     ['マイチーム（1軍/レンタル）', 'src/components/team/TeamManagement.tsx', 'activeTab'],
+    ['記録室のセクション', 'src/components/records/RecordsPage.tsx', 'idx'],
+    ['スポンサー（契約中/オファー）', 'src/components/sponsors/SponsorPage.tsx', 'tab'],
+    ['クラブ詳細のページャ', 'src/components/teams/TeamDetailPage.tsx', 'activePage'],
+    ['クラブ詳細の出入り（加入/放出）', 'src/components/teams/TeamDetailPage.tsx', 'moveTab'],
+    ['チャット（自チーム/移籍・獲得）', 'src/components/team/ChatPage.tsx', 'activeTab'],
+    ['フレンド詳細のページャ（ロスター/殿堂入り）', 'src/components/friends/FriendDetailPage.tsx', 'page'],
   ]
   for (const [label, file, name] of SCREENS) {
     const src = readFileSync(file, 'utf8')
@@ -55,7 +64,24 @@ console.log('\n[2] タブを持つ画面が実際に通しているか')
   }
 }
 
-console.log('\n[3] パスに埋め込む形へ戻っていない')
+console.log('\n[3] スワイプで動くページャは、覚えていた位置へ寄せ直す')
+{
+  // ★横スワイプのページャは**位置を覚えるだけでは足りない**。開いたときに
+  //   実際にそこへ寄せ直さないと、タブの見た目だけ右で中身は左端のまま、になる。
+  //   `behavior: 'smooth'` にしないこと（開いた瞬間に横へ流れて見える）
+  for (const [label, file, ref] of [
+    ['クラブ詳細', 'src/components/teams/TeamDetailPage.tsx', 'scrollRef'],
+    ['フレンド詳細', 'src/components/friends/FriendDetailPage.tsx', 'pagerRef'],
+  ] as const) {
+    const src = readFileSync(file, 'utf8')
+    check(`${label} が覚えていた位置へ寄せ直す`,
+      new RegExp(`${ref}\\.current[\\s\\S]{0,400}?el\\.scrollLeft = want`).test(src), file)
+    check(`${label} の寄せ直しはなめらかにしない`,
+      !/scrollLeft = want[\s\S]{0,40}smooth/.test(src))
+  }
+}
+
+console.log('\n[4] パスに埋め込む形へ戻っていない')
 {
   // 出現アニメは location.pathname で動く（App.tsx）。パスを書き換えると
   // タブを押すたびにページごと出直す

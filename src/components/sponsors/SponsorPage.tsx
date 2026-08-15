@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useStickyTab } from '../../lib/useStickyTab'
 import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
@@ -34,7 +35,8 @@ function targetText(t: SponsorTarget): string {
 
 export default function SponsorPage() {
   const { sponsors, teams, playerTeamId, currentSeason, acceptSponsorOffer, terminateSponsor } = useGameStore()
-  const [tab, setTab] = useState<'active' | 'offers'>('active')
+  // ★見ているタブはURLに覚えさせる（`?tab=offers`。`lib/useStickyTab`）
+  const [tab, setTab] = useStickyTab<'active' | 'offers'>('tab', ['active', 'offers'], 'active')
 
   const myTeam = teams.find(t => t.id === playerTeamId)
   const teamSponsorIds = myTeam?.sponsors ?? []
