@@ -1,4 +1,4 @@
-﻿import type { Player, Specialty, GrowthCurve, Nationality, ForeignCategory, ForeignLeague } from '../types'
+﻿import type { Player, Specialty, GrowthCurve, Nationality, ForeignCategory, ForeignLeague, Team } from '../types'
 import { natCategory } from '../data/nationalities'
 import type { TraitId } from '../utils/traitUtils'
 import type { Rank } from '../types'
@@ -10,6 +10,8 @@ import { SPECIALTIES } from '../utils/squadNeeds'
 import { buildNationalityBag } from '../data/nationTalent'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は持たない
 import { clubMembersByClub } from '../utils/rosterSync'
+import { divisionOf } from '../utils/league'
+import { ROSTER_MAX } from '../data/rosterRules'
 
 const FAMILY_NAMES = [
   '田中','鈴木','佐藤','高橋','伊藤','渡辺','山本','中村','小林','加藤',
@@ -1250,6 +1252,76 @@ export function buildDraftOrder(
 
   const round2 = [...round1].reverse()
   return [...round1, ...round2]
+}
+
+/**
+ * **2部・3部のクラブに、毎年 若手を2人ずつ入れる。**
+ *
+ * ■なぜ要るのか（オーナー・2026-08-16「2.3部にも若手補強しよう。2人。
+ *   レベル帯はドラフト外レベル」）
+ *
+ *   選手が入ってくる口が、国内と海外で**桁違い**でした。
+ *
+ *     海外180クラブ … `refreshForeignLeagues` で1クラブ最大3人（最大540人／年）
+ *     国内52クラブ  … ドラフト候補120人、しかも**指名できるのは1部の20クラブだけ**
+ *
+ *   出ていくほう（契約満了・引き抜き・海外移籍）は国内も海外も同じだけあるので、
+ *   国内だけが痩せます。実測（6年）で国内52クラブの在籍が **1300 → 729人**、
+ *   FAは3年で **0人** になり、下限15人を割ったクラブが並びました
+ *   （「FA全部とっても13人にしかならない」の正体）。
+ *
+ * ■線
+ *   ・入れるのは**2部・3部だけ**。1部はドラフトで獲る
+ *   ・1クラブ**2人**（`DOMESTIC_YOUTH_PER_CLUB`）
+ *   ・**ドラフトに掛からない帯**（`DOMESTIC_YOUTH_RANKS`）。ドラフト候補は SSS〜D で、
+ *     指名されるのは上のほうなので、ここは下の C・D だけを入れる
+ *   ・年齢は海外の補充と同じ 19〜22（伸びしろ持ちの若手）
+ *   ・**上限（`ROSTER_MAX`）は超えない**
+ *
+ * ★中身の作り方は `generateCpuRosters` 1本を通します（能力値は `buildRatingsForRank`、
+ *   年俸は `faMarketSalary`）。ここで独自に選手を組み立てないこと。
+ */
+export const DOMESTIC_YOUTH_PER_CLUB = 2
+const DOMESTIC_YOUTH_RANKS: Rank[] = ['C', 'D']
+
+export function refreshDomesticYouth(
+  teams: readonly Team[],
+  year: number,
+  players: readonly Player[],
+): Player[] {
+  // 2部・3部のクラブだけ。1部はドラフトがある
+  const targets = teams.filter(t => divisionOf(t) !== 1)
+  if (targets.length === 0) return []
+  const membersByClub = clubMembersByClub(players as Player[])
+  const out: Player[] = []
+  for (const t of targets) {
+    const have = (membersByClub.get(t.id) ?? []).length
+    const room = Math.max(0, ROSTER_MAX - have)
+    const n = Math.min(DOMESTIC_YOUTH_PER_CLUB, room)
+    if (n === 0) continue
+    // 中身は generateCpuRosters と同じ幹。**1クラブぶん作って先頭から n 人だけ使う**
+    // （クラブの数だけ呼ばないこと。1回の呼び出しで25人ぶん作られる）
+    const made = generateCpuRosters([{ id: t.id, tier: tierOf(t) }], year).cpuPlayers.slice(0, n)
+    made.forEach((p, i) => {
+      const rank = DOMESTIC_YOUTH_RANKS[i % DOMESTIC_YOUTH_RANKS.length]
+      const age = 19 + (i % 4)
+      const { ratings, potential } = buildRatingsForRank({
+        id: p.id, rank, specialty: p.specialty, growthCurve: p.growthCurve, age,
+        potentialCap: TIER_POTENTIAL_CAP[tierOf(t)],
+      })
+      const fresh: Player = {
+        ...p,
+        id: `yth-${year}-${t.id}-${i}`,
+        age, yearsPro: 0, draftYear: year, joinedYear: year,
+        ratings, potential,
+        teamId: t.id,
+        contract: { ...p.contract, yearsLeft: 3 },
+      }
+      fresh.contract.annualSalary = faMarketSalary(fresh)
+      out.push(fresh)
+    })
+  }
+  return out
 }
 
 // 海外選手のID採番。カウンタはメモリ上の値なのでアプリ再起動でリセットされる。

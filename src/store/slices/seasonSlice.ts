@@ -8,7 +8,7 @@ import { ACHIEVEMENT_JEWELS, checkSeasonAchievements, podiumJewels, selectSeason
 import { buildEclParticipants, buildEclRaces } from '../../engine/eclSeries'
 import { initForeignStandings } from '../../engine/foreignLeague'
 import { growPlayer } from '../../engine/growth'
-import { generateDraftPool, generateForeignLeaguePlayers, refreshForeignLeagues } from '../../engine/playerGenerator'
+import { generateDraftPool, generateForeignLeaguePlayers, refreshForeignLeagues, refreshDomesticYouth } from '../../engine/playerGenerator'
 import { type Division, type GmOffer, type Player, SPECIALTY_LABELS, type SeasonAward, type TransferRecord } from '../../types'
 import { archiveSeason } from '../../utils/archiveSeason'
 import { computeSeasonAwards } from '../../utils/awards'
@@ -359,6 +359,13 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         ? (() => { const g = generateForeignLeaguePlayers(FOREIGN_LEAGUES, state.currentSeason.year + 1); return { newPlayers: g.players, updatedLeagues: g.updatedLeagues } })()
         : refreshForeignLeagues(state.foreignLeagues ?? [], retiringIds, state.currentSeason.year + 1, grownPlayers)
 
+      // ★**2部・3部にも若手を入れる**（オーナー・2026-08-16「2.3部にも若手補強しよう。
+      //   2人。レベル帯はドラフト外レベル」）。
+      //   海外は `refreshForeignLeagues` で毎年1クラブ最大3人入るのに、国内は
+      //   **ドラフト（1部20クラブだけ）しか口が無く**、6年で国内の在籍が
+      //   1300→729人まで痩せて FA も尽きていた。1部はドラフトで獲るので入れない。
+      const domesticYouth = refreshDomesticYouth(state.teams, state.currentSeason.year + 1, grownPlayers)
+
       // Morale streak system: apply morale bonus/penalty to player team based on season finish
       const myFinalRank = rankOfTeam(seasonDivisionStandings(state.currentSeason, state.playerTeamId), state.playerTeamId)
       const myDivRows = seasonDivisionStandings(state.currentSeason, state.playerTeamId)
@@ -591,7 +598,10 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const fSeason = processForeignSeason({
         players: playersWithLoanHistory, foreignLeagues: state.foreignLeagues ?? [],
         foreignStandings: state.currentSeason.foreignStandings ?? {},
-        refreshedLeagues: foreignRefresh.updatedLeagues, newForeignPlayers: foreignRefresh.newPlayers,
+        // 国内2・3部の若手も、海外の新加入とまったく同じ口から世界へ入れる
+        // （入れ方を2本に増やさない）
+        refreshedLeagues: foreignRefresh.updatedLeagues,
+        newForeignPlayers: [...foreignRefresh.newPlayers, ...domesticYouth],
         removedForeignPlayerIds, teams: teamsWithCleanedPicks,
         playerTeamId: state.playerTeamId, newYear })
       // ★移籍はここでは起きません（`engine/transferMarket.ts` の1本を `beginSeasonDraft` で回す）。

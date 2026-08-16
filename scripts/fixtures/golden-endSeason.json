@@ -3,7 +3,7 @@
  "adsRemoved": "fcbcf165908dd18a (5B)",
  "adsWatchedToday": "eb045d78d2731073 (9B)",
  "balancePatch": "6b86b273ff34fce1 (1B)",
- "currentSeason": "2fd117f054dcd53f (157873B)",
+ "currentSeason": "64ac3cb5fe744dda (157362B)",
  "deficitRescue": "6b86b273ff34fce1 (1B)",
  "draftState": "74234e98afe7498f (4B)",
  "eventSeasonTops": "4f53cda18c2baa0c (2B)",
@@ -29,7 +29,7 @@
  "pendingGifts": "4f53cda18c2baa0c (2B)",
  "pendingGmMove": "74234e98afe7498f (4B)",
  "playerTeamId": "6e7823b6e67138d4 (7B)",
- "players": "aed1de1fd15755ac (3995955B)",
+ "players": "ace8601ab93740f0 (4036505B)",
  "raceDroppedCards": "4f53cda18c2baa0c (2B)",
  "raceLineup": "44136fa355b3678a (2B)",
  "raceStrategy": "61eb5aa337d3a2d3 (10B)",
@@ -52,5 +52,5 @@
  "worldRecords": "44136fa355b3678a (2B)",
  "worldRepresentatives": "90352e46dd7c1153 (48223B)",
  "worldTournament": "eb045d78d2731073 (9B)",
- "$all": "6847eed8bb5bfe03 (4619171B)"
+ "$all": "1e2cd4fc125dce96 (4659210B)"
 }
