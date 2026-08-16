@@ -66,7 +66,12 @@ console.log('\n[2] 画面が実際にその判定を通している')
     /\{ campDone, draftDone, rosterCount \}/.test(dash))
   // 「スキップも可能です」は消した。文言ごと戻ってきたら落とす
   check('「スキップも可能です」が復活していない', !dash.includes('スキップも可能です'))
-  check('押せない理由を画面に出している', /blockers\.map/.test(dash))
+  // ★理由の一覧は消した（オーナー・2026-08-16「この説明いらんグレーアウトだけ」）。
+  //   代わりに**押せないときはボタンがグレーアウトされる**ことを見る。
+  //   何が残っているかは上のプレシーズンの一覧に並んでいる
+  check('準備が残っていたらボタンを押せなくしている', /disabled=\{!allReady\}/.test(dash))
+  check('押せないことが見出しにも出る', dash.includes('開幕（準備が残っています）'))
+  check('理由の一覧は画面に出さない', !/blockers\.map/.test(dash))
 }
 
 console.log('')

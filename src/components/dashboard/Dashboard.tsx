@@ -17,7 +17,10 @@ import type { Race } from '../../types'
 import { getDueIndividualEvent } from '../../utils/eventTime'
 import { hostForYear } from '../../engine/worldAthletics'
 import { ROSTER_MIN } from '../../data/rosterRules'
-import { canStartSeason, rosterShortFor, seasonStartBlockers } from '../../utils/seasonStart'
+import { canStartSeason, rosterShortFor } from '../../utils/seasonStart'
+// 世界選手権をまとめて消化する（大会の中には置かない・唯一の口）
+import { skipWorldTournament } from '../../lib/worldSkip'
+import { SkipRaceButton } from '../race/SkipRaceButton'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { GmPassSheet, IAP_ENABLED } from '../shared/GmPassSheet'
 import { contractTalkCtx, contractMonthsLeft, needsRenewalAttention } from '../../utils/contractTalk'
@@ -76,7 +79,6 @@ function PreseasonHub({
   //   「スキップを可能にしたことは今までで一度もないが？」）
   const preSeason   = { campDone, draftDone, rosterCount }
   const rosterShort = rosterShortFor(rosterCount)
-  const blockers    = seasonStartBlockers(preSeason)
   // **並べた用件が全部そろうまで開幕できない。** 押せる＝すべて済み、の1つだけ
   const allReady    = canStartSeason(preSeason)
 
@@ -173,15 +175,12 @@ function PreseasonHub({
         </div>
       )}
 
-      {/* 開幕。**押せない理由は全部並べる。**
-          以前は人数のときだけ理由を出し、ドラフトが残っていても金の「開幕」ボタンが
-          そのまま押せた（その年のドラフトが消える） */}
-      {blockers.length > 0 && (
-        <div style={{ fontSize: F.label, color: C.red, margin: '14px 0 0', textAlign: 'center', fontWeight: 700, lineHeight: 1.7 }}>
-          開幕できません
-          {blockers.map((b: string) => <span key={b} style={{ display: 'block', fontWeight: 400 }}>{b}</span>)}
-        </div>
-      )}
+      {/* 開幕。**準備が残っているときはボタンをグレーアウトするだけ**
+          （オーナー・2026-08-16「この説明いらんグレーアウトだけ」）。
+          上のプレシーズンの一覧に、何が残っているかは並んでいる。
+          ★押せる／押せないの判定は utils/seasonStart 1本のまま。ここで組み直さないこと
+            ——以前ボタンが `rosterShort` しか見ておらず、ドラフトを終える前に開幕できて
+            その年のドラフトが消えていた */}
       <button
         onClick={() => { if (allReady) { onStart(); navigate('/schedule') } }}
         disabled={!allReady}
@@ -473,9 +472,15 @@ export default function Dashboard() {
             </div>
             <div style={{ padding: '14px 18px', position: 'relative', display: 'flex', flexDirection: 'column', gap: 8 }}>
               {waInProgress ? (
-                <button onClick={() => navigate('/national/tournament')} className="btn-game btn-game--purple" style={{ width: '100%' }}>
-                  <span className="btn-game__inner" style={{ fontSize: F.sub, padding: '11px 14px',}}>駅伝 第{(worldTournament?.raceIndex ?? 0) + 1}戦へ →</span>
-                </button>
+                /* ★スキップの口は**ここの「結果だけ見る」1つだけ**（オーナー・2026-08-16
+                   「3枚目の横に結果を見るでスキップするのよ。駅伝第一戦へじゃなくて観戦するな」）。
+                   大会の中に「最後までスキップ」は置かない。中身は lib/worldSkip 1本 */
+                <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+                  <SkipRaceButton onClick={() => { skipWorldTournament(); navigate('/national/result') }} label="結果だけ見る" />
+                  <button onClick={() => navigate('/national/tournament')} className="btn-game btn-game--purple" style={{ flex: 1 }}>
+                    <span className="btn-game__inner" style={{ fontSize: F.sub, padding: '11px 14px',}}>観戦する</span>
+                  </button>
+                </div>
               ) : !waJapanIn ? (
                 <button onClick={goWorldAthletics} className="btn-game btn-game--purple" style={{ width: '100%' }}>
                   <span className="btn-game__inner" style={{ fontSize: F.sub, padding: '11px 14px',}}>大会を観戦する</span>
