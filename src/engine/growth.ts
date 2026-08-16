@@ -196,17 +196,42 @@ export function growPlayer(p: Player, allowAnnualGrowth = false, clubTierForGrow
   // 格1で3.0倍、格11以下は1.5倍。一律EXPは自チームと同じ ANNUAL_BASE_EXP。
   // ★係数を2箇所に書かないこと。年齢カーブ（engine/ageCurve.ts）と
   //   この倍率の2つだけで成長が決まる形にしてある。
+  // ★**余ったEXPは持ち越すこと。**（オーナー・2026-08-16「成長してないから
+  //   そんな弱いんじゃないの？普通に92とか見なくなった。格の高いチームでも」）
+  //
+  //   以前は `Math.floor(1年ぶん / 必要EXP)` で、**足りなかったぶんを毎年捨てて**
+  //   いました。必要EXPは `0.5 × 能力² ×（80以上で2倍・90以上で4倍）`なので、
+  //   1年ぶん（`ANNUAL_BASE_EXP × 格の倍率 ÷ 7`）を超えた時点で**永久に0**になります。
+  //
+  //     格1（3.0倍）… 1能力あたり4,539／年   → 能力80の必要EXP 6,400 で頭打ち
+  //     格20（1.5倍）… 1能力あたり2,270／年  → 能力75の必要EXP 2,812 で**1度も伸びない**
+  //
+  //   実測で、19歳OVR75・ポテ99（上限まで育てばOVR95）の選手を格1で18年育てても
+  //   **OVR80どまり**、格10・格20では**75のまま1も伸びません**でした。つまり
+  //   **CPU・海外の選手は成長でOVR80を超えられない**＝世界にいるOVR85+は
+  //   「最初からそう作られた選手」だけで、その世代が老けると二度と現れません
+  //   （12年で OVR85+ が 702人 → 154人）。
+  //
+  //   自チーム側（`processExpGains`）は最初から貯めて使う形でした。**同じにします。**
+  const expOut: Partial<Record<CardStatKey, number>> = { ...(p.exp ?? {}) }
   if (allowAnnualGrowth) {
     const rate = tierGrowthRate(clubTierForGrowth)
+    const per = (ANNUAL_BASE_EXP * rate) / GROW_STAT_KEYS.length
     for (const stat of GROW_STAT_KEYS) {
-      const cur = ratings[stat]
       const cap = caps[stat]
-      if (cur >= cap) continue
-      // 1年ぶんのEXPを7能力に配り、その能力の必要EXPで割ったぶんだけ上がる
-      const per = (ANNUAL_BASE_EXP * rate) / GROW_STAT_KEYS.length
-      const need = requiredExpForLevel(cur)
-      const gain = Math.floor(per / Math.max(1, need))
-      if (gain > 0) ratings[stat] = Math.min(cap, cur + gain)
+      if (ratings[stat] >= cap) { expOut[stat as CardStatKey] = 0; continue }
+      let acc = (expOut[stat as CardStatKey] ?? 0) + per
+      let cur = ratings[stat]
+      // 貯まったぶんだけ上げる。自チームと同じ数え方（processExpGains）
+      while (cur < cap) {
+        const need = requiredExpForLevel(cur)
+        if (acc < need) break
+        acc -= need
+        cur++
+      }
+      ratings[stat] = cur
+      // 上限に届いたら余りは残さない（自チームと同じ）
+      expOut[stat as CardStatKey] = cur >= cap ? 0 : Math.round(acc)
     }
   }
 
@@ -244,6 +269,8 @@ export function growPlayer(p: Player, allowAnnualGrowth = false, clubTierForGrow
     age: nextAge,
     yearsPro: p.yearsPro + 1,
     ratings,
+    // 使い切れなかったEXPを持ち越す（捨てるとOVR80で頭打ちになる。上のコメント）
+    exp: expOut,
     potential,
     fatigue: 5,
     form: 0,

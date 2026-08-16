@@ -94,7 +94,8 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/data/economy.ts` の `pickKeysValue` | 指名権の束の値段（トレードの入口3つが同じ数え方を通る） |
 | `src/utils/hash.ts` | **文字列→数値のハッシュ**。`strHash`。引退年齢・能力のゆらぎ・GM名・ロゴが全部これ |
 | `src/utils/condition.ts` | **士気と疲労の上げ下げ**。`withMorale` / `withFatigue` / `setMorale`（0〜100に収めるのと既定値はここだけ） |
-| `src/utils/playerUtils.ts` の `retirementAgeOf` | **引退年齢**（選手IDから決まる32〜40）。引退表明のニュースと実際の引退が同じ式 |
+| `src/utils/playerUtils.ts` の `retirementAgeOf` | **引退年齢**（選手IDから決まる `RETIRE_AGE_MIN`30〜`RETIRE_AGE_MAX`36）。引退表明のニュースと実際の引退が同じ式。**32〜40から下げました**（オーナー・2026-08-16）——ピークは22/27/30なのに引退の平均が36で、ピーク後9年も居座り、12年で**世界の半分が30歳以上**になっていた |
+| `src/engine/growth.ts` の `growPlayer` の年次成長 | **CPU・海外の1年ぶんの成長**。**余ったEXPは必ず持ち越すこと**（自チームの `processExpGains` と同じ形）。`Math.floor(1年ぶん / 必要EXP)` で捨てていたころは、必要EXPが `0.5×能力²×(80以上2倍・90以上4倍)` なので**格10以下は1も伸びず、どの格でもOVR80を超えられなかった**（世界のOVR85+が12年で702人→154人）。オーナー・2026-08-16「成長してないからそんな弱いんじゃないの？普通に92とか見なくなった」 |
 | `src/utils/contractTalk.ts` の `effectiveDemandSalary` | **契約更新の要求額**（ラウンドごとに+3%・50万円刻み）。チャットで見せる額と承諾の判定が同じ式 |
 | `src/utils/clubTier.ts` の `tierRankSlots` | ロスターに配るランクの並び（構成→25個→シャッフル） |
 | `src/styles/tokens.ts` の `bottomStack` | **画面の一番下に貼り付けるものの位置**。広告バナー＋セーフエリア＋下タブ(`NAV_H`) |

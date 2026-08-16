@@ -40,7 +40,7 @@ import { DIVISIONS, DIVISION_RACES, divisionOf, newSeasonStandings } from '../sr
 import { appraiseMove, buildDestination } from '../src/utils/transferDecision'
 import { appraiseGmInvite } from '../src/utils/gmInvite'
 import { gmInviteNoLine } from '../src/utils/chatLines'
-import { ovr } from '../src/utils/playerUtils'
+import { ovr, retirementAgeOf } from '../src/utils/playerUtils'
 import type { Player, Race, SeasonStanding, Team } from '../src/types'
 
 const problems: string[] = []
@@ -133,7 +133,12 @@ console.log('\n[②③] 声をかけると、選手が自分で決める')
   let declineReason = ''
   for (let i = 0; i < 12; i++) {
     const r = runInvite(roster => {
-      const sorted = [...roster].sort((a, b) => ovr(b) - ovr(a))
+      // ★**このオフに引退する選手は外す。** 移すのは `endSeason` の中なので、
+      //   そこで引退した選手は名簿から消える＝「頷いたのに移っていない」に見える。
+      //   引退年齢を 32〜40 から 30〜36 に下げたとき（2026-08-16）に実際に当たった。
+      //   ここで外さないと、点検が測りたいこと（頷いた＝移る）から話がずれる
+      const alive = roster.filter(p => p.age + 1 < retirementAgeOf(p))
+      const sorted = alive.sort((a, b) => ovr(b) - ovr(a))
       // 偶数回は最強のほうから、奇数回は最弱のほうから
       return i % 2 === 0 ? sorted[i >> 1] : sorted[sorted.length - 1 - (i >> 1)]
     })
