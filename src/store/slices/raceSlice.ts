@@ -449,6 +449,11 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       return {
         players: playersAfterFreeMoves,
         teams: teamsAfterFreeMoves,
+        // ★**海外クラブの資金を書き戻す。** `movePlayer` は `teams`（国内52）しか
+        //   知らないので、相手が海外クラブのときは `settleForeignFee` が要る
+        //   （`engine/applyTransfers` が呼ぶ）。ここで戻さないと、精算しても捨てられて
+        //   **海外クラブは移籍金を払わずに選手を持っていける**。
+        foreignLeagues: applied.foreignLeagues,
         // 移籍成立記録（チーム詳細の移籍ページ用）。CPU間売買とフリー移籍の決断をここで記録
         transferHistory: [
           ...(state.transferHistory ?? []),

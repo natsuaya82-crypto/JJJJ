@@ -290,7 +290,16 @@ console.log('\n[9] ストアが自前で判定を持っていない')
   // ★判定は engine/bidResolution の `locksNegotiation` 1本（本編の1戦もサブの1戦も同じ）。
   //   以前はここで `kind !== 'outbid'` という**式そのもの**を探していたので、
   //   1本に寄せた瞬間に落ちた。**式ではなく「1本を通っているか」を見る**
-  check('来季までのロックは locksNegotiation 1本を通す', logic.includes('locksNegotiation(r.expired.kind)'))
+  // ★**存在だけで見ないこと。** 入札を決着させる道は2つ（本編の1戦・サブの1戦）なので、
+  //   `locksNegotiation` も**2回**呼ばれていなければ「片方だけ通っている」。
+  //   今日のバグはまさにそれで、片方が無条件ロックのまま緑だった
+  //   （当時の判定は `logic.includes("r.expired.kind !== 'outbid'")` ＝
+  //     どこかに1回でもあれば緑、という形だった）
+  //   ★数えるのは**呼んでいる側だけ**。`export function locksNegotiation(` の
+  //     定義も同じ字なので、除かないと1つ多く数える
+  const lockCalls = (logic.match(/(?<!function )locksNegotiation\(/g) ?? []).length
+  check('入札を決着させる道と同じ数だけ locksNegotiation を通る（2か所）',
+    lockCalls === 2, `${lockCalls}か所`)
   check('種類を手書きで比べる形に戻っていない', !logic.includes("r.expired.kind !== 'outbid'"))
   // 「上回られた」と出しておいて選手が残っていたら、次の節に同じ額でもう一度出せてしまう
   check('競り負けた選手は実際に相手クラブへ移る', store.includes('outbidMoves'))

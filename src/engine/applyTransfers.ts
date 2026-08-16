@@ -13,6 +13,7 @@ import type { ForeignLeague, Player, Season, Team, TransferListing, TransferReco
 import { MAJOR_NEWS_OVR, allTieredClubs, tierOfPlayerClub } from '../utils/clubTier'
 import { bigClub, findClub } from '../utils/clubs'
 import { movePlayer, type DepartureNotice } from '../utils/movePlayer'
+import { settleForeignFee } from '../utils/clubMoney'
 import { type NewsItem, transferHeadline } from '../utils/newsItems'
 import { ovr } from '../utils/playerUtils'
 import { appraiseMove, type Destination } from '../utils/transferDecision'
@@ -36,6 +37,8 @@ export function applySettledTransfers(params: {
   players: Player[]
   teams: Team[]
   records: TransferRecord[]
+  /** 海外クラブの資金を動かしたあとのリーグ。**必ず state に戻すこと**（settleForeignFee） */
+  foreignLeagues: ForeignLeague[]
   departureNotices: DepartureNotice[]
   income: number
   outbidNews: NewsItem[]
@@ -60,6 +63,13 @@ export function applySettledTransfers(params: {
   // 自チームから出て行った選手とは1年間交渉不可（transferLockedUntilYear）。
   let playersWithCpuTx: Player[] = playersListedSynced
   let teamsWithCpuTx = teams
+  // ★**海外クラブが絡む移籍金の精算**（`utils/clubMoney` の settleForeignFee 1本）。
+  //   `movePlayer` は `teams`（国内52クラブ）しか知らないので、相手が海外クラブだと
+  //   片側しかお金が動きません。**`movePlayer` のすぐ外で必ず呼ぶこと**
+  //   （国内同士なら何も起きないので、ここで分岐しない）。
+  //   ★競り負けの道はここが抜けていて、**海外クラブが競り勝つと移籍金を払わずに
+  //     選手を持っていけて**いました（オーナー・2026-08-16 の調べで発覚）。
+  let leaguesAfterFees: ForeignLeague[] = foreignLeagues
   const cpuTxRecords: TransferRecord[] = []
   const myCpuSaleNotices: DepartureNotice[] = []
   let myCpuSaleIncome = 0
@@ -78,6 +88,7 @@ export function applySettledTransfers(params: {
     if (m.record) cpuTxRecords.push(m.record)
     if (m.notice) myCpuSaleNotices.push(m.notice)
     myCpuSaleIncome += m.income
+    leaguesAfterFees = settleForeignFee(leaguesAfterFees, tx.fromTeamId, tx.toTeamId, tx.fee)
   }
 
   // 競り負けた入札。上回ったクラブが実際にその選手を獲る（言うだけで選手が残ると、
@@ -113,6 +124,7 @@ export function applySettledTransfers(params: {
     playersWithCpuTx = m.players
     teamsWithCpuTx = m.teams
     if (m.record) cpuTxRecords.push(m.record)
+    leaguesAfterFees = settleForeignFee(leaguesAfterFees, before?.teamId ?? '', mv.toTeamId, mv.fee)
     outbidNewsItems.push({
       date: raceDate,
       headline: transferHeadline({
@@ -127,6 +139,8 @@ export function applySettledTransfers(params: {
   }
   return {
     players: playersWithCpuTx, teams: teamsWithCpuTx, records: cpuTxRecords,
+    // 海外クラブの資金を動かしたぶん。呼ぶ側はこれを state に戻すこと
+    foreignLeagues: leaguesAfterFees,
     departureNotices: myCpuSaleNotices, income: myCpuSaleIncome, outbidNews: outbidNewsItems, stayNegs,
   }
 }
