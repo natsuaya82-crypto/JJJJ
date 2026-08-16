@@ -233,7 +233,9 @@ export type GameStore = GameState & {
   submitLoanRequest: (playerId: string, years: number) => boolean  // 移籍市場からレンタル要請を出す
   cancelLoanRequest: (playerId: string) => void                    // レンタル要請を取り下げる
   dismissLoanResponse: (id: string) => void                        // レンタル回答の通知を確認済みにする
-  submitTransferBid: (playerId: string, fee: number) => void
+  // ★**出せなかった理由を必ず返すこと。** 黙って返すと、画面はシートを閉じるだけなので
+  //   「出したのに札が1枚もできない」＝返事が永久に来ない、になる（utils/bidGate）
+  submitTransferBid: (playerId: string, fee: number) => { ok: boolean; reason?: string }
   acceptFeeCounter: (bidId: string) => void
   rejectTransferBid: (bidId: string) => void
   finalizeTransfer: (bidId: string, salary: number, years: number) => { ok: boolean; reason?: string }

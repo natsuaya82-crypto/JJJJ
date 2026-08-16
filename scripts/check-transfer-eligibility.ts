@@ -124,7 +124,12 @@ console.log('\n[7] 枝分かれした移籍の入口が全部この判定を通�
 // 契約更新する、が全部できてしまっていたので、入口ごとに関数名で確かめる
 // 実装の切り出しは scripts/storeSource の actionBody 1本（型の宣言と実装の見分けもそこ）
 const has = (fn: string, needle: string) => actionBody(store, fn).includes(needle)
-check('入札（submitTransferBid）が canBePoached を通る', has('submitTransferBid', 'canBePoached'))
+// 入札は utils/bidGate の bidBlockReason 経由で canBePoached を通る。
+// ★**理由を返させるため**に一段はさんである（黙って捨てると「出したのに返事が来ない」に
+//   なる・2026-08-16）。中で canBePoached を呼んでいることは check-bid-gate が見る
+check('入札（submitTransferBid）が bidGate を通る', has('submitTransferBid', 'bidBlockReason'))
+check('その bidGate が canBePoached を通る',
+  readFileSync('src/utils/bidGate.ts', 'utf8').includes('canBePoached('))
 check('移籍成立（finalizeTransfer）でもう一度確かめている', has('finalizeTransfer', 'canBePoached'))
 check('トレード（tradePlayer）が canTradeAway を通る', has('tradePlayer', 'canTradeAway'))
 check('CPUのトレード提案（acceptTradeOffer）が判定を通る', has('acceptTradeOffer', 'canTradeAway'))

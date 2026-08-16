@@ -30,6 +30,8 @@ import { STALE_TRADE_MSG } from '../../utils/talkSync'
 import { TRADE_HARD_NO_RATIO, TRADE_MIN_RATIO, TRADE_OK_RATIO, priceOf, tradeBalance, tradeNotLopsided, tradeValues } from '../../utils/tradeValue'
 import { type Appraisal, type Destination, appraiseMove, buildDestination, rankOffers, regionOfLeague } from '../../utils/transferDecision'
 import { canAcceptOfferFor, canBePoached, canListForSale, canLoanOut, canTradeAway, eligibilityCtx, isLeavingClub } from '../../utils/transferEligibility'
+// 入札・レンタル申請を出せるか（画面の「押せるか」と同じ1本）
+import { bidBlockReason, loanBlockReason, LOAN_SLOTS } from '../../utils/bidGate'
 import { facilitiesOf } from '../../utils/facilities'
 
 type Slice = Pick<GameStore,
@@ -1106,12 +1108,17 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
 
   submitLoanRequest: (playerId, years) => {
     const st = get()
-    if (reinforcementBanned(st.teams.find(t => t.id === st.playerTeamId))) return false  // 赤字・残高マイナスは補強不可
     const player = st.players.find(p => p.id === playerId)
-    if (!player || player.teamId === st.playerTeamId || player.teamId === '' || player.loan) return false
-    const usedSlots = st.players.filter(p => p.teamId === st.playerTeamId && p.loan && p.loan.ownerTeamId !== st.playerTeamId).length
-    if (usedSlots >= 3) return false
-    if ((st.currentSeason.loanRequests ?? []).some(r => r.playerId === playerId)) return false
+    if (!player) return false
+    // 出せるかどうかは utils/bidGate 1本（入札と同じで、画面の「押せるか」と同じもの）
+    const loanReason = loanBlockReason(player, {
+      currentSeason: st.currentSeason,
+      myTeam: st.teams.find(t => t.id === st.playerTeamId),
+      myTeamId: st.playerTeamId,
+      bidsOnPlayer: [],
+      loanSlotsUsed: st.players.filter(p => p.teamId === st.playerTeamId && p.loan && p.loan.ownerTeamId !== st.playerTeamId).length,
+      loanRequested: (st.currentSeason.loanRequests ?? []).some(r => r.playerId === playerId) })
+    if (loanReason) return false
     const yrs = Math.max(1, Math.min(2, years))
     set(state => ({
       currentSeason: {
@@ -1140,23 +1147,24 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
   submitTransferBid: (playerId, fee) => {
     const state = get()
     const player = state.players.find(p => p.id === playerId)
-    if (!player || player.teamId === state.playerTeamId || player.teamId === '') return
-    // 引き抜ける選手かどうかは他の移籍と同じ判定（utils/transferEligibility.ts）。
-    // ここに判定が無かったので、レンタルで貸している自分の選手や、よそが借りている選手にも
-    // 入札できてしまい、保有権の無いクラブへ移籍金を払って奪えていた
-    if (!canBePoached(player, { teamId: player.teamId, currentYear: state.currentSeason.year })) return
-    // 交渉決裂ペナルティ: 決裂した年の翌年まで移籍金オファー不可
-    if (player.transferLockedUntilYear != null && state.currentSeason.year < player.transferLockedUntilYear) return
-    // 赤字ペナルティ中は新規補強(入札)不可（ドラフト・契約更新は可）
-    const myTeamBid = state.teams.find(t => t.id === state.playerTeamId)
-    if (reinforcementBanned(myTeamBid)) return
-    const existing = (state.currentSeason.transferBids ?? []).find(b => b.playerId === playerId && (b.status === 'pending' || b.status === 'fee_accepted' || b.status === 'countered' || b.status === 'player_neg'))
-    if (existing) return
-    // 同一選手への入札は今季3回まで。roundは過去の入札数を引き継ぐ（取り下げ→再入札の無限ループ防止）
-    const priorBids = (state.currentSeason.transferBids ?? []).filter(b => b.playerId === playerId).length
-    if (priorBids >= 3) return
-    const bid = { id: `bid_${Date.now()}`, playerId, targetTeamId: player.teamId, offeredFee: fee, round: priorBids + 1, status: 'pending' as const, submittedAtRace: state.currentSeason.currentRaceIndex }
+    if (!player) return { ok: false, reason: '選手が見つかりません' }
+    // ★**出せるかどうかの判定は utils/bidGate 1本**（画面の「押せるか」と同じもの）。
+    //   以前はここに早期リターンが6つ並んでいて、**どれも何も返さずに終わって**
+    //   いました。画面はシートを閉じるだけなので、出したように見えて札が1枚も
+    //   できず、「出したオファー」にも出ず、返事も永久に来ない
+    //   （オーナー・2026-08-16「オファー出したけど、何レース経っても返事が来ないし、
+    //    チャットに〇〇にオファー中の文字がない」）
+    const priorBids = (state.currentSeason.transferBids ?? []).filter(b => b.playerId === playerId)
+    const reason = bidBlockReason(player, {
+      currentSeason: state.currentSeason,
+      myTeam: state.teams.find(t => t.id === state.playerTeamId),
+      myTeamId: state.playerTeamId,
+      bidsOnPlayer: priorBids })
+    if (reason) return { ok: false, reason }
+    // roundは過去の入札数を引き継ぐ（取り下げ→再入札の無限ループ防止）
+    const bid = { id: `bid_${Date.now()}`, playerId, targetTeamId: player.teamId, offeredFee: fee, round: priorBids.length + 1, status: 'pending' as const, submittedAtRace: state.currentSeason.currentRaceIndex }
     set(s => ({ currentSeason: { ...s.currentSeason, transferBids: [...(s.currentSeason.transferBids ?? []), bid] } }))
+    return { ok: true }
   },
 
 

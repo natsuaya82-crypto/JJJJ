@@ -9,6 +9,9 @@ import PlayerFace from '../player/PlayerFace'
 import ActionSheet from '../ui/ActionSheet'
 import BidSheet from '../transfer/BidSheet'
 import LoanSheet from '../transfer/LoanSheet'
+// 出せるかどうかは utils/bidGate 1本。**ここで条件を組み直さないこと**——
+// この画面は長いあいだ何も見ておらず、押せるのに store が黙って捨てていた
+import { bidBlockReason, loanBlockReason } from '../../utils/bidGate'
 
 
 function PlayerHead({ player }: { player: Player }) {
@@ -46,11 +49,20 @@ export function useOpponentMenu() {
   const menuPlayer = menuId ? players.find(x => x.id === menuId) : undefined
   const menuItems = (() => {
     if (!menuPlayer) return []
-    const items = [
-      { label: '移籍オファーを出す', color: C.gold, onClick: () => setOfferId(menuPlayer.id) },
-      { label: 'レンタルのオファー', color: C.blue, onClick: () => setLoanId(menuPlayer.id) },
+    const gate = {
+      currentSeason,
+      myTeam: teams.find(t => t.id === playerTeamId),
+      myTeamId: playerTeamId,
+      bidsOnPlayer: (currentSeason.transferBids ?? []).filter(b => b.playerId === menuPlayer.id),
+      loanSlotsUsed: players.filter(pl => pl.teamId === playerTeamId && pl.loan && pl.loan.ownerTeamId !== playerTeamId).length,
+      loanRequested: (currentSeason.loanRequests ?? []).some(r => r.playerId === menuPlayer.id),
+    }
+    const bidNg = bidBlockReason(menuPlayer, gate)
+    const loanNg = loanBlockReason(menuPlayer, gate)
+    return [
+      { label: bidNg ?? '移籍オファーを出す', disabled: !!bidNg, color: C.gold, onClick: () => setOfferId(menuPlayer.id) },
+      { label: loanNg ?? 'レンタルのオファー', disabled: !!loanNg, color: C.blue, onClick: () => setLoanId(menuPlayer.id) },
     ]
-    return items
   })()
 
   const overlay = (

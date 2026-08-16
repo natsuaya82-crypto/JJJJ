@@ -79,6 +79,10 @@ const CHECKS = [
   //   save-pruning     … 消してはいけない選手の守り（出どころ11件を1件ずつ別の世界で）
   //   trade-execution  … 指名権を同一性で数えること・トレードの下駄（1.2倍で+0.15）
   'save-pruning', 'trade-execution',
+  // 出せない入札を黙って捨てない（オーナー・2026-08-16「オファー出したけど、何レース
+  // 経っても返事が来ないし、チャットに〇〇にオファー中の文字がない」）。
+  // 早期リターンが6つとも何も返さず、札が1枚もできていなかった
+  'bid-gate',
   // レース・順位・記録
   'race-points', 'race-record', 'background-race', 'round-robin', 'division-rank',
   'division-sync', 'away-records', 'domestic-records', 'segment-recommend', 'play-rate',

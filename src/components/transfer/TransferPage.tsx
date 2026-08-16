@@ -19,9 +19,11 @@ import BidSheet from './BidSheet'
 import LoanSheet from './LoanSheet'
 import { getMarketFilters, saveMarketFilters } from '../../utils/marketFilters'
 import { canBePoached } from '../../utils/transferEligibility'
+// 入札・レンタルを出せるか（store が受け付けるかと同じ1本）
+import { bidBlockReason, loanBlockReason } from '../../utils/bidGate'
 import { useOfferResults } from './useOfferResults'
 import { OfferResultList } from './OfferResultList'
-import { draftPickValue, roundFee, COUNTER_OFFER_CAP } from '../../data/economy'
+import { draftPickValue, reinforcementBanned, roundFee, COUNTER_OFFER_CAP } from '../../data/economy'
 import { NAT_LABEL as NAT_LABELS } from '../../data/nationalities'
 import { SPECIALTIES } from '../../utils/squadNeeds'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
@@ -117,8 +119,9 @@ export default function TransferPage() {
   const myTeam = teams.find(t => t.id === playerTeamId)
   if (!myTeam) return null
 
-  // 補強不可判定（reinforcementBannedと同基準）：3シーズン連続赤字、または残高マイナスの間は新規補強不可
-  const signingBanned = (myTeam.finance.deficitStreak ?? 0) >= 3 || myTeam.finance.budget < 0
+  // 補強不可は data/economy の reinforcementBanned 1本。**同じ式をここに書き写さないこと**
+  // （写しがあったせいで、入札の枝だけ赤字ペナルティを見ていなかった）
+  const signingBanned = reinforcementBanned(myTeam)
 
   // 移籍市場カードの押下：タップ＝メニュー / 長押し(450ms)＝選手詳細。
   const rowHandlers = (pid: string) => ({
@@ -370,18 +373,28 @@ export default function TransferPage() {
               const mp = menuPlayerId ? players.find(x => x.id === menuPlayerId) : undefined
               if (!mp) return null
               const isFA = mp.teamId === ''
-              const mHasBid = activeBids.some(b => b.playerId === mp.id)
               const mLocked = mp.transferLockedUntilYear != null && currentSeason.year < mp.transferLockedUntilYear
-              const slots = players.filter(pl => pl.teamId === playerTeamId && pl.loan && pl.loan.ownerTeamId !== playerTeamId).length
-              const reqPending = (currentSeason.loanRequests ?? []).some(r => r.playerId === mp.id)
+              // 出せるかどうかは utils/bidGate 1本（store が受け付けるかと同じもの）。
+              // ★以前はここが「入札中・移籍直後」しか見ておらず、**赤字ペナルティは
+              //   FA の枝にしか無かった**ので、入札は押せるのに黙って捨てられていた
+              const gate = {
+                currentSeason,
+                myTeam,
+                myTeamId: playerTeamId,
+                bidsOnPlayer: (currentSeason.transferBids ?? []).filter(b => b.playerId === mp.id),
+                loanSlotsUsed: players.filter(pl => pl.teamId === playerTeamId && pl.loan && pl.loan.ownerTeamId !== playerTeamId).length,
+                loanRequested: (currentSeason.loanRequests ?? []).some(r => r.playerId === mp.id),
+              }
+              const bidNg = bidBlockReason(mp, gate)
+              const loanNg = loanBlockReason(mp, gate)
               const mVal = calcTransferValue(mp)
               const isStarred = starredOpponents.includes(mp.id)
               const items: { label: string; disabled?: boolean; color?: string; onClick: () => void }[] = isFA ? [
                 { label: signingBanned ? '赤字で補強不可' : mLocked ? '退団直後・来季まで交渉不可' : '契約オファー', disabled: signingBanned || mLocked, color: C.green, onClick: () => { setMenuPlayerId(null); startAcquisitionOffer(mp.id, 'fa'); navigate(`/team/chat?player=${mp.id}`) } },
                 { label: isStarred ? 'ウォッチリストから外す' : 'ウォッチリストに追加', onClick: () => { toggleStarOpponent(mp.id); setMenuPlayerId(null) } },
               ] : [
-                { label: mHasBid ? '入札中' : mLocked ? '来季まで交渉不可' : '入札して獲得', disabled: mHasBid || mLocked, color: C.gold, onClick: () => { setMenuPlayerId(null); setBidTarget(mp.id) } },
-                { label: reqPending ? 'レンタル要請中' : slots >= 3 ? 'レンタル枠が満杯（3/3）' : 'レンタルで借りる', disabled: reqPending || slots >= 3, color: C.blue, onClick: () => { setMenuPlayerId(null); setLoanTarget(mp.id) } },
+                { label: bidNg ?? '入札して獲得', disabled: !!bidNg, color: C.gold, onClick: () => { setMenuPlayerId(null); setBidTarget(mp.id) } },
+                { label: loanNg ?? 'レンタルで借りる', disabled: !!loanNg, color: C.blue, onClick: () => { setMenuPlayerId(null); setLoanTarget(mp.id) } },
                 { label: isStarred ? 'ウォッチリストから外す' : 'ウォッチリストに追加', onClick: () => { toggleStarOpponent(mp.id); setMenuPlayerId(null) } },
               ]
               return (
