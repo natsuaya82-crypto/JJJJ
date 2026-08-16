@@ -17,6 +17,7 @@ import { keyPlayerStatus } from '../../utils/playerUtils'
 import { belongsToClub } from '../../utils/rosterSync'
 import { segmentRecordsOf } from '../../utils/segmentRecords'
 import { resolveBid } from '../../utils/transferBid'
+import { locksNegotiation } from '../../engine/bidResolution'
 import { allTieredClubs } from '../../utils/clubTier'
 
 
@@ -127,7 +128,10 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
         raceIndex: raceIdx })
       if (r.expired) {
         expiredNegs.push(r.expired)
-        lockedIds.push(r.expired.playerId)
+        // ★来季まで交渉不可にするかは engine/bidResolution の locksNegotiation 1本。
+        //   ここは本編の1戦と同じ判断でなければならない（以前はここだけ、
+        //   競り負けても額が足りなくても全部ロックしていた）
+        if (locksNegotiation(r.expired.kind)) lockedIds.push(r.expired.playerId)
       }
       return r.bid
     })

@@ -57,8 +57,12 @@ export function resolveBid(bid: TransferBid, ctx: BidContext): BidResult {
   // 費用合意・逆提示の途中
   if (bid.status === 'fee_accepted' || bid.status === 'countered') {
     const pl = ctx.players.find(p => p.id === bid.playerId)
-    // 対象が他所へ移っていたら破談（永久に残るのを防ぐ）。相手が消えただけなので通知は出さない
-    if (!pl || pl.teamId !== bid.targetTeamId) return { bid: { ...bid, status: 'failed' }, expired: null }
+    // ★対象が他所へ移っていたら破談。**必ず通知する**——黙って消すと
+    //   「返事が来ないまま選手が勝手に移籍した」にしか見えない（オーナー・2026-08-15）
+    if (!pl || pl.teamId !== bid.targetTeamId) {
+      return { bid: { ...bid, status: 'failed' },
+        expired: { id: bid.id, playerId: bid.playerId, playerName: pl?.name ?? '選手', kind: 'bid_gone' } }
+    }
     // 費用合意から放置で自動失効
     if (bid.status === 'fee_accepted' && bid.feeAcceptedAtRace != null && ctx.raceIndex - bid.feeAcceptedAtRace >= FEE_ACCEPTED_EXPIRE_RACES) {
       return { bid: { ...bid, status: 'failed' }, expired: { id: bid.id, playerId: pl.id, playerName: pl.name, kind: 'bid' } }
@@ -69,7 +73,11 @@ export function resolveBid(bid: TransferBid, ctx: BidContext): BidResult {
   if (bid.status !== 'pending') return keep
 
   const player = ctx.players.find(p => p.id === bid.playerId)
-  if (!player || player.teamId !== bid.targetTeamId) return { bid: { ...bid, status: 'failed' }, expired: null }
+  // ★こちらも同じ。返事を待っているあいだに他所へ移ったら、そう伝える
+  if (!player || player.teamId !== bid.targetTeamId) {
+    return { bid: { ...bid, status: 'failed' },
+      expired: { id: bid.id, playerId: bid.playerId, playerName: player?.name ?? '選手', kind: 'bid_gone' } }
+  }
 
   // 売り手が受ける額に届いていても、もっと出すクラブがいれば持っていかれる。
   // 「いくら積めば勝てるか」がここで初めて意味を持つ。
@@ -116,7 +124,9 @@ export function resolveBid(bid: TransferBid, ctx: BidContext): BidResult {
     if (bid.offeredFee >= ask * LISTED_COUNTER_RATIO && bid.round < BID_MAX_ROUND) {
       return { bid: { ...bid, status: 'countered', counterFee: roundFee(ask, 1_000_000) }, expired: null }
     }
-    return { bid: { ...bid, status: 'rejected' }, expired: null }
+    // ★出品中の選手に、希望額に届かない額を出した。**必ず通知する**
+    return { bid: { ...bid, status: 'rejected' },
+      expired: { id: bid.id, playerId: player.id, playerName: player.name, kind: 'bid_rejected' } }
   }
 
   // 主力ガード：出場データ(複数年)＋ECL経験で判定
@@ -134,5 +144,7 @@ export function resolveBid(bid: TransferBid, ctx: BidContext): BidResult {
   if (bid.offeredFee >= threshold * BID_COUNTER_RATIO && bid.round < BID_MAX_ROUND) {
     return { bid: { ...bid, status: 'countered', counterFee: roundFee(threshold, 1_000_000) }, expired: null }
   }
-  return { bid: { ...bid, status: 'rejected' }, expired: null }
+  // ★額が足りずに断られた。**必ず通知する**（ここが一番よく通る道）
+  return { bid: { ...bid, status: 'rejected' },
+    expired: { id: bid.id, playerId: player.id, playerName: player.name, kind: 'bid_rejected' } }
 }

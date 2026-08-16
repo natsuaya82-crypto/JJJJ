@@ -136,7 +136,7 @@ export type TransferBid = {
 //  contract     = 契約更新の話し合いが期限切れになった                 → 交渉禁止にはならない
 //  trade        = トレードの打診が、そのあとの状況の変化で飲めなくなった
 //  trade_unfair = トレードの打診が、今の評価では釣り合わなくなった
-export type ExpiredNegKind = 'bid' | 'outbid' | 'offer' | 'contract' | 'trade' | 'trade_unfair' | 'sale_refused' | 'sale_roster_min'
+export type ExpiredNegKind = 'bid' | 'bid_rejected' | 'bid_gone' | 'outbid' | 'offer' | 'contract' | 'trade' | 'trade_unfair' | 'sale_refused' | 'sale_roster_min'
 
 // 通知に出す1件ぶん。押し込む場所が4箇所あるので形はここ1つで決める
 // detail は「その回だけの一言」。入っていれば kind ごとの定型文の代わりに出す

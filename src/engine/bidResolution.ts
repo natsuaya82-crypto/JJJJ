@@ -8,10 +8,31 @@
 //   クラブは「強いから」ではなく「必要だから」動く（needsPlayer / wouldMakeLineup）。
 //   誰が参加するかは需要、誰が勝つかは格（出せる額は格の年間予算から）。
 // ★競り負けは金額の問題なので、来季まで交渉不可のロックはかけない。
-import type { ExpiredNegotiation, ForeignLeague, Player, Race, Season, Team, TransferBid, TransferListing } from '../types'
+import type { ExpiredNegKind, ExpiredNegotiation, ForeignLeague, Player, Race, Season, Team, TransferBid, TransferListing } from '../types'
 import { resolveBid, type BidContext } from '../utils/transferBid'
 import { rivalClubsFor } from '../utils/transferRivals'
 import type { Destination } from '../utils/transferDecision'
+
+/**
+ * **入札が終わったとき、その選手と来季まで交渉できなくするか。唯一の決まり。**
+ *
+ * 来季まで止めるのは「話が決裂した」ときだけ——主力ガードで門前払い（`bid`）や、
+ * 費用合意を放置して流れたとき。
+ *
+ * 止めないのは**そのときの事情**で終わったもの：
+ *   ・`bid_rejected` … 額が足りなかった（積み直せばいい）
+ *   ・`outbid`       … 競り負けた（金額の問題）
+ *   ・`bid_gone`     … 相手が他所へ移った（こちらは何もしていない）
+ *
+ * ★**呼ぶ側で書かないこと。** 本編の1戦（`resolveTransferBids`）とサブの1戦
+ *   （`competitionSlice`）に別々に書いてあり、**サブ側は競り負けまで来季まで
+ *   ロックしていました**（本編は外していたのに）。同じ入札が、進め方によって
+ *   違う結果になっていた。
+ */
+export function locksNegotiation(kind: ExpiredNegKind | undefined): boolean {
+  return !NO_LOCK_KINDS.has(kind ?? 'bid')
+}
+const NO_LOCK_KINDS = new Set<ExpiredNegKind>(['outbid', 'bid_rejected', 'bid_gone'])
 
 export function resolveTransferBids(params: {
   bids: TransferBid[]
@@ -68,8 +89,12 @@ export function resolveTransferBids(params: {
       rivals: bid.status === 'pending' && target ? rivalsFor(target) : undefined })
     if (r.expired) {
       bidExpiredNegs.push(r.expired)
-      // 競り負けは金額の問題なので、来季まで交渉不可のロックはかけない
-      if (r.expired.kind !== 'outbid') bidExpiredPlayerIds.push(r.expired.playerId)
+      // ★**来季まで交渉できなくなるのは「決裂した」ときだけ。**
+      //   金額が足りなかった（`bid_rejected`）・競り負けた（`outbid`）・
+      //   相手が他所へ移った（`bid_gone`）は**そのときの事情**なので、
+      //   もう一度出せる。ここを分けずに全部ロックすると、断られた瞬間に
+      //   その選手とは1年まったく話せなくなる
+      if (locksNegotiation(r.expired.kind)) bidExpiredPlayerIds.push(r.expired.playerId)
     }
     if (r.outbidBy && target) {
       outbidMoves.push({ playerId: target.id, toTeamId: r.outbidBy.clubId, fee: r.outbidBy.fee, playerName: target.name, clubName: r.outbidBy.name })

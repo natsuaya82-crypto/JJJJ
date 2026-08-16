@@ -54,15 +54,21 @@ const ctx = (players: Player[], o: Partial<BidContext> = {}): BidContext => ({
   raceIndex: 10, rand: () => 0.5, ...o,
 })
 
-console.log('[1] 対象がもう他所へ行っていたら破談。通知は出さない')
+console.log('[1] 対象がもう他所へ行っていたら破談。**必ず通知する**')
 {
+  // ★以前はここで「通知は出さない」と書いてありました（＝この点検がバグの側を
+  //   正しいと言っていた）。黙って消すと、遊ぶ側からは
+  //   「オファーの返事が来ないまま、狙っていた選手が勝手に移籍した」にしか見えません
+  //   （オーナー・2026-08-15）。`scripts/check-bid-reply.ts` も参照。
   const p = P('p1', 80, { teamId: 'moved' })
   for (const st of ['pending', 'fee_accepted', 'countered'] as const) {
     const r = resolveBid(B({ status: st }), ctx([p]))
-    check(`${st}：他所へ移っていたら failed`, r.bid.status === 'failed' && r.expired === null, r.bid.status)
+    check(`${st}：他所へ移っていたら failed`, r.bid.status === 'failed', r.bid.status)
+    check(`${st}：そのとき通知が出る`, r.expired?.kind === 'bid_gone', String(r.expired?.kind))
   }
   const gone = resolveBid(B({ status: 'pending' }), ctx([]))
-  check('選手が消えていたら failed', gone.bid.status === 'failed' && gone.expired === null)
+  check('選手が消えていたら failed', gone.bid.status === 'failed')
+  check('選手が消えていても通知は出す', gone.expired?.kind === 'bid_gone')
 }
 
 console.log('\n[2] 費用合意の放置は自動で流れる。必ず通知が出る')
@@ -106,7 +112,9 @@ console.log('\n[4] 出品中(移籍リスト掲載)：希望額が受諾ライ�
   check('逆提示の下限は LISTED_COUNTER_RATIO', listed(ask * LISTED_COUNTER_RATIO).bid.status === 'countered')
   check('それ未満は却下', listed(ask * LISTED_COUNTER_RATIO - 1).bid.status === 'rejected')
   check(`逆提示は${BID_MAX_ROUND}巡目からしない`, listed(ask * 0.8, BID_MAX_ROUND).bid.status === 'rejected')
-  check('出品中は通知を出さない（交渉禁止にしない）', listed(1).expired === null)
+  // ★出品中でも、額が足りずに断られたら通知する（黙って消さない）。
+  //   交渉禁止にはしない（金額の問題）＝ locksNegotiation('bid_rejected') が false
+  check('出品中でも断られたら通知が出る', listed(1).expired?.kind === 'bid_rejected', String(listed(1).expired?.kind))
 
   // ★逆提示額に下限があること★
   // 以前は Math.round(ask/100万)*100万 だったので、希望額が50万未満だと0円の逆提示になっていた
@@ -141,7 +149,9 @@ console.log('\n[6] 出品していない選手：economy.bidThreshold の1本で
   check('それ未満は却下', bid(thr * BID_COUNTER_RATIO - 1).bid.status === 'rejected')
   check(`逆提示は${BID_MAX_ROUND}巡目からしない`, bid(thr * 0.9, BID_MAX_ROUND).bid.status === 'rejected')
   check('逆提示額は100万円単位', (bid(thr * 0.9).bid.counterFee ?? 1) % 1_000_000 === 0)
-  check('却下でも通知は出さない（額が足りないだけ）', bid(1).expired === null)
+  // ★却下でも必ず通知する。**ここが一番よく通る道**で、長いあいだ黙って消えていた
+  check('却下でも通知が出る（額が足りないだけ・交渉禁止にはしない）',
+    bid(1).expired?.kind === 'bid_rejected', String(bid(1).expired?.kind))
 
   // 契約残1年以下は安くなる（transferBidBase の isExpiring）
   const expiring = P('p2', 80, { contract: { annualSalary: 10_000_000, yearsLeft: 1, faEligibleYear: YEAR + 5 } } as Partial<Player>)
@@ -275,9 +285,13 @@ console.log('\n[9] ストアが自前で判定を持っていない')
   check('獲得オファーの失効に種類がついている', logic.includes("kind: 'offer'"))
   // 契約更新の期限切れは store/slices/raceSlice.ts のまま
   check('契約更新の失効に種類がついている', store.includes("kind: 'contract'"))
-  // 競り負けは金額の問題なので、来季まで交渉不可のロックには入れない。
-  // ★engine/bidResolution.ts へ移設
-  check('競り負けは1年ロックの対象外', logic.includes("r.expired.kind !== 'outbid'"))
+  // 競り負け・額不足・相手が他所へ移った、はどれも金額やタイミングの問題なので
+  // 来季まで交渉不可のロックには入れない。
+  // ★判定は engine/bidResolution の `locksNegotiation` 1本（本編の1戦もサブの1戦も同じ）。
+  //   以前はここで `kind !== 'outbid'` という**式そのもの**を探していたので、
+  //   1本に寄せた瞬間に落ちた。**式ではなく「1本を通っているか」を見る**
+  check('来季までのロックは locksNegotiation 1本を通す', logic.includes('locksNegotiation(r.expired.kind)'))
+  check('種類を手書きで比べる形に戻っていない', !logic.includes("r.expired.kind !== 'outbid'"))
   // 「上回られた」と出しておいて選手が残っていたら、次の節に同じ額でもう一度出せてしまう
   check('競り負けた選手は実際に相手クラブへ移る', store.includes('outbidMoves'))
   // ★競り負けた選手を実際に動かす処理は engine/applyTransfers.ts へ移設。
