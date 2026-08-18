@@ -90,7 +90,23 @@ console.log('\n[5] 数え方は1本（画面で数えていない）')
   check('見た用件はセーブに残す（開き直しても出直さない）', /seenChatTopicIds/.test(meta))
 }
 
-console.log('\n[6] 赤い丸は1本／下タブ「オンライン」にも出る')
+console.log('\n[6] 数字は溜まる。上限は99で、超えたら 99+')
+{
+  const badge = readFileSync('src/components/ui/CountBadge.tsx', 'utf8')
+  check('上限は99', /max = 99/.test(badge))
+  check('超えたら + を付ける', /\$\{max\}\+/.test(badge))
+  // ★9で頭打ちに戻ったら落とす（オーナー・2026-08-16「99で+になる」）
+  check('9で頭打ちに戻っていない', !/max = 9\b/.test(badge))
+  // 溜まること自体：用件が増えれば数字も増える
+  const many = world({
+    retirementRequests: [{ playerId: 'p1' }],
+    transferRequests: [{ playerId: 'p2' }],
+    overseasRequests: [{ playerId: 'p3' }],
+  })
+  check('用件が増えれば数字も増える', chatUnseenCount(many, []) === 3, String(chatUnseenCount(many, [])))
+}
+
+console.log('\n[7] 赤い丸は1本／下タブ「オンライン」にも出る')
 {
   const layout = readFileSync('src/components/layout/Layout.tsx', 'utf8')
   const dash2 = readFileSync('src/components/dashboard/Dashboard.tsx', 'utf8')
