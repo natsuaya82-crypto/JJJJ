@@ -1,5 +1,26 @@
 # オンラインイベント（1か月のレート戦）— 設計
 
+> ## ✅ もう作りました（2026-08-18 に確認）
+>
+> これは **2026-08-13 の「実装前の確認用」**です。決めたことの記録として残しています。
+> **いまの形を知りたいときは、こちらを見てください。**
+>
+> | 何 | どこ |
+> |---|---|
+> | サーバー側（表・関数・ポリシー） | `supabase/all.sql`（`rated_*` の7つの表） |
+> | 1日ぶんを締める計算 | `src/lib/ratedTick.ts` の `runRatedRound`（アプリもサーバーも同じこれを通る） |
+> | Edge Function の殻 | `supabase/functions/rated-tick/`（`engine.js` は `npm run build:edge` で作り直す） |
+> | 毎日10:00に叩く | `.github/workflows/rated-tick-cron.yml`（UTC 01:00） |
+> | レート・段位 | `src/engine/rating.ts`（`RATED_K` / `ELO_SCALE` / `RANK_BANDS` / `RATING_FLOOR`） |
+> | コース | `src/engine/ratedCourse.ts`（日付から作る。同じ日なら必ず同じコース） |
+> | 画面 | `src/components/rated/`（遊びかたは `ratedRules.tsx` の `?` から） |
+> | 点検 | `check-rated` / `check-rated-server` / `check-rated-preopen` / `check-edge-bundle` |
+>
+> **決めた数字はここではなくコードが正です**（レートの動き幅は10倍にした・下限0など、
+> このあと変わったものがあります）。
+
+---
+
 オーナー判断（2026-08-13）で決まったことと、それをどう作るか。
 **実装前の確認用**です。ここに書いていないことは決まっていません。
 

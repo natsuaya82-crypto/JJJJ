@@ -1,73 +1,34 @@
-# React + TypeScript + Vite
+# JPELマネージャー
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+エキデン（駅伝）チームを経営するモバイルゲーム。Vite + React + TypeScript + zustand で作り、
+Capacitor で iOS アプリとして配信しています。
 
-Currently, two official plugins are available:
+**作業を始める前に、リポジトリ直下の [`CLAUDE.md`](./CLAUDE.md) を読んでください。**
+どのブランチで作業するか・同じ判断を2か所に書かないための決まり・画面の作り方が全部そこにあります。
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## コマンド
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev       # 開発サーバ
+npm run build     # tsc -b && vite build
+npm run lint      # eslint（既存エラーが多数あります。新規に増やさないこと）
+npm run check     # 一本化の点検。後付けが増えていたら落ちる（コミット前に必ず）
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+テストランナーは入れていません。代わりに `npm run check` が、世界を実際に作って回した結果を
+突き合わせます（`scripts/check-*.ts`）。挙動を変えないリファクタをするときは、変更前後で
+計算結果をダンプして差分がゼロであることを確認してください。
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 中身の置き場所
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+| どこ | 何 |
+|---|---|
+| `src/store/` | 遊んでいる状態（zustand）。`slices/` にドメインごとの操作、`persistence/` にセーブ |
+| `src/engine/` | 純粋な計算（レース・成長・移籍市場・ドラフト・世界選手権） |
+| `src/utils/` | 「唯一の決まり」を置く場所（所属・移籍の同意・契約・順位…）。一覧は `CLAUDE.md` |
+| `src/components/` | 画面。共通の見た目は `src/styles/tokens.ts` と `components/ui/` |
+| `src/lib/` | オンライン（Supabase）。`store/` からは値として import しない |
+| `supabase/all.sql` | サーバー側の全部。**流すのはこの1本だけ** |
+| `scripts/` | 点検（`check-*.ts`）と計測（`measure-*.ts`）。一覧は `run-checks.mjs` |
+| `docs/` | 決めたことと、調べたことの記録。`BACKLOG.md` が「まだ決まっていないこと」 |

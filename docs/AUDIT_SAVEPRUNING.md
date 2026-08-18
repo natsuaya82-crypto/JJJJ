@@ -1,5 +1,10 @@
 # savePruning の逆方向の監査（2026-08-11・点検基盤セッション）
 
+> **これは 2026-08-11 に調べたときの記録です。**
+> 当時の `gameStore.ts` の行番号が出てきますが、その後 persist は
+> `src/store/persistence/`（migrate / merge / normalize / saveVersion）へ移り、
+> `SAVE_VERSION` も 41 → 42 になりました。**行番号は当たりません。**
+
 **結論を先に**: クラッシュする穴は見つからなかった。理由は2つの土台があるため
 （下の「先に分かった2つの前提」）。ただし土台の外側で1件、**仕様確認が要る**
 静かなデータ損失を見つけた（③-1 continentals.squads）。

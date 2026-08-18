@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { LeagueLogoSVG } from '../icons/Icons'
 import { C, SAIRA, FONT, F } from '../../styles/tokens'
-import { ovr } from '../../utils/playerUtils'
 import { NAT_LABEL, natGeoRegion, GEO_REGION_ORDER, type GeoRegion } from '../../data/nationalities'
 import { leagueNameEn } from '../../data/foreignLeagues'
 import Flag from '../ui/Flag'
@@ -13,7 +12,7 @@ import { NationalTeamRoster } from './NationalTeamDetailPage'
 import type { Nationality } from '../../types'
 
 
-type NatEntry = { code: Nationality; label: string; top: number }
+type NatEntry = { code: Nationality; label: string }
 
 
 
@@ -74,20 +73,22 @@ export default function TeamsHub() {
   const goRegion = (r: GeoRegion) => navigate(`/teams?s=national&r=${encodeURIComponent(r)}`)
   const goCode = (c: Nationality) => navigate(`/teams?s=national&r=${encodeURIComponent(region ?? '')}&c=${c}`)
 
+  // ★**「最高」は出しません**（オーナー・2026-08-18「90いないのに最高90とかなってて
+  //   ありえない」）。その国籍の選手のうちいちばん高いOVRを出していましたが、
+  //   **代表に選ばれる7人とは関係のない数**でした（引退していないだけの全選手が対象で、
+  //   どのクラブに居ても・代表候補でなくても入る）。代表の強さを1つの数字で言おうとすると
+  //   必ずこの形になるので、数字ごと置きません。強さは中を開けば分かります。
   const natByRegion = useMemo(() => {
-    const top = new Map<Nationality, number>()
+    const seen = new Set<Nationality>()
+    const byRegion = new Map<GeoRegion, NatEntry[]>()
     for (const p of players) {
       if (p.status === 'retired') continue
       const c = p.nationality as Nationality
-      if (!c) continue
-      const o = ovr(p)
-      if (o > (top.get(c) ?? 0)) top.set(c, o)
-    }
-    const byRegion = new Map<GeoRegion, NatEntry[]>()
-    for (const [c, t] of top) {
+      if (!c || seen.has(c)) continue
+      seen.add(c)
       const r = natGeoRegion(c)
       const arr = byRegion.get(r) ?? []
-      arr.push({ code: c, label: NAT_LABEL[c] ?? c, top: t })
+      arr.push({ code: c, label: NAT_LABEL[c] ?? c })
       byRegion.set(r, arr)
     }
     return byRegion
@@ -124,10 +125,6 @@ export default function TeamsHub() {
           title={n.label}
           en="NATIONAL TEAM"
           color={C.purple}
-          right={<div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: F.micro, color: C.textDim }}>最高</div>
-            <div style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: 900, color: C.gold, lineHeight: 1 }}>{n.top}</div>
-          </div>}
         />
       )))}
     </>)

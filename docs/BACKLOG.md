@@ -1427,7 +1427,7 @@ drop table if exists public.profiles  cascade;
 
 `profiles` にフレンドコードが入っているので、**流すたびに全ユーザーのプロフィール・
 ロスター・フレンド関係が消えていた**（「IDもフレンドコードも出ない」の正体）。
-`clubs.sql` も同じで、走友会・所属・掲示板を落としていた。
+`clubs.sql`（**削除済み**）も同じで、走友会・所属・掲示板を落としていた。
 
 さらに cascade なので、他のファイルが `profiles` / `rosters` に足した閲覧ポリシー
 （`profiles_select_clubmate` / `rosters_select_clubmate` / `profiles_select_room` /
@@ -1458,7 +1458,8 @@ friendships が 0 になる）。
 | `approve_club_request` | **50** | 会長が承認するときに弾かれる線 |
 
 **承認制の走友会だけ50人まで入れる**状態だった（自分からは30人で止まるが、承認なら50人まで通る）。
-`clubs.sql` では3か所とも 30 だったが、`clubs_roles.sql` が承認だけを 50 に書き換えていた。
+`clubs.sql` では3か所とも 30 だったが、`clubs_roles.sql` が承認だけを 50 に書き換えていた
+（どちらも `all.sql` へまとめて**削除済み**）。
 
 **30 に統一。** 数字は3か所から `public.club_member_cap()` 1本にまとめた。
 `npm run check` の `supabase-sql` が、`members >= 30` のような直書きが戻っていないかを見張る。

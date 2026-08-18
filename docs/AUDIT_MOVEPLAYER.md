@@ -1,5 +1,12 @@
 # 監査：`movePlayer` の全呼び出し経路（2026-08-11）
 
+> **これは 2026-08-11 に調べたときの記録です。直したあとの姿ではありません。**
+> ここに出てくる `engine/foreignTransfers.ts`（海外↔海外・日本↔海外の2入口）は
+> **もうありません**。2026-08-12 に `engine/transferMarket.ts` の `runTransferMarket` 1本へ
+> まとめ、国内52＋海外180が同じ市場に並ぶ形になりました（`docs/AUDIT_TRANSFERS.md` の表）。
+> 移籍金の海外側の精算も `utils/clubMoney.ts` の `settleForeignFee` 1本にしてあります。
+> **いまの呼び出し経路を知りたいときは、`movePlayer` を検索してください**（この表は古い）。
+
 第三者監査の指摘【1】に対する調査。**コードは1行も変えていません。**
 
 対象 … `src/utils/movePlayer.ts`（228行）と、その呼び出し36箇所（17ファイル）

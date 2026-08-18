@@ -183,8 +183,13 @@ console.log('[1] 提出したとおりに走る／出さなかった人も走る
 console.log('\n[1-b] 大会全体の順位と、前日からの上下（順位表の矢印）')
 {
   // 20人・全員提出。**レートに差を付けてから**走らせて、順位が動くことを見る
+  // ★**下限（0）から離したところで見ること。** 以前は 200〜10 という下限のすぐ上に
+  //   並べていて、1戦の増減（K=40 で±380くらい）のほうが差より桁違いに大きいので、
+  //   **負けた人が全員0で止まって同点になり**、同点は userId 順＝元の並びそのまま。
+  //   その日は上下が1つも起きず、**40回に2回落ちる**網になっていた（2026-08-18 に実測）。
+  //   下限が効いていること自体は [2] と [4] が別に見ている。
   const base = makeEntrants(20, 4)
-  const entrants = base.map((e, i) => ({ ...e, rating: (20 - i) * 10 }))   // u000 が最上位
+  const entrants = base.map((e, i) => ({ ...e, rating: 1500 + (20 - i) * 10 }))   // u000 が最上位
   const segCount = ratedMatchCourse(START).segments.length
   const lineups = Object.fromEntries(entrants.map(e => [e.userId, pickLineup(e, segCount)]))
   const out = runRatedRound({ dateISO: START, day: 1, entrants, lineups })
