@@ -8,8 +8,8 @@ import { rankProgressOf } from '../../engine/rating'
 import { RANK_ART } from './rankArt'
 import { RatedHelpButton } from './ratedRules'
 import {
-  canJoin, fetchMe, fetchResult, fetchToday, joinRated, SUBMIT_DEADLINE_HHMM,
-  type RatedMe, type RatedResult, type RatedToday,
+  canJoin, fetchEvent, fetchMe, fetchResult, fetchToday, joinRated, SUBMIT_DEADLINE_HHMM,
+  type RatedEventInfo, type RatedMe, type RatedResult, type RatedToday,
 } from '../../lib/ratedApi'
 import { HOF_MAX } from '../../utils/hofRoster'
 import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
@@ -65,11 +65,26 @@ function SectionLabel({ text }: { text: string }) {
   )
 }
 
+/** 今日（日本時間）の `YYYY-MM-DD`。開始日と比べるだけに使う */
+function todayISO(): string {
+  return new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10)
+}
+
+/** その日の受付が始まる時刻。サーバー（`rated_open_round`）と同じ 10:00 */
+const OPEN_HHMM = '10:00'
+
 export default function RatedPage() {
   const navigate = useNavigate()
   const hof = useGameStore(s => s.hofRoster)
   const [me, setMe] = useState<RatedMe | null>(null)
   const [today, setToday] = useState<RatedToday | null>(null)
+  // ★**大会そのものの情報。始まる前でも返る。**
+  //   `fetchToday` は 10:00 前と大会が無いときの**どちらでも null** なので、
+  //   これだけを見ていると開始前の画面が「レートの数字しか無い」ようになる
+  //   （オーナー・2026-08-16「9/1からのレート戦の画面なにもないけど？
+  //    いきなり現れんの？参加するとかのボタンもないしなに？」）
+  const [ev, setEv] = useState<RatedEventInfo | null>(null)
+  const [evLoaded, setEvLoaded] = useState(false)
   const [result, setResult] = useState<RatedResult | null>(null)
   const [left, setLeft] = useState(0)
   // 参加の申し込みが通らなかったときの一言。**黙って何も起きない、にしない**
@@ -80,6 +95,7 @@ export default function RatedPage() {
     // ★まだ 10:00 前・大会をやっていない・通信できない、のどれでも null が返る。
     //   仮のデータで埋めないこと（動いているように見えてしまう）
     void fetchToday().then(t => { setToday(t); setLeft((t?.minutesLeft ?? 0) * 60) })
+    void fetchEvent().then(e => { setEv(e); setEvLoaded(true) })
     void fetchResult().then(setResult)
   }, [])
 
@@ -89,7 +105,12 @@ export default function RatedPage() {
     return () => clearInterval(t)
   }, [])
 
-  const eligible = canJoin(hof)
+  // 受付が開いているのは `today` があるときだけ。**開いていないなら押させない**
+  //   （押せない理由はボタンの見出しに出す＝開幕ボタンと同じ扱い）
+  const startsLater = !!ev?.startsOn && ev.startsOn > todayISO()
+  const startLabel = ev?.startsOn ? `${Number(ev.startsOn.split('-')[1])}.${Number(ev.startsOn.split('-')[2])}` : ''
+  const openable = !!today
+  const eligible = canJoin(hof) && openable
   const segs = today?.course.segments ?? []
   const submitted = Object.keys(me?.lineup ?? {}).length >= segs.length && segs.length > 0
   const prog = rankProgressOf(me?.rating ?? 0)
@@ -232,48 +253,83 @@ export default function RatedPage() {
             </div>
           </div>
 
-          {/* ── 参加する ── */}
-          <div style={{ padding: '18px 14px 0' }}>
-            <PressButton
-              onClick={() => {
-                if (!eligible) return
-                // ★編成の前に**参加の申し込みを通す**。通っていないと提出が 'join' で弾かれる
-                //   （参加済みなら `on conflict do nothing` で何も起きない）
-                void joinRated().then(r => {
-                  if (r === 'ok') { navigate('/online/rated/lineup'); return }
-                  setNotice(
-                    r === 'hof' ? `殿堂入りが${HOF_MAX}人そろっていません`
-                    : r === 'closed' ? 'いまは大会をやっていません'
-                    : 'サーバーにつながりませんでした')
-                })
-              }}
-              pressScale={0.985}
-              style={{
-                width: '100%', padding: '18px 0 16px', cursor: eligible ? 'pointer' : 'default',
-                fontFamily: 'inherit', border: 'none', position: 'relative',
-                background: eligible ? C.cyan : C.surface2,
-                clipPath: 'polygon(0 0, 100% 0, 100% 68%, calc(100% - 18px) 100%, 0 100%)',
-              }}
-            >
-              <div style={{ fontSize: F.titleLg, fontWeight: 900, color: eligible ? '#04202e' : C.textDim, letterSpacing: '8px' }}>
-                {submitted ? '組み直す' : '参加する'}
-              </div>
-              <div style={{
-                fontFamily: SAIRA, fontSize: F.tiny, fontWeight: 800, letterSpacing: '4px', marginTop: 3,
-                color: eligible ? alpha('#04202e', 0.6) : C.textGhost,
-              }}>ENTER RANKED</div>
-            </PressButton>
-            {!eligible && (
-              <div style={{ fontSize: F.label, color: C.orange, marginTop: 8, textAlign: 'center' }}>
-                殿堂入り {hof?.length ?? 0} / {HOF_MAX}
-              </div>
-            )}
-            {!!notice && (
-              <div style={{ fontSize: F.label, color: C.orange, marginTop: 8, textAlign: 'center' }}>{notice}</div>
-            )}
-          </div>
         </>
       )}
+
+      {/* ── 開催前・受付前の状態 ──
+          ★`today` は「10:00 前」でも「大会が無い」でも null になる。**ここを出さないと
+            レートの数字だけの空っぽの画面になる**（オーナー・2026-08-16）。
+            大会の情報は `fetchEvent` 1本（始まる前でも返る）。**説明文は書かない**——
+            日付と状態だけを、下の締め切りブロックと同じ形で出す */}
+      {!today && evLoaded && (
+        <div style={{
+          margin: '18px 0 0', padding: '14px 18px',
+          borderTop: `1px solid ${alpha(C.border3, 0.55)}`, borderBottom: `1px solid ${alpha(C.border3, 0.55)}`,
+          display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: SAIRA, fontSize: F.tiny, fontWeight: 800, color: C.textDim, letterSpacing: '2px' }}>
+              {ev ? (startsLater ? 'OPENS' : 'ENTRY OPENS') : 'NO EVENT'}
+            </div>
+            <div style={{ fontFamily: SAIRA, fontSize: 30, fontWeight: 900, color: C.cyan, lineHeight: 1.05, letterSpacing: '1px' }}>
+              {ev ? (startsLater ? startLabel : `${OPEN_HHMM}`) : '—'}
+            </div>
+          </div>
+          {ev && (
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontFamily: SAIRA, fontSize: F.headLg, fontWeight: 900, color: C.text, lineHeight: 1 }}>
+                {ev.totalDays}<span style={{ fontSize: F.label, color: C.textDim, letterSpacing: '1.5px', marginLeft: 5 }}>DAYS</span>
+              </div>
+              <div style={{ fontSize: F.caption, color: C.textGhost, marginTop: 4 }}>締切 {SUBMIT_DEADLINE_HHMM}</div>
+            </div>
+          )}
+        </div>
+      )}
+
+        {/* ── 参加する ── */}
+        <div style={{ padding: '18px 14px 0' }}>
+          <PressButton
+            onClick={() => {
+              if (!eligible) return
+              // ★編成の前に**参加の申し込みを通す**。通っていないと提出が 'join' で弾かれる
+              //   （参加済みなら `on conflict do nothing` で何も起きない）
+              void joinRated().then(r => {
+                if (r === 'ok') { navigate('/online/rated/lineup'); return }
+                setNotice(
+                  r === 'hof' ? `殿堂入りが${HOF_MAX}人そろっていません`
+                  : r === 'closed' ? 'いまは大会をやっていません'
+                  : 'サーバーにつながりませんでした')
+              })
+            }}
+            pressScale={0.985}
+            style={{
+              width: '100%', padding: '18px 0 16px', cursor: eligible ? 'pointer' : 'default',
+              fontFamily: 'inherit', border: 'none', position: 'relative',
+              background: eligible ? C.cyan : C.surface2,
+              clipPath: 'polygon(0 0, 100% 0, 100% 68%, calc(100% - 18px) 100%, 0 100%)',
+            }}
+          >
+            <div style={{ fontSize: F.titleLg, fontWeight: 900, color: eligible ? '#04202e' : C.textDim, letterSpacing: '8px' }}>
+              {!openable
+                ? (ev ? (startsLater ? `${startLabel} から` : `${OPEN_HHMM} から`) : '開催予定なし')
+                : submitted ? '組み直す' : '参加する'}
+            </div>
+            <div style={{
+              fontFamily: SAIRA, fontSize: F.tiny, fontWeight: 800, letterSpacing: '4px', marginTop: 3,
+              color: eligible ? alpha('#04202e', 0.6) : C.textGhost,
+            }}>ENTER RANKED</div>
+          </PressButton>
+          {/* ★殿堂入りが足りないときだけ出す。`eligible` は「受付が開いているか」も
+              見ているので、そのまま使うと開催前に「殿堂入り 0/7」と嘘が出る */}
+          {!canJoin(hof) && (
+            <div style={{ fontSize: F.label, color: C.orange, marginTop: 8, textAlign: 'center' }}>
+              殿堂入り {hof?.length ?? 0} / {HOF_MAX}
+            </div>
+          )}
+          {!!notice && (
+            <div style={{ fontSize: F.label, color: C.orange, marginTop: 8, textAlign: 'center' }}>{notice}</div>
+          )}
+        </div>
 
       {/* ── 順位表・前日の結果 ── */}
       <div style={{ display: 'flex', padding: '14px 14px 0' }}>
