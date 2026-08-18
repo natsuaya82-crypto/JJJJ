@@ -124,6 +124,8 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/teamHistory.ts` | **優勝回数の数え方**。**クラブの優勝（`teamHistoryOf`）と監督の優勝（`gmCareerTitles`）を混ぜないこと。**記録室の見出しの★・自チーム記録・クラブ詳細ページは**クラブ**、GMキャリアのページだけが**監督**（どのクラブで何年に、の内訳もそちら）。以前は自チーム記録が監督の通算を出していて、移籍すると前のクラブの優勝がいまのクラブの記録として並んでいた。数え直しを画面に書かないこと |
 | `src/components/online/HofList.tsx` | 殿堂入りチームの一覧の見た目と並び替え。自分の殿堂入りページとフレンド・走友会の相手のぶんが共通 |
 | `src/lib/friendsApi.ts` | 相手のロスターと殿堂入りの読み書き。`getFriendShare` / `pushMyRoster`（同じ行に入っている） |
+| `src/components/friends/ClubViewPage.tsx` | **人の走友会を見るページ**。行き先は `/friends/club/<走友会コード>` 1本で、フレンド一覧・フレンド詳細・走友会の検索結果の3つが同じここへ来る。**見るだけ**（通報も長押しも「···」も無い）。`/friends/club`（クエリ無し）は**自分の走友会専用**で、`?code=` を付けて飛ばさないこと——`ClubHome` はコードを読まないので、走友会に入っていると**自分の走友会が開く**（オーナー・2026-08-18「人の走友会見ようとすると自分の走友会に飛ぶ」）。引くのは `findClubByCode` 1回（idも人数もここで揃う。おすすめ30件から id で探す形だと、満員・募集停止の走友会は名前すら出ない） |
+| `src/components/race/RacePage.tsx` の `activeRace*` | **レースの結果画面から離れて戻ったときの復帰**。結果は store の `activeRaceResults` / `activeRaceLockedRace`（セーブに載らない ephemeral）へ**1か所で**写す（結果へ入る道は3本あるので、道ごとに書くと1本だけ写し忘れる）。戻すのは**走り終えた1本ぶんだけ**（`lockedRaceIndex + 1 === currentRaceIndex`）で、見終わったら `clearActiveRace`。ローカルstateだけだったころ、順位表のクラブを長押しして詳細を見ると結果が消え、**最終戦は戻る先のレースが無い**ので「シーズン終了。すべてのレースが完了しました。」の文字だけの画面（ボタンも無く下タブも隠れている）で詰んでいた。**行き止まりを作らないこと** |
 | `src/store/saveStorage.ts` の `stageWrite` | **セーブを書いてよいかの関門**。セーフモード・新規状態での上書き・中身が消し飛んだ判定。入口は2つ（文字列を渡す `saveStorage` と、状態を渡す `jsonSaveStorage`）だが判定は1本 |
 | `src/store/saveStorage.ts` の `jsonSaveStorage` | **セーブのJSON化のタイミング**。persist は set() のたびに数MBをJSON化するので、`createJSONStorage` を使わず状態のまま受け取り、**書き込みと同じデバウンスの中で1回だけ**JSON化する（10MBのセーブで set() 1回 73ms → 4ms）。待ち時間は `WRITE_DELAY_MS` 1本。**`flushSaveNow` は溜めたぶんのJSON化を必ず先に済ませること**（飛ばすと直前の操作が書かれない） |
 

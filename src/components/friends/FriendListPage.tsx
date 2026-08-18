@@ -52,10 +52,10 @@ export default function FriendListPage() {
                 <div style={{ fontSize: F.sub, fontWeight: 800, color: C.gold, marginTop: 3 }}>GM {f.gmName}</div>
                 <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 2 }}>最終ログイン {f.lastLogin}</div>
                 {clubs.data?.get(f.id) && (
-                  // ここだけ押すと、走友会の画面がその走友会を探した状態で開く。
+                  // ここだけ押すと、その走友会を見るページ（`ClubViewPage`）が開く。
                   // 外側がボタンなので、中にボタンは置けない（入れ子は駄目）。
                   <div
-                    onClick={e => { e.stopPropagation(); navigate(`/friends/club?code=${clubs.data!.get(f.id)!.code}`) }}
+                    onClick={e => { e.stopPropagation(); navigate(`/friends/club/${clubs.data!.get(f.id)!.code}`) }}
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 3, maxWidth: '100%', padding: '2px 6px 2px 4px', marginLeft: -4,border: `1px solid ${C.border}`, background: alpha(C.bg, 0.35), cursor: 'pointer' }}>
                     <img src={clubLogoSrc(clubs.data.get(f.id)!.logoId)} alt="" width={14} height={14} draggable={false} style={{ objectFit: 'contain', display: 'block', flexShrink: 0 }} />
                     <div style={{ fontSize: F.caption, color: C.textSub, fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{clubs.data.get(f.id)!.name}</div>

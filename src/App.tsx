@@ -406,7 +406,7 @@ function AppRoutes({ onBackToTitle }: { resetGame: () => void; onBackToTitle: ()
           {onlineAvailable() && <Route path="/friends/sent" element={<FriendRequestsPage />} />}
           {onlineAvailable() && <Route path="/friends/club" element={<FriendClubPage />} />}
           {/* 入っていない走友会を見るページ（一覧から長押しで来る） */}
-          {onlineAvailable() && <Route path="/friends/club/:id" element={<ClubViewPage />} />}
+          {onlineAvailable() && <Route path="/friends/club/:code" element={<ClubViewPage />} />}
           {/* ランクマッチの遊びかた。下から出すのをやめて普通のページにした */}
           <Route path="/rated/help" element={<RatedHelpPage />} />
           {onlineAvailable() && <Route path="/friends/team/:id" element={<FriendDetailPage />} />}

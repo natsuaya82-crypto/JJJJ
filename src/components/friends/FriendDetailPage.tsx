@@ -238,9 +238,12 @@ export default function FriendDetailPage() {
           ))}
         </div>
         {club && (
-          // 押すと走友会の画面が、この走友会を探した状態で開く
+          // ★押すと**その走友会を見るページ**（`ClubViewPage`）へ。見るだけで、通報も長押しも無い。
+          //   以前は `/friends/club?code=` ＝**自分の走友会のページ**へ飛ばしていたので、
+          //   走友会に入っている人が人の走友会を見ようとすると自分の走友会が開いていた
+          //   （オーナー・2026-08-18）
           <button
-            onClick={() => navigate(`/friends/club?code=${club.code}`)}
+            onClick={() => navigate(`/friends/club/${club.code}`)}
             className="btn-press"
             style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, padding: '8px 10px',background: alpha(C.bg, 0.4), border: `1px solid ${C.border}`, width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}>
             <img src={clubLogoSrc(club.logoId)} alt="" width={22} height={22} draggable={false} style={{ objectFit: 'contain', display: 'block', flexShrink: 0 }} />

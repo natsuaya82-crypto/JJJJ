@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import PageHeader from '../ui/PageHeader'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import NoticeDialog from '../ui/NoticeDialog'
@@ -297,11 +297,10 @@ export function ClubHeaderCard({ club, right }: { club: ClubBrief; right?: React
 }
 
 // ── 未所属：検索画面 ───────────────────────────────────
-function ClubSearch({ onChanged, initialCode = '' }: { onChanged: () => void; initialCode?: string }) {
+function ClubSearch({ onChanged }: { onChanged: () => void }) {
   const navigate = useNavigate()
-  // フレンドの走友会の行から来たときは、そのコードで検索した状態で開く
-  const [q, setQ] = useState(initialCode)
-  const [term, setTerm] = useState(initialCode) // 実際に検索に使っている言葉
+  const [q, setQ] = useState('')
+  const [term, setTerm] = useState('') // 実際に検索に使っている言葉
   const list = useFriendsQuery(() => searchClubs(term), [term], term === '' ? 'clubReco' : undefined)
   const sent = useFriendsQuery(myClubRequests, [], 'clubReqSent')
   const [busy, setBusy] = useState('')
@@ -382,7 +381,7 @@ function ClubSearch({ onChanged, initialCode = '' }: { onChanged: () => void; in
          ) : (
            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
              {(list.data ?? []).map(c => (
-               <ClubCard key={c.id} club={c} onPeek={() => navigate(`/friends/club/${c.id}`)} right={
+               <ClubCard key={c.id} club={c} onPeek={() => navigate(`/friends/club/${c.code}`)} right={
                  requested.has(c.id) ? (
                    <button onClick={() => onCancelReq(c)} disabled={busy === c.id} className="btn-press" style={actionButton(C.textDim)}>
                      申請中
@@ -1497,9 +1496,9 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
 // ── 入口 ─────────────────────────────────────────────
 export default function FriendClubPage() {
   const mine = useFriendsQuery(myClub, [], 'myClub')
-  // フレンドの走友会の行から飛んできたとき用。?code=数字10桁
-  const [params] = useSearchParams()
-  const fromFriend = (params.get('code') ?? '').replace(/\D/g, '')
+  // ★ここは**自分の走友会**だけ。人の走友会は `/friends/club/<コード>`（`ClubViewPage`）で、
+  //   入口を分けてある。以前は `?code=` を付けてこの画面へ飛ばしていたが、
+  //   走友会に入っていると `ClubHome` が出るので**自分の走友会が開いていた**
 
   return (
     <div style={{ fontFamily: SAIRA, minHeight: '100%', paddingBottom: 80 }}>
@@ -1521,7 +1520,7 @@ export default function FriendClubPage() {
       {mine.loading ? <div style={{ padding: '0 12px' }}><LoadingBox /></div> :
        mine.error ? <div style={{ padding: '0 12px' }}><ErrorBox onRetry={mine.reload} /></div> :
        mine.data ? <ClubHome mine={mine.data} onChanged={mine.reload} /> :
-       <ClubSearch onChanged={mine.reload} initialCode={fromFriend} />}
+       <ClubSearch onChanged={mine.reload} />}
     </div>
   )
 }

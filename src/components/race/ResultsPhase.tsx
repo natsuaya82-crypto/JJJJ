@@ -73,6 +73,7 @@ export function ResultsPhase({
   }, [view, segView])
   const raceDroppedCards = useGameStore(s => s.raceDroppedCards) ?? []
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
+  const clearActiveRace = useGameStore(s => s.clearActiveRace)
   const clubIndex = useClubIndex()
   // チーム行の長押しでチーム詳細へ（選手の長押し詳細と同じ操作系）。
   // 国別対抗(nat_)→代表ページ / JPELクラブ→チーム詳細 / 海外クラブ→所属リーグのクラブ詳細
@@ -122,6 +123,9 @@ export function ResultsPhase({
   })()
 
   const finish = async () => {
+    // ★このレースは見終わった。**戻ってきたときに結果へ戻す仕掛け（`activeRace*`）を
+    //   ここで消す。** 消さないと、次のレースを開いたときに前の結果が出る
+    clearActiveRace()
     // 契約満了間近の選手がいる場合は先に対応させる。
     // シーズン最終戦・別大会（altStandings/onContinue経由）では誘導しない。
     // replace遷移にして、通知から「戻る」を押したときにレース画面（次の記録会等）ではなくホームへ戻す

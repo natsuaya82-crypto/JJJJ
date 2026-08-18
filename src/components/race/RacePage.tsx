@@ -8,6 +8,7 @@ import { ovr, ratingColor, racesConsumed } from '../../utils/playerUtils'
 import { runWithLoading } from '../../store/loadingStore'
 import type { RaceResults, IndividualEvent, Player } from '../../types'
 import PageHeader from '../ui/PageHeader'
+import GlassButton from '../ui/GlassButton'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import TrainingCardSVG from '../training/TrainingCardSVG'
@@ -290,7 +291,8 @@ export default function RacePage() {
     currentSeason, teams, players, playerTeamId,
     raceLineup, setRaceLineup, clearRaceLineup, runRace,
     raceStrategy, setRaceStrategy,
-    setActiveRacePhase, setActiveRaceLocked,
+    setActiveRacePhase, setActiveRaceLocked, setActiveRaceResults,
+    activeRaceResults, activeRaceLockedRace, activeRaceLockedRaceIndex,
     simulateIndividualEvent,
   } = useGameStore()
 
@@ -302,11 +304,29 @@ export default function RacePage() {
     [players, teams, playerTeamId, raceLineup],
   )
 
-  const [phase, setPhaseLocal] = useState<Phase>('lineup')
+  // ★**結果画面から離れて戻ってきたら、見ていた結果へ戻す。**
+  //   結果はこの画面のローカルstateにしか無かったので、順位表のクラブを長押しして
+  //   詳細を見に行くと、戻ったときには消えている。走り終えたレースは
+  //   `currentRaceIndex` が既に次を指しているので、**最終戦だと戻る先が無く**
+  //   「シーズン終了。すべてのレースが完了しました。」の行き止まり（ボタンも下タブも無い）
+  //   に落ちて先へ進めなくなっていた（オーナー・2026-08-18
+  //   「シーズン最終戦で区間賞とか詳細見てたらいきなりシーズン終わりましたに飛んで進行不可能」）。
+  //   置き場所は store の `activeRace*`（セーブには載らない ephemeral）。
+  //   ★**走り終えた1本ぶんだけ**戻す（`lockedRaceIndex + 1 === currentRaceIndex`）。
+  //     この関門が無いと、次のレースを開いたときに前のレースの結果が出る。
+  //     用が済んだら `clearActiveRace`（`ResultsPhase` の finish）で消す。
+  const resumeResults =
+    activeRaceResults && activeRaceLockedRace &&
+    activeRaceLockedRaceIndex + 1 === currentSeason.currentRaceIndex
+      ? activeRaceResults : null
+
+  const [phase, setPhaseLocal] = useState<Phase>(resumeResults ? 'results' : 'lineup')
   const [pickerSeg, setPickerSeg] = useState<number | null>(null)
-  const [results, setResults] = useState<RaceResults | null>(null)
-  const [lockedRace, setLockedRace] = useState<import('../../types').Race | null>(null)
-  const [lockedRaceIndex, setLockedRaceIndex] = useState<number>(0)
+  const [results, setResults] = useState<RaceResults | null>(resumeResults)
+  const [lockedRace, setLockedRace] = useState<import('../../types').Race | null>(
+    resumeResults ? activeRaceLockedRace : null)
+  const [lockedRaceIndex, setLockedRaceIndex] = useState<number>(
+    resumeResults ? activeRaceLockedRaceIndex : 0)
   const [iSim, setISim] = useState<ISim | null>(null)
   const [ttViewId, setTtViewId] = useState<string | null>(null)
   // レース最終確定（runRace）の二重発火ガード。ゴーストクリック等で同じレースを2回確定すると
@@ -321,10 +341,16 @@ export default function RacePage() {
 
   // 描画前(useLayoutEffect)に lineup 化して下ナビを隠す＝タブが一瞬見えてから消える「遅れて全画面化」を防ぐ。
   useLayoutEffect(() => {
-    setActiveRacePhase('lineup')
+    setActiveRacePhase(resumeResults ? 'results' : 'lineup')
     return () => { setActiveRacePhase(null) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   useEffect(() => { audio.playBgm('home') }, [])
+  // ★結果へ入る道は3本（イベントを最後まで見る／スキップ／流し見）あるので、
+  //   写すのは道ごとではなく**ここ1本**。ロックしたレースは `setActiveRaceLocked` が既に写している
+  useEffect(() => {
+    if (phase === 'results' && results) setActiveRaceResults(results)
+  }, [phase, results, setActiveRaceResults])
 
   const raceIndex = currentSeason.currentRaceIndex
   const currentRace = currentSeason.races[raceIndex]
@@ -381,6 +407,12 @@ export default function RacePage() {
         {raceIndex >= currentSeason.races.length
           ? 'シーズン終了。すべてのレースが完了しました。'
           : 'レーススケジュールが未設定です。'}
+        {/* ★**行き止まりを作らないこと。** この画面はレース中なので下タブが隠れていて、
+            文字だけだと戻る道が1つも無い＝そこで詰む。上の復帰で普通は来ないが、
+            来てしまったときに必ずホームへ帰れるようにしておく */}
+        <div style={{ marginTop: 20 }}>
+          <GlassButton color={C.gold} onClick={() => navigate('/')}>ホームへ</GlassButton>
+        </div>
       </div>
     )
   }
