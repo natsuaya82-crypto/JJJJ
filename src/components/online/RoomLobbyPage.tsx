@@ -833,7 +833,8 @@ export default function RoomLobbyPage() {
       {askLeave && (
         <ConfirmDialog
           title={isHost ? '部屋を解散しますか？' : '退出しますか？'}
-          message={isHost ? 'ホストが抜けると部屋は閉じられ、全員が待合室から出ます。' : 'この部屋から出ます。もう一度入るには番号が必要です。'}
+          // ★説明を出すのはホストのときだけ（自分だけでなく全員が出されるので、見出しから分からない）
+          message={isHost ? 'ホストが抜けると部屋は閉じられ、全員が待合室から出ます。' : undefined}
           confirmLabel={isHost ? '解散する' : '退出する'}
           accent={C.red}
           onConfirm={onLeave}
@@ -844,7 +845,6 @@ export default function RoomLobbyPage() {
       {askKick && (
         <ConfirmDialog
           title="このチームを退出させますか？"
-          message={`${askKick.profile?.teamName ?? 'このチーム'}を部屋から出します。番号を知っていれば入り直せます。`}
           confirmLabel="退出させる"
           accent={C.red}
           onConfirm={onKick}

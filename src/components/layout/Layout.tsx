@@ -404,7 +404,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {askLeaveRoom && (
         <ConfirmDialog
           title="部屋を抜けますか？"
-          message="対戦中の部屋から出ます。もう一度入るには番号が必要です。"
           confirmLabel="抜ける"
           cancelLabel="対戦を続ける"
           accent={C.red}

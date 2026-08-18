@@ -1183,7 +1183,6 @@ padding: '6px 14px', fontFamily: 'inherit',
       {confirmBlock && (
         <ConfirmDialog
           title={`${confirmBlock.teamName} をブロックしますか？`}
-          message="この相手の書き込みは表示されなくなります。フレンドだった場合は解除されます。"
           confirmLabel="ブロック" accent={C.red}
           onCancel={() => setConfirmBlock(null)}
           onConfirm={() => { void onBlock(confirmBlock) }}
@@ -1502,7 +1501,6 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
       {confirmBlock && (
         <ConfirmDialog
           title={`${confirmBlock.teamName} をブロックしますか？`}
-          message="この相手の名前と書き込みは表示されなくなります。フレンドだった場合は解除されます。"
           confirmLabel="ブロック" accent={C.red}
           onConfirm={() => { void onBlock(confirmBlock) }}
           onCancel={() => setConfirmBlock(null)}

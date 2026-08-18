@@ -327,7 +327,6 @@ export default function FriendDetailPage() {
       {askRemove && (
         <ConfirmDialog
           title="フレンドを解除しますか？"
-          message={`${friend.teamName}（GM ${friend.gmName}）とのフレンドを解除します。相手の一覧からもあなたが消えます。`}
           confirmLabel="解除する"
           accent={C.red}
           onConfirm={onRemove}
@@ -361,7 +360,6 @@ export default function FriendDetailPage() {
       {askBlock && (
         <ConfirmDialog
           title={`${friend.teamName} をブロックしますか？`}
-          message="この相手の名前と書き込みは表示されなくなります。フレンドも解除されます。"
           confirmLabel="ブロック" accent={C.red}
           onConfirm={() => { void onBlock() }}
           onCancel={() => setAskBlock(false)}
