@@ -1192,7 +1192,6 @@ padding: '6px 14px', fontFamily: 'inherit',
       {confirmInvite && (
         <ConfirmDialog
           title="対戦を開始しますか？"
-          message="部屋を立てて、その番号を掲示板に貼ります。走友会の誰かが入るまで待つ形です。"
           confirmLabel="開始する" accent={C.cyan}
           onCancel={() => setConfirmInvite(false)}
           onConfirm={() => { setConfirmInvite(false); void onInvite() }}
