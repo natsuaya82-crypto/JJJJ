@@ -574,6 +574,21 @@ export const migrateSave = (persistedState: unknown, version: number) => {
         cs.chatLogs = cleaned as never
       }
     }
+    // v42: 海外クラブの格を初期値へ戻す。
+    // 毎年のリーグ順位で書き換えていたのをやめた（オーナー・2026-08-18
+    // 「格はもう動かさない。国内だけ動かす」）。保存済みの `tier` を消せば
+    // `tierOf` が data/clubTiers.ts の初期値を読むので、遊んでいるセーブも
+    // オーナー指定の並び（格1の5クラブを含む）へ戻る。**国内は触らない。**
+    if (version < 42 && Array.isArray(s.foreignLeagues)) {
+      s.foreignLeagues = (s.foreignLeagues as Record<string, unknown>[]).map(lg => {
+        if (!lg || !Array.isArray(lg.clubs)) return lg
+        return { ...lg, clubs: (lg.clubs as Record<string, unknown>[]).map(c => {
+          if (!c || !('tier' in c)) return c
+          const { tier: _tier, ...rest } = c
+          return rest
+        }) }
+      })
+    }
     return s
   } catch (e) {
     // 旧セーブの変換中に例外が出ても読み込み自体は失敗させず、変換前のデータをそのまま渡す。

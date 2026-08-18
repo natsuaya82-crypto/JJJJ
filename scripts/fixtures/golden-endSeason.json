@@ -7,7 +7,7 @@
  "deficitRescue": "6b86b273ff34fce1 (1B)",
  "draftState": "74234e98afe7498f (4B)",
  "eventSeasonTops": "4f53cda18c2baa0c (2B)",
- "foreignLeagues": "80eea87618214047 (35100B)",
+ "foreignLeagues": "fa4343effac2178c (33415B)",
  "giftGivenVersions": "4f53cda18c2baa0c (2B)",
  "gmOffers": "4f53cda18c2baa0c (2B)",
  "gmRep": "31489056e0916d59 (2B)",
@@ -52,5 +52,5 @@
  "worldRecords": "44136fa355b3678a (2B)",
  "worldRepresentatives": "90352e46dd7c1153 (48223B)",
  "worldTournament": "eb045d78d2731073 (9B)",
- "$all": "f944de250cf35277 (5255342B)"
+ "$all": "b3c4ba7e7a24a40f (5253657B)"
 }

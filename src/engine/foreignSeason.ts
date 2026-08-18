@@ -18,9 +18,8 @@
 //   - **乱数を引く。** 中の順番を入れ替えると世界が丸ごと変わる
 import { computeNextSeasonBudget } from '../data/economy'
 import { applyForeignChampions } from './foreignLeague'
-import { tierBudget, tierFromForeignRank } from '../utils/clubTier'
+import { tierBudget } from '../utils/clubTier'
 import { facilityUpkeepOf } from '../utils/facilities'
-import { rankedStandings } from '../utils/league'
 import type { ForeignLeague, GameState, Player, Team } from '../types'
 
 /** 格と予算を来季ぶんに更新し終えた世界。移籍はまだ1件も起きていない */
@@ -57,21 +56,12 @@ export function processForeignSeason(args: {
     foreignLeagues, players, foreignStandings,
   )
 
-  // 海外クラブの格も今季のリーグ順位で動かす。国内（Team.tier）とまったく同じ扱いで、
-  // 違うのは「どの順位表で決まるか」だけ。順位表はあるのに格へ返していなかったので、
-  // 海外クラブの格は初期値のまま一生固定だった（最下位を続けても格1のまま）。
-  const foreignStandingsFinal = foreignStandings
-  const leaguesWithTier = refreshedLeagues.map(lg => {
-    const rows = rankedStandings(foreignStandingsFinal[lg.id] ?? [])
-    if (rows.length === 0) return lg   // 1戦もしていないリーグは触らない
-    const rankOf = new Map(rows.map((r, i) => [r.teamId, i + 1]))
-    return {
-      ...lg,
-      clubs: lg.clubs.map(c => {
-        const rank = rankOf.get(c.id)
-        return rank == null ? c : { ...c, tier: tierFromForeignRank(lg.id, rank, rows.length) }
-      }) }
-  })
+  // ★**海外クラブの格は動かさない**（オーナー・2026-08-18「格はもう動かさない。国内だけ動かす」）。
+  //   格は `data/clubTiers.ts` の初期値のまま一生固定で、リーグ順位は格に返さない。
+  //   毎年の順位で動かしていたころは、格1の帯の上端を `Math.max(2, t)` で潰していたせいで
+  //   **順位で格1に上がれず**、オーナー指定の格1の5クラブが1位を落とすたびに減り、
+  //   数年で世界から格1が消えていた。動かすのは国内（`Team.tier`）だけ。
+  const leaguesWithTier = refreshedLeagues
 
   // シーズンオフの海外クラブ間移籍（引き抜き）。選手がクラブ・国境を越えて移動する。
   // 万一エラーが出てもシーズン更新自体は壊さないよう、失敗時は移籍なしにフォールバック。

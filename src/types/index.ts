@@ -424,8 +424,10 @@ export type ForeignClub = Partial<Omit<Team, 'id' | 'name' | 'shortName' | 'colo
   country: Nationality
   colors: { primary: string; secondary: string }
   /**
-   * そのクラブの格。国内チーム（Team.tier）とまったく同じ扱いで、毎年のリーグ順位で動く。
-   * 未設定なら data/clubTiers.ts の初期値が読まれる（読むときは必ず tierOf を通すこと）。
+   * そのクラブの格。**海外クラブの格は動かない**（オーナー・2026-08-18
+   * 「格はもう動かさない。国内だけ動かす」）。data/clubTiers.ts の初期値が正で、
+   * リーグ順位は格に返さない。読むときは必ず tierOf を通すこと。
+   * ★ここに順位から格を書き戻すコードを足さないこと。
    * 将来ここのクラブを指揮することがあるので、国内と別扱いにしないこと。
    */
   tier?: import('../utils/clubTier').ClubTier

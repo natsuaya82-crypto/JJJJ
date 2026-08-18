@@ -304,16 +304,15 @@ export function tierInBand(band: readonly [ClubTier, ClubTier, TierSpread], i: n
   return Math.min(20, Math.max(1, t)) as ClubTier
 }
 
-/**
- * 海外リーグの順位 → 格。配り方はそのリーグの格の定義（FOREIGN_TIER_BAND）から出す。
- */
-export function tierFromForeignRank(leagueId: string, rank: number, clubCount: number): ClubTier {
-  const band = FOREIGN_TIER_BAND[leagueId]
-  if (!band) return DOMESTIC_BOTTOM_TIER
-  const t = tierInBand(band, Math.round(rank) - 1, Math.max(1, clubCount))
-  // 格1は世界の数クラブだけ。順位で1に上がってくることはさせない（初期値と同じ扱い）
-  return Math.max(2, t) as ClubTier
-}
+// ★**`tierFromForeignRank`（海外の順位→格）は廃止しました。戻さないこと。**
+//   オーナー・2026-08-18「格はもう動かさない。国内だけ動かす」。
+//   海外180クラブの格は `data/clubTiers.ts` の初期値のまま一生固定で、
+//   リーグ順位は格に返しません。動くのは国内（`Team.tier`）だけです。
+//
+//   毎年の順位で動かしていたころ、この関数は最後に `Math.max(2, t)` で格1を潰していました。
+//   東アフリカ・アフリカ北南・ヨーロッパ西南・北米は帯の上端が1なので、**首位でも格1になれない**。
+//   一方で格1の5クラブ（オーナー指定）は1位を落とせば格2以下へ落ちて二度と戻らないので、
+//   数年で世界から格1（年間予算21.1億・成長速度7.0）が消えていました。
 
 // ── 読み口 ───────────────────────────────────────────────────────
 
