@@ -95,6 +95,7 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/hash.ts` | **文字列→数値のハッシュ**。`strHash`。引退年齢・能力のゆらぎ・GM名・ロゴが全部これ |
 | `src/utils/condition.ts` | **士気と疲労の上げ下げ**。`withMorale` / `withFatigue` / `setMorale`（0〜100に収めるのと既定値はここだけ） |
 | `src/utils/playerUtils.ts` の `retirementAgeOf` | **引退年齢**（選手IDから決まる `RETIRE_AGE_MIN`30〜`RETIRE_AGE_MAX`36）。引退表明のニュースと実際の引退が同じ式。**32〜40から下げました**（オーナー・2026-08-16）——ピークは22/27/30なのに引退の平均が36で、ピーク後9年も居座り、12年で**世界の半分が30歳以上**になっていた |
+| `src/utils/clubTier.ts` の `TIER_GROWTH_RATE` | **格ごとの成長の速さ**（CPU・海外だけ。自チームはカードと施設で育てる）。**格1=5.0 → 格20=2.0 の等差**（オーナー・2026-08-16「自チームはカードあるぶん簡単に作れるから、他チームは成長速度上げるか。格によって成長する速度を上げよう」）。以前は 3.0→1.65 で**格11〜20が全部1.5**＝下位10段は格が違っても育ち方が同じだった。**数を変えるときは世界を12年回してOVR90+/85+を数えること**（実測：初期107/702、3.0→1.5で28/509、5.0→2.0で83/1113、6.5→2.5で169/1374＝初期の1.6倍でインフレ）|
 | `src/engine/growth.ts` の `growPlayer` の年次成長 | **CPU・海外の1年ぶんの成長**。**余ったEXPは必ず持ち越すこと**（自チームの `processExpGains` と同じ形）。`Math.floor(1年ぶん / 必要EXP)` で捨てていたころは、必要EXPが `0.5×能力²×(80以上2倍・90以上4倍)` なので**格10以下は1も伸びず、どの格でもOVR80を超えられなかった**（世界のOVR85+が12年で702人→154人）。オーナー・2026-08-16「成長してないからそんな弱いんじゃないの？普通に92とか見なくなった」 |
 | `src/utils/contractTalk.ts` の `effectiveDemandSalary` | **契約更新の要求額**（ラウンドごとに+3%・50万円刻み）。チャットで見せる額と承諾の判定が同じ式 |
 | `src/utils/clubTier.ts` の `tierRankSlots` | ロスターに配るランクの並び（構成→25個→シャッフル） |
@@ -598,7 +599,7 @@ px が 8 のもの（財務の予算カードの `0 8px 0 #8b6914`）が**26か�
 | そのクラブの格を読む | `tierOf(team)` / `tierOfClubId(id)` / `tierOfPlayerClub(teamId, teams)`。`team.tier` を直接見ないこと |
 | そのクラブの予算 | `tierBudget(team)` |
 | 成長の上限（OVR） | `TIER_POTENTIAL_CAP`（生成時に効く。育つときの上限は選手ごとの potential） |
-| 成長の速さ（CPU・海外） | `tierGrowthRate(tier)` |
+| 成長の速さ（CPU・海外） | `tierGrowthRate(tier)`（**格1=5.0 → 格20=2.0 の等差**。以前は 3.0→1.65 で**格11〜20が全部1.5の横並び**だった）|
 | ロスターのランク構成 | `tierRankComposition(tier)`（25人ぶん） |
 | スポンサー収入 | `tierSponsorIncome(tier)`（3枠を埋めた合計） |
 | 運営費 | `operatingCostOf(総年俸)`（年俸の1割） |
