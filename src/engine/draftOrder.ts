@@ -11,13 +11,22 @@ export function pickExistsAnywhere(teams: Team[], ownerId: string, year: number,
 // 指名権番号を「前年順位の逆順」で振るためのマップ。最下位=1（全体1位指名）〜優勝=N。
 // 各チームの直近シーズン順位（過去シーズンの順位表から数え直した最新年）を使い、成績の悪い順に 1,2,3... を割り当てる。
 // 履歴なし（開幕年など）は最下位扱いとし、配列順を維持（＝従来と同じ挙動でフォールバック）。
+// そのチームの直近シーズンの順位（履歴が無ければ最下位扱い）。
+// ★ドラフト順の基準はこれ1本。standingsPickNumbers と draftLotteryOrder が
+//   同じ中身を別々に持っていて、片方だけ直すと基準がズレる形だった
+function latestRank(t: Team, histories: TeamHistoryMap): number {
+  const past = histories[t.id]?.seasonResults ?? []
+  if (past.length === 0) return Number.POSITIVE_INFINITY
+  return past.reduce((best, r) => (r.year > best.year ? r : best)).rank
+}
+
+/** 成績が悪い順（順位の数字が大きい順）に並べる。ドラフト順の入口2つが同じ並びを使う */
+function worstFirst(teams: Team[], histories: TeamHistoryMap): Team[] {
+  return [...teams].sort((a, b) => latestRank(b, histories) - latestRank(a, histories))
+}
+
 export function standingsPickNumbers(teams: Team[], histories: TeamHistoryMap): Map<string, number> {
-  const latestRank = (t: Team): number => {
-    const past = histories[t.id]?.seasonResults ?? []
-    if (past.length === 0) return Number.POSITIVE_INFINITY
-    return past.reduce((best, r) => (r.year > best.year ? r : best)).rank
-  }
-  const sorted = [...teams].sort((a, b) => latestRank(b) - latestRank(a)) // 成績が悪い順（順位の数字が大きい順）
+  const sorted = worstFirst(teams, histories)
   const map = new Map<string, number>()
   sorted.forEach((t, i) => map.set(t.id, i + 1))
   return map
@@ -27,12 +36,7 @@ export function standingsPickNumbers(teams: Team[], histories: TeamHistoryMap): 
 // 前年下位5チームだけ抽選で全体1〜5位の指名順を決め、残り（6位以降）は前年順位の逆順。
 // teamId → 全体指名順位(1=全体1位) を返す。
 export function draftLotteryOrder(teams: Team[], histories: TeamHistoryMap): Map<string, number> {
-  const latestRank = (t: Team): number => {
-    const past = histories[t.id]?.seasonResults ?? []
-    if (past.length === 0) return Number.POSITIVE_INFINITY
-    return past.reduce((best, r) => (r.year > best.year ? r : best)).rank
-  }
-  const sorted = [...teams].sort((a, b) => latestRank(b) - latestRank(a)) // 成績が悪い順
+  const sorted = worstFirst(teams, histories)
   // 下位5チームの重み（最下位ほど高い＝1位指名を引きやすい）
   const LOTTERY_WEIGHTS = [40, 25, 18, 11, 6]
   const pool = sorted.slice(0, 5).map((t, i) => ({ id: t.id, w: LOTTERY_WEIGHTS[i] ?? 1 }))

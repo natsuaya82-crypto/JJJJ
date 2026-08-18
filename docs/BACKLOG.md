@@ -981,7 +981,9 @@ V39_LS=<archives を {キー:中身} にしたもの> npm run check
   `V39_SAVE=<path> npm run check` から流せます
 - 分かること … その年の `worldAthleticsResults` / `worldTournament` / `worldRacePlans` の中身
 
-### E-2. 去年の代表が、枠から落ちると黙って消える
+### E-2. 去年の代表が、枠から落ちると黙って消える … `済`（2026-08-14・代表経験者は候補に残す）
+
+**直っています。** `ekidenCandidates` に `veteranIds` が入り、`worldRepresentatives` にいる選手はOVR順で100位の外でも候補に残ります（オーナー判断「100+代表経験者」）。以下は当時の記録。
 
 代表選考画面を開くと、前年に確定した代表のうち**候補100人から落ちた選手だけが
 何も言わずに枠から消えます**。「去年20人選んだのに、開いたら18人になっている」形。
@@ -1033,9 +1035,8 @@ const initialSlots = useMemo(() => {
   ついでに見つかった小さいもの（どれも直していない）:
   - `data/cardShop.ts:31` … `RARITY_EXP` を `CARD_UNIT_EXP` という**別名で再export**している。
     値は1つだが名前が2つ。呼ぶ側は全部 `CARD_UNIT_EXP` なので、いま食い違いは無い
-  - `engine/draftOrder.ts` … `latestRank`（直近シーズンの順位）が
-    `standingsPickNumbers`(L14) と `draftLotteryOrder`(L29) に**同じ中身で2回手書き**されている。
-    片方だけ直すとドラフト順の基準がズレる形
+  - `engine/draftOrder.ts` … `latestRank` の二重手書き … `済`（2026-08-18）。
+    ファイル先頭の `latestRank` / `worstFirst` 1本にした（並びは同じ・挙動不変）
 
 - **F-5. 一度も通らない枝が2つある** … `済`（2026-08-13・**2つとも解消済みでした**）
   1つ目のチームトークは `f76c0b0` で廃止（一度も効いていなかったので枝ごと削除）。
@@ -1210,7 +1211,10 @@ const initialSlots = useMemo(() => {
 - **U-16. レース中の施設だけ、まだ直読みのまま** … `済`（2026-08-14・オーナー判断「たのむ」）。
   `raceBoosts` / `raceFatigue` も `facilitiesOf` を通した。以下は当時の記録。
 
-- **U-18. 施設が効くのは「自分の部のレース」だけ** … **オーナー待ち**（U-16 の続き）。
+- **U-18. 施設が効くのは「自分の部のレース」だけ** … `済`（2026-08-14・`c761524`）。
+  **直っています。** `runBackgroundRace` が `withFacilityBoost` を通すので、
+  裏の部・海外リーグ・ECL の全232クラブに効きます（`check-facilities` が見張る）。
+  代表のレースだけは `clubs` を渡さない＝中立で、これは意図どおり。以下は当時の記録。
   施設の効き目を入れているのは `applyRaceBoosts` / `applyRaceFatigue` で、
   これを通るのは**自分が走るレースだけ**。他の部・海外リーグ・ECL は
   `engine/backgroundRace.ts` の `runBackgroundRace` を通るので、**施設が一切効かない**。
