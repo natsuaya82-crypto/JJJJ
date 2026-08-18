@@ -150,7 +150,7 @@ export default function SchedulePage() {
           </div>
         )}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <div style={{ width: 3, height: 14,backgroundColor: waMainYear ? '#A855F7' : '#EC407A' }}/>
+          <div style={{ width: 3, height: 14,backgroundColor: waMainYear ? C.purple : C.pink }}/>
           <span style={{ fontSize: F.label, color: C.textSub }}>{waMainYear ? '世界選手権' : 'アジア予選'}</span>
         </div>
       </div>
@@ -208,7 +208,7 @@ export default function SchedulePage() {
 
           // ── 世界選手権／アジア予選 ──
           if (it.type === 'wa') {
-            const waColor = it.waMainYear ? '#A855F7' : '#EC407A'
+            const waColor = it.waMainYear ? C.purple : C.pink
             return (
               <div key={`wa-${it.date}`} style={{ display: 'flex', alignItems: 'stretch', padding: '0 20px', opacity: it.isDone ? 0.55 : 1 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '24px', flexShrink: 0, paddingTop: '16px' }}>

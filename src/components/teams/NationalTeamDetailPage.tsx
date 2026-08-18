@@ -2,7 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
-import { C, SAIRA, F } from '../../styles/tokens'
+import { C, CARD, SAIRA, F } from '../../styles/tokens'
 import PlayerRow from '../player/PlayerRow'
 import { useOpponentMenu } from './opponentMenu'
 import { ekidenCandidates } from '../../engine/worldAthletics'
@@ -63,7 +63,7 @@ export function NationalTeamRoster({ code, onBack }: { code: string; onBack: () 
 
       <div style={{
         margin: '8px 12px 12px',
-        background: `linear-gradient(135deg, ${C.gold}22, #14121F)`,
+        background: `linear-gradient(135deg, ${C.gold}22, ${CARD.surface})`,
         border: `1px solid ${C.goldDark}55`, padding: '16px',
       }}>
         <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.gold, letterSpacing: 2, fontWeight: 900, marginBottom: 6 }}>NATIONAL TEAM</div>

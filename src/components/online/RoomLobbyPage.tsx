@@ -450,7 +450,7 @@ export default function RoomLobbyPage() {
         shortName: t.shortName,
         gmName: t.gmName,
         primary: t.colors?.primary ?? '#122440',
-        secondary: t.colors?.secondary ?? '#f5c842',
+        secondary: t.colors?.secondary ?? C.gold,
         logoId: t.logoId ?? defaultLogoIdFor(t.id),
       })
       cpuRostersRef.current[id] = st.players.filter(p => p.teamId === t.id)
@@ -526,7 +526,7 @@ export default function RoomLobbyPage() {
       shortName: m.profile?.shortName ?? '—',
       gmName: m.profile?.gmName,
       primary: m.profile?.primary ?? '#122440',
-      secondary: m.profile?.secondary ?? '#f5c842',
+      secondary: m.profile?.secondary ?? C.gold,
       logoId: m.profile?.logoId ?? 'logo_01',
     }))
   }, [members])
@@ -694,7 +694,7 @@ export default function RoomLobbyPage() {
                 border: `1px solid ${isMe ? alpha(C.gold, 0.35) : C.border}`,
               }}>
                 <div style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: 900, color: C.textDim, width: 16, textAlign: 'center' }}>{m.seat}</div>
-                <TeamLogoSVG primary={p?.primary ?? '#122440'} secondary={p?.secondary ?? '#f5c842'} shortName={p?.shortName ?? '—'} logoId={p?.logoId ?? 'logo_01'} size={32} />
+                <TeamLogoSVG primary={p?.primary ?? '#122440'} secondary={p?.secondary ?? C.gold} shortName={p?.shortName ?? '—'} logoId={p?.logoId ?? 'logo_01'} size={32} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: F.bodyLg, fontWeight: 900, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {p?.teamName ?? '読み込み中'}

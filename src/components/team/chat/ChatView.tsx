@@ -647,7 +647,7 @@ export function ChatView({
 
     // 海外挑戦の直訴：認める（夢を応援）／引き留める（モラール低下・2回目は大）
     const buildOverseasButtons = (): ReplyBtns | null => overseasReq ? [
-      { label: `海外挑戦を認める（${dreamLabelOf(overseasReq.region)}）`, color: C.purple ?? '#A855F7', action: () => {
+      { label: `海外挑戦を認める（${dreamLabelOf(overseasReq.region)}）`, color: C.purple ?? C.purple, action: () => {
         append(
           { from: 'gm', kind: 'overseas_granted', text: 'わかりました。あなたの走りはもう世界レベルです。夢を応援します。良いオファーを待ちましょう。' },
           // 次に開いて作り直したときと同じ発言にする（kind が同じなので二重に並ばない）

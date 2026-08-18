@@ -201,7 +201,7 @@ export function ResultsPhase({
             </svg>
           </button>
           <div>
-            <div style={{ fontSize: F.tiny, color: '#7986CB', letterSpacing: 2, fontWeight: 800 }}>EXP GAIN</div>
+            <div style={{ fontSize: F.tiny, color: C.blue, letterSpacing: 2, fontWeight: 800 }}>EXP GAIN</div>
             <div style={{ fontSize: F.subLg, fontWeight: 800, color: C.text }}>経験値獲得</div>
           </div>
         </div>
@@ -231,12 +231,12 @@ export function ResultsPhase({
                           <div key={k} style={{ minWidth: 66 }}>
                             <div style={{ fontSize: F.micro, color: C.textDim, marginBottom: 3 }}>{CARD_STAT_LABELS[k]}</div>
                             <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 3 }}>
-                              <span style={{ fontSize: F.body, fontWeight: 700, color: '#7986CB', fontFamily: SAIRA }}>{cur}</span>
+                              <span style={{ fontSize: F.body, fontWeight: 700, color: C.blue, fontFamily: SAIRA }}>{cur}</span>
                               <span style={{ fontSize: F.tiny, fontWeight: 700, color: C.green, fontFamily: SAIRA }}>+{gained}</span>
                             </div>
                             <div style={{ height: 4,background: alpha(C.border, 0.8), overflow: 'hidden', position: 'relative' }}>
                               <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${basePct * 100}%`, background: alpha(C.textSub, 0.4),}}/>
-                              <div style={{ position: 'absolute', left: `${basePct * 100}%`, top: 0, height: '100%', width: `${gainPct * 100}%`, background: '#7986CB',boxShadow: `0 0 6px #7986CB` }}/>
+                              <div style={{ position: 'absolute', left: `${basePct * 100}%`, top: 0, height: '100%', width: `${gainPct * 100}%`, background: C.blue,boxShadow: `0 0 6px ${C.blue}` }}/>
                             </div>
                           </div>
                         )

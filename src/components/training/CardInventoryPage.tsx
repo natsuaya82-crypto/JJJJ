@@ -64,7 +64,7 @@ export default function CardInventoryPage() {
             <GlassButton color={C.blue} size="sm" style={{ padding: '8px 14px', fontFamily: SAIRA, fontSize: F.body }} onClick={() => navigate('/cards')}>
               合成する
             </GlassButton>
-            <GlassButton color="#A855F7" size="sm" style={{ padding: '8px 14px', fontFamily: SAIRA, fontSize: F.body }} onClick={() => navigate('/cards/convert')}>
+            <GlassButton color={C.purple} size="sm" style={{ padding: '8px 14px', fontFamily: SAIRA, fontSize: F.body }} onClick={() => navigate('/cards/convert')}>
               変換
             </GlassButton>
           </span>}

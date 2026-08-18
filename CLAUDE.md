@@ -333,6 +333,7 @@ Supabase と同じ `auth.users` / `auth.uid()` を作り、データを入れた
 | 何 | どこ |
 |---|---|
 | 色・フォント | `src/styles/tokens.ts` の `C` と `src/index.css` の `:root`（**両方に同じ色がある。値をずらさないこと**）|
+| 選手カードの色 | `src/styles/tokens.ts` の `CARD`。`PlayerSheet` と `TeamDetailPage` だけが使う**2つ目の色の組**（紫がかった暗い段）。見た目は変えていない——**値の置き場所だけ1本にした**（`check-ui-tokens` の⑪が、画面にこの値を書いたら落とす）|
 | 透明度つきのブランド色 | `rgba(var(--gold-rgb), …)` / `rgba(var(--accent-cyan-rgb), …)` |
 | 画面の下端に貼る位置 | `bottomStack` |
 | 中身が使える高さ | `contentHeight`（**`HEADER_H + NAV_H + …` を画面で足さないこと**）|

@@ -13,7 +13,7 @@ import { SAVE_SLOTS, currentSaveSlot, switchSaveSlot, type SaveSlot } from '../.
 import { GmPassCard, IAP_ENABLED } from '../shared/GmPassSheet'
 import { exportSaveToShare } from '../../store/exportSave'
 
-import { C, alpha, SAIRA, HEADER_H, F } from '../../styles/tokens'
+import { C, CARD as PALETTE, alpha, SAIRA, HEADER_H, F } from '../../styles/tokens'
 import { canResignAsGm } from '../../utils/gmOffer'
 
 import { APP_VERSION } from '../../data/appMeta'
@@ -406,7 +406,7 @@ function TeamEditScreen({ onClose }: { onClose: () => void }) {
 
   const inputStyle: React.CSSProperties = {
     width: '100%', padding: '12px 14px',border: 'none',
-    backgroundColor: '#1E1B2E', color: C.text, fontSize: F.subLg,
+    backgroundColor: PALETTE.surface3, color: C.text, fontSize: F.subLg,
     fontFamily: SAIRA, outline: 'none', boxShadow: `inset 0 0 0 1px ${alpha(C.gold, 0.14)}`,
     boxSizing: 'border-box',
   }
@@ -461,7 +461,7 @@ function TeamEditScreen({ onClose }: { onClose: () => void }) {
         disabled={!dirty || !valid}
         style={{
           width: '100%', padding: '14px',border: 'none',
-          background: (dirty && valid) ? `linear-gradient(180deg, #E8C86A 0%, #C9A84C 100%)` : alpha(C.gold, 0.12),
+          background: (dirty && valid) ? `linear-gradient(180deg, #E8C86A 0%, ${PALETTE.gold} 100%)` : alpha(C.gold, 0.12),
           color: (dirty && valid) ? '#0A0912' : alpha(C.text, 0.4),
           fontSize: F.subLg, fontWeight: 900, fontFamily: SAIRA,
           cursor: (dirty && valid) ? 'pointer' : 'default', letterSpacing: '1px',

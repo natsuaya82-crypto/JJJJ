@@ -7,7 +7,7 @@ import { SPECIALTY_LABELS } from '../../types'
 import { ovr, SPEC_COLOR, ratingColor } from '../../utils/playerUtils'
 import { SPECIALTIES } from '../../utils/squadNeeds'
 import { draftBuzz, draftSalaryFloor, draftTeamNeeds } from '../../engine/draft'
-import { C, alpha, SAIRA, bottomStack, F } from '../../styles/tokens'
+import { C, CARD, alpha, SAIRA, bottomStack, F } from '../../styles/tokens'
 import { useAdHeight } from '../layout/Layout'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
@@ -803,7 +803,7 @@ function PoolCard({ player: p, isMyPick, onPick, isScouted, isRecommend, buzz }:
             <div style={{
               fontSize: '26px', fontWeight: '900', lineHeight: 1, fontFamily: SAIRA,
               background: isElite
-                ? 'linear-gradient(180deg, #FFD700, #C9A84C)'
+                ? `linear-gradient(180deg, #FFD700, ${CARD.gold})`
                 : `linear-gradient(180deg, ${C.textSub}, ${C.textDim})`,
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
             }}>

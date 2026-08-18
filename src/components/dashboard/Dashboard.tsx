@@ -37,7 +37,7 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 type DraftState = { isComplete: boolean } | null
 
 const RARITY_COLOR: Record<string, string> = {
-  legendary: '#F59E0B', epic: '#A855F7', rare: '#3B82F6', normal: '#7A7A8C',
+  legendary: '#F59E0B', epic: C.purple, rare: '#3B82F6', normal: '#7A7A8C',
 }
 const RARITY_LABEL: Record<string, string> = {
   legendary: 'LEG', epic: 'EPIC', rare: 'RARE', normal: 'NRM',

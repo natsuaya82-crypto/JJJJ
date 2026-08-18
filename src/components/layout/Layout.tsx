@@ -212,7 +212,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           {raceInProgress ? null : (<>
           <button
             onClick={() => navigate('/jewels')}
-            style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'linear-gradient(135deg, #0f2240 0%, #0a1729 100%)', border: `1px solid ${alpha('#6dd5fa', 0.3)}`,padding: '5px 6px 5px 7px', margin: '0 4px', cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '4px', background: `linear-gradient(135deg, #0f2240 0%, ${C.bg} 100%)`, border: `1px solid ${alpha('#6dd5fa', 0.3)}`,padding: '5px 6px 5px 7px', margin: '0 4px', cursor: 'pointer' }}
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
               <path d="M12 2l8.66 5v10L12 22l-8.66-5V7L12 2z" fill="url(#jg)" stroke="#4ab8ea" strokeWidth="1.2" strokeLinejoin="round"/>

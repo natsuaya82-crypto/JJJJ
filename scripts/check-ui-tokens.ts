@@ -128,6 +128,13 @@ console.log('\n② 共通の土台に「ほぼ同じだが違う色」が混ざ�
     const src = read(f)
       .replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, ' '))
       .replace(/:root\s*\{[\s\S]*?\n\}/, m => m.replace(/[^\n]/g, ' '))
+      // ★**色に名前を付けている塊も見ない**（`:root` を見ないのとまったく同じ理由）。
+      //   `export const C` / `export const CARD` は色に名前を付ける場所で、
+      //   明るい版・暗い版を並べるのが仕事。名前が付いていれば取り違えは起きない。
+      //   CARD は選手カードの2つ目の組（PlayerSheet / TeamDetailPage）で、その中の
+      //   `goldHi`(#F0D264) は C.gold に近いが、**別の組の金**なので取り違えではない。
+      //   ここを見ないぶんの守りは⑪（CARD の値を画面に書かせない）が持つ。
+      .replace(/export const (?:C|CARD) = \{[\s\S]*?\n\} as const/g, m => m.replace(/[^\n]/g, ' '))
     for (const m of src.matchAll(/#[0-9a-fA-F]{6}\b|rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/g)) {
       const c: RGB = m[0].startsWith('#') ? hexRgb(m[0]) : [+m[1], +m[2], +m[3]]
       for (const [name, base] of brands) {
@@ -446,6 +453,34 @@ console.log('\n⑬ 下から出るシートが画面の外へ突き抜けない'
     '上限だけ付けて中身がスクロールしないと、はみ出したぶんが読めなくなる')
   // つまみと見出しは動かさない（縮められると、長い中身のときに潰れる）
   check('つまみと見出しは縮まない', (sheet.match(/flexShrink:\s*0/g) ?? []).length >= 2)
+}
+
+console.log('\n⑪ 選手カードの色（CARD）を画面に直書きしていない')
+{
+  // `PlayerSheet` と `TeamDetailPage` の2画面だけ、アプリ全体（C）とは別の
+  // 紫がかった色の組で作ってある。**それ自体は「あえて」なので変えない**が、
+  // 2026-08-18 に数えたら **その組が2画面に240件そのまま手書き**されていた。
+  // C と同じ段が丸ごともう1組あるのに名前が無いので、「金を少し明るくしたい」と
+  // 思ってもどれを触ればいいのか分からない（C のほうは名前が無かったせいで
+  // 実際に金が3種類・水色が2種類に割れた）。値は styles/tokens.ts の CARD 1本。
+  const tokens = read('src/styles/tokens.ts')
+  const block = tokens.slice(tokens.indexOf('export const CARD = {'))
+  const values = [...block.slice(0, block.indexOf('} as const')).matchAll(/'(#[0-9a-fA-F]{6})'/g)].map(m => m[1].toUpperCase())
+  check(`CARD に色が並んでいる（${values.length}色）`, values.length >= 10)
+  // `icons/Icons.tsx` だけ外す。あそこに並んでいるのは**リーグの識別色**（国旗や
+  // エンブレムの色）というデータで、見た目のトークンではない（`k_league` の赤、
+  // `usa_running` の紺など）。JPEL の金がたまたま同じ値なだけで、CARD.gold を
+  // 明るくしたときにリーグのエンブレムまで変わるほうが間違い。
+  const LEAGUE_COLORS = 'src/components/icons/Icons.tsx'
+  const bad: string[] = []
+  for (const f of screens) {
+    if (f === LEAGUE_COLORS) continue
+    const up = read(f).toUpperCase()
+    for (const v of values) if (up.includes(v)) bad.push(`${f} に ${v}`)
+  }
+  for (const b of bad.slice(0, 8)) console.log(`      ${b}`)
+  check('画面に1件も書かれていない', bad.length === 0,
+    `${bad.length}件。CARD.◯◯ を使うこと（値は styles/tokens.ts 1本）`)
 }
 
 console.log(failed === 0 ? '\n  → OK\n' : `\n  → NG ${failed}件\n`)

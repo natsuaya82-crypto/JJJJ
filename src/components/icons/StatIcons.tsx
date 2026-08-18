@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react'
 import type { CardStatKey } from '../../types'
+import { C } from '../../styles/tokens'
 
 type Props = { size?: number; color?: string }
 
@@ -83,10 +84,10 @@ export function CardTrainingHeaderSVG({ width = 100, height = 72 }: { width?: nu
   return (
     <svg width={width} height={height} viewBox="0 0 100 72" fill="none">
       {/* Back cards */}
-      <rect x="42" y="8" width="32" height="44" rx="4" fill="#1a1030" stroke="#A855F7" strokeWidth="1.2" opacity="0.6" transform="rotate(12 58 30)"/>
+      <rect x="42" y="8" width="32" height="44" rx="4" fill="#1a1030" stroke={C.purple} strokeWidth="1.2" opacity="0.6" transform="rotate(12 58 30)"/>
       <rect x="28" y="10" width="32" height="44" rx="4" fill="#1a1030" stroke="#7c3aed" strokeWidth="1.2" opacity="0.7" transform="rotate(-8 44 32)"/>
       {/* Front card */}
-      <rect x="30" y="14" width="38" height="50" rx="5" fill="#2d1060" stroke="#A855F7" strokeWidth="2"/>
+      <rect x="30" y="14" width="38" height="50" rx="5" fill="#2d1060" stroke={C.purple} strokeWidth="2"/>
       {/* Card inner frame */}
       <rect x="33" y="17" width="32" height="44" rx="3" stroke="#c084fc" strokeWidth="0.8" opacity="0.4"/>
       {/* Lightning bolt on card */}
@@ -94,7 +95,7 @@ export function CardTrainingHeaderSVG({ width = 100, height = 72 }: { width?: nu
       {/* Sparkles */}
       <path d="M75 16l1 3 3 1-3 1-1 3-1-3-3-1 3-1z" fill="#F59E0B" opacity="0.9"/>
       <path d="M82 36l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" fill="#c084fc" opacity="0.8"/>
-      <path d="M22 28l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5z" fill="#A855F7" opacity="0.7"/>
+      <path d="M22 28l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5z" fill={C.purple} opacity="0.7"/>
       <path d="M88 52l.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5 1.2-.5z" fill="#F59E0B" opacity="0.6"/>
       {/* Stat label lines on card */}
       <rect x="36" y="50" width="14" height="2" rx="1" fill="#c084fc" opacity="0.5"/>

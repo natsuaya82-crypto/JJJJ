@@ -19,7 +19,7 @@ import { useAdHeight } from '../layout/Layout'
 import { buildCpuLineups, racingTeams } from '../../engine/raceEngine'
 import { audio } from '../../utils/audio'
 import { getDueIndividualEvent, formatRaceTime } from '../../utils/eventTime'
-import { C, alpha, SAIRA, TT_COLOR, bottomStack, F } from '../../styles/tokens'
+import { C, CARD, alpha, SAIRA, TT_COLOR, bottomStack, F } from '../../styles/tokens'
 import {
   calcCpuTimesForSeg, calcSegOvr, calcNaturalDrain, calcFinalSegTime,
   generateSegmentEvents, resolveChoice, finalizeSegment,
@@ -376,7 +376,7 @@ export default function RacePage() {
       <div style={{
         padding: '48px 24px', textAlign: 'center',
         fontFamily: "'Noto Sans JP', system-ui, sans-serif",
-        color: '#5C5870', fontSize: F.sub,
+        color: CARD.textGhost, fontSize: F.sub,
       }}>
         {raceIndex >= currentSeason.races.length
           ? 'シーズン終了。すべてのレースが完了しました。'

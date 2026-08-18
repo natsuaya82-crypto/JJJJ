@@ -52,7 +52,7 @@ export default function TeamHub() {
         ? `手持ち${trainingCards.length}枚${raceDroppedCards.length > 0 ? ` / NEW+${raceDroppedCards.length}` : ''}`
         : 'カードなし',
       badge: raceDroppedCards.length,
-      color: '#A855F7',
+      color: C.purple,
       shadow: '#3b0071',
       urgent: raceDroppedCards.length > 0,
       icon: (

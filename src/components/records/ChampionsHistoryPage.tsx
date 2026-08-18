@@ -27,7 +27,7 @@ type DistKey = 'd5000' | 'd10000' | 'half' | 'marathon'
 
 const CAT_LABEL: Record<Category, string> = { jpel: 'JPEL', ecl: 'ECL', waqual: 'アジア予選', wamain: '世界選手権', reserve: 'リザーブ駅伝', tt: '記録会' }
 // 各大会の確立カラーに合わせる（JPEL=金 / ECL=赤 / アジア予選=ピンク / 世界選手権=紫 / リザーブ=青 / 記録会=緑）
-const CAT_COLOR: Record<Category, string> = { jpel: '#f5c842', ecl: '#ff4757', waqual: '#EC407A', wamain: '#A855F7', reserve: '#7986CB', tt: '#2ecc71' }
+const CAT_COLOR: Record<Category, string> = { jpel: C.gold, ecl: C.red, waqual: C.pink, wamain: C.purple, reserve: C.blue, tt: C.green }
 const GOLD = '#FFD700'
 const DIST_LABEL: Record<DistKey, string> = { d5000: '5000m', d10000: '10000m', half: 'ハーフ', marathon: 'マラソン' }
 const DIST_KEYS: DistKey[] = ['d5000', 'd10000', 'half', 'marathon']
@@ -62,7 +62,7 @@ export default function ChampionsHistoryPage() {
     !!rec && rec.timeSec === timeSec && (rec.playerId === playerId || (rec.coHolders ?? []).some(c => c.playerId === playerId))
   const recordBadge = (dist: DistKey, playerId: string, timeSec: number) => {
     if (holds(worldRecords?.[dist], playerId, timeSec)) return { label: '世界記録', color: '#FF5C8A' }
-    if (holds(japanRecords?.[dist], playerId, timeSec)) return { label: '日本記録', color: '#F5C842' }
+    if (holds(japanRecords?.[dist], playerId, timeSec)) return { label: '日本記録', color: C.gold }
     return null
   }
 

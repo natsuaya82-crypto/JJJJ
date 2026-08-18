@@ -7,7 +7,7 @@ import type { Race, RaceResults, Team, Player, Nationality } from '../../types'
 import { formatDiff } from '../../engine/raceEngine'
 import { formatRaceTime } from '../../utils/eventTime'
 import { terrainColor, terrainLabel } from './raceUtils'
-import { C, alpha, SAIRA, F } from '../../styles/tokens'
+import { C, CARD, alpha, SAIRA, F } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import PillTabs from '../ui/PillTabs'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -109,7 +109,7 @@ export function SegmentDetailCard({
           const t = teamMap.get(runner.teamId)
           const p = playerMap.get(runner.playerId)
           const diff = runner.timeSec - leaderTime
-          const rankCol = runner.rank === 1 ? C.gold : runner.rank === 2 ? '#9B97A8' : runner.rank === 3 ? '#CD7F32' : isMe ? C.cyan : C.textGhost
+          const rankCol = runner.rank === 1 ? C.gold : runner.rank === 2 ? CARD.textDim : runner.rank === 3 ? '#CD7F32' : isMe ? C.cyan : C.textGhost
           const myRunnerPlayer = isMe && seg ? p : null
           const highFatigue = myRunnerPlayer && (myRunnerPlayer.fatigue ?? 0) >= 70
           const tappable = !!(p && onPlayerTap)

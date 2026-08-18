@@ -1,11 +1,11 @@
 import type { Race } from '../../types'
-import { C, alpha, COMPETITION_BTN, SAIRA, F } from '../../styles/tokens'
+import { C, CARD, alpha, COMPETITION_BTN, SAIRA, F } from '../../styles/tokens'
 import { InfoTile } from '../ui'
 import { courseTypeOf } from '../../data/races'
 import { panelStyle } from '../ui/Panel'
 
 const WEATHER_LABEL: Record<string, string> = { sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風' }
-const WEATHER_COLOR: Record<string, string> = { sunny: C.gold, cloudy: '#9B97A8', rainy: C.blue, windy: C.cyan }
+const WEATHER_COLOR: Record<string, string> = { sunny: C.gold, cloudy: CARD.textDim, rainy: C.blue, windy: C.cyan }
 
 const RACE_TYPE_LABEL: Record<string, string> = { league: 'LEAGUE', college: 'COLLEGE' }
 
@@ -43,11 +43,11 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, va
     divider: '#4a56a8', tileBorder: alpha(C.blue, 0.15), btnClass: COMPETITION_BTN.reserve,
     typeLabel: 'RESERVE', nextColor: C.cyan,
   } : {
-    border: C.gold, shadowDeep: '#8b6914', frame: 'rgba(245,200,66,0.28)',
+    border: C.gold, shadowDeep: CARD.goldDark, frame: 'rgba(245,200,66,0.28)',
     headerGrad: `linear-gradient(90deg, ${alpha(C.gold, 0.18)}, ${alpha(C.gold, 0.04)})`,
     headerBorder: alpha(C.gold, 0.18),
     badgeGrad: `linear-gradient(180deg, ${C.goldHi} 0%, ${C.gold} 60%, ${C.goldDark} 100%)`,
-    badgeBorder: '#8b6914', badgeShadow: '#5a3500',
+    badgeBorder: CARD.goldDark, badgeShadow: '#5a3500',
     divider: C.goldDark, tileBorder: alpha(C.gold, 0.12), btnClass: COMPETITION_BTN.jpel,
     typeLabel: RACE_TYPE_LABEL[race.type] ?? race.type.toUpperCase(), nextColor: C.cyan,
   }

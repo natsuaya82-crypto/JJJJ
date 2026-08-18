@@ -97,7 +97,7 @@ export default function JewelsPage() {
       </div>
 
       {/* 残高 */}
-      <div style={{ margin: '16px 16px 8px', background: 'linear-gradient(135deg, #0f2240 0%, #0a1729 100%)', border: `1px solid ${alpha('#6dd5fa', 0.35)}`,padding: '20px', textAlign: 'center', boxShadow: `0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(168,228,255,0.1)` }}>
+      <div style={{ margin: '16px 16px 8px', background: `linear-gradient(135deg, #0f2240 0%, ${C.bg} 100%)`, border: `1px solid ${alpha('#6dd5fa', 0.35)}`,padding: '20px', textAlign: 'center', boxShadow: `0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(168,228,255,0.1)` }}>
         <div style={{ fontFamily: SAIRA, fontSize: F.label, color: alpha('#6dd5fa', 0.85), letterSpacing: '3px', marginBottom: 8 }}>保有ジュエル</div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
           <JewelIcon size={28}detailed />
@@ -107,7 +107,7 @@ export default function JewelsPage() {
 
       {/* 広告視聴 */}
       <div style={{ margin: '12px 16px 0' }}>
-        <div style={{ background: 'linear-gradient(135deg, #0f2240 0%, #0a1729 100%)', border: `1px solid ${alpha('#6dd5fa', adsLeft > 0 ? 0.4 : 0.15)}`,padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ background: `linear-gradient(135deg, #0f2240 0%, ${C.bg} 100%)`, border: `1px solid ${alpha('#6dd5fa', adsLeft > 0 ? 0.4 : 0.15)}`,padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: adsLeft > 0 ? '#6dd5fa' : C.textDim }}>広告を見る</div>
             <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim, marginTop: 3 }}>残り {adsLeft} / 3 回 · 1日3回まで</div>

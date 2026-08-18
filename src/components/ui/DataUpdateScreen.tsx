@@ -119,7 +119,7 @@ export default function DataUpdateScreen({ onDone }: { onDone: () => void }) {
           box-shadow:0 0 12px ${alpha(C.gold, 0.55)};
           transition:width .45s cubic-bezier(.4,0,.2,1)}
         .jpel-du-fill::after{content:"";position:absolute;inset:0;
-          background:linear-gradient(90deg,transparent,${alpha('#ffffff', 0.45)},transparent);
+          background:linear-gradient(90deg,transparent,${alpha(C.text, 0.45)},transparent);
           animation:jpel-du-sweep 1.4s linear infinite}
         @media (prefers-reduced-motion:reduce){.jpel-du-fill::after{animation:none}}
       `}</style>

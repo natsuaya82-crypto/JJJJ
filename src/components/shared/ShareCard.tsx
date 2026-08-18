@@ -10,7 +10,7 @@ import { getPlayerBadges } from '../../utils/badges'
 import BadgeContent, { badgeColor } from '../player/BadgeContent'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
-import { SAIRA, F } from '../../styles/tokens'
+import { SAIRA, CARD, F } from '../../styles/tokens'
 
 
 const STATS: { key: keyof Player['ratings']; label: string }[] = [
@@ -27,7 +27,7 @@ const STATS: { key: keyof Player['ratings']; label: string }[] = [
 export default function ShareCard({ player, team }: { player: Player; team?: Club }) {
   const rating = ovr(player)
   const specCol = SPEC_COLOR[player.specialty]
-  const GOLD = '#C9A84C'
+  const GOLD = CARD.gold
   // 記録パッチ（世界記録・日本記録・MVP・区間記録など）。選択中があればそれ、無ければ優先順の最上位を1個
   const worldRecords = useGameStore(s => s.worldRecords)
   const japanRecords = useGameStore(s => s.japanRecords)
@@ -47,7 +47,7 @@ export default function ShareCard({ player, team }: { player: Player; team?: Clu
       background: 'linear-gradient(165deg, #14263f 0%, #0a1220 55%, #070c15 100%)',
       border: `3px solid ${GOLD}`,
       padding: 24,
-      fontFamily: SAIRA, color: '#F0EDE8', position: 'relative', overflow: 'hidden',
+      fontFamily: SAIRA, color: CARD.text, position: 'relative', overflow: 'hidden',
     }}>
       {/* 斜めのタスキ風アクセント */}
       <div style={{ position: 'absolute', top: -60, right: -40, width: 220, height: 220, background: `linear-gradient(135deg, transparent 46%, ${specCol}22 50%, transparent 54%)`, transform: 'rotate(12deg)' }} />

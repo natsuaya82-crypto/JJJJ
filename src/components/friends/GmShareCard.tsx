@@ -4,9 +4,9 @@ import { useTeamHistory } from '../../lib/useTeamHistory'
 import { topTitleCount } from '../../utils/teamHistory'
 import { useMyRatedRank } from '../../lib/useRatedRanks'
 import { RankBadge } from '../rated/ratedUi'
-import { SAIRA, F } from '../../styles/tokens'
+import { SAIRA, CARD, F } from '../../styles/tokens'
 
-const GOLD = '#C9A84C'
+const GOLD = CARD.gold
 
 // SNS共有用のGMカード（固定幅・オフスクリーンで描画して html2canvas でキャプチャ）。
 // 選手カードと同じ質感（濃紺グラデ＋金縁＋タスキ）で、フレンドコードを主役に。
@@ -25,7 +25,7 @@ export default function GmShareCard({ team, code }: { team?: Team; code: string 
       width: 480, boxSizing: 'border-box',
       background: 'linear-gradient(165deg, #14263f 0%, #0a1220 55%, #070c15 100%)',
       border: `3px solid ${GOLD}`, padding: 24,
-      fontFamily: SAIRA, color: '#F0EDE8', position: 'relative', overflow: 'hidden',
+      fontFamily: SAIRA, color: CARD.text, position: 'relative', overflow: 'hidden',
     }}>
       {/* 斜めのタスキ風アクセント */}
       <div style={{ position: 'absolute', top: -60, right: -40, width: 220, height: 220, background: `linear-gradient(135deg, transparent 46%, ${secondary}22 50%, transparent 54%)`, transform: 'rotate(12deg)' }} />
@@ -50,7 +50,7 @@ export default function GmShareCard({ team, code }: { team?: Team; code: string 
           <div style={{ fontSize: 34, fontWeight: 900, lineHeight: 1.05, marginTop: 2 }}>GM {team?.gmName ?? '—'}</div>
           <div style={{ display: 'flex', gap: 14, alignItems: 'baseline', marginTop: 8 }}>
             <span style={{ fontSize: F.bodyLg, color: '#8C93A5' }}>通算優勝 <b style={{ color: GOLD, fontSize: F.titleLg }}>{champs}</b></span>
-            <span style={{ fontSize: F.bodyLg, color: '#8C93A5' }}>監督歴 <b style={{ color: '#F0EDE8', fontSize: F.titleLg }}>{seasons}</b>季</span>
+            <span style={{ fontSize: F.bodyLg, color: '#8C93A5' }}>監督歴 <b style={{ color: CARD.text, fontSize: F.titleLg }}>{seasons}</b>季</span>
           </div>
         </div>
       </div>
@@ -63,7 +63,7 @@ export default function GmShareCard({ team, code }: { team?: Team; code: string 
 
       {/* フッタ */}
       <div style={{ marginTop: 16, paddingTop: 12, borderTop: `1px solid ${GOLD}33`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative' }}>
-        <span style={{ fontSize: F.bodyLg, fontWeight: 800, color: '#F0EDE8' }}>このコードで <span style={{ color: GOLD }}>フレンド申請</span> してね！</span>
+        <span style={{ fontSize: F.bodyLg, fontWeight: 800, color: CARD.text }}>このコードで <span style={{ color: GOLD }}>フレンド申請</span> してね！</span>
         <span style={{ fontSize: F.label, color: '#6B7488', letterSpacing: 2 }}>#JPELManager</span>
       </div>
     </div>

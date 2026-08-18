@@ -7,14 +7,14 @@ import { formatRaceTime } from '../../utils/eventTime'
 import { useSegmentRecords } from '../../lib/useSegmentRecords'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
-import { C, alpha, SAIRA, F } from '../../styles/tokens'
+import { C, CARD, alpha, SAIRA, F } from '../../styles/tokens'
 import { useClubIndex } from '../../lib/useClubIndex'
 import GlassButton from '../ui/GlassButton'
 
 
 type Category = 'jpel' | 'ecl' | 'reserve'
 const CAT_LABEL: Record<Category, string> = { jpel: 'JPEL', ecl: 'ECL', reserve: 'リザーブ駅伝' }
-const CAT_COLOR: Record<Category, string> = { jpel: '#C9A84C', ecl: '#2ECC71', reserve: '#AB8ED6' }
+const CAT_COLOR: Record<Category, string> = { jpel: CARD.gold, ecl: C.green, reserve: '#AB8ED6' }
 
 // 区間記録：歴代優勝と同じ構成。カテゴリ（JPEL/リザーブ）→ 大会一覧 → 区間を横に並べて切り替え
 export default function PlayersStatsPage() {

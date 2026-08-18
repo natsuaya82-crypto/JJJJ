@@ -81,7 +81,7 @@ export default function ScoutPage() {
 
       <PlayerList style={{ margin: '0 12px' }}>
         {sorted.map(p => (
-          <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} extra={starredProspects.includes(p.id) ? <span style={{ color: '#F5C842', fontSize: F.bodyLg, flexShrink: 0 }}>★</span> : undefined} />
+          <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} extra={starredProspects.includes(p.id) ? <span style={{ color: C.gold, fontSize: F.bodyLg, flexShrink: 0 }}>★</span> : undefined} />
         ))}
       </PlayerList>
     </div>

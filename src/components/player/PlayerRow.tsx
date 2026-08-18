@@ -8,7 +8,7 @@ import { useGameStore } from '../../store/gameStore'
 import { useSegmentRecords } from '../../lib/useSegmentRecords'
 import { useSeasonAwards } from '../../lib/useSeasonAwards'
 import { useEclHistory } from '../../lib/useEclHistory'
-import { C, alpha, SAIRA, F } from '../../styles/tokens'
+import { C, CARD, alpha, SAIRA, F } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import PlayerFace from './PlayerFace'
 import { SpecChip } from './PlayerChips'
@@ -135,7 +135,7 @@ export default function PlayerRow({ player, handlers, loanOwner, selected, extra
             </div>
             <div style={{
               fontSize: 26, fontWeight: 900, fontFamily: SAIRA, lineHeight: 1, flexShrink: 0,
-              background: isElite ? 'linear-gradient(180deg, #FFD700, #C9A84C)' : `linear-gradient(180deg, ${C.textSub}, ${C.textDim})`,
+              background: isElite ? `linear-gradient(180deg, #FFD700, ${CARD.gold})` : `linear-gradient(180deg, ${C.textSub}, ${C.textDim})`,
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
             }}>
               {rating}

@@ -463,7 +463,7 @@ export default function ChatPage() {
             {incomingLoanOffers.map(o => {
               const p = players.find(pl => pl.id === o.playerId)
               if (!p) return null
-              return <OfferChatRow key={o.id} player={p} accent={C.purple ?? '#A855F7'} badge="レンタル"
+              return <OfferChatRow key={o.id} player={p} accent={C.purple ?? C.purple} badge="レンタル"
                 title={`${teamName(o.fromTeamId)}が${p.name}のレンタルを打診`}
                 sub={`${o.years}年${o.direction === 'lend_out' ? '貸し出し' : '借り入れ'} — タップして返事をする`}
                 onOpen={() => setChatPlayerId(p.id)} />
