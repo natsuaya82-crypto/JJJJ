@@ -152,6 +152,54 @@ export function offersByPlayer<T extends { playerId: string }>(offers: readonly 
   return out
 }
 
+/**
+ * 【チャットにいま出ている用件の id】
+ *
+ * ■なぜ要るのか（オーナー・2026-08-16）
+ *   「チャットに通知機能つけて欲しい。チャット見ないとその数字消えないみたいな。
+ *     フレンド横にあった3みたいな感じ」
+ *
+ *   ホームの「チャット」に出す数字と、チャットの画面に並ぶ用件は**同じものを数える**
+ *   こと。別々に数えると「数字は3なのに開いたら1件」というズレが必ず出ます
+ *   （ベルとチャットで実際に起きて直した）。
+ *
+ * ★数え方は `collectNotifications` の結果から取るだけ。**ここで条件を書き足さない**こと。
+ * ★返す id は「見たかどうか」の記録に使うので、**用件ごとに安定していること**
+ *   （同じ用件は同じ id、別の用件は別の id）。
+ */
+export function chatTopicIds(input: NotifInput): string[] {
+  const n = collectNotifications(input)
+  return [
+    // 相手から来た買い取り打診（選手ごとに1件）
+    ...n.incomingOfferPlayers.map(x => `buy:${x.playerId}`),
+    // 行き先が決まらなかった退団予定（残す／FAで出す の返事待ち）
+    ...n.stayOrLeave.map(x => `stay:${x.playerId}`),
+    // 選手からの直訴
+    ...n.retirementRequests.map(r => `retire:${r.playerId}`),
+    ...n.transferReqs.map(r => `wish:${r.playerId}`),
+    ...n.overseasReqs.map(r => `overseas:${r.playerId}`),
+    // 相手が返事をしてきて、こちらの返事で止まっているもの
+    ...n.chatReplies.map(r => `reply:${r.id}`),
+    // 契約更新で要対応
+    ...n.renewalPlayers.map(x => `contract:${x.p.id}`),
+    // 出した入札の逆提示・費用合意（どちらもチャット／通知から返事をする）
+    ...n.counteredBids.map(b => `bid:${b.id}`),
+    ...n.feeAcceptedBids.map(b => `fee:${b.id}`),
+    // フリー移籍の接触（引き留めの相談）
+    ...n.freeContacts.map(o => `free:${o.id}`),
+  ]
+}
+
+/**
+ * ホームの「チャット」に出す数字。**まだ開いていない用件の数**。
+ * チャットを開くと `markChatSeen` で今ある用件を見た扱いにするので0になり、
+ * 新しい用件が来るとまた出ます（オーナー「チャット見ないとその数字消えない」）。
+ */
+export function chatUnseenCount(input: NotifInput, seenIds: readonly string[]): number {
+  const seen = new Set(seenIds)
+  return chatTopicIds(input).filter(id => !seen.has(id)).length
+}
+
 export function collectNotifications(input: NotifInput) {
   const { currentSeason, players, teams, playerTeamId, lastLoginDate, seenJoinIds, seenInjuryIds, pendingGiftsCount, clubGiftsCount, friendRequestsCount } = input
 

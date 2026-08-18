@@ -8,7 +8,7 @@ import PlayerFace from '../player/PlayerFace'
 import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, racesConsumed } from '../../utils/playerUtils'
 import { useOfferResults } from '../transfer/useOfferResults'
 import { OfferResultList } from '../transfer/OfferResultList'
-import { offersByPlayer, offersAwaitingReply, asCardCount } from '../../utils/notifItems'
+import { chatTopicIds, offersByPlayer, offersAwaitingReply, asCardCount } from '../../utils/notifItems'
 import { settledPath } from '../../utils/talkSync'
 import { contractTalkCtx, contractMonthsLeft, liveContractOf, needsRenewalAttention } from '../../utils/contractTalk'
 import type { ContractTalkCtx } from '../../utils/contractTalk'
@@ -77,7 +77,7 @@ export default function ChatPage() {
   const [searchParams] = useSearchParams()
   // 買い取り・レンタルの打診への返事は ChatView（会話）が持つ。一覧はタップして開くだけ
   const { players, playerTeamId, currentSeason, teams, generateContractRequests,
-    openPlayerSheet, setChatLog } = useGameStore()
+    openPlayerSheet, setChatLog, markChatSeen } = useGameStore()
   const clubIndex = useClubIndex()
   // 選手カードの長押しで選手詳細(PlayerSheet)を開く共通ハンドラ。顔タップは各カード側で個別に処理。
   const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -195,6 +195,15 @@ export default function ChatPage() {
   useEffect(() => {
     if (!chatPlayer && !tradeTeam) cameFromParamRef.current = false
   })
+
+  // ★**チャットを開いたら、いま出ている用件を見た扱いにする。**
+  //   ホームの「チャット」の数字はこれで消える（オーナー・2026-08-16
+  //   「チャット見ないとその数字消えないみたいな。フレンド横にあった3みたいな感じ」）。
+  //   どの用件があるかは utils/notifItems の chatTopicIds 1本＝ホームと同じものを数える
+  const topicKey = chatTopicIds({ currentSeason, players, teams, playerTeamId } as never).join('|')
+  useEffect(() => {
+    markChatSeen(topicKey ? topicKey.split('|') : [])
+  }, [topicKey, markChatSeen])
 
   // 相手から来たオファー（移籍・レンタル）＝チャットで対応
   const teamName = (id: string) => clubIndex.byId(id)?.shortName ?? '他クラブ'

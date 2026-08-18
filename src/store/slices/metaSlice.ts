@@ -10,7 +10,7 @@ import { faMarketSalary } from '../../utils/playerUtils'
 import { setDeviceAdsRemoved, setDeviceTwitterIntroSeen } from '../deviceFlags'
 
 type Slice = Pick<GameStore,
-  'claimGift' | 'claimLoginBonus' | 'watchAd' | 'setAdsRemoved' | 'claimDailyGreatSuccess' | 'setRaceEventsEnabled' | 'markTwitterIntroSeen' | 'grantUpdateGifts' | 'dismissJewelGains' | 'dismissJoinNotice' | 'dismissInjuryNotice' | 'dismissExpiredNegotiation' | 'dismissFreeTransferNotice' | 'markFreeContactSeen' | 'dismissDepartureNotice' | 'registerHofPlayer' | 'removeHofPlayer' | 'setDisplayBadge' | 'renamePlayer' | 'updateMyTeam' | 'createMyPlayer'>
+  'claimGift' | 'claimLoginBonus' | 'watchAd' | 'setAdsRemoved' | 'claimDailyGreatSuccess' | 'setRaceEventsEnabled' | 'markTwitterIntroSeen' | 'grantUpdateGifts' | 'dismissJewelGains' | 'dismissJoinNotice' | 'dismissInjuryNotice' | 'dismissExpiredNegotiation' | 'dismissFreeTransferNotice' | 'markFreeContactSeen' | 'markChatSeen' | 'dismissDepartureNotice' | 'registerHofPlayer' | 'removeHofPlayer' | 'setDisplayBadge' | 'renamePlayer' | 'updateMyTeam' | 'createMyPlayer'>
 
 export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
@@ -187,6 +187,12 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
   dismissFreeTransferNotice: (id) => set(s => ({ currentSeason: { ...s.currentSeason, freeTransferNotices: (s.currentSeason.freeTransferNotices ?? []).filter(n => n.id !== id) } })),
 
   markFreeContactSeen: (id) => set(s => ({ currentSeason: { ...s.currentSeason, seenFreeContactIds: [...new Set([...(s.currentSeason.seenFreeContactIds ?? []), id])] } })),
+
+  // チャットを開いたら、いま出ている用件を「見た」ことにする。
+  // ★どの用件があるかは utils/notifItems の chatTopicIds 1本（ここで数えないこと）。
+  //   ホームに出す数字と、チャットに並ぶ用件が同じものを指すため
+  markChatSeen: (ids) => set(s => ({
+    currentSeason: { ...s.currentSeason, seenChatTopicIds: [...new Set(ids)] } })),
 
   dismissDepartureNotice: (id) => set(s => ({ currentSeason: { ...s.currentSeason, departureNotices: (s.currentSeason.departureNotices ?? []).filter(n => n.id !== id) } })),
 

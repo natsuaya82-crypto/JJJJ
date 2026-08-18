@@ -16,8 +16,11 @@ import { clubSeasonRank } from '../../utils/clubStanding'
 import type { Race } from '../../types'
 import { getDueIndividualEvent } from '../../utils/eventTime'
 import { hostForYear } from '../../engine/worldAthletics'
-import { ROSTER_MIN } from '../../data/rosterRules'
 import { canStartSeason, rosterShortFor } from '../../utils/seasonStart'
+// ホームの「チャット」に出す未読の数。数え方は notifItems 1本（ここで数えない）
+import { chatUnseenCount } from '../../utils/notifItems'
+// 赤い丸は ui/CountBadge 1本（ベル・下タブと同じもの）
+import CountBadge from '../ui/CountBadge'
 // 世界選手権をまとめて消化する（大会の中には置かない・唯一の口）
 import { skipWorldTournament } from '../../lib/worldSkip'
 import { SkipRaceButton } from '../race/SkipRaceButton'
@@ -275,6 +278,10 @@ export default function Dashboard() {
   // 順位表は全52チームぶんを1本で持っているので、自分が走っている部だけに絞る
   // （絞らないと、部ごとにレース数が違うぶんだけ順位がずれる）
   const sorted = seasonDivisionStandings(currentSeason, playerTeamId)
+  // ホームの「チャット」に出す未読の数。**チャットを開くまで消えない**
+  const chatUnseen = chatUnseenCount(
+    { currentSeason, players, teams, playerTeamId } as never,
+    currentSeason.seenChatTopicIds ?? [])
   const myRank = rankOfTeam(sorted, playerTeamId)
 
   // ── ホーム下段の四角2つ（順位表・選手）に出すぶん ──
@@ -386,21 +393,21 @@ export default function Dashboard() {
         {([
           {
             icon: <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.8"/><path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
-            label: '年間予定', path: '/schedule',
+            label: '年間予定', path: '/schedule', badge: 0,
           },
           {
             icon: <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/><path d="M3 6h18M16 10a4 4 0 01-8 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>,
-            label: 'ショップ', path: '/shop',
+            label: 'ショップ', path: '/shop', badge: 0,
           },
           {
             icon: <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M9 11l3 3L22 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-            label: 'シーズン目標', path: '/objectives',
+            label: 'シーズン目標', path: '/objectives', badge: 0,
           },
           {
             icon: <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>,
-            label: 'チャット', path: '/team/chat',
+            label: 'チャット', path: '/team/chat', badge: chatUnseen,
           },
-        ] as const).map(({ icon, label, path }, i) => (
+        ] as const).map(({ icon, label, path, badge }, i) => (
           <button
             key={path}
             onClick={() => navigate(path)}
@@ -411,7 +418,13 @@ export default function Dashboard() {
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
             }}
           >
-            <span style={{ color: C.textDim, display: 'flex' }}>{icon}</span>
+            <span style={{ color: C.textDim, display: 'flex', position: 'relative' }}>
+              {icon}
+              {/* ★未読の数字。**チャットを開くまで消えない**（オーナー・2026-08-16
+                  「チャット見ないとその数字消えないみたいな。フレンド横にあった3みたいな感じ」）。
+                  数え方は utils/notifItems の chatUnseenCount 1本 */}
+              <CountBadge count={badge} />
+            </span>
             <span style={{ fontSize: F.caption, color: C.textSub }}>{label}</span>
           </button>
         ))}

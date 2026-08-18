@@ -357,6 +357,8 @@ export type GameStore = GameState & {
   setRaceEventsEnabled: (v: boolean) => void
   // 公式Xフォロー案内ポップを表示済みにする（初回のみ表示するためのフラグ）
   markTwitterIntroSeen: () => void
+  /** チャットを開いたときに、いま出ている用件を見た扱いにする（ids は chatTopicIds） */
+  markChatSeen: (ids: string[]) => void
   dismissExpiredNegotiation: (id: string) => void
   dismissFreeTransferNotice: (id: string) => void
   markFreeContactSeen: (id: string) => void

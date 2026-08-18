@@ -4,6 +4,9 @@ import { audio } from '../../utils/audio'
 import { useGameStore } from '../../store/gameStore'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useNotifCount } from '../notifications/useNotifCount'
+// 下タブ「オンライン」の未読（走友会の差し入れ＋フレンド申請）。数え方は1本
+import { useOnlineBadge } from '../notifications/useOnlineBadge'
+import CountBadge from '../ui/CountBadge'
 import { C, alpha, HEADER_H, NAV_H, NAV_FLOAT, NAV_STACK, MAIN_GAP, bottomStack, F, AD_H } from '../../styles/tokens'
 import PressButton from '../ui/PressButton'
 import ConfirmDialog from '../ui/ConfirmDialog'
@@ -119,6 +122,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
   const notifCount = useNotifCount()
+  const onlineCount = useOnlineBadge()
   const mainRef = useRef<HTMLElement>(null)
 
   // レース準備(lineup)〜進行(simulating)〜結果発表(results)中は下ナビを隠して集中させる（勝手にホーム等へ抜けさせない）
@@ -238,18 +242,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
               <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            {notifCount > 0 && (
-              <div style={{
-                position: 'absolute', top: 6, right: 6,
-                width: '16px', height: '16px', borderRadius: '50%',
-                backgroundColor: C.red,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: F.tiny, fontWeight: '800', color: '#fff',
-                border: `1.5px solid ${C.bg}`,
-              }}>
-                {notifCount > 9 ? '9+' : notifCount}
-              </div>
-            )}
+            {/* 赤い丸は ui/CountBadge 1本（下タブ・ホームのチャットと同じもの） */}
+            <span style={{ position: 'absolute', top: 8, right: 8 }}><CountBadge count={notifCount} /></span>
           </button>
 
           {/* Hamburger */}
@@ -371,8 +365,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 transition: 'all 0.18s ease',
                 flexShrink: 0,
                 color: active ? C.cyan : C.textDim,
+                position: 'relative',
               }}>
                 <Icon/>
+                {/* ★オンラインの下にぶら下がっているもの（走友会の差し入れ・フレンド申請）の数。
+                    数え方は notifications/useOnlineBadge 1本（ここで数えないこと） */}
+                {to === '/online' && <CountBadge count={onlineCount} />}
               </div>
               <span style={{
                 fontSize: F.caption,

@@ -814,6 +814,8 @@ export type Season = {
   freeTransferNotices?: { id: string; playerId: string; playerName: string; toTeamName: string; left: boolean }[]
   // タップして対応済みの接触中通知のID（通知とバッジから消す。接触自体は裏で進行）
   seenFreeContactIds?: string[]
+  /** 見たチャットの用件id（ホームの「チャット」の数字を消すのに使う。utils/notifItems の chatTopicIds） */
+  seenChatTopicIds?: string[]
   // 自チーム選手の退団通知（シーズン切替時の契約満了・FA流出・移籍）。確認で消す
   departureNotices?: { id: string; playerId: string; playerName: string; toTeamName: string; reason: 'transfer' | 'fa' | 'loan'; fee?: number; years?: number }[]
   // 今季の移籍金の累計（財務ページの明細表示用）。売却・指名権売却=収入 / 移籍金での獲得=支出
