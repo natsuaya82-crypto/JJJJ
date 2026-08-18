@@ -12,7 +12,7 @@ function J({ n, dim }: { n: number; dim?: boolean }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
       <JewelIcon size={12} opacity={dim ? 0.4 : 1}detailed />
-      <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 800, color: dim ? 'rgba(109,213,250,0.4)' : '#6dd5fa' }}>+{n}</span>
+      <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 800, color: dim ? 'rgba(109,213,250,0.4)' : C.jewel }}>+{n}</span>
     </span>
   )
 }
@@ -20,8 +20,8 @@ function J({ n, dim }: { n: number; dim?: boolean }) {
 function Section({ title }: { title: string }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '16px 16px 8px' }}>
-      <div style={{ width: 3, height: 14,background: '#6dd5fa' }}/>
-      <span style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 800, color: '#6dd5fa', letterSpacing: '3px' }}>{title}</span>
+      <div style={{ width: 3, height: 14,background: C.jewel }}/>
+      <span style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 800, color: C.jewel, letterSpacing: '3px' }}>{title}</span>
     </div>
   )
 }
@@ -87,7 +87,7 @@ export default function JewelsPage() {
           title="動画を見ますか？"
           message={`動画を最後まで見ると +100J 受け取れます（残り ${adsLeft}/${ADS_PER_DAY} 回）。`}
           confirmLabel="動画を見る"
-          accent="#6dd5fa"
+          accent={C.jewel}
           onConfirm={runWatchAd}
           onCancel={() => setConfirmOpen(false)}
         />
@@ -97,22 +97,22 @@ export default function JewelsPage() {
       </div>
 
       {/* 残高 */}
-      <div style={{ margin: '16px 16px 8px', background: `linear-gradient(135deg, #0f2240 0%, ${C.bg} 100%)`, border: `1px solid ${alpha('#6dd5fa', 0.35)}`,padding: '20px', textAlign: 'center', boxShadow: `0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(168,228,255,0.1)` }}>
-        <div style={{ fontFamily: SAIRA, fontSize: F.label, color: alpha('#6dd5fa', 0.85), letterSpacing: '3px', marginBottom: 8 }}>保有ジュエル</div>
+      <div style={{ margin: '16px 16px 8px', background: `linear-gradient(135deg, #0f2240 0%, ${C.bg} 100%)`, border: `1px solid ${alpha(C.jewel, 0.35)}`,padding: '20px', textAlign: 'center', boxShadow: `0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(168,228,255,0.1)` }}>
+        <div style={{ fontFamily: SAIRA, fontSize: F.label, color: alpha(C.jewel, 0.85), letterSpacing: '3px', marginBottom: 8 }}>保有ジュエル</div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
           <JewelIcon size={28}detailed />
-          <span style={{ fontFamily: SAIRA, fontSize: 40, fontWeight: 900, color: '#6dd5fa', textShadow: '0 0 20px rgba(109,213,250,0.6)', lineHeight: 1 }}>{jewels.toLocaleString()}</span>
+          <span style={{ fontFamily: SAIRA, fontSize: 40, fontWeight: 900, color: C.jewel, textShadow: '0 0 20px rgba(109,213,250,0.6)', lineHeight: 1 }}>{jewels.toLocaleString()}</span>
         </div>
       </div>
 
       {/* 広告視聴 */}
       <div style={{ margin: '12px 16px 0' }}>
-        <div style={{ background: `linear-gradient(135deg, #0f2240 0%, ${C.bg} 100%)`, border: `1px solid ${alpha('#6dd5fa', adsLeft > 0 ? 0.4 : 0.15)}`,padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ background: `linear-gradient(135deg, #0f2240 0%, ${C.bg} 100%)`, border: `1px solid ${alpha(C.jewel, adsLeft > 0 ? 0.4 : 0.15)}`,padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: adsLeft > 0 ? '#6dd5fa' : C.textDim }}>広告を見る</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: adsLeft > 0 ? C.jewel : C.textDim }}>広告を見る</div>
             <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim, marginTop: 3 }}>残り {adsLeft} / 3 回 · 1日3回まで</div>
             {adResult !== null && (
-              <div style={{ fontFamily: SAIRA, fontSize: F.body, color: '#6dd5fa', marginTop: 4, fontWeight: 700 }}>
+              <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.jewel, marginTop: 4, fontWeight: 700 }}>
                 {adResult.before.toLocaleString()} → {adResult.after.toLocaleString()} J（+{adResult.after - adResult.before}）
               </div>
             )}
@@ -124,9 +124,9 @@ export default function JewelsPage() {
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '10px 18px',cursor: adsLeft > 0 ? 'pointer' : 'default',
               background: adsLeft > 0 ? 'linear-gradient(180deg, #1a4a7a 0%, #0f2a4a 100%)' : C.surface2,
-              border: `1px solid ${adsLeft > 0 ? alpha('#6dd5fa', 0.5) : C.border}`,
+              border: `1px solid ${adsLeft > 0 ? alpha(C.jewel, 0.5) : C.border}`,
               fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900,
-              color: adsLeft > 0 ? '#6dd5fa' : C.textGhost, flexShrink: 0,
+              color: adsLeft > 0 ? C.jewel : C.textGhost, flexShrink: 0,
             }}
           >
             <JewelIcon size={14}detailed />

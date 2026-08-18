@@ -10,7 +10,7 @@ import { getPlayerBadges } from '../../utils/badges'
 import BadgeContent, { badgeColor } from '../player/BadgeContent'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG } from '../icons/Icons'
-import { SAIRA, CARD, F } from '../../styles/tokens'
+import { C, SAIRA, CARD, F } from '../../styles/tokens'
 
 
 const STATS: { key: keyof Player['ratings']; label: string }[] = [
@@ -72,7 +72,7 @@ export default function ShareCard({ player, team }: { player: Player; team?: Clu
           <div style={{ fontSize: 30, fontWeight: 900, lineHeight: 1.05, marginBottom: 6 }}>{player.name}</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{ fontSize: F.subLg, fontWeight: 900, color: specCol }}>{SPECIALTY_LABELS[player.specialty]}</span>
-            <span style={{ fontSize: F.sub, color: '#8C93A5' }}>{player.age}歳</span>
+            <span style={{ fontSize: F.sub, color: C.shareDim }}>{player.age}歳</span>
             {shareBadge && (
               <span style={{ fontSize: F.label, fontWeight: 900, padding: '2px 8px',background: `${badgeColor(shareBadge)}26`, border: `1px solid ${badgeColor(shareBadge)}88`, color: badgeColor(shareBadge) }}>
                 <BadgeContent badge={shareBadge} iconSize={11} />
@@ -81,7 +81,7 @@ export default function ShareCard({ player, team }: { player: Player; team?: Clu
           </div>
         </div>
         <div style={{ textAlign: 'center', flexShrink: 0 }}>
-          <div style={{ fontSize: F.label, color: '#8C93A5', letterSpacing: 2 }}>OVR</div>
+          <div style={{ fontSize: F.label, color: C.shareDim, letterSpacing: 2 }}>OVR</div>
           <div style={{ fontSize: 58, fontWeight: 900, lineHeight: 1, color: ratingColor(rating), fontFamily: 'monospace' }}>{rating}</div>
         </div>
       </div>
@@ -94,7 +94,7 @@ export default function ShareCard({ player, team }: { player: Player; team?: Clu
           const col = ratingColor(v, maxed)
           return (
             <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: F.body, color: '#8C93A5', width: 40, flexShrink: 0 }}>{label}</span>
+              <span style={{ fontSize: F.body, color: C.shareDim, width: 40, flexShrink: 0 }}>{label}</span>
               <div style={{ flex: 1, height: 8,background: '#1c2a3d', overflow: 'hidden' }}>
                 <div style={{ width: `${Math.min(100, v)}%`, height: '100%', background: col,}} />
               </div>

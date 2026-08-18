@@ -92,14 +92,14 @@ export default function LoginBonusPage() {
         {claimResult && (
           <div style={{
             padding: '14px 16px',
-            background: `linear-gradient(135deg, ${alpha('#6dd5fa', 0.18)}, ${alpha('#6dd5fa', 0.06)})`,
-            border: `1px solid ${alpha('#6dd5fa', 0.5)}`,
+            background: `linear-gradient(135deg, ${alpha(C.jewel, 0.18)}, ${alpha(C.jewel, 0.06)})`,
+            border: `1px solid ${alpha(C.jewel, 0.5)}`,
             textAlign: 'center',
           }}>
-            <div style={{ fontFamily: SAIRA, fontSize: F.bodyLg, color: '#6dd5fa', fontWeight: 900, letterSpacing: '1px', marginBottom: 4 }}>
+            <div style={{ fontFamily: SAIRA, fontSize: F.bodyLg, color: C.jewel, fontWeight: 900, letterSpacing: '1px', marginBottom: 4 }}>
               受け取り完了
             </div>
-            <div style={{ fontFamily: SAIRA, fontSize: 36, fontWeight: 900, color: '#6dd5fa', lineHeight: 1 }}>
+            <div style={{ fontFamily: SAIRA, fontSize: 36, fontWeight: 900, color: C.jewel, lineHeight: 1 }}>
               +{claimResult.gained}
             </div>
             <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim, marginTop: 4 }}>
@@ -133,9 +133,9 @@ export default function LoginBonusPage() {
         {/* Weekly calendar */}
         <Card
           label="WEEKLY STREAK"
-          accent="#6dd5fa"
+          accent={C.jewel}
           grow={1}
-          right={<div style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900, color: '#6dd5fa' }}>{displayWeekPos} / 7</div>}
+          right={<div style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900, color: C.jewel }}>{displayWeekPos} / 7</div>}
         >
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, flex: 1 }}>
             {days.map(({ day, reward, isBonus }) => {
@@ -143,7 +143,7 @@ export default function LoginBonusPage() {
               const isToday = claimedToday && day === displayWeekPos
               const isAvailable = !claimedToday && day === displayWeekPos + 1
 
-              const accent = isBonus ? '#ffd700' : '#6dd5fa'
+              const accent = isBonus ? '#ffd700' : C.jewel
               let bg = alpha(C.surface2, 0.5)
               let border: string = C.border
 
@@ -165,7 +165,7 @@ padding: '7px 3px 6px',
                   {isToday && (
                     <div style={{
                       position: 'absolute', top: -7, left: '50%', transform: 'translateX(-50%)',
-                      background: '#6dd5fa',
+                      background: C.jewel,
                       fontFamily: SAIRA, fontSize: F.micro, fontWeight: 900, color: C.bg,
                       padding: '1px 4px', letterSpacing: '0.5px', whiteSpace: 'nowrap',
                     }}>TODAY</div>
@@ -211,10 +211,10 @@ padding: '7px 3px 6px',
           {!claimedToday && (
             <div style={{
               marginTop: 10, padding: '7px 12px',
-              background: alpha('#6dd5fa', 0.07), border: `1px solid ${alpha('#6dd5fa', 0.2)}`,
+              background: alpha(C.jewel, 0.07), border: `1px solid ${alpha(C.jewel, 0.2)}`,
               textAlign: 'center',
             }}>
-              <span style={{ fontSize: F.label, color: alpha('#6dd5fa', 0.8) }}>毎日10時に更新されます</span>
+              <span style={{ fontSize: F.label, color: alpha(C.jewel, 0.8) }}>毎日10時に更新されます</span>
             </div>
           )}
         </Card>
@@ -222,7 +222,7 @@ padding: '7px 3px 6px',
         {/* Reward info */}
         <Card
           label="REWARD DETAILS"
-          accent="#6dd5fa"
+          accent={C.jewel}
           grow={1}
           bodyJustify="space-between"
           right={adsRemoved
@@ -250,7 +250,7 @@ padding: '7px 3px 6px',
             <span style={{ fontSize: F.body, color: C.textSub }}>毎日ログイン{adsRemoved ? '（2倍中）' : ''}</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <JewelIcon size={13} />
-              <span style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: '#6dd5fa' }}>+{100 * mult}</span>
+              <span style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: C.jewel }}>+{100 * mult}</span>
             </div>
           </div>
           <div style={{ height: 1, background: C.border }} />

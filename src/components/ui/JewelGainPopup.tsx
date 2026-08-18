@@ -5,7 +5,7 @@ import { JewelIcon } from '../icons/Icons'
 import GlassButton from './GlassButton'
 import { panelStyle } from './Panel'
 
-const JEWEL = '#6dd5fa'
+const JEWEL = C.jewel
 
 /**
  * レース・シーズン終了で獲得したジュエルの内訳をホームで知らせるポップアップ。

@@ -58,7 +58,7 @@ export default function TransferHub() {
       countLabel: `レンタル枠 ${loanSlots}/3`,
       badge: 0,
       color: C.blue,
-      shadow: '#1a2050',
+      shadow: C.tileShadow,
       urgent: false,
     },
     {

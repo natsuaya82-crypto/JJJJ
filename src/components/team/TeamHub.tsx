@@ -35,7 +35,7 @@ export default function TeamHub() {
       countLabel: expiringCount > 0 ? `FA間近 ${expiringCount}名` : `${myPlayers.length}名在籍`,
       badge: expiringCount,
       color: C.blue,
-      shadow: '#1a2050',
+      shadow: C.tileShadow,
       urgent: expiringCount > 0,
       icon: (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -195,7 +195,7 @@ export default function TeamHub() {
             <div style={{
               fontSize: F.head, fontWeight: 900, color: C.text, lineHeight: 1.1, letterSpacing: '-0.5px',
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-              textShadow: `-1px -1px 0 #061224, 1px -1px 0 #061224, -1px 1px 0 #061224, 1px 1px 0 #061224`,
+              textShadow: `-1px -1px 0 ${C.outline}, 1px -1px 0 ${C.outline}, -1px 1px 0 ${C.outline}, 1px 1px 0 ${C.outline}`,
             }}>
               {myTeam?.name ?? '—'}
             </div>

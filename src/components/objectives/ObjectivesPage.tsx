@@ -76,7 +76,7 @@ export default function ObjectivesPage() {
                     <div style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: obj.done ? 400 : 700, color: obj.done ? C.textDim : C.text, marginBottom: 6 }}>{obj.desc}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       {(obj.rewardJewels ?? 0) > 0 && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: alpha('#6dd5fa', obj.done ? 0.05 : 0.08), border: `1px solid ${alpha('#6dd5fa', obj.done ? 0.15 : 0.3)}`,padding: '3px 8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: alpha(C.jewel, obj.done ? 0.05 : 0.08), border: `1px solid ${alpha(C.jewel, obj.done ? 0.15 : 0.3)}`,padding: '3px 8px' }}>
                           <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
                             <path d="M12 2l8.66 5v10L12 22l-8.66-5V7L12 2z" fill={obj.done ? 'rgba(59,159,212,0.4)' : 'url(#jg-obj)'} stroke={obj.done ? 'rgba(74,184,234,0.4)' : '#4ab8ea'} strokeWidth="1.2" strokeLinejoin="round"/>
                             <defs>
@@ -86,7 +86,7 @@ export default function ObjectivesPage() {
                               </linearGradient>
                             </defs>
                           </svg>
-                          <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 800, color: obj.done ? 'rgba(109,213,250,0.4)' : '#6dd5fa' }}>+{obj.rewardJewels}</span>
+                          <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 800, color: obj.done ? 'rgba(109,213,250,0.4)' : C.jewel }}>+{obj.rewardJewels}</span>
                         </div>
                       )}
                       {hasProgress && (

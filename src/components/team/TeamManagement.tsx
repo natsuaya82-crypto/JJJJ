@@ -150,7 +150,7 @@ export default function TeamManagement() {
           {([
             { key: 'aggressive' as const, label: '積極策', desc: '全区間で攻めの走り。順位を狙いに行くが疲労が大きく蓄積する。', stat: '疲労増加 +40% / 区間タイム向上', color: C.red, shadow: '#660e10' },
             { key: 'balanced' as const, label: 'バランス', desc: '攻守のバランスを取った標準戦略。安定した成績を目指す。', stat: '疲労標準 / 安定したパフォーマンス', color: C.gold, shadow: '#5a3500' },
-            { key: 'conservative' as const, label: '省エネ策', desc: 'ペースを抑えて疲労を最小化。長期的なコンディション維持を優先。', stat: '疲労減少 -35% / タイムは落ちる', color: C.blue, shadow: '#1a2050' },
+            { key: 'conservative' as const, label: '省エネ策', desc: 'ペースを抑えて疲労を最小化。長期的なコンディション維持を優先。', stat: '疲労減少 -35% / タイムは落ちる', color: C.blue, shadow: C.tileShadow },
           ] as { key: 'aggressive' | 'balanced' | 'conservative'; label: string; desc: string; stat: string; color: string; shadow: string }[]).map(opt => {
             const active = raceStrategy === opt.key
             return (
@@ -184,7 +184,7 @@ export default function TeamManagement() {
           { key: null, label: '通常トレーニング', desc: '標準的な練習メニュー。特定の能力を強化しない。', effect: '変化なし', color: C.textDim, shadow: '#333' },
           { key: '持久重視', label: '持久重視', desc: 'スタミナ向上に特化したトレーニング。長距離レースに強くなる。', effect: 'スタミナ +1 (確率35%)', color: C.green, shadow: '#0d3d22' },
           { key: 'スピード重視', label: 'スピード重視', desc: '速力向上のトレーニング。スプリント区間での活躍が期待できる。', effect: '速力 +1 (確率35%)', color: C.red, shadow: '#660e10' },
-          { key: '精神強化', label: '精神強化', desc: '精神力・集中力を高める。プレッシャーに強くなる。', effect: '精神 +1 (確率35%)', color: C.blue, shadow: '#1a2050' },
+          { key: '精神強化', label: '精神強化', desc: '精神力・集中力を高める。プレッシャーに強くなる。', effect: '精神 +1 (確率35%)', color: C.blue, shadow: C.tileShadow },
           { key: '登り強化', label: '登り強化', desc: '山岳区間の走力を練習。山登り専門家でなくても効果あり。', effect: '登り +1 (確率35%)', color: C.orange, shadow: '#5a2800' },
           { key: '回復調整', label: '回復調整', desc: '激しいトレーニングを控え疲労回復を優先する調整期。', effect: '疲労 -8 (毎レース)', color: C.cyan, shadow: '#0e3f5a' },
         ]

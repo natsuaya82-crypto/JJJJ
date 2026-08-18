@@ -107,7 +107,7 @@ padding: '10px 14px', marginBottom: 16,
             <span style={{ fontSize: F.label, color: C.textDim }}>費用（{qty}枚）</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <JewelIcon size={12}/>
-              <span style={{ fontSize: F.title, fontWeight: 900, color: '#6dd5fa' }}>{total.toLocaleString()}</span>
+              <span style={{ fontSize: F.title, fontWeight: 900, color: C.jewel }}>{total.toLocaleString()}</span>
             </div>
           </div>
           <div style={{ height: 1, background: C.border }}/>
@@ -217,7 +217,7 @@ export default function ShopPage() {
     if (cards) setResultCards(cards)
   }
 
-  const jewelsColor = jewels > 500 ? '#6dd5fa' : jewels > 0 ? C.gold : C.red
+  const jewelsColor = jewels > 500 ? C.jewel : jewels > 0 ? C.gold : C.red
 
   return (
     <div style={{ fontFamily: SAIRA, paddingBottom: 80, minHeight: '100dvh' }}>
@@ -240,7 +240,7 @@ export default function ShopPage() {
         <PageHeader
           eyebrow="SHOP"
           title="ショップ"
-          right={<div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: alpha('#6dd5fa', 0.08), border: `1px solid ${alpha('#6dd5fa', 0.25)}` }}>
+          right={<div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: alpha(C.jewel, 0.08), border: `1px solid ${alpha(C.jewel, 0.25)}` }}>
             <JewelIcon size={16}/>
             <span style={{ fontSize: F.head, fontWeight: 900, color: jewelsColor, textShadow: `0 0 10px ${alpha(jewelsColor, 0.5)}` }}>
               {jewels.toLocaleString()}
@@ -277,7 +277,7 @@ export default function ShopPage() {
                 </div>
                 <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
                   <JewelIcon size={14}/>
-                  <span style={{ fontSize: F.titleLg, fontWeight: 900, color: canAfford ? '#6dd5fa' : C.red, textShadow: canAfford ? `0 0 8px ${alpha('#6dd5fa', 0.5)}` : 'none' }}>
+                  <span style={{ fontSize: F.titleLg, fontWeight: 900, color: canAfford ? C.jewel : C.red, textShadow: canAfford ? `0 0 8px ${alpha(C.jewel, 0.5)}` : 'none' }}>
                     {item.price.toLocaleString()}
                   </span>
                 </div>

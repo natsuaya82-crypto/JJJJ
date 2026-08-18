@@ -4,7 +4,7 @@ import { useTeamHistory } from '../../lib/useTeamHistory'
 import { topTitleCount } from '../../utils/teamHistory'
 import { useMyRatedRank } from '../../lib/useRatedRanks'
 import { RankBadge } from '../rated/ratedUi'
-import { SAIRA, CARD, F } from '../../styles/tokens'
+import { C, SAIRA, CARD, F } from '../../styles/tokens'
 
 const GOLD = CARD.gold
 
@@ -33,7 +33,7 @@ export default function GmShareCard({ team, code }: { team?: Team; code: string 
       {/* ブランド行 */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, position: 'relative' }}>
         <span style={{ fontSize: F.bodyLg, fontWeight: 900, letterSpacing: 3, color: GOLD }}>JPEL MANAGER</span>
-        <span style={{ fontSize: F.body, fontWeight: 900, letterSpacing: 3, color: '#8C93A5' }}>GM CARD</span>
+        <span style={{ fontSize: F.body, fontWeight: 900, letterSpacing: 3, color: C.shareDim }}>GM CARD</span>
       </div>
 
       {/* ロゴ＋チーム名＋GM名 */}
@@ -49,8 +49,8 @@ export default function GmShareCard({ team, code }: { team?: Team; code: string 
           </div>
           <div style={{ fontSize: 34, fontWeight: 900, lineHeight: 1.05, marginTop: 2 }}>GM {team?.gmName ?? '—'}</div>
           <div style={{ display: 'flex', gap: 14, alignItems: 'baseline', marginTop: 8 }}>
-            <span style={{ fontSize: F.bodyLg, color: '#8C93A5' }}>通算優勝 <b style={{ color: GOLD, fontSize: F.titleLg }}>{champs}</b></span>
-            <span style={{ fontSize: F.bodyLg, color: '#8C93A5' }}>監督歴 <b style={{ color: CARD.text, fontSize: F.titleLg }}>{seasons}</b>季</span>
+            <span style={{ fontSize: F.bodyLg, color: C.shareDim }}>通算優勝 <b style={{ color: GOLD, fontSize: F.titleLg }}>{champs}</b></span>
+            <span style={{ fontSize: F.bodyLg, color: C.shareDim }}>監督歴 <b style={{ color: CARD.text, fontSize: F.titleLg }}>{seasons}</b>季</span>
           </div>
         </div>
       </div>

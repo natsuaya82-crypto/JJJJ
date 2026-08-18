@@ -103,7 +103,7 @@ export default function FacilitiesPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <div style={{ fontSize: F.label, color: C.textDim }}>所持ジュエル:</div>
           <JewelIcon size={14} />
-          <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: '900', color: '#6dd5fa', textShadow: `0 0 8px rgba(74,184,234,0.5)` }}>{jewels}</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: '900', color: C.jewel, textShadow: `0 0 8px rgba(74,184,234,0.5)` }}>{jewels}</div>
         </div>
       </div>
 
@@ -177,7 +177,7 @@ export default function FacilitiesPage() {
                     onClick={() => upgradeFacility(f.key)}
                   >
                     <span>Lv{currentLv + 1}に強化</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontFamily: SAIRA, fontWeight: '900', color: canUpgrade ? '#6dd5fa' : C.textGhost, textShadow: canUpgrade ? `0 0 6px rgba(74,184,234,0.5)` : 'none' }}>— <JewelIcon size={12}/>{nextCost!}</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontFamily: SAIRA, fontWeight: '900', color: canUpgrade ? C.jewel : C.textGhost, textShadow: canUpgrade ? `0 0 6px rgba(74,184,234,0.5)` : 'none' }}>— <JewelIcon size={12}/>{nextCost!}</span>
                     {!canUpgrade && nextCost && jewels < nextCost && (
                       <span style={{ fontSize: F.caption, opacity: 0.6 }}>（ジュエル不足）</span>
                     )}

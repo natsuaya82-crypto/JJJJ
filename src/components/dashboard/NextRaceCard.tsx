@@ -87,7 +87,7 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, va
             <div style={{
               fontSize: F.head, fontWeight: 900, color: C.text, lineHeight: 1.1,
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-              textShadow: `-1px -1px 0 #061224, 1px -1px 0 #061224, -1px 1px 0 #061224, 1px 1px 0 #061224`,
+              textShadow: `-1px -1px 0 ${C.outline}, 1px -1px 0 ${C.outline}, -1px 1px 0 ${C.outline}, 1px 1px 0 ${C.outline}`,
             }}>
               {race.name}
             </div>

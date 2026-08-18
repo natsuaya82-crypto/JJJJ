@@ -486,13 +486,13 @@ border: `2px dashed ${C.border2}`,
             {applied.greatSuccess && (
               <div style={{
                 marginBottom: 14,
-                background: `linear-gradient(180deg, ${alpha('#F59E0B', 0.2)}, ${alpha('#F59E0B', 0.08)})`,
-                border: `1px solid #F59E0B`,
+                background: `linear-gradient(180deg, ${alpha(C.amber, 0.2)}, ${alpha(C.amber, 0.08)})`,
+                border: `1px solid ${C.amber}`,
                 padding: '8px 16px',
                 fontFamily: SAIRA, fontSize: F.headLg, fontWeight: 900,
-                color: '#F59E0B', letterSpacing: 3,
-                textShadow: `0 0 20px ${alpha('#F59E0B', 0.6)}`,
-                boxShadow: `inset 0 1px 0 rgba(255,255,255,0.22), 0 6px 20px ${alpha('#F59E0B', 0.15)}`,
+                color: C.amber, letterSpacing: 3,
+                textShadow: `0 0 20px ${alpha(C.amber, 0.6)}`,
+                boxShadow: `inset 0 1px 0 rgba(255,255,255,0.22), 0 6px 20px ${alpha(C.amber, 0.15)}`,
               }}>
                 大成功！
               </div>

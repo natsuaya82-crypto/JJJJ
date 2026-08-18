@@ -66,7 +66,7 @@ export default function RecordsHub() {
       countLabel: `全区間記録`,
       badge: 0,
       color: C.blue,
-      shadow: '#1a2050',
+      shadow: C.tileShadow,
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
           <circle cx="12" cy="13" r="8" stroke="currentColor" strokeWidth="1.8"/>

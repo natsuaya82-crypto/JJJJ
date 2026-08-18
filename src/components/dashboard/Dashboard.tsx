@@ -37,7 +37,7 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 type DraftState = { isComplete: boolean } | null
 
 const RARITY_COLOR: Record<string, string> = {
-  legendary: '#F59E0B', epic: C.purple, rare: '#3B82F6', normal: '#7A7A8C',
+  legendary: C.amber, epic: C.purple, rare: '#3B82F6', normal: '#7A7A8C',
 }
 const RARITY_LABEL: Record<string, string> = {
   legendary: 'LEG', epic: 'EPIC', rare: 'RARE', normal: 'NRM',
@@ -620,7 +620,7 @@ export default function Dashboard() {
                       <div style={{ width: 7, height: 7, borderRadius: '50%', background: C.green, boxShadow: `0 0 8px ${C.green}` }}/>
                       <span style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.green, letterSpacing: '0.22em', fontWeight: 900 }}>NEXT 記録会</span>
                     </div>
-                    <div style={{ fontSize: F.head, fontWeight: 900, color: C.text, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textShadow: `-1px -1px 0 #061224, 1px -1px 0 #061224, -1px 1px 0 #061224, 1px 1px 0 #061224` }}>{dueTT.name}</div>
+                    <div style={{ fontSize: F.head, fontWeight: 900, color: C.text, lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textShadow: `-1px -1px 0 ${C.outline}, 1px -1px 0 ${C.outline}, -1px 1px 0 ${C.outline}, 1px 1px 0 ${C.outline}` }}>{dueTT.name}</div>
                     <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textSub, marginTop: 3, letterSpacing: '0.06em' }}>{dueTT.date.replace(/-/g, '/')}</div>
                   </div>
                   <div style={{ ...panelStyle(C.green), padding: '5px 12px', flexShrink: 0, fontFamily: SAIRA, fontSize: F.label, fontWeight: 900, color: C.green }}>TIME TRIAL</div>

@@ -347,9 +347,9 @@ export default function NotificationsPage() {
           {/* ログインボーナス */}
           {loginUnclaimed && (
             <section>
-              <SectionHead label="ログインボーナス" color="#6dd5fa" count={1}/>
+              <SectionHead label="ログインボーナス" color={C.jewel} count={1}/>
               <div style={{ padding: '0 16px' }}>
-                <div style={cardStyle(alpha('#6dd5fa', 0.45), '#0a2a3a')}>
+                <div style={cardStyle(alpha(C.jewel, 0.45), '#0a2a3a')}>
                   <div style={inset}/>
                   <div style={{ padding: '14px 16px' }}>
                     <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: '800', color: C.text, marginBottom: 6 }}>
