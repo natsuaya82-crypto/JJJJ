@@ -65,8 +65,11 @@ function grownBy(tier: ClubTier) {
     let p: Player = { ...src, age: 19, ratings, potential, exp: {} }
     const start = ovr(p)
     const capOvr = ovr({ ...p, ratings: getStatPotentials(p) })
-    // ピークまで（28歳以降は衰えが入るので「育つか」を見る窓としては使わない）
-    for (let a = 19; a < 27; a++) { p = growPlayer(p, true, tier); p = { ...p, age: p.age + 1 } }
+    // ピークまで（28歳以降は衰えが入るので「育つか」を見る窓としては使わない）。
+    // ★**`growPlayer` は中で加齢する**（`age: nextAge` を返す）。呼ぶ側で `age + 1` を
+    //   足さないこと——足すと1回で2歳進み、ピークまでのつもりが引退年齢まで走って
+    //   衰えぶんを測ることになる（2026-08-16 に実際にそう測って読み違えた）
+    while (p.age < 27) p = growPlayer(p, true, tier)
     return { start, end: ovr(p), capOvr }
   })
   const avg = (f: (o: typeof outs[0]) => number) => outs.reduce((a, o) => a + f(o), 0) / outs.length
