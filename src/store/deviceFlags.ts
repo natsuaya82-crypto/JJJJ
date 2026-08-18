@@ -13,6 +13,7 @@
 
 const ADS_REMOVED_KEY = 'jpel-device-ads-removed'
 const TWITTER_INTRO_KEY = 'jpel-device-twitter-intro-seen'
+const NEWS_SEEN_KEY = 'jpel-device-news-seen'
 
 function readFlag(key: string): boolean {
   try { return localStorage.getItem(key) === '1' } catch { return false }
@@ -28,3 +29,17 @@ export function setDeviceAdsRemoved(v: boolean): void { writeFlag(ADS_REMOVED_KE
 /** 公式Xの案内を見たか。「この端末で一度見たか」の記録なので全スロット共通 */
 export function deviceTwitterIntroSeen(): boolean { return readFlag(TWITTER_INTRO_KEY) }
 export function setDeviceTwitterIntroSeen(v: boolean): void { writeFlag(TWITTER_INTRO_KEY, v) }
+
+/**
+ * 見たお知らせポップの id。**セーブではなく端末**に持つ（公式Xの案内と同じ扱い）。
+ * スロットを変えるたびに同じお知らせが出ると、遊ぶ側には壊れて見えるため。
+ */
+export function deviceSeenNewsIds(): string[] {
+  try { return JSON.parse(localStorage.getItem(NEWS_SEEN_KEY) ?? '[]') as string[] } catch { return [] }
+}
+export function markDeviceNewsSeen(id: string): void {
+  try {
+    const next = [...new Set([...deviceSeenNewsIds(), id])]
+    localStorage.setItem(NEWS_SEEN_KEY, JSON.stringify(next))
+  } catch { /* 使えない環境では諦める */ }
+}

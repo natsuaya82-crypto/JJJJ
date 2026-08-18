@@ -17,6 +17,9 @@ import LoadingOverlay from './components/ui/LoadingOverlay'
 import { TeamLogoSVG } from './components/icons/Icons'
 import ForceUpdateModal from './components/ui/ForceUpdateModal'
 import TwitterModal from './components/ui/TwitterModal'
+import NewsModal from './components/ui/NewsModal'
+import { nextNewsPopup, type NewsPopup } from './data/newsPopups'
+import { deviceSeenNewsIds, markDeviceNewsSeen } from './store/deviceFlags'
 import { useLoadingStore } from './store/loadingStore'
 import { useFriendSync } from './lib/useFriendSync'
 import { onlineAvailable } from './data/featureFlags'
@@ -465,6 +468,10 @@ export default function App() {
   const [showTerms, setShowTerms] = useState(false)
   const [forceUpdate, setForceUpdate] = useState(false)
   const [showTwitter, setShowTwitter] = useState(false)
+  // アップデートのお知らせポップ（オーナー・2026-08-16「次のアプデでホームに
+  // 【オンラインレート戦開催】のニュースポップ表示させよう。xみたいにね」）。
+  // ★出すものを選ぶのは `data/newsPopups` の `nextNewsPopup` 1本。ここで絞らないこと
+  const [news, setNews] = useState<NewsPopup | null>(null)
   // セーブ読み込み（非同期）完了までタイトルから先へ進めない。
   // 完了前に isInitialized=false の初期状態を見て新規ゲーム画面を出すと、既存セーブを上書きする事故になるため
   const [hydrated, setHydrated] = useState(() => useGameStore.persist.hasHydrated())
@@ -561,6 +568,12 @@ export default function App() {
   useEffect(() => { if (isInitialized) ensureEclSeries() }, [isInitialized])
   // 公式Xフォロー案内を初回起動時に一度だけ表示（タイトルを抜けてホームに入ったタイミング）
   useEffect(() => { if (titleShown && isInitialized && !twitterIntroSeen) setShowTwitter(true) }, [titleShown, isInitialized, twitterIntroSeen])
+  // お知らせポップ。**公式Xの案内と重ねない**（あちらを閉じてから出す）。
+  // 見たかどうかは端末に持つので、スロットを変えても出直さない
+  useEffect(() => {
+    if (!titleShown || !isInitialized || !twitterIntroSeen) return
+    setNews(nextNewsPopup(deviceSeenNewsIds()))
+  }, [titleShown, isInitialized, twitterIntroSeen])
   // 端末ローカル通知（毎日10時・18時の再訪リマインド）。native のみ、初回に許可を取得。
   useEffect(() => { initLocalNotifications() }, [])
   // 買い切りの購入/復元でフラグが変わったらバナー表示を切り替える（初回マウントは initAds が担当）
@@ -663,6 +676,9 @@ export default function App() {
         }} />
       )}
       {showTwitter && !forceUpdate && <TwitterModal onClose={() => { markTwitterIntroSeen(); setShowTwitter(false) }} />}
+      {news && !showTwitter && !forceUpdate && (
+        <NewsModal news={news} onClose={() => { markDeviceNewsSeen(news.id); setNews(null) }} />
+      )}
       {forceUpdate && <ForceUpdateModal />}
     </BrowserRouter>
   )

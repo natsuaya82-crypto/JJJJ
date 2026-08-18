@@ -24,6 +24,18 @@
  *   ①〜④は関数を直接叩いて線を見ます。⑤は**世界を作って実際に3年回し**、
  *   2部・3部が痩せないことを見ます（関数を叩くだけだと「呼ばれているか」が分からない）。
  */
+// ── 乱数の種を固定（他の import より先に効かせる）──────────────────
+// ★**世界を作って回す点検は種を固定すること。** 固定しないと、成長の衰えや
+//   CPUの市場に入っている `Math.random` の引きで、下限を割るクラブ数が
+//   0〜2件のあいだで揺れる（実際に「昨日まで緑・今日だけ赤」が出た）。
+//   `flaky`（落ちたら引き直す印）はこの repo では使わない——落ちた世界を
+//   二度と再現できないため（run-checks.mjs の continental の項）。
+let rngSeed = 20260816
+Math.random = () => {
+  rngSeed = (rngSeed * 1664525 + 1013904223) >>> 0
+  return rngSeed / 4294967296
+}
+
 import { readFileSync } from 'node:fs'
 import { DOMESTIC_YOUTH_PER_CLUB, refreshDomesticYouth, generateCpuRosters, generateDraftPool, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { INITIAL_TEAMS } from '../src/data/teams'
