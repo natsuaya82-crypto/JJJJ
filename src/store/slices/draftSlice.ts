@@ -198,7 +198,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
             tierOfPlayerClub(fa.teamId, allTieredClubs(state.teams, state.foreignLeagues)), 0.5, 0, 0, true).ok })
         for (const sg of postSignings) {
           const m = movePlayer({ players: updatedPlayers, teams: [] }, sg.playerId, sg.clubId, {
-            year: state.currentSeason.year, kind: 'free', years: 2, history: false })
+            year: state.currentSeason.year, kind: 'free', history: false })
           if (m.ok) updatedPlayers = m.players
         }
       }

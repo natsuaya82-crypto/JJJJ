@@ -276,7 +276,7 @@ export function runTransferMarket(
       const moved = movePlayer({ players, teams }, target.id, buyClub.id, {
         year: ctx.year,
         date: ctx.date,
-        fee, years: 2, money: false,
+        fee, money: false,
         toName: buyClub.domestic ? undefined : buyClub.name,
         contract: { annualSalary: newSalary, yearsLeft: newContractYears(target, ctx.year) },
       })

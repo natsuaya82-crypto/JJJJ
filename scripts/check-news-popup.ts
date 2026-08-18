@@ -63,8 +63,11 @@ console.log('\n[2] 文面は data に置く（画面に直書きしない）')
 console.log('\n[3] 選ぶ判定は nextNewsPopup 1本')
 {
   const first = NEWS_POPUPS[0]
-  check('まだ見ていなければ出る', nextNewsPopup([])?.id === first.id, String(nextNewsPopup([])?.id))
-  check('一度見たら出ない', nextNewsPopup(NEWS_POPUPS.map(n => n.id)) === null)
+  // ★「今日」は呼ぶ側から渡す（`data/` は `utils/` を import できない＝`check-layers`）。
+  //   ここでは期限内の日付を渡して、選ぶ側だけを見る
+  const TODAY = '2026-08-18'
+  check('まだ見ていなければ出る', nextNewsPopup([], TODAY)?.id === first.id, String(nextNewsPopup([], TODAY)?.id))
+  check('一度見たら出ない', nextNewsPopup(NEWS_POPUPS.map(n => n.id), TODAY) === null)
   // ★空振り除け。期限切れの1件だけの世界を作って、確かに出ないことを見る
   check('期限を過ぎたものは出ない',
     NEWS_POPUPS.every(n => !n.until || n.until >= '2026-08-16'),

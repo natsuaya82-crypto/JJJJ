@@ -8,10 +8,11 @@ import { rankProgressOf } from '../../engine/rating'
 import { RANK_ART } from './rankArt'
 import { RatedHelpButton } from './ratedRules'
 import {
-  canJoin, fetchEvent, fetchMe, fetchResult, fetchToday, joinRated, SUBMIT_DEADLINE_HHMM,
+  canJoin, fetchEvent, fetchMe, fetchResult, fetchToday, joinRated, RESULT_HHMM, SUBMIT_DEADLINE_HHMM,
   type RatedEventInfo, type RatedMe, type RatedResult, type RatedToday,
 } from '../../lib/ratedApi'
 import { HOF_MAX } from '../../utils/hofRoster'
+import { jstTodayISO } from '../../utils/jstDate'
 import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
 import type { Segment } from '../../types'
 
@@ -65,14 +66,6 @@ function SectionLabel({ text }: { text: string }) {
   )
 }
 
-/** 今日（日本時間）の `YYYY-MM-DD`。開始日と比べるだけに使う */
-function todayISO(): string {
-  return new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10)
-}
-
-/** その日の受付が始まる時刻。サーバー（`rated_open_round`）と同じ 10:00 */
-const OPEN_HHMM = '10:00'
-
 export default function RatedPage() {
   const navigate = useNavigate()
   const hof = useGameStore(s => s.hofRoster)
@@ -107,7 +100,7 @@ export default function RatedPage() {
 
   // 受付が開いているのは `today` があるときだけ。**開いていないなら押させない**
   //   （押せない理由はボタンの見出しに出す＝開幕ボタンと同じ扱い）
-  const startsLater = !!ev?.startsOn && ev.startsOn > todayISO()
+  const startsLater = !!ev?.startsOn && ev.startsOn > jstTodayISO()
   const startLabel = ev?.startsOn ? `${Number(ev.startsOn.split('-')[1])}.${Number(ev.startsOn.split('-')[2])}` : ''
   const openable = !!today
   const eligible = canJoin(hof) && openable
@@ -272,7 +265,7 @@ export default function RatedPage() {
               {ev ? (startsLater ? 'OPENS' : 'ENTRY OPENS') : 'NO EVENT'}
             </div>
             <div style={{ fontFamily: SAIRA, fontSize: 30, fontWeight: 900, color: C.cyan, lineHeight: 1.05, letterSpacing: '1px' }}>
-              {ev ? (startsLater ? startLabel : `${OPEN_HHMM}`) : '—'}
+              {ev ? (startsLater ? startLabel : RESULT_HHMM) : '—'}
             </div>
           </div>
           {ev && (
@@ -311,7 +304,7 @@ export default function RatedPage() {
           >
             <div style={{ fontSize: F.titleLg, fontWeight: 900, color: eligible ? '#04202e' : C.textDim, letterSpacing: '8px' }}>
               {!openable
-                ? (ev ? (startsLater ? `${startLabel} から` : `${OPEN_HHMM} から`) : '開催予定なし')
+                ? (ev ? (startsLater ? `${startLabel} から` : `${RESULT_HHMM} から`) : '開催予定なし')
                 : submitted ? '組み直す' : '参加する'}
             </div>
             <div style={{

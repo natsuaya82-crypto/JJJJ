@@ -563,7 +563,53 @@ RULES.push({
   allow: ['src/utils/condition.ts'],
   fix: 'utils/condition.ts の withMorale / withFatigue を使う',
 })
+RULES.push({
+  // ★上のルールは **`morale: Math.min(…)` の形しか見ていなかった。**
+  //   `engine/raceProgress` は
+  //       const newMorale = Math.max(10, Math.min(100, (p.morale ?? 70) + …))
+  //       …
+  //       return { ...p, morale: newMorale }
+  //   と**いったん変数へ逃がして**いたので、1文字も当たらないまま
+  //   **全レースが通る道**で士気の下限が10（condition.ts は0）になっていた。
+  //   0〜100で挟む形そのものを見張る（どこへ代入するかに関係なく当たる）。
+  //   ★**100 が出てくる形だけ**を見ること。`Math.min(1, Math.max(0, x))`（割合）や
+  //     `Math.min(3, Math.max(0, x))`（人数）まで拾うと、士気とは無関係の6か所が
+  //     一緒に落ちて、ルールごと外される。
+  name: '0〜100で挟むクランプの直書き（変数に逃がした形も含む）',
+  pattern: /Math\.max\(\s*\d+\s*,\s*Math\.min\(\s*100\b|Math\.min\(\s*100\s*,\s*Math\.max\(/,
+  // ui/index.tsx はプログレスバーの幅（％）。士気・疲労とは別物なのでここだけ通す
+  allow: ['src/utils/condition.ts', 'src/components/ui/index.tsx'],
+  fix: 'utils/condition.ts の withMorale / withRaceMorale / withFatigue / withGmRep を使う',
+})
 
+RULES.push({
+  // 日本時間の「今日」。`RatedPage` と `data/newsPopups` に**1文字も違わない同じ実装**が
+  // 2つあった（2026-08-18 の監査）。日付の物差しはサーバーと揃える必要があるので、
+  // ずれると「開催前なのに開いている」が片方だけ起きる。
+  name: '日本時間の「今日」を手で作っている',
+  pattern: /9 \* 3600_?000|32400000/,
+  allow: ['src/utils/jstDate.ts'],
+  fix: 'utils/jstDate.ts の jstTodayISO() を使う',
+})
+RULES.push({
+  // ランクマッチの時刻（結果が出る 10:00 ／ 締め切り 23:59）。`lib/ratedApi` 1本。
+  // `RatedPage` が `const OPEN_HHMM = '10:00'` と2本目を持っていた（同じファイルが
+  // ratedApi から他の定数を import しているのに、ここだけ手書きだった）。
+  // 時刻を動かすときは GitHub Actions の cron（UTC 01:00）も一緒に動かすこと。
+  name: 'ランクマッチの時刻を手書きしている',
+  pattern: /['"](?:10:00|23:59)['"]/,
+  allow: ['src/lib/ratedApi.ts'],
+  fix: 'lib/ratedApi.ts の RESULT_HHMM / SUBMIT_DEADLINE_HHMM を使う',
+})
+RULES.push({
+  // 契約年数を結び直す式。`newContractYears`（1〜5年・若いほど長い）1本。
+  // 売り出しからの買い取りだけ `Math.max(前の契約, 2)` という3本目を持っていて、
+  // 買った選手だけ前のクラブの契約年数を引きずっていた。
+  name: '契約年数の下駄を手書きしている',
+  pattern: /Math\.max\(\s*\w+\.contract\.yearsLeft\s*,/,
+  allow: ['src/utils/playerUtils.ts'],
+  fix: 'playerUtils.ts の newContractYears を使う',
+})
 RULES.push({
   name: '画面下に貼り付けるものの位置の手計算',
   pattern: /px \+ env\(safe-area-inset-bottom\)\)`/,

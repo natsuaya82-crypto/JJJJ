@@ -19,6 +19,7 @@ import ForceUpdateModal from './components/ui/ForceUpdateModal'
 import TwitterModal from './components/ui/TwitterModal'
 import NewsModal from './components/ui/NewsModal'
 import { nextNewsPopup, type NewsPopup } from './data/newsPopups'
+import { jstTodayISO } from './utils/jstDate'
 import { deviceSeenNewsIds, markDeviceNewsSeen } from './store/deviceFlags'
 import { useLoadingStore } from './store/loadingStore'
 import { useFriendSync } from './lib/useFriendSync'
@@ -572,7 +573,7 @@ export default function App() {
   // 見たかどうかは端末に持つので、スロットを変えても出直さない
   useEffect(() => {
     if (!titleShown || !isInitialized || !twitterIntroSeen) return
-    setNews(nextNewsPopup(deviceSeenNewsIds()))
+    setNews(nextNewsPopup(deviceSeenNewsIds(), jstTodayISO()))
   }, [titleShown, isInitialized, twitterIntroSeen])
   // 端末ローカル通知（毎日10時・18時の再訪リマインド）。native のみ、初回に許可を取得。
   useEffect(() => { initLocalNotifications() }, [])

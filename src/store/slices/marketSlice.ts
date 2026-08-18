@@ -23,7 +23,7 @@ import { settleForeignFee } from '../../utils/clubMoney'
 import { foreignSignedHeadline, joinedHeadline, loanInOutHeadline, renewalHeadline, signedWithFeeHeadline, tradeAcceptedHeadline, tradeSummaryHeadline } from '../../utils/newsItems'
 import { type OfferOutcome } from '../../utils/offerResult'
 import { playRateOf, prevSeasonOf } from '../../utils/playRate'
-import { acquisitionDesiredSalary, calcTransferValue, faMarketSalary, freeContactConsent, keyPlayerStatus, ovr, perfOf, playerConsentToMove, racesConsumed, salaryAppealBonus, seasonPerfProfile } from '../../utils/playerUtils'
+import { acquisitionDesiredSalary, calcTransferValue, faMarketSalary, freeContactConsent, keyPlayerStatus, newContractYears, ovr, perfOf, playerConsentToMove, racesConsumed, salaryAppealBonus, seasonPerfProfile } from '../../utils/playerUtils'
 import { belongsToClub, squadIdsOf } from '../../utils/rosterSync'
 import { withSaleAnswer } from '../../utils/saleAnswer'
 import { STALE_TRADE_MSG } from '../../utils/talkSync'
@@ -245,12 +245,16 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     // 移動は movePlayer 一本（売り手への入金・買い手からの出金・名簿の付け替え・履歴まで込み）
     let bought = false
     set(state => {
-      const years = Math.max(player.contract.yearsLeft, 2)
+      // 契約は結び直す。年数は `newContractYears` 1本（1〜5年・若いほど長い）。
+      // ここだけ `Math.max(前の契約, 2)` という3本目の式を持っていて、
+      // **買い取った選手だけ前のクラブの契約年数を引きずって**いた（本人と年数を
+      // 交渉する画面が無い＝自動の道なので、CPUの移籍・FAと同じ扱いが正しい）
+      const years = newContractYears(player, state.currentSeason.year)
       const moved = movePlayer(state, listing.playerId, state.playerTeamId, {
         year: state.currentSeason.year,
         date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date,
         raceIndex: state.currentSeason.currentRaceIndex,
-        fee: price, years, myTeamId: state.playerTeamId, checkCapacity: true,
+        fee: price, myTeamId: state.playerTeamId, checkCapacity: true,
         contract: { yearsLeft: years } })
       if (!moved.ok) return state
       bought = true
@@ -708,7 +712,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
           year: state.currentSeason.year,
           date: state.currentSeason.races[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date,
           raceIndex: state.currentSeason.currentRaceIndex,
-          kind: 'free', years, teamRole, myTeamId: state.playerTeamId, checkCapacity: true,
+          kind: 'free', teamRole, myTeamId: state.playerTeamId, checkCapacity: true,
           contract: { annualSalary: salary, yearsLeft: years, contractType } })
         if (!moved.ok) return state // ロスターが上限：契約できない（画面側で先に警告している）
         return {
@@ -758,7 +762,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
         year: state.currentSeason.year,
         date: state.currentSeason.races[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date,
         raceIndex: state.currentSeason.currentRaceIndex,
-        kind: 'free', years: offer.counterYears, teamRole: offer.offerTeamRole,
+        kind: 'free', teamRole: offer.offerTeamRole,
         myTeamId: state.playerTeamId, checkCapacity: true,
         contract: { annualSalary: offer.counterSalary, yearsLeft: offer.counterYears, contractType: offer.offerContractType } })
       if (!moved.ok) return state
@@ -1228,7 +1232,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       year: state.currentSeason.year,
       date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date,
       raceIndex: state.currentSeason.currentRaceIndex,
-      fee: bid.offeredFee, years, myTeamId: state.playerTeamId, checkCapacity: true,
+      fee: bid.offeredFee, myTeamId: state.playerTeamId, checkCapacity: true,
       contract: { annualSalary: salary, yearsLeft: years, contractType: 'standard' } })
     if (!moved.ok) return { ok: false, reason: '貴クラブの契約枠が上限のようです。ロスターを整理してから改めてお願いします。' }
     set(s => ({
@@ -1576,7 +1580,6 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
         date: s.currentSeason.races[s.currentSeason.currentRaceIndex]?.date,
         raceIndex: s.currentSeason.currentRaceIndex,
         fee: transferFee,
-        years,
         myTeamId: s.playerTeamId,
         contract: { annualSalary: salary, yearsLeft: years, contractType: 'standard' } })
       if (!moved.ok) return s

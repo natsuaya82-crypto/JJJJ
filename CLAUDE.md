@@ -93,7 +93,10 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/utils/clubs.ts` の `domesticCpuTeamIds` | **国内CPUクラブのID**。並び順が `movePlayer` を走らせる順になるので変えないこと |
 | `src/data/economy.ts` の `pickKeysValue` | 指名権の束の値段（トレードの入口3つが同じ数え方を通る） |
 | `src/utils/hash.ts` | **文字列→数値のハッシュ**。`strHash`。引退年齢・能力のゆらぎ・GM名・ロゴが全部これ |
-| `src/utils/condition.ts` | **士気と疲労の上げ下げ**。`withMorale` / `withFatigue` / `setMorale`（0〜100に収めるのと既定値はここだけ） |
+| `src/utils/condition.ts` | **士気と疲労の上げ下げ**。`withMorale` / `withFatigue` / `setMorale`（0〜100に収めるのと既定値はここだけ）。レース後だけ下限が10（`withRaceMorale` / `MORALE_RACE_FLOOR`。下限が2つある話は `docs/BACKLOG.md` A-10・未決）。**クランプを変数に逃がさないこと**——`const x = Math.max(10, Math.min(100, …))` と書くと `morale: Math.min(` を見ている網に1文字も当たらず、**全レースが通る道**で下限が10になっていたのに1年以上ずっと緑でした |
+| `src/utils/movePlayer.ts` の `years` | **移籍履歴と退団のお知らせに出す契約年数**。`movePlayer` が**実際に結んだ契約（`contract.yearsLeft`）から出します**。呼ぶ側が渡せるのは**レンタルの期間だけ**。以前は `years: 2` の手書きが2か所（CPUの移籍市場・シーズン中のFA）にあり、契約は `newContractYears`（1〜5年）なのに**画面は全部「2年」**でした（1年回して移籍1,232件中**971件＝78.8%が嘘**）。`check-contract-years` が1年を実際に回して1件ずつ突き合わせます |
+| `src/utils/jstDate.ts` | **日本時間の今日**（`jstTodayISO`）。ランクマッチもお知らせポップも日付は日本時間で決まる（サーバーの `rated_open_round` と同じ物差し）。`data/` からは import できない（`check-layers`）ので、`nextNewsPopup(seenIds, today)` のように**呼ぶ側から渡す** |
+| `src/lib/useRatedRanks.ts` と `RankBadge` | **名前の横に出す段位の紋章**。**他人の名前が出る画面には全部付けること**（オーナー・2026-08-14「フレンドから見えるところ全部だよ」／2026-08-18「全部です」＝オンライン対戦の結果と履歴も）。引くのは `useRatedRanks(ids)` 1本で**一覧ぶんまとめて**（1行ずつ引くと20人の一覧で20回通信が飛ぶ）。未参加の人には**何も出さない**（`rating` が undefined なら `RankBadge` は null を返すので、画面に「参加しているか」の分岐を書かないこと）。`check-rank-badge` が**画面を実際に数えて**見張る（自分のことしか出さない画面は理由を `MINE_ONLY` に書く） |
 | `src/utils/playerUtils.ts` の `retirementAgeOf` | **引退年齢**（選手IDから決まる `RETIRE_AGE_MIN`30〜`RETIRE_AGE_MAX`36）。引退表明のニュースと実際の引退が同じ式。**32〜40から下げました**（オーナー・2026-08-16）——ピークは22/27/30なのに引退の平均が36で、ピーク後9年も居座り、12年で**世界の半分が30歳以上**になっていた |
 | `src/utils/clubTier.ts` の `TIER_GROWTH_RATE` | **格ごとの成長の速さ**（CPU・海外だけ。自チームはカードと施設で育てる）。**格1=7.0 → 格20=2.8 の等差**（オーナー・2026-08-16「自チームはカードあるぶん簡単に作れるから、他チームは成長速度上げるか」→「7でよろ」）。以前は 3.0→1.65 で**格11〜20が全部1.5**＝下位10段は格が違っても育ち方が同じだった。**自チームには効きません**（自チームはカード＋施設。他チームだけ動かすときは `ANNUAL_BASE_EXP` ではなく必ずこちら）。**数を変えるときは格1のSSSの到達点と世界12年ぶんのOVR92+/90+/85+を両方数えること**（実測：初期11/96/715、5.0→2.0で27歳90・9/79/1054、7.0→2.8で27歳92・30/216/1422、14.0→5.6で27歳95・263/626/2142＝初期の15倍でインフレ）|
 | `src/engine/growth.ts` の `growPlayer` の年次成長 | **CPU・海外の1年ぶんの成長**。**余ったEXPは必ず持ち越すこと**（自チームの `processExpGains` と同じ形）。`Math.floor(1年ぶん / 必要EXP)` で捨てていたころは、必要EXPが `0.5×能力²×(80以上2倍・90以上4倍)` なので**格10以下は1も伸びず、どの格でもOVR80を超えられなかった**（世界のOVR85+が12年で702人→154人）。オーナー・2026-08-16「成長してないからそんな弱いんじゃないの？普通に92とか見なくなった」 |
@@ -333,7 +336,7 @@ Supabase と同じ `auth.users` / `auth.uid()` を作り、データを入れた
 | 何 | どこ |
 |---|---|
 | 色・フォント | `src/styles/tokens.ts` の `C` と `src/index.css` の `:root`（**両方に同じ色がある。値をずらさないこと**）|
-| 選手カードの色 | `src/styles/tokens.ts` の `CARD`。`PlayerSheet` と `TeamDetailPage` だけが使う**2つ目の色の組**（紫がかった暗い段）。見た目は変えていない——**値の置き場所だけ1本にした**（`check-ui-tokens` の⑪が、画面にこの値を書いたら落とす）|
+| 選手カードの色 | `src/styles/tokens.ts` の `CARD`。`PlayerSheet` と `TeamDetailPage` だけが使う**2つ目の色の組**（紫がかった暗い段）。見た目は変えていない——**値の置き場所だけ1本にした**（`check-ui-tokens` の⑭が、画面にこの値を書いたら落とす。**⑪は本文の文字サイズ**——番号を重ねないこと）|
 | 透明度つきのブランド色 | `rgba(var(--gold-rgb), …)` / `rgba(var(--accent-cyan-rgb), …)` |
 | 画面の下端に貼る位置 | `bottomStack` |
 | 中身が使える高さ | `contentHeight`（**`HEADER_H + NAV_H + …` を画面で足さないこと**）|
@@ -401,6 +404,10 @@ px が 8 のもの（財務の予算カードの `0 8px 0 #8b6914`）が**26か�
 スポンサーの契約中・オファー／クラブ詳細のページャと加入・放出／チャットの
 自チーム・移籍獲得／フレンド詳細のロスター・殿堂入り。
 **新しく作ったら `check-sticky-tab.ts` の `SCREENS` に1行足すこと。**
+足し忘れても大丈夫なように、点検は**画面のほうも実際に数えます**（`run-checks.mjs` が
+`scripts/check-*.ts` を数えるのと同じ形）。`useState<'a' | 'b'>` で名前が
+tab / page / view / division / section のものが一覧に無ければ落ちるので、
+**タブでないなら理由を `NOT_A_TAB` に書くこと**（「漏れた」と「あえて」を区別するため）。
 
 - **横スワイプのページャは、覚えるだけでは足りません。** 開いたときに実際に
   そこへ寄せ直さないと、タブの見た目だけ右で中身は左端のまま、になります

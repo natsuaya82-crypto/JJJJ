@@ -47,17 +47,15 @@ export const NEWS_POPUPS: NewsPopup[] = [
   },
 ]
 
-/** 今日（日本時間）の `YYYY-MM-DD` */
-function todayISO(): string {
-  return new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10)
-}
-
 /**
  * まだ出していない・期限内のお知らせを1件返す（無ければ null）。
  * **選ぶ判定はここ1本**（画面で配列を絞り込まないこと）。
+ *
+ * ★`today` は呼ぶ側から渡します（`utils/jstDate` の `jstTodayISO()`）。
+ *   ここは `data/` なので `utils/` を import できません（`check-layers` のルール4。
+ *   定数・型の側から計算を引っぱると、向きが逆さまの依存が1本ずつ増えていく）。
  */
-export function nextNewsPopup(seenIds: readonly string[]): NewsPopup | null {
-  const today = todayISO()
+export function nextNewsPopup(seenIds: readonly string[], today: string): NewsPopup | null {
   const seen = new Set(seenIds)
   return NEWS_POPUPS.find(n => !seen.has(n.id) && (!n.until || n.until >= today)) ?? null
 }

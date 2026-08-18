@@ -56,7 +56,15 @@ export type MoveOptions = {
   teamRole?: TeamRole
   // 再移籍の禁止期限（この年までは動かせない）
   lockUntilYear?: number
-  // 契約年数。移籍履歴の表示に使う
+  /**
+   * **レンタルの期間だけ**（何年借りるか）。
+   *
+   * ★**移籍の契約年数をここに書かないこと。** 移籍履歴と退団のお知らせに出る年数は、
+   *   下で**実際に結んだ契約（`contract.yearsLeft`）から出します**。
+   *   以前はここに `years: 2` と手で書いた道が2つあり（CPUの移籍市場・シーズン中のFA）、
+   *   契約そのものは `newContractYears`（1〜5年）なのに**画面には全部「2年」**と出ていました。
+   *   1年回して数えると移籍1,232件のうち **971件（78.8%）が食い違い**。
+   */
   years?: number
   // 移動先の名前。海外クラブは teams に居ないので呼び出し側から渡す
   toName?: string
@@ -183,6 +191,13 @@ export function movePlayer(
   let nextTeams = teams
   if (opts.money !== false) nextTeams = withMoney(nextTeams, fromTeamId, dest, fee)
 
+  // ★**画面に出す契約年数は、実際に結んだ契約から出す。**
+  //   呼ぶ側が数字を書けるようにしておくと必ずズレる（`years: 2` の手書きが2つあった）。
+  //   レンタルだけは「何年借りるか」で契約年数ではないので、呼ぶ側の値をそのまま使う。
+  const shownYears = onLoan
+    ? opts.years
+    : nextPlayers.find(p => p.id === playerId)?.contract.yearsLeft
+
   // 移籍履歴。レンタル・レンタルからの復帰・放出（無所属になるだけ）は残さない
   const keepHistory = opts.history !== false && clubChanged && !onLoan && !backToOwner && !!dest
   const record: TransferRecord | null = keepHistory
@@ -194,7 +209,7 @@ export function movePlayer(
         toTeamId: dest,
         fee,
         ...(opts.kind ? { kind: opts.kind } : {}),
-        ...(opts.years != null ? { years: opts.years } : {}),
+        ...(shownYears != null ? { years: shownYears } : {}),
       }
     : null
 
@@ -210,7 +225,7 @@ export function movePlayer(
         toTeamName: toName,
         reason: opts.reason ?? (onLoan || backToOwner ? 'loan' : dest ? 'transfer' : 'fa'),
         ...(fee > 0 ? { fee } : {}),
-        ...(opts.years != null ? { years: opts.years } : {}),
+        ...(shownYears != null ? { years: shownYears } : {}),
       }
     : null
 

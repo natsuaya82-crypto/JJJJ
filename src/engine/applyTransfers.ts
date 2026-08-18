@@ -78,7 +78,6 @@ export function applySettledTransfers(params: {
       year: currentSeason.year,
       date: raceDate,
       fee: tx.fee,
-      years: playersWithCpuTx.find(p => p.id === tx.playerId)?.contract.yearsLeft,
       toName: tx.toShort,
       myTeamId: playerTeamId,
       ...(tx.fromTeamId === playerTeamId ? { lockUntilYear: currentSeason.year + 1 } : {}) })
@@ -117,7 +116,6 @@ export function applySettledTransfers(params: {
       year: currentSeason.year,
       date: raceDate,
       fee: mv.fee,
-      years: before?.contract.yearsLeft,
       toName: mv.clubName,
       myTeamId: playerTeamId })
     if (!m.ok) continue

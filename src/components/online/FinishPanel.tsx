@@ -10,6 +10,8 @@ import { courseById, courseToRace } from '../../data/matchCourses'
 import { asPlayer, asTeam, seriesStandings, type MatchRacePayload, type MatchTeamInfo } from '../../lib/matchSim'
 import { SegmentDetailCard, SegmentTabs } from '../race/SegmentDetailCard'
 import { useGameStore } from '../../store/gameStore'
+import { useRatedRanks } from '../../lib/useRatedRanks'
+import { RankBadge } from '../rated/ratedUi'
 import { C, alpha, rankColor, SAIRA, F } from '../../styles/tokens'
 
 
@@ -37,6 +39,11 @@ export default function FinishPanel({
     for (const r of races) for (const t of r.teams) if (!m.has(t.id)) m.set(t.id, t)
     return m
   }, [races])
+
+  // 名前の横に出す段位。**他人の名前が出るところには全部付ける**（オーナー・2026-08-14
+  // 「フレンドから見えるところ全部だよ」）。ランクマッチ未参加なら何も出ない。
+  // `MatchTeamInfo.id` はユーザーIDなので、そのまま渡せる
+  const ranks = useRatedRanks(useMemo(() => [...teamMap.keys()], [teamMap]))
 
   // 下から何チームぶん発表したか。履歴から見るときは演出せず最初から全部出す
   const [shown, setShown] = useState(history ? standings.length : 0)
@@ -157,7 +164,10 @@ export default function FinishPanel({
             <div style={{ display: 'flex', justifyContent: 'center', margin: '10px 0 8px' }}>
               {t && <TeamLogoSVG primary={t.primary} secondary={t.secondary} shortName={t.shortName} logoId={t.logoId} size={56} />}
             </div>
-            <div style={{ fontSize: F.head, fontWeight: 900, color: C.text }}>{t?.name ?? champion.teamId}</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <div style={{ fontSize: F.head, fontWeight: 900, color: C.text }}>{t?.name ?? champion.teamId}</div>
+              <RankBadge rating={ranks.get(champion.teamId)} size={20} />
+            </div>
             {t?.gmName && <div style={{ fontSize: F.label, color: C.textDim, marginTop: 2 }}>GM {t.gmName}</div>}
             <div style={{ fontSize: F.body, color: C.gold, marginTop: 4, fontFamily: SAIRA, fontWeight: 900 }}>
               通算 {champion.points}pt
@@ -187,8 +197,9 @@ export default function FinishPanel({
               {revealed ? (<>
                 {t && <TeamLogoSVG primary={t.primary} secondary={t.secondary} shortName={t.shortName} logoId={t.logoId} size={26} />}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: F.bodyLg, fontWeight: isMe ? 900 : 600, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {t?.name ?? s.teamId}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: F.bodyLg, fontWeight: isMe ? 900 : 600, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t?.name ?? s.teamId}</span>
+                    <RankBadge rating={ranks.get(s.teamId)} size={15} />
                     {/* 全部落ちたら「不戦」、一部だけなら「不戦1」のように回数で出す。
                         1回落ちただけの人を丸ごと不戦扱いにしない */}
                     {s.forfeits > 0 && (

@@ -69,7 +69,6 @@ export function signInSeasonFreeAgents(params: {
       year: currentSeason.year,
       date: raceDate,
       kind: 'free',
-      years: 2,
       myTeamId: playerTeamId,
       contract: { yearsLeft: newContractYears(before, currentSeason.year), annualSalary: faMarketSalary(before, perfOf(currentSeason, sg.playerId)), contractType: 'standard' } })
     if (!m.ok) continue

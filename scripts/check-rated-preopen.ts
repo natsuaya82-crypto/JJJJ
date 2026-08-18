@@ -67,7 +67,11 @@ console.log('\n[3] 参加ボタンは開始前でも画面に出る')
 console.log('\n[4] 押せないときは理由がボタンに出る')
 {
   check('ボタンの見出しが状態で変わる', /!openable[\s\S]{0,200}から`/.test(page))
-  check('受付の開始時刻を1か所に持っている', /const OPEN_HHMM/.test(page))
+  // ★時刻は `lib/ratedApi` の `RESULT_HHMM` 1本（サーバーの `rated_open_round` と同じ 10:00）。
+  //   ここに `const OPEN_HHMM = '10:00'` と2本目を書いていた（2026-08-18 の監査で発見）。
+  //   同じファイルが ratedApi から他の定数を import しているのに、これだけ手書きだった
+  check('受付の開始時刻を ratedApi から引いている',
+    /RESULT_HHMM/.test(page) && !/const OPEN_HHMM/.test(page))
 }
 
 console.log('\n[5] 殿堂入りの警告を「受付が開いているか」で出さない')

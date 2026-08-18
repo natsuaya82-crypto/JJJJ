@@ -12,7 +12,7 @@
 // ★乱数は引数で受ける（既定は Math.random）。1人につき「調子の引き直し」1回、
 //   練習プランが効く条件のときだけもう1回。順序は切り出し前と同じ。
 import type { CardStatKey, Player, RaceResults, Season, Team } from '../types'
-import { withFatigue } from '../utils/condition'
+import { withFatigue, withRaceMorale } from '../utils/condition'
 import { ANNUAL_BASE_EXP } from '../utils/clubTier'
 import { GROW_STAT_KEYS, applyGrowth } from './growth'
 import { DIVISION_SIZE } from '../utils/league'
@@ -70,7 +70,8 @@ export function applyRaceProgress(params: {
     // 役割ミスマッチ：エース/主力を任命したのにベンチだとモラル低下（口約束の代償）
     const roleBenchPenalty = (!isRacer && (p.teamRole === 'ace' || p.teamRole === 'key_player'))
       ? (p.teamRole === 'ace' ? 4 : 2) : 0
-    const newMorale = Math.max(10, Math.min(100, (p.morale ?? 70) + moraleDelta + (segWin ? 5 : 0) - roleBenchPenalty))
+    // 上下限も既定値も `utils/condition` 1本（レース後だけ下限10＝`MORALE_RACE_FLOOR`）
+    const newMorale = withRaceMorale(p, moraleDelta + (segWin ? 5 : 0) - roleBenchPenalty).morale
 
     // 成長は「所属していれば全員同じだけ」。走ったかどうかで分けない。
     // 1レースぶんの一律EXP＝年間ぶん ÷ レース数 ÷ 能力数。

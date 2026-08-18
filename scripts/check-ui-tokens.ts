@@ -455,7 +455,10 @@ console.log('\n⑬ 下から出るシートが画面の外へ突き抜けない'
   check('つまみと見出しは縮まない', (sheet.match(/flexShrink:\s*0/g) ?? []).length >= 2)
 }
 
-console.log('\n⑪ 選手カードの色（CARD）を画面に直書きしていない')
+// ★**番号を重ねないこと。** CLAUDE.md は「⑥が」「⑧が」と**番号で**この点検を指すので、
+//   同じ番号が2つあると、書いてある説明がどちらを指すのか読めなくなる。
+//   （この節は最初 ⑪ で足されていて、本文の文字サイズの⑪と重なっていた）
+console.log('\n⑭ 選手カードの色（CARD）を画面に直書きしていない')
 {
   // `PlayerSheet` と `TeamDetailPage` の2画面だけ、アプリ全体（C）とは別の
   // 紫がかった色の組で作ってある。**それ自体は「あえて」なので変えない**が、
@@ -481,6 +484,24 @@ console.log('\n⑪ 選手カードの色（CARD）を画面に直書きしてい
   for (const b of bad.slice(0, 8)) console.log(`      ${b}`)
   check('画面に1件も書かれていない', bad.length === 0,
     `${bad.length}件。CARD.◯◯ を使うこと（値は styles/tokens.ts 1本）`)
+}
+
+// ── 節の番号がダブっていないか（この点検自身の見張り）──────────────
+//
+// CLAUDE.md は「⑥が」「⑧が」と**番号で**ここの節を指す。番号がダブると、
+// 書いてある説明がどちらを指すのか読めなくなる（実際に⑪が2つあった：
+// 本文の文字サイズと、選手カードの色）。人が気をつけても必ず再発するので数える。
+console.log('\n⑮ 節の番号がダブっていない（この点検自身の見張り）')
+{
+  const self = readFileSync('scripts/check-ui-tokens.ts', 'utf8')
+  // ①だけ先頭の改行が無く、テンプレート文字列で書かれている。**両方の形を拾うこと**
+  //（片方しか見ない書き方にすると、拾えなかった節の番号がダブっても緑になる）
+  const marks = [...self.matchAll(/console\.log\([`'](?:\\n)?([①-⑳])/g)].map(m => m[1])
+  const dup = marks.filter((m, i) => marks.indexOf(m) !== i)
+  check(`節が ${marks.length} 個あって番号がすべて別`, dup.length === 0, `重なっている番号: ${dup.join('')}`)
+  const ORDER = [...'①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳']
+  check('番号が順に並んでいる', marks.every((m, i) => ORDER.indexOf(m) === i),
+    marks.join(''))
 }
 
 console.log(failed === 0 ? '\n  → OK\n' : `\n  → NG ${failed}件\n`)

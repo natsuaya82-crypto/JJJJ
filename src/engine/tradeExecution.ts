@@ -46,7 +46,6 @@ export function runTradeMoves(
       date: opts.date,
       raceIndex: opts.raceIndex,
       kind: 'trade',
-      years: players.find(p => p.id === mv.playerId)?.contract.yearsLeft,
       myTeamId: opts.myTeamId })
     if (!m.ok) continue
     players = m.players

@@ -20,13 +20,16 @@
  *   ③ パスに埋め込む形へ戻っていないか（`location.pathname` が変わると
  *      ページの出現アニメが毎回走る）
  */
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 
 let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
   console.log(`  ${ok ? 'ok' : 'NG'}  ${name}${ok || !detail ? '' : ` — ${detail}`}`)
   if (!ok) failed++
 }
+
+/** 上に並ぶ切り替えを持つ画面（見出し・ファイル・状態の名前） */
+const SCREENS: [string, string, string][] = []
 
 console.log('[1] 入れものの中身（URLの読み書き）')
 {
@@ -44,7 +47,7 @@ console.log('\n[2] タブを持つ画面が実際に通しているか')
   //
   // ★**上に並ぶ切り替えを新しく作ったら、ここへ1行足すこと。**
   //   足さないと「その画面だけ左端に戻る」が黙って戻ってくる。
-  const SCREENS: [string, string, string][] = [
+  SCREENS.push(
     ['順位表の部（1部/2部/3部）', 'src/components/teams/StandingsPage.tsx', 'division'],
     ['走友会のタブ（メンバー/カード/掲示板）', 'src/components/friends/FriendClubPage.tsx', 'tab'],
     ['マイチーム（1軍/レンタル）', 'src/components/team/TeamManagement.tsx', 'activeTab'],
@@ -54,7 +57,7 @@ console.log('\n[2] タブを持つ画面が実際に通しているか')
     ['クラブ詳細の出入り（加入/放出）', 'src/components/teams/TeamDetailPage.tsx', 'moveTab'],
     ['チャット（自チーム/移籍・獲得）', 'src/components/team/ChatPage.tsx', 'activeTab'],
     ['フレンド詳細のページャ（ロスター/殿堂入り）', 'src/components/friends/FriendDetailPage.tsx', 'page'],
-  ]
+  )
   for (const [label, file, name] of SCREENS) {
     const src = readFileSync(file, 'utf8')
     check(`${label} が useStickyTab を通している`, new RegExp(`\\[${name}, set\\w+\\] = useStickyTab`).test(src),
@@ -62,6 +65,55 @@ console.log('\n[2] タブを持つ画面が実際に通しているか')
     // 同じ名前で useState に戻したら落とす
     check(`${label} が useState に戻っていない`, !new RegExp(`\\[${name}, set\\w+\\] = useState`).test(src))
   }
+}
+
+console.log('\n[2-b] 一覧に載っていないタブが増えていないか（画面を数える）')
+{
+  // ★**上の SCREENS は手で書いた名簿。** 足し忘れたら「その画面だけ左端に戻る」が
+  //   黙って戻ってくる。`run-checks.mjs` が点検のファイルを**実際に数えて**いるのと
+  //   同じ形にして、画面のほうも数える。
+  //
+  //   タブらしい `useState` ＝ **文字の選択肢を持つ状態**（`useState<'a' | 'b'>`）で、
+  //   名前が tab / page / view / division / section のもの。並び替え・フィルタ・
+  //   その場かぎりの流れ（レース結果の中の切り替えなど）は対象外なので、
+  //   **理由を書いて `NOT_A_TAB` に入れる**（「漏れた」と「あえて」を区別するため）。
+  const NOT_A_TAB: Record<string, string> = {
+    'src/components/race/ResultsPhase.tsx:view':
+      'レース結果の中のドリルダウン。詳細ページへ出ていかないので戻る話が起きない',
+    'src/components/rated/RatedResultPage.tsx:view':
+      '見る→走る→結果、の一本道。切り替えではない',
+    'src/components/online/FinishPanel.tsx:tab':
+      'オンライン対戦の結果パネル。その対戦の中だけで、開き直すと最初から',
+  }
+  const files: string[] = []
+  const walk = (dir: string) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const p = `${dir}/${e.name}`
+      if (e.isDirectory()) walk(p)
+      else if (e.name.endsWith('.tsx')) files.push(p)
+    }
+  }
+  walk('src/components')
+  const registered = new Set(SCREENS.map(([, f, n]) => `${f}:${n}`))
+  const missed: string[] = []
+  for (const f of files) {
+    const src = readFileSync(f, 'utf8')
+    for (const m of src.matchAll(/const \[(\w+), set\w+\] = useState<'[^>]*\|[^>]*>/g)) {
+      const key = `${f}:${m[1]}`
+      if (!/tab|page|view|division|section/i.test(m[1])) continue
+      if (registered.has(key) || NOT_A_TAB[key]) continue
+      missed.push(key)
+    }
+  }
+  check('一覧に無いタブが増えていない', missed.length === 0,
+    `${missed.join(' / ')}\n      → useStickyTab に寄せて SCREENS に足すか、タブでない理由を NOT_A_TAB に書くこと`)
+  // ★**除外の名簿が腐っていないか**も見る（消した画面の言い訳が残ると、
+  //   次に同じ名前で作ったタブが黙って通る）
+  const stale = Object.keys(NOT_A_TAB).filter(k => {
+    const [f, n] = [k.slice(0, k.lastIndexOf(':')), k.slice(k.lastIndexOf(':') + 1)]
+    return !files.includes(f) || !new RegExp(`const \\[${n}, set\\w+\\] = useState<'`).test(readFileSync(f, 'utf8'))
+  })
+  check('「タブではない」の言い訳が全部いまも当たっている', stale.length === 0, stale.join(' / '))
 }
 
 console.log('\n[3] スワイプで動くページャは、覚えていた位置へ寄せ直す')

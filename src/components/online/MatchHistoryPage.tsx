@@ -2,6 +2,8 @@ import { useNavigate } from 'react-router-dom'
 import PageHeader from '../ui/PageHeader'
 import { myMatchHistory, myMatchStats, type MatchHistoryItem } from '../../lib/roomsApi'
 import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox } from '../friends/friendsUi'
+import { useRatedRanks } from '../../lib/useRatedRanks'
+import { RankBadge } from '../rated/ratedUi'
 import { TeamLogoSVG } from '../icons/Icons'
 import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
 
@@ -23,7 +25,7 @@ function fmtDate(iso: string): string {
   return d.getFullYear() === new Date().getFullYear() ? md : `${d.getFullYear()}/${md}`
 }
 
-function MatchCard({ m, onOpen }: { m: MatchHistoryItem; onOpen: () => void }) {
+function MatchCard({ m, rating, onOpen }: { m: MatchHistoryItem; rating?: number; onOpen: () => void }) {
   // 一覧では順位も参加者も出さない。「いつ・誰の部屋で・何人で・何レース」だけ分かればよく、
   // 中身は開いた先（FinishPanel）で見る。カードを短く保って一覧を見渡しやすくする狙い。
   //
@@ -53,11 +55,17 @@ function MatchCard({ m, onOpen }: { m: MatchHistoryItem; onOpen: () => void }) {
       )}
 
       <div style={{ flex: 1, minWidth: 0 }}>
+        {/* 紋章は display:block の画像なので、横に並べるところは flex にする
+            （ロビー・フレンド一覧と同じ組み方）*/}
         <div style={{
+          display: 'flex', alignItems: 'center', gap: 4,
           fontSize: F.body, color: C.text, fontWeight: 700,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          overflow: 'hidden', whiteSpace: 'nowrap',
         }}>
-          {hostName}<span style={{ fontSize: F.caption, color: C.textGhost, fontWeight: 400, marginLeft: 4 }}>の部屋</span>
+          <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{hostName}</span>
+          {/* 名前の横に段位。ランクマッチ未参加なら何も出ない */}
+          {!m.hostIsMe && <RankBadge rating={rating} size={14} />}
+          <span style={{ fontSize: F.caption, color: C.textGhost, fontWeight: 400 }}>の部屋</span>
         </div>
         <div style={{
           fontSize: F.caption, color: C.textDim, marginTop: 2,
@@ -90,6 +98,8 @@ export default function MatchHistoryPage() {
   const navigate = useNavigate()
   const history = useFriendsQuery(() => myMatchHistory(20), [], 'matchHistory')
   const stats = useFriendsQuery(() => myMatchStats(), [], 'matchStats')
+  // 名前の横に出す段位。**一覧ぶんまとめて1回**で引く（1行ずつ引かせない）
+  const hostRanks = useRatedRanks((history.data ?? []).map(m => m.host?.id ?? '').filter(Boolean))
 
   const s = stats.data
   const winRate = s && s.played > 0 ? Math.round((s.wins / s.played) * 100) : 0
@@ -134,7 +144,8 @@ export default function MatchHistoryPage() {
           <EmptyBox label="まだ対戦の記録がありません" />
         )}
         {history.data?.map(m => (
-          <MatchCard key={m.matchId} m={m} onOpen={() => navigate(`/online/history/${m.matchId}`)} />
+          <MatchCard key={m.matchId} m={m} rating={m.host ? hostRanks.get(m.host.id) : undefined}
+            onOpen={() => navigate(`/online/history/${m.matchId}`)} />
         ))}
       </div>
 

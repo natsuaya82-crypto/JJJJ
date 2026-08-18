@@ -46,6 +46,26 @@ export function withGmRep(cur: number | undefined, delta: number): number {
   return clamp01to100((cur ?? GM_REP_DEFAULT) + delta)
 }
 
+/**
+ * レース後の士気の下限。**0ではなく10です。**
+ *
+ * ★**下限が2つあります**（`withMorale` は0／レース後だけ10）。`docs/BACKLOG.md` A-10。
+ *   どちらが正かはオーナーの判断待ちなので**値は動かしていません**。ここに置いたのは、
+ *   `engine/raceProgress` が
+ *
+ *     const newMorale = Math.max(10, Math.min(100, (p.morale ?? 70) + …))
+ *
+ *   と**自分でクランプしていた**ため。`check-single-source` の見張りは
+ *   `morale: Math.min(` の形しか見ないので、**変数に逃がすと1文字も当たらず**、
+ *   全レースが通る道なのにずっと緑でした（2026-08-18 の監査で発見）。
+ */
+export const MORALE_RACE_FLOOR = 10
+
+/** レース後の士気（`MORALE_RACE_FLOOR` で止まる。それ以外は `withMorale` と同じ） */
+export function withRaceMorale<T extends { morale?: number }>(p: T, delta: number): T {
+  return { ...p, morale: Math.max(MORALE_RACE_FLOOR, clamp01to100((p.morale ?? MORALE_DEFAULT) + delta)) }
+}
+
 /** 士気をその値にそろえる（増減ではなく設定したいとき） */
 export function setMorale<T extends { morale?: number }>(p: T, value: number): T {
   return { ...p, morale: clamp01to100(value) }
