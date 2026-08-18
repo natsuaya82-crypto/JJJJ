@@ -19,9 +19,15 @@
 export type NewsPopup = {
   /** 一度出したら変えない */
   id: string
+  /** 見出し。**説明は書かない**（オーナー・2026-08-16「それ以外の説明いらん。
+   *  そのページに飛んでみてもらったほうがいい」）*/
   title: string
-  /** `\n` で改行できる */
-  body: string
+  /** 見出しの上に大きく出す文字（日付など）。無くてよい */
+  lead?: string
+  /** 絵。`ranks` は段位の紋章を横に並べる（`components/rated/rankArt` の7枚） */
+  art?: 'ranks'
+  /** どうしても要るときだけ。`\n` で改行できる */
+  body?: string
   actionLabel: string
   /** 押したときに開く画面（アプリ内のパス） */
   to: string
@@ -32,10 +38,10 @@ export type NewsPopup = {
 export const NEWS_POPUPS: NewsPopup[] = [
   {
     id: 'rated-open-2026-09',
-    title: 'オンラインレート戦 開催',
-    body: '全国の相手と毎日1回、同じコースで戦うモードが始まります。\n'
-      + '勝つとレートが上がり、段位が変わります。',
-    actionLabel: 'ランクマッチを見る',
+    lead: '9/1',
+    title: 'ランクマッチ 開催！',
+    art: 'ranks',
+    actionLabel: '見に行く',
     to: '/online/rated',
     until: '2026-09-30',
   },

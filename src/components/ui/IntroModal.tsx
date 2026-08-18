@@ -15,13 +15,15 @@ import { C, alpha, F } from '../../styles/tokens'
  *   「下から出るやつ」なので、ここは今までどおり）。
  */
 export default function IntroModal({
-  icon, title, body, actionLabel, onAction, closeLabel = 'あとで', onClose, accent = C.gold,
+  icon, lead, title, body, actionLabel, onAction, closeLabel = 'あとで', onClose, accent = C.gold,
 }: {
-  /** 見出しの上に置く四角いアイコン（56px の中に収まるもの） */
+  /** 見出しの上に置く絵。大きさは渡す側が決める（1枚でも横並びでもよい） */
   icon: ReactNode
+  /** 見出しの上に大きく出すもの（日付など）。無くてよい */
+  lead?: ReactNode
   title: string
-  /** `\n` で改行できる */
-  body: string
+  /** `\n` で改行できる。**無くてよい**（説明が要らないお知らせもある） */
+  body?: string
   actionLabel: string
   /** 押したときの動き。押したあとは呼ぶ側が閉じること */
   onAction: () => void
@@ -45,15 +47,19 @@ export default function IntroModal({
         textAlign: 'center',
       }}>
         <div style={{
-          width: 56, height: 56, margin: '0 auto 18px',
+          margin: '0 auto 18px',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>{icon}</div>
+        {lead}
         <div style={{ fontSize: F.titleLg, fontWeight: 800, color: C.text, marginBottom: '10px' }}>
           {title}
         </div>
-        <div style={{ fontSize: F.bodyLg, color: C.textDim, lineHeight: 1.7, marginBottom: '26px', whiteSpace: 'pre-line' }}>
-          {body}
-        </div>
+        {!body && <div style={{ height: 20 }} />}
+        {body && (
+          <div style={{ fontSize: F.bodyLg, color: C.textDim, lineHeight: 1.7, marginBottom: '26px', whiteSpace: 'pre-line' }}>
+            {body}
+          </div>
+        )}
         <button
           onClick={onAction}
           style={{
