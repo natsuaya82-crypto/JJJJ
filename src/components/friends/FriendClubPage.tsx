@@ -716,6 +716,9 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
   const [menuPost, setMenuPost] = useState<ClubPost | null>(null)
   const [reporting, setReporting] = useState<ReportTarget | null>(null)
   const [confirmBlock, setConfirmBlock] = useState<ClubPost | null>(null)
+  // ★対戦の募集は**押した瞬間に部屋が立って掲示板に貼られる**ので、必ず確認をはさむ
+  //   （オーナー・2026-08-18「押したらすぐレースになるのやめて」）
+  const [confirmInvite, setConfirmInvite] = useState(false)
 
   // 前回の「受け取る」が途中で終わっていた場合の入れ直し。
   // 箱に残っているもののうち、まだ手元に無いカードだけを足す（二重に増えない）。
@@ -1037,11 +1040,20 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {/* 対戦の募集。部屋を立てて、その番号を掲示板に貼る */}
-            <button onClick={() => { void onInvite() }} disabled={busy === 'room'} className="btn-press" style={{
+            <button onClick={() => setConfirmInvite(true)} disabled={busy === 'room'} className="btn-press" style={{
               flexShrink: 0, width: 40, height: 40,cursor: 'pointer',
               border: `1px solid ${alpha(C.cyan, 0.5)}`, background: alpha(C.cyan, 0.12),
-              color: C.cyan, fontSize: F.title, fontFamily: 'inherit', padding: 0,
-            }} title="対戦を募集する">🏁</button>
+              color: C.cyan, fontFamily: 'inherit', padding: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }} title="対戦を募集する" aria-label="対戦を募集する">
+              {/* ★アイコンは他の画面と同じ SVG。絵文字（🏁）は端末ごとに絵が変わるうえ、
+                  色も太さもこの画面の他のアイコンと揃わない */}
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M5 3v18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+                <path d="M5 4.5h14v9H5z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
+                <path d="M5 4.5h4.7v4.5H5zM14.3 4.5H19v4.5h-4.7zM9.7 9h4.6v4.5H9.7z" fill="currentColor"/>
+              </svg>
+            </button>
             <div style={{
               flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6,
               padding: '6px 6px 6px 14px',
@@ -1175,6 +1187,15 @@ padding: '6px 14px', fontFamily: 'inherit',
           confirmLabel="ブロック" accent={C.red}
           onCancel={() => setConfirmBlock(null)}
           onConfirm={() => { void onBlock(confirmBlock) }}
+        />
+      )}
+      {confirmInvite && (
+        <ConfirmDialog
+          title="対戦を開始しますか？"
+          message="部屋を立てて、その番号を掲示板に貼ります。走友会の誰かが入るまで待つ形です。"
+          confirmLabel="開始する" accent={C.cyan}
+          onCancel={() => setConfirmInvite(false)}
+          onConfirm={() => { setConfirmInvite(false); void onInvite() }}
         />
       )}
       {notice && <NoticeDialog title={notice.title} message={notice.message} onClose={() => setNotice(null)} />}
