@@ -21,7 +21,7 @@ export default function HeroCard({ team, seasonYear, rank, totalRaces, completed
   // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
   // ★**ホームはJPELの数だけ**（オーナー・2026-08-14「流石にjpelだけでいい」）。
   //   部ごとの内訳（1部2 / 3部1）は、幅のある記録室とチーム画面で出す。
-  //   ここは3つ並ぶ数字の1つなので、他の2つ（GM評判・モラール）と同じく数字1つにする。
+  //   ここは3つ並ぶ数字の1つなので、他の2つ（GM評判・士気）と同じく数字1つにする。
   const titles = useTeamHistory(team.id).titles
   // ★**1部の優勝だけ**を数える（オーナー判断・2026-08-14）。utils/teamHistory の1本
   const jpelTitles = topTitleCount(titles)
@@ -94,7 +94,7 @@ export default function HeroCard({ team, seasonYear, rank, totalRaces, completed
         {[
           { label: 'JPEL優勝', value: `${jpelTitles}`, color: C.text },
           { label: 'GM評判', value: `${gmRep}`, color: gmRep >= 70 ? C.green : gmRep >= 40 ? C.text : C.red },
-          { label: 'モラール', value: `${avgMorale}`, color: moraleColor },
+          { label: '士気', value: `${avgMorale}`, color: moraleColor },
         ].map((item, i) => (
           <div key={item.label} style={{
             flex: 1, padding: '11px 0', textAlign: 'center',

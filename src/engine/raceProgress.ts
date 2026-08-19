@@ -12,12 +12,11 @@
 // ★乱数は引数で受ける（既定は Math.random）。1人につき「調子の引き直し」1回、
 //   練習プランが効く条件のときだけもう1回。順序は切り出し前と同じ。
 import type { CardStatKey, Player, RaceResults, Season, Team } from '../types'
-import { withFatigue, withRaceMorale } from '../utils/condition'
+import { withFatigue } from '../utils/condition'
 import { ANNUAL_BASE_EXP } from '../utils/clubTier'
 import { GROW_STAT_KEYS, applyGrowth } from './growth'
-import { DIVISION_SIZE } from '../utils/league'
-import type { Division } from '../types'
 import { facilitiesOf } from '../utils/facilities'
+import { applyRaceMorale, standingOf, type RaceStanding } from './raceMorale'
 
 export function applyRaceProgress(params: {
   players: Player[]
@@ -26,21 +25,17 @@ export function applyRaceProgress(params: {
   racingIds: Set<string>
   teams: Team[]
   playerTeamId: string
-  myDivision: Division
   currentSeason: Season
   /** 裏で走った部の通算成績の増分（engine/domesticLeague の結果） */
   awayCareerAdd: Record<string, { races: number; segWins: number }>
+  /** 裏で走った部の着順（クラブID → 着順と出走数）。士気に使う */
+  awayStanding?: Map<string, RaceStanding>
   rng?: () => number
 }): { players: Player[]; raceExpGains: Record<string, Partial<Record<CardStatKey, number>>> } {
-  const { players, results, racingIds, teams, playerTeamId, myDivision, currentSeason, awayCareerAdd, rng = Math.random } = params
-  const teamRank = results.teamRankings.find(r => r.teamId === playerTeamId)?.rank ?? 0
-  // teamRank はそのレースの着順＝自分の部の中での順位。比べる相手も部のチーム数
-  const baseMoraleDelta = teamRank === 1 ? 8 : teamRank <= 3 ? 3 : teamRank >= DIVISION_SIZE[myDivision] - 2 ? -5 : 0
+  const { players, results, racingIds, teams, playerTeamId, currentSeason, awayCareerAdd, awayStanding, rng = Math.random } = params
   // ★チームトーク（レース前に「楽しくいこう／勝ちにいく」で士気 +5／+10）は**廃止**
   //   （オーナー・2026-08-12「チームトークは無くした」）。
   //   選ぶ画面がどこにも無く、build 121 から一度も効いていなかった枝。
-  //   既定が 'best'（どの枝にも当たらない）だったので、外しても士気は1も変わらない。
-  const moraleDelta = baseMoraleDelta
   const raceExpGainsMap: Record<string, Partial<Record<CardStatKey, number>>> = {}
   // 強化合宿: 自チームのレース獲得EXP ×(1 + Lv×6%)
   // ★施設は `facilitiesOf` を通す（格から出る土台＋自分で建てたぶん）。
@@ -65,13 +60,6 @@ export function applyRaceProgress(params: {
         : {}
 
     if (p.teamId !== playerTeamId) return { ...p, form: newForm, ...careerUpdate }
-
-    const segWin = results.segmentResults.some(sr => sr.runners[0]?.playerId === p.id)
-    // 役割ミスマッチ：エース/主力を任命したのにベンチだとモラル低下（口約束の代償）
-    const roleBenchPenalty = (!isRacer && (p.teamRole === 'ace' || p.teamRole === 'key_player'))
-      ? (p.teamRole === 'ace' ? 4 : 2) : 0
-    // 上下限も既定値も `utils/condition` 1本（レース後だけ下限10＝`MORALE_RACE_FLOOR`）
-    const newMorale = withRaceMorale(p, moraleDelta + (segWin ? 5 : 0) - roleBenchPenalty).morale
 
     // 成長は「所属していれば全員同じだけ」。走ったかどうかで分けない。
     // 1レースぶんの一律EXP＝年間ぶん ÷ レース数 ÷ 能力数。
@@ -114,8 +102,20 @@ export function applyRaceProgress(params: {
         }
       }
     }
-    return { ...p, form: newForm, morale: newMorale, ratings: newRatings, exp: newExp, fatigue: withFatigue(p, planFatigueDelta).fatigue, ...careerUpdate }
+    return { ...p, form: newForm, ratings: newRatings, exp: newExp, fatigue: withFatigue(p, planFatigueDelta).fatigue, ...careerUpdate }
   })
 
-  return { players: finalPlayers, raceExpGains: raceExpGainsMap }
+  // ★士気は `engine/raceMorale` 1本。**自チームだけでなく、走ったクラブ全部**が動く
+  //   （以前はここで自チームだけを動かしていたので、CPU・海外は一生100のままだった）。
+  //   自分の部の着順に、裏で走った部のぶんを重ねる（同じ日に走った全クラブが対象）。
+  const standing = new Map(standingOf(results.teamRankings))
+  if (awayStanding) for (const [id, st] of awayStanding) standing.set(id, st)
+  const segWinIds = new Set<string>([
+    ...results.segmentResults.map(sr => sr.runners[0]?.playerId).filter((v): v is string => !!v),
+    ...Object.entries(awayCareerAdd).filter(([, a]) => a.segWins > 0).map(([id]) => id),
+  ])
+  const ranAll = new Set<string>([...racingIds, ...Object.keys(awayCareerAdd)])
+  const withMoraleApplied = applyRaceMorale({ players: finalPlayers, standing, segWinIds, racingIds: ranAll })
+
+  return { players: withMoraleApplied, raceExpGains: raceExpGainsMap }
 }

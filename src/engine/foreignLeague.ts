@@ -1,5 +1,6 @@
 import type { ForeignLeague, ForeignStanding, Player, Race } from '../types'
 import { runBackgroundRace, applyCareerAdd } from './backgroundRace'
+import { applyRaceMorale, standingOf, type RaceStanding } from './raceMorale'
 // コースの呼び名は地域ごと（中身は同じ）。ケニアのクラブが「出雲開幕戦」を走らないようにする
 import { courseRegionOfNation, localizeRace } from '../data/courseNames'
 // 所属の判定は国内チームと同じものを使う（クラブ側に名簿は持たない）
@@ -46,6 +47,7 @@ export function simulateForeignLeagueRound(
   const byClub = playersByClub(players)
   const careerAdd: Record<string, { races: number; segWins: number; rankSum: number }> = {}
   const clubOf: Record<string, string> = {}   // playerId → 今走ったクラブ
+  const standing = new Map<string, RaceStanding>()   // クラブID → 着順と出走数（士気）
   const newStandings: Record<string, ForeignStanding[]> = { ...standingsByLeague }
   const raced: Record<string, Race> = {}
 
@@ -77,13 +79,21 @@ export function simulateForeignLeagueRound(
     })
 
     Object.assign(clubOf, out.ranFor)
+    for (const [cid, st] of standingOf(out.race.results?.teamRankings ?? [])) standing.set(cid, st)
     for (const [id, add] of Object.entries(out.careerAdd)) {
       const cur = careerAdd[id] ?? { races: 0, segWins: 0, rankSum: 0 }
       careerAdd[id] = { races: cur.races + add.races, segWins: cur.segWins + add.segWins, rankSum: cur.rankSum + add.rankSum }
     }
   }
 
-  const updatedPlayers = applyCareerAdd(players, careerAdd)
+  // ★士気は `engine/raceMorale` 1本（国内とまったく同じ）。
+  //   ここを抜くと海外180クラブだけ士気が一生動かない
+  const updatedPlayers = applyRaceMorale({
+    players: applyCareerAdd(players, careerAdd),
+    standing,
+    segWinIds: new Set(Object.entries(careerAdd).filter(([, a]) => a.segWins > 0).map(([id]) => id)),
+    racingIds: new Set(Object.keys(clubOf)),
+  })
 
   // このマッチデーの出場記録（playerId → クラブ・出場数・区間賞数・区間順位合計）。呼び出し側で今季分に加算する。
   const appearances: Record<string, { clubId: string; races: number; wins: number; rankSum: number; rankedRaces: number }> = {}

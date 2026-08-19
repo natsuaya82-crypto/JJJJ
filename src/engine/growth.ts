@@ -1,6 +1,5 @@
 import type { Player, CardStatKey, Ratings } from '../types'
 import { peakAgeOf, getStatPotentials } from '../utils/playerUtils'
-import { withMorale } from '../utils/condition'
 import { tierGrowthRate, ANNUAL_BASE_EXP, type ClubTier } from '../utils/clubTier'
 
 // ── EXP システム（設計書準拠） ─────────────────────────────────────────────
@@ -265,7 +264,10 @@ export function growPlayer(p: Player, allowAnnualGrowth = false, clubTierForGrow
   // 成長期・ピーク前後: レース/カードEXPに委ねる（growPlayerでは変化なし）
 
   return {
-    ...withMorale(p, 5),
+    ...p,
+    // ★毎年 +5 していたのをやめた（オーナー・2026-08-19）。下がる口が1つも無かったので、
+    //   CPU・海外の5,800人が2年で士気100に張り付き、士気がタイムに掛かる意味を失っていた。
+    //   いまは走るたびに既定値へ戻る（`engine/raceMorale`）ので、ここで足す必要が無い
     age: nextAge,
     yearsPro: p.yearsPro + 1,
     ratings,

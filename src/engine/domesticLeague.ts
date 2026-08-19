@@ -25,6 +25,8 @@ export type AwayDivisionRound = {
   points: Record<string, number>
   /** teamId → このレースの部内順位 */
   ranks: Record<string, number>
+  /** teamId → その部の出走クラブ数（士気の「下位2」を数えるのに要る。部で違う） */
+  entrantCount: Record<string, number>
   /** playerId → { races, segWins } 通算成績への加算ぶん */
   careerAdd: Record<string, { races: number; segWins: number }>
   /** teamId → このレースの区間賞賞金。自チームの部と同じ数え方（utils/league.ts） */
@@ -50,6 +52,7 @@ export function simulateAwayDivisions(
 ): AwayDivisionRound {
   const points: Record<string, number> = {}
   const ranks: Record<string, number> = {}
+  const entrantCount: Record<string, number> = {}
   const careerAdd: Record<string, { races: number; segWins: number }> = {}
   const segPrize: Record<string, number> = {}
   // 走らせた結果そのもの。以前はここで捨てて出走数だけ残していたので、区間タイムも
@@ -77,6 +80,7 @@ export function simulateAwayDivisions(
 
     Object.assign(points, out.points)
     Object.assign(ranks, out.ranks)
+    for (const tid of Object.keys(out.ranks)) entrantCount[tid] = divTeams.length
     for (const [tid, v] of Object.entries(out.segPrize)) segPrize[tid] = (segPrize[tid] ?? 0) + v
     for (const [id, add] of Object.entries(out.careerAdd)) {
       const cur = careerAdd[id] ?? { races: 0, segWins: 0 }
@@ -84,7 +88,7 @@ export function simulateAwayDivisions(
     }
     raced.push({ division: d, roundIndex, race: out.race })
   }
-  return { points, ranks, careerAdd, segPrize, raced }
+  return { points, ranks, entrantCount, careerAdd, segPrize, raced }
 }
 
 /**
