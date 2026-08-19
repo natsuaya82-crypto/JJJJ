@@ -103,7 +103,12 @@ export default function RatedPage() {
   const startsLater = !!ev?.startsOn && ev.startsOn > jstTodayISO()
   const startLabel = ev?.startsOn ? `${Number(ev.startsOn.split('-')[1])}.${Number(ev.startsOn.split('-')[2])}` : ''
   const openable = !!today
-  const eligible = canJoin(hof) && openable
+  // ★**開催前でも「参加する」は押せる**（オーナー・2026-08-19「参加するボタン欲しくね。
+  //   そしたら参加者一覧出る」「9/1にロスター提出するんだよ？」）。
+  //   申し込みと**メンバーの提出は別**で、提出は当日の受付が開いてから。
+  const joined = !!me?.joined
+  const canEnter = canJoin(hof) && startsLater && !joined
+  const eligible = canJoin(hof) && (openable || canEnter)
   const segs = today?.course.segments ?? []
   const submitted = Object.keys(me?.lineup ?? {}).length >= segs.length && segs.length > 0
   const prog = rankProgressOf(me?.rating ?? RATING_START)
@@ -287,7 +292,11 @@ export default function RatedPage() {
               // ★編成の前に**参加の申し込みを通す**。通っていないと提出が 'join' で弾かれる
               //   （参加済みなら `on conflict do nothing` で何も起きない）
               void joinRated().then(r => {
-                if (r === 'ok') { navigate('/online/rated/lineup'); return }
+                if (r === 'ok') {
+                  // 開催前は申し込みだけ。メンバーを組むのは当日（受付が開いてから）
+                  if (!openable) { void fetchMe().then(setMe); return }
+                  navigate('/online/rated/lineup'); return
+                }
                 setNotice(
                   r === 'hof' ? `殿堂入りが${HOF_MAX}人そろっていません`
                   : r === 'closed' ? 'いまは大会をやっていません'
@@ -303,9 +312,12 @@ export default function RatedPage() {
             }}
           >
             <div style={{ fontSize: F.titleLg, fontWeight: 900, color: eligible ? '#04202e' : C.textDim, letterSpacing: '8px' }}>
-              {!openable
-                ? (ev ? (startsLater ? `${startLabel} から` : `${RESULT_HHMM} から`) : '開催予定なし')
-                : submitted ? '組み直す' : '参加する'}
+              {openable
+                ? (submitted ? '組み直す' : '参加する')
+                : canEnter ? '参加する'
+                : joined ? 'エントリー済み'
+                : ev ? (startsLater ? `${startLabel} から` : `${RESULT_HHMM} から`)
+                : '開催予定なし'}
             </div>
             <div style={{
               fontFamily: SAIRA, fontSize: F.tiny, fontWeight: 800, letterSpacing: '4px', marginTop: 3,
@@ -319,6 +331,13 @@ export default function RatedPage() {
               殿堂入り {hof?.length ?? 0} / {HOF_MAX}
             </div>
           )}
+          {/* ★エントリーしたあと、**次に何が起きるか**を必ず出す。
+              出さないと「押したのに何も起きない」に見える（メンバーを組むのは当日） */}
+          {joined && !openable && (
+            <div style={{ fontSize: F.label, color: C.cyan, marginTop: 8, textAlign: 'center' }}>
+              メンバーは {startLabel} {RESULT_HHMM} から組みます
+            </div>
+          )}
           {!!notice && (
             <div style={{ fontSize: F.label, color: C.orange, marginTop: 8, textAlign: 'center' }}>{notice}</div>
           )}
@@ -327,7 +346,9 @@ export default function RatedPage() {
       {/* ── 順位表・前日の結果 ── */}
       <div style={{ display: 'flex', padding: '14px 14px 0' }}>
         {([
-          { label: '順位表', en: 'RANKING', to: '/online/rated/standings', on: true },
+          // ★開催前はまだ1本も走っていないので「参加者」。中身は同じページ（順位表）で、
+          //   サーバーが返す `started` で見出しと矢印が変わる
+          { label: startsLater ? '参加者' : '順位表', en: startsLater ? 'ENTRANTS' : 'RANKING', to: '/online/rated/standings', on: true },
           { label: '前日の結果', en: 'LAST RESULT', to: '/online/rated/result', on: !!result },
         ] as const).map((b, i) => (
           <PressButton

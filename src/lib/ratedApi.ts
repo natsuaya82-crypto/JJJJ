@@ -230,12 +230,17 @@ export type RatedStandings = {
   /** 自分の順位（1始まり）。未参加なら0 */
   meRank: number
   entrants: number
+  /**
+   * **もう始まっているか。** 開催前は参加者の一覧として出す（順位も増減もまだ無い）。
+   * ★画面で日付から組み直さないこと（サーバーの `rated_today_jst` と物差しを揃える）
+   */
+  started: boolean
 }
 
 type RawRow = Omit<RatedRow, 'mine'>
 
 export async function fetchStandings(): Promise<RatedStandings> {
-  const d = await call<{ top: RawRow[]; me: RawRow | null; meRank: number; entrants: number }>('rated_standings')
+  const d = await call<{ top: RawRow[]; me: RawRow | null; meRank: number; entrants: number; started?: boolean }>('rated_standings')
   const meId = d?.me?.userId ?? ''
   const mark = (r: RawRow): RatedRow => ({ ...r, mine: !!meId && r.userId === meId })
   return {
@@ -243,6 +248,7 @@ export async function fetchStandings(): Promise<RatedStandings> {
     me: d?.me ? mark(d.me) : null,
     meRank: d?.meRank ?? 0,
     entrants: d?.entrants ?? 0,
+    started: !!d?.started,
   }
 }
 

@@ -61,12 +61,37 @@ console.log('\n[3] 参加ボタンは開始前でも画面に出る')
   check('参加ボタンが today ブロックの外にある', joinAt > endOfToday && endOfToday > 0,
     `today の終わり ${endOfToday} / 参加 ${joinAt}`)
   check('受付が開いていないと押せない', /const openable = !!today/.test(page))
-  check('押せるかの判定に受付の状態が入っている', /canJoin\(hof\) && openable/.test(page))
+  check('押せるかの判定に受付の状態が入っている', /canJoin\(hof\) && \(openable/.test(page))
+}
+
+console.log('\n[3b] 開催前でも「参加する」は押せる（申し込みと提出は別）')
+{
+  // ★オーナー・2026-08-19「参加するボタン欲しくね。そしたら参加者一覧出る」
+  //   「9/1にロスター提出するんだよ？」＝申し込みは先、メンバーは当日。
+  check('開催前の参加の枝がある', /const canEnter = /.test(page))
+  check('押せるかの判定に入っている', /\(openable \|\| canEnter\)/.test(page))
+  check('もう入っている人は押せない', /&& !joined/.test(page))
+  // 申し込んだだけで編成画面へ飛ばさない（当日まで組めない）
+  check('開催前は編成へ飛ばさない', /if \(!openable\) \{[\s\S]{0,120}return \}/.test(page))
+  check('申し込んだあと、次に何が起きるかを出す', /メンバーは .*から組みます/.test(page))
+  check('開催前は一覧の見出しが「参加者」', /startsLater \? '参加者'/.test(page))
+}
+
+console.log('\n[3c] 大会を選ぶのはサーバーの1本（rated_current_event）')
+{
+  const sql = readFileSync('supabase/all.sql', 'utf8')
+  check('rated_current_event がある', /create function public\.rated_current_event\(\)/.test(sql))
+  // ★以前は3つ（join / me / standings）が「今日が期間の中か」を手書きしていて、
+  //   開催前は「大会が無い」扱いだった＝参加も一覧も出せない
+  const calls = (sql.match(/public\.rated_current_event\(\)/g) ?? []).length
+  check('3つの関数がそこを通っている（定義＋drop＋3呼び出し）', calls === 5, `${calls}`)
+  check('期間の手書きが残っていない',
+    !/rated_today_jst\(\) between starts_on/.test(sql))
 }
 
 console.log('\n[4] 押せないときは理由がボタンに出る')
 {
-  check('ボタンの見出しが状態で変わる', /!openable[\s\S]{0,200}から`/.test(page))
+  check('ボタンの見出しが状態で変わる', /openable[\s\S]{0,300}から`/.test(page))
   // ★時刻は `lib/ratedApi` の `RESULT_HHMM` 1本（サーバーの `rated_open_round` と同じ 10:00）。
   //   ここに `const OPEN_HHMM = '10:00'` と2本目を書いていた（2026-08-18 の監査で発見）。
   //   同じファイルが ratedApi から他の定数を import しているのに、これだけ手書きだった

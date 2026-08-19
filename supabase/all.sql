@@ -618,6 +618,7 @@ drop function if exists public.rated_now()                                   cas
 drop function if exists public.rated_today_jst()                             cascade;
 drop function if exists public.rated_open_round()                            cascade;
 drop function if exists public.rated_hof_count(uuid)                         cascade;
+drop function if exists public.rated_current_event()                         cascade;
 drop function if exists public.rated_join()                                  cascade;
 drop function if exists public.rated_today()                                 cascade;
 drop function if exists public.rated_me()                                    cascade;
@@ -2017,15 +2018,31 @@ language sql stable security definer set search_path = public as $$
 $$;
 
 /* 参加する。殿堂入り30人が埋まっていること（`utils/hofRoster` の HOF_MAX と同じ線） */
+/*
+ * **いま関わっている大会**（＝まだ終わっていない大会。**開催前も含む**）。
+ *
+ * ★`rated_join` / `rated_me` / `rated_standings` は**同じ大会を見ること**。
+ *   以前は3つとも `today between starts_on and 終了日` を手書きしていたので、
+ *   **開催前は「大会が無い」扱い**になり、参加の申し込みも参加者一覧も出せなかった
+ *   （オーナー・2026-08-19「参加するボタン欲しくね。そしたら参加者一覧出る」
+ *   「9/1にロスター提出するんだよ？」）。
+ * ★**走らせるほう（`rated_open_round`）はこれを使わないこと。** あちらは
+ *   「今日の受付が開いているか」を見る別の問いで、開催前に開いてはいけない。
+ */
+create function public.rated_current_event() returns uuid
+language sql stable security definer set search_path = public as $$
+  select id from public.rated_events
+   where public.rated_today_jst() <= (starts_on + total_days - 1)
+   order by starts_on limit 1;
+$$;
+
 create function public.rated_join() returns text
 language plpgsql security definer set search_path = public as $$
 declare ev uuid; me uuid := auth.uid();
 begin
   if me is null then return 'auth'; end if;
   if public.rated_hof_count(me) < 30 then return 'hof'; end if;
-  select id into ev from public.rated_events
-   where public.rated_today_jst() between starts_on and (starts_on + total_days - 1)
-   order by starts_on desc limit 1;
+  ev := public.rated_current_event();
   if ev is null then return 'closed'; end if;
   -- ★レートは人に1本で、**大会をまたいで続く**。はじめて参加する人だけ0から。
   insert into public.rated_players (user_id) values (me) on conflict (user_id) do nothing;
@@ -2073,9 +2090,7 @@ language plpgsql stable security definer set search_path = public as $$
 declare me uuid := auth.uid(); ev uuid; e record; r record; n int; ov int;
 begin
   if me is null then return jsonb_build_object('joined', false); end if;
-  select id into ev from public.rated_events
-   where public.rated_today_jst() between starts_on and (starts_on + total_days - 1)
-   order by starts_on desc limit 1;
+  ev := public.rated_current_event();
   if ev is null then
     return jsonb_build_object('joined', false, 'hof', public.rated_hof_count(me));
   end if;
@@ -2174,11 +2189,9 @@ create function public.rated_standings() returns jsonb
 language plpgsql stable security definer set search_path = public as $$
 declare me uuid := auth.uid(); ev uuid; last_round uuid; n int; my_rank_json jsonb;
 begin
-  select id into ev from public.rated_events
-   where public.rated_today_jst() between starts_on and (starts_on + total_days - 1)
-   order by starts_on desc limit 1;
+  ev := public.rated_current_event();
   if ev is null then
-    return jsonb_build_object('top', '[]'::jsonb, 'me', null, 'meRank', 0, 'entrants', 0);
+    return jsonb_build_object('top', '[]'::jsonb, 'me', null, 'meRank', 0, 'entrants', 0, 'started', false);
   end if;
   select count(*) into n from public.rated_entries where event_id = ev;
   select ro.id into last_round from public.rated_rounds ro
@@ -2214,6 +2227,8 @@ begin
   )
   select jsonb_build_object(
     'entrants', n,
+    -- ★開催前でも参加者は返す（一覧を出すため）。**始まっているかどうかは画面で組み直さない**
+    'started', (select public.rated_today_jst() >= starts_on from public.rated_events where id = ev),
     'meRank', coalesce((select pos from shaped where user_id = me), 0),
     'me',     (select row from shaped where user_id = me),
     -- トップ100と自分だけ（オーナー判断）。参加者が増えても全員ぶんを配らない

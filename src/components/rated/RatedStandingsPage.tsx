@@ -6,7 +6,7 @@ import { C, alpha, SAIRA, F } from '../../styles/tokens'
 
 // 大会全体の順位表。**トップ100と自分だけ**（オーナー判断）。
 // 前日からの上下（矢印）とレートの増減も出す（オーナー判断・2026-08-14）。
-function Row({ r, rank }: { r: RatedRow; rank: number }) {
+function Row({ r, rank, started }: { r: RatedRow; rank: number; started: boolean }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 9, padding: '9px 11px',
@@ -14,8 +14,9 @@ function Row({ r, rank }: { r: RatedRow; rank: number }) {
       borderBottom: `1px solid ${C.border}`,
     }}>
       <span style={{ width: 22, textAlign: 'center', fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900, color: C.textDim, flexShrink: 0 }}>{rank}</span>
-      {/* 前日からの上下。数え直さずサーバーが出したものを出す（ratedUi の MoveArrow） */}
-      <MoveArrow move={r.move} />
+      {/* 前日からの上下。数え直さずサーバーが出したものを出す（ratedUi の MoveArrow）。
+          ★開催前は順位そのものが無いので出さない（全員「–」が並ぶだけ） */}
+      {started && <MoveArrow move={r.move} />}
       <TeamLogoSVG primary={r.primary} secondary={r.secondary} shortName={r.teamName} teamId={r.userId} size={24} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: F.body, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.teamName}</div>
@@ -39,20 +40,21 @@ export default function RatedStandingsPage() {
   const inTop = st.meRank > 0 && st.meRank <= STANDINGS_TOP
 
   return (
-    <RatedShell title="順位表">
+    // ★開催前は「参加者」。まだ1本も走っていないので順位表ではない
+    <RatedShell title={st.started ? '順位表' : '参加者'}>
       <div style={{overflow: 'hidden', border: `1px solid ${C.border}`, marginBottom: 10 }}>
-        {st.top.map((r, i) => <Row key={r.userId} r={r} rank={i + 1} />)}
+        {st.top.map((r, i) => <Row key={r.userId} r={r} rank={i + 1} started={st.started} />)}
       </div>
 
       {/* トップ100に入っていないときだけ、自分の行を下に足す */}
       {st.me && !inTop && (
         <div style={{overflow: 'hidden', border: `1px solid ${alpha(C.gold, 0.4)}` }}>
-          <Row r={st.me} rank={st.meRank} />
+          <Row r={st.me} rank={st.meRank} started={st.started} />
         </div>
       )}
 
       <div style={{ textAlign: 'right', marginTop: 8, fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>
-        {st.entrants}人が参加中
+        {st.entrants}人が{st.started ? '参加中' : 'エントリー中'}
       </div>
     </RatedShell>
   )
