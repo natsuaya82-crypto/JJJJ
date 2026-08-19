@@ -6,6 +6,7 @@ import RacePanel from '../online/RacePanel'
 import { Card, RatedShell } from './ratedUi'
 import { fetchMe, fetchResult, ratedCourseOf, ratedMatchCourse, type RatedMe, type RatedResult } from '../../lib/ratedApi'
 import { courseDistanceKm } from '../../engine/ratedCourse'
+import { RATING_START } from '../../engine/rating'
 import RankUpOverlay from './RankUpOverlay'
 import { rankChangeOf } from './rankArt'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
@@ -59,7 +60,7 @@ export default function RatedResultPage() {
 
   const delta = result.delta[result.meUserId] ?? 0
   const course = result.course
-  const after = me?.rating ?? 0
+  const after = me?.rating ?? RATING_START
   const before = after - delta
   const showRank = view === 'result' && !rankSeen && !!rankChangeOf(before, after)
 

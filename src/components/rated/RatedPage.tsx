@@ -4,7 +4,7 @@ import { useGameStore } from '../../store/gameStore'
 import PageHeader from '../ui/PageHeader'
 import PressButton from '../ui/PressButton'
 import { courseDistanceKm } from '../../engine/ratedCourse'
-import { rankProgressOf } from '../../engine/rating'
+import { rankProgressOf, RATING_START } from '../../engine/rating'
 import { RANK_ART } from './rankArt'
 import { RatedHelpButton } from './ratedRules'
 import {
@@ -106,7 +106,7 @@ export default function RatedPage() {
   const eligible = canJoin(hof) && openable
   const segs = today?.course.segments ?? []
   const submitted = Object.keys(me?.lineup ?? {}).length >= segs.length && segs.length > 0
-  const prog = rankProgressOf(me?.rating ?? 0)
+  const prog = rankProgressOf(me?.rating ?? RATING_START)
   const art = RANK_ART[prog.name]
   const d = today ? new Date(`${today.dateISO}T00:00:00Z`) : null
   const hh = String(Math.floor(left / 3600)).padStart(2, '0')

@@ -17,7 +17,7 @@
  *   ・`ratedCourse` の乱数の空回しをやめる（3日とも同じ区間数になる）       → [5]
  */
 import {
-  applyElo, splitGroups, rankOf, RANK_BANDS, RATED_K, ELO_SCALE, GROUP_MAX, GROUP_MIN,
+  applyElo, splitGroups, rankOf, clampRating, RANK_BANDS, RATED_K, ELO_SCALE, GROUP_MAX, GROUP_MIN, RATING_START,
 } from '../src/engine/rating'
 import { ratedCourse, courseDistanceKm, SEG_MIN, SEG_MAX } from '../src/engine/ratedCourse'
 
@@ -93,12 +93,9 @@ console.log('\n[2][3] レートの動き')
   }
   console.log(`      全勝したときの上がり幅： 20人 +${win(20)} / 14人 +${win(14)} / 10人 +${win(10)}`)
   check('人数が多い組ほど大きく動く', win(20) > win(14) && win(14) > win(10))
-  // ★**K・目盛り・段位の帯は必ず3つ一緒に動かす。** 桁は見た目でしかなく、
-  //   中身は3つの「比」。比を留めておけば、次に桁を変えるときも1つだけ直す事故が防げる。
+  // ★**K と目盛りは一緒に動かす。** 桁は見た目でしかなく、中身は比。
   check('K は 40', RATED_K === 40, `${RATED_K}`)
   check('目盛り ÷ K が 100', ELO_SCALE / RATED_K === 100, `${ELO_SCALE} / ${RATED_K}`)
-  check('いちばん上の段位 ÷ K が 112.5',
-    RANK_BANDS[0].min / RATED_K === 112.5, `${RANK_BANDS[0].min} / ${RATED_K}`)
 
   // ★**目盛りだけ戻す（K=40・目盛り400）を捕まえる網。**
   //   上の全勝／全敗は「格上」「格下」が極端すぎて、目盛りが10倍でも1倍でも同じ答えになる。
@@ -117,16 +114,29 @@ console.log('\n[4] 段位')
   check('7段', RANK_BANDS.length === 7, `${RANK_BANDS.length}`)
   check('名前が仕様どおり',
     RANK_BANDS.map(b => b.name).join('/') === 'レジェンド/マスター/ダイヤモンド/プラチナ/ゴールド/シルバー/ブロンズ')
-  check('0からはブロンズ', rankOf(0) === 'ブロンズ')
-  check('下がる（マイナスでも落ちるだけ）', rankOf(-500) === 'ブロンズ')
+  // ★開始は1000（オーナー判断・2026-08-19）。**開始はいちばん下の段位の中**で、
+  //   負ければ同じ段のまま下へ落ちる（下限0）。
+  check('開始は 1000', RATING_START === 1000, `${RATING_START}`)
+  check('開始はブロンズ', rankOf(RATING_START) === 'ブロンズ')
+  check('0もブロンズ', rankOf(0) === 'ブロンズ')
+  check('下がる（下限0で止まるだけ）', clampRating(RATING_START - 5000) === 0)
+  // ★段位の線はオーナー指定の形：シルバーが開始+500、そこから1段1000ずつ
+  const mins = [...RANK_BANDS].reverse().map(b => b.min).slice(1)   // ブロンズ(-∞)を除く
+  check('シルバーは開始+500', mins[0] === RATING_START + 500, `${mins[0]}`)
+  check('シルバーから上は1000きざみ',
+    mins.every((m, i) => i === 0 || m - mins[i - 1] === 1000), mins.join('/'))
   // ★実測の幅に区切りが入っていること。最初の版は 700/1000/1400（当時の目盛り）で、
   //   上の3段位に**誰も届かなかった**。
   //   いまは1大会14日で −2682〜2984、**大会をまたいでレートが続く**ので、
   //   いちばん上（4500）は数回の大会で届く。**1回で届いてはいけない**
   //   （オーナー・2026-08-14「一回でマスターとかいかれると逆に困る」）。
+  // ★**1回の大会で上まで行かないのが正しい**（オーナー・2026-08-14
+  //   「一回でマスターとかいかれると逆に困る」）。開始1000・下限0で測り直した実測は
+  //   `scripts/measure-rated-season.ts`（100人・30回戦）で最高 4911。
   const top = RANK_BANDS[0].min
-  check('いちばん上は1大会（14日・実測2984）では届かない', top > 2984, `${top}`)
-  check('いちばん上は数回の大会で届く幅（4600以内）', top <= 4600, `${top}`)
+  const MEASURED_TOP = 4911
+  check('いちばん上は1大会では届かない', top > MEASURED_TOP, `${top} / 実測${MEASURED_TOP}`)
+  check('ダイヤモンドは1大会で届く', RANK_BANDS[2].min <= MEASURED_TOP, `${RANK_BANDS[2].min}`)
   check('区切りが上から下へ並んでいる',
     RANK_BANDS.every((b, i) => i === 0 || RANK_BANDS[i - 1].min > b.min))
   const seen = new Set(RANK_BANDS.map(b => rankOf(b.min)))

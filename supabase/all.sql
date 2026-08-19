@@ -341,7 +341,11 @@ alter table public.rated_events add column if not exists name text not null defa
 --   今回の大会に出ていない人には何も出せなくなる。
 create table if not exists public.rated_players (
   user_id    uuid        primary key references auth.users(id) on delete cascade,
-  rating     integer     not null default 0,
+  -- ★はじめて参加する人のレート。**1000から**（オーナー判断・2026-08-19
+  --   「全員スタート1000からにしない？」「1000が実質0みたいな感じのイメージ」）。
+  --   0スタートだと下限0で止まるので**初日に負けても減らない**＝勝った人だけ得をしていた。
+  --   下限は0のまま（開始より下へ落ちる）。値は engine/rating の RATING_START と同じ。
+  rating     integer     not null default 1000,
   updated_at timestamptz not null default now()
 );
 create index if not exists rated_players_rating_idx on public.rated_players (rating desc, user_id);
@@ -353,13 +357,22 @@ create table if not exists public.rated_entries (
   -- ★**この大会に入ったときのレート**と**いちばん新しいレート**の記録。
   --   「第一回はここからここまで上がった」を残すためのもので、**判定には使わない**。
   --   生きた値は rated_players.rating 1本（2か所に生きた数字を置かない）。
-  rating     integer     not null default 0,   -- この大会の最新レート（記録）
+  rating     integer     not null default 1000, -- この大会の最新レート（記録）
   played     integer     not null default 0,   -- 走った日数
   wins       integer     not null default 0,   -- グループ1位の回数
   joined_at  timestamptz not null default now(),
   primary key (event_id, user_id)
 );
 alter table public.rated_entries add column if not exists start_rating integer not null default 0;
+-- 既定値だけ入れ替える（既にある列は default を変えても中身は動かない）
+alter table public.rated_players  alter column rating       set default 1000;
+alter table public.rated_entries  alter column rating       set default 1000;
+alter table public.rated_entries  alter column start_rating set default 1000;
+-- ★**まだ一度も大会に入っていない人だけ**を開始レートへ揃える。
+--   条件を付けないと、流すたびに「負けて0まで落ちた人」が1000へ戻ってしまう。
+update public.rated_players p set rating = 1000
+ where p.rating = 0
+   and not exists (select 1 from public.rated_entries e where e.user_id = p.user_id);
 create index if not exists rated_entries_rating_idx on public.rated_entries (event_id, rating desc, user_id);
 
 -- 1日ぶん。コースは日付から作れる（`engine/ratedCourse`）ので持たない。

@@ -15,7 +15,7 @@
 import { supabase, ensureAuth } from './supabase'
 import { ratedCourse, ratedMatchCourse, ratedCourseOf } from '../engine/ratedCourse'
 import type { MatchRacePayload } from './matchSim'
-import { rankOf, type RankName } from '../engine/rating'
+import { rankOf, RATING_START, type RankName } from '../engine/rating'
 import { HOF_MAX } from '../utils/hofRoster'
 import type { HofPlayer, Race } from '../types'
 
@@ -176,7 +176,9 @@ export async function fetchMe(): Promise<RatedMe> {
     joined: boolean; rating?: number; overall?: number; entrants?: number
     lineup?: unknown; hof?: number; played?: number; wins?: number; startRating?: number
   }>('rated_me')
-  const rating = d?.rating ?? 0
+  // ★まだ一度も参加していない人は、サーバーに行が無い＝**開始レート**を出す
+  //   （0を出すと「1000スタート」なのに画面だけ0になる）
+  const rating = d?.rating ?? RATING_START
   return {
     joined: !!d?.joined,
     rating,
@@ -187,7 +189,7 @@ export async function fetchMe(): Promise<RatedMe> {
     hof: d?.hof ?? 0,
     played: d?.played ?? 0,
     wins: d?.wins ?? 0,
-    startRating: d?.startRating ?? 0,
+    startRating: d?.startRating ?? RATING_START,
   }
 }
 

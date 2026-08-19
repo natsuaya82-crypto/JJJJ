@@ -12,7 +12,7 @@
  *   その順にタイムが出る（多少のブレつき）とみなす。レースの中身は `simulateRace` の
  *   仕事で、ここでは関係しない。
  */
-import { applyElo, splitGroups, rankOf, RATED_K, RANK_BANDS } from '../src/engine/rating'
+import { applyElo, splitGroups, rankOf, clampRating, RATED_K, RANK_BANDS, RATING_START } from '../src/engine/rating'
 
 let seed = 20260813
 const rnd = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296 }
@@ -25,7 +25,7 @@ function run(n: number, label: string) {
   const rating = new Map<string, number>()
   for (let i = 0; i < n; i++) {
     truth.set(`u${i}`, rnd() * 100)
-    rating.set(`u${i}`, 0)
+    rating.set(`u${i}`, RATING_START)
   }
   for (let round = 0; round < ROUNDS; round++) {
     const entries = [...rating].map(([id, r]) => ({ id, rating: r }))
@@ -36,7 +36,8 @@ function run(n: number, label: string) {
         .sort((a, b) => b.score - a.score)
         .map(x => x.id)
       const delta = applyElo(g, order)
-      for (const [id, d] of Object.entries(delta)) rating.set(id, (rating.get(id) ?? 0) + d)
+      // ★下限0で止める（本番と同じ `clampRating` を通す。通さないとマイナスの幅を測ってしまう）
+      for (const [id, d] of Object.entries(delta)) rating.set(id, clampRating((rating.get(id) ?? 0) + d))
     }
   }
   const rows = [...rating].map(([id, r]) => ({ id, r, t: truth.get(id) ?? 0 })).sort((a, b) => b.r - a.r)
