@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useLongPress } from '../../lib/useLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
 import { DeltaText, MoveArrow, RankBadge, RatedShell } from './ratedUi'
 import { fetchStandings, STANDINGS_TOP, type RatedRow, type RatedStandings } from '../../lib/ratedApi'
@@ -11,8 +13,18 @@ import { C, alpha, SAIRA, F } from '../../styles/tokens'
  * `started` が false なら前日からの上下は出さない（まだ順位が無いので全員「–」になる）。
  */
 export function Row({ r, rank, started }: { r: RatedRow; rank: number; started: boolean }) {
+  const navigate = useNavigate()
+  // ★長押しで相手のチーム（ロスター・殿堂入り）。**フレンド一覧・走友会のメンバー行と
+  //   まったく同じ操作・同じ行き先**（オーナー・2026-08-19「参加者一覧や順位表など全部」）。
+  //   自分の行は開いても意味が無いので付けない。
+  //   ★見える範囲はサーバー側の `shares_rated_event_with`（同じ大会に出ている相手）。
+  //     これが無いと開いても中身が取れない。
+  const longPress = useLongPress()
   return (
-    <div style={{
+    <div
+      {...(r.mine ? {} : longPress(() => navigate(`/friends/team/${r.userId}`)))}
+      style={{
+      cursor: r.mine ? 'default' : 'pointer',
       display: 'flex', alignItems: 'center', gap: 9, padding: '9px 11px',
       background: r.mine ? alpha(C.gold, 0.14) : C.surface2,
       borderBottom: `1px solid ${C.border}`,
@@ -62,8 +74,12 @@ export default function RatedStandingsPage() {
         </div>
       )}
 
-      <div style={{ textAlign: 'right', marginTop: 8, fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>
-        {st.entrants}人が{st.started ? '参加中' : 'エントリー中'}
+      {/* ★長押しは見えない操作なので、必ずどこかに書いておくこと（走友会と同じ） */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 8 }}>
+        <div style={{ flex: 1, fontSize: F.caption, color: C.textDim }}>長押しで相手のチームを見られます</div>
+        <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>
+          {st.entrants}人が{st.started ? '参加中' : 'エントリー中'}
+        </div>
       </div>
     </RatedShell>
   )

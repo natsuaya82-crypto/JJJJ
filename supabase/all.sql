@@ -493,6 +493,7 @@ drop policy if exists profiles_select_friend    on public.profiles;
 drop policy if exists profiles_select_pending   on public.profiles;
 drop policy if exists profiles_select_clubmate  on public.profiles;
 drop policy if exists profiles_select_room      on public.profiles;
+drop policy if exists profiles_select_rated     on public.profiles;
 drop policy if exists profiles_insert_own       on public.profiles;
 drop policy if exists profiles_update_own       on public.profiles;
 
@@ -500,6 +501,7 @@ drop policy if exists rosters_select_own        on public.rosters;
 drop policy if exists rosters_select_friend     on public.rosters;
 drop policy if exists rosters_select_clubmate   on public.rosters;
 drop policy if exists rosters_select_room       on public.rosters;
+drop policy if exists rosters_select_rated      on public.rosters;
 drop policy if exists rosters_insert_own        on public.rosters;
 drop policy if exists rosters_update_own        on public.rosters;
 
@@ -632,6 +634,7 @@ drop function if exists public.rated_now()                                   cas
 drop function if exists public.rated_today_jst()                             cascade;
 drop function if exists public.rated_open_round()                            cascade;
 drop function if exists public.rated_hof_count(uuid)                         cascade;
+drop function if exists public.shares_rated_event_with(uuid)                 cascade;
 drop function if exists public.rated_current_event()                         cascade;
 drop function if exists public.rated_my_group()                             cascade;
 drop function if exists public.rated_join()                                  cascade;
@@ -2044,6 +2047,23 @@ $$;
  * ★**走らせるほう（`rated_open_round`）はこれを使わないこと。** あちらは
  *   「今日の受付が開いているか」を見る別の問いで、開催前に開いてはいけない。
  */
+/*
+ * **同じ大会に出ているか。** ランクマッチの一覧（参加者・順位表・あなたの部屋）から
+ * 長押しで相手のチームを見るのに要る（オーナー・2026-08-19「参加者一覧や順位表など全部」）。
+ *
+ * ★これが無いと、いま他人のロスターを読めるのは**フレンド・同じ走友会・同じ対戦部屋**の
+ *   3つだけなので、長押しを付けても中身が取れない（空のページが開く）。
+ * ★大会単位で見る（同じ組だけにしない）。走ったあとの結果画面では相手の走者が
+ *   全部見えるので、参加者一覧だけ隠しても意味がない。
+ */
+create function public.shares_rated_event_with(p_user uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.rated_entries me
+      join public.rated_entries other on other.event_id = me.event_id
+     where me.user_id = auth.uid() and other.user_id = p_user)
+$$;
+
 create function public.rated_current_event() returns uuid
 language sql stable security definer set search_path = public as $$
   select id from public.rated_events
@@ -2324,6 +2344,9 @@ create policy profiles_select_clubmate on public.profiles
 -- 同じ部屋にいる相手（フレンドでなくてもロビーに名前が出る・対戦できる）
 create policy profiles_select_room on public.profiles
   for select to authenticated using (public.shares_room_with(profiles.user_id));
+-- 同じ大会に出ている相手（ランクマッチの一覧から長押しでチームを見る）
+create policy profiles_select_rated on public.profiles
+  for select to authenticated using (public.shares_rated_event_with(profiles.user_id));
 create policy profiles_insert_own on public.profiles
   for insert to authenticated with check (user_id = auth.uid());
 create policy profiles_update_own on public.profiles
@@ -2345,6 +2368,8 @@ create policy rosters_select_clubmate on public.rosters
   );
 create policy rosters_select_room on public.rosters
   for select to authenticated using (public.shares_room_with(rosters.user_id));
+create policy rosters_select_rated on public.rosters
+  for select to authenticated using (public.shares_rated_event_with(rosters.user_id));
 create policy rosters_insert_own on public.rosters
   for insert to authenticated with check (user_id = auth.uid());
 create policy rosters_update_own on public.rosters

@@ -79,6 +79,14 @@ console.log('\n[3b] 開催前でも「参加する」は押せる（申し込み
   //   （オーナー・2026-08-19「何も無しで行こう」）
   const list = readFileSync('src/components/rated/RatedStandingsPage.tsx', 'utf8')
   check('開催前は番号を出さない', /\{started && \([\s\S]{0,300}\{rank\}/.test(list))
+  // ★長押しで相手のチームへ（オーナー・2026-08-19「参加者一覧や順位表など全部」）。
+  //   一覧は3つ（参加者・順位表・あなたの部屋）とも**同じ Row** を使うので、ここ1本で全部に付く
+  check('長押しで相手のチームへ行ける', /longPress\(\(\) => navigate\(`\/friends\/team\//.test(list))
+  check('長押しできることを画面に書いてある', /長押しで相手のチームを見られます/.test(list))
+  // ★見える範囲はサーバー側。これが無いと開いても中身が取れない（空のページになる）
+  const sql2 = readFileSync('supabase/all.sql', 'utf8')
+  check('同じ大会の相手を見られるようにしてある',
+    /create policy rosters_select_rated/.test(sql2) && /create policy profiles_select_rated/.test(sql2))
 }
 
 console.log('\n[3c] 大会を選ぶのはサーバーの1本（rated_current_event）')

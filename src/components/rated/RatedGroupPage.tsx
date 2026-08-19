@@ -47,6 +47,8 @@ export default function RatedGroupPage() {
           </div>
           <div style={{ marginTop: 8, fontSize: F.label, color: C.textDim, lineHeight: 1.7 }}>
             この顔ぶれで今日のレースを走ります。順位は 23:59 の締め切り後に決まります。
+            {/* ★長押しは見えない操作なので必ず書いておく（走友会・参加者一覧と同じ） */}
+            <br />長押しで相手のチームを見られます。
           </div>
         </>
       )}
