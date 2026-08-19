@@ -154,8 +154,10 @@ export default function RatedPage() {
             }}>RATING</div>
           </div>
           <div style={{ textAlign: 'right', alignSelf: 'flex-end' }}>
+            {/* ★まだ1本も走っていないと順位は0。**「0位」と出さない**
+                （エントリーした人が9/1の朝に見るのはこの状態） */}
             <div style={{ fontFamily: SAIRA, fontSize: F.hero, fontWeight: 900, color: C.text, lineHeight: 1 }}>
-              {me?.overall ?? '—'}<span style={{ fontSize: F.body, color: C.textDim, marginLeft: 1 }}>位</span>
+              {me?.overall ? me.overall : '—'}<span style={{ fontSize: F.body, color: C.textDim, marginLeft: 1 }}>位</span>
             </div>
             <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim, marginTop: 2 }}>/ {me?.entrants ?? 0}人</div>
           </div>
