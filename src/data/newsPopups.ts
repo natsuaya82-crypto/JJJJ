@@ -37,11 +37,15 @@ export type NewsPopup = {
 
 export const NEWS_POPUPS: NewsPopup[] = [
   {
-    id: 'rated-open-2026-09',
-    lead: '9/1',
-    title: 'ランクマッチ 開催！',
+    // ★**id を変えたので、前のお知らせを見た人にももう一度出ます。**
+    //   前は「9/1に開催します」と知らせるだけで、その場でできることが無かった。
+    //   開催前からエントリーできるようになったので、**参加の募集**に差し替える
+    //   （オーナー・2026-08-19「オンライン対戦の参加募集はもう始めていいって」）。
+    id: 'rated-entry-2026-09',
+    lead: '9/1 開始',
+    title: '第一回ランクマッチβテスト',
     art: 'ranks',
-    actionLabel: '見に行く',
+    actionLabel: 'エントリーする',
     to: '/online/rated',
     until: '2026-09-30',
   },
