@@ -109,6 +109,15 @@ export type NotifInput = {
 }
 
 /**
+ * **チャットの用件を数えるのに要るぶんだけ**（`chatTopicIds` / `chatUnseenCount`）。
+ *
+ * ベルにしか要らないもの（加入・故障を見た記録、もらい物とフレンド申請の数）は入っていません。
+ * ★呼ぶ側で `as never` を付けて `NotifInput` を騙らせないこと。**足りない口はこの型に足す。**
+ */
+export type ChatTopicInput = Omit<NotifInput,
+  'seenJoinIds' | 'seenInjuryIds' | 'pendingGiftsCount' | 'clubGiftsCount' | 'friendRequestsCount'>
+
+/**
  * 通知の中身を全部数える。
  * 返す total が、そのままベルの数字であり通知ページの「N件」になる
  */
@@ -167,8 +176,18 @@ export function offersByPlayer<T extends { playerId: string }>(offers: readonly 
  * ★返す id は「見たかどうか」の記録に使うので、**用件ごとに安定していること**
  *   （同じ用件は同じ id、別の用件は別の id）。
  */
-export function chatTopicIds(input: NotifInput): string[] {
-  const n = collectNotifications(input)
+export function chatTopicIds(input: ChatTopicInput): string[] {
+  // ★ここで埋めてよいのは**チャットの用件に関係しない項目だけ**（加入・故障の既読、もらい物の数）。
+  //   以前は呼ぶ側（ホームとチャット）が `as never` で丸ごと型を黙らせて渡していたので、
+  //   `seenJoinIds` が undefined のまま `collectNotifications` に入り、
+  //   **その年に加入した選手が1人でもいると `o.includes` で落ちて**いました
+  //   （オーナー・2026-08-19。実機の v2.0.4 で発生）。空の名簿では `filter` の中身が
+  //   一度も走らないので、加入者が出るまで誰も気づけない形でした。
+  const n = collectNotifications({
+    ...input,
+    seenJoinIds: [], seenInjuryIds: [],
+    pendingGiftsCount: 0, clubGiftsCount: 0, friendRequestsCount: 0,
+  })
   return [
     // 相手から来た買い取り打診（選手ごとに1件）
     ...n.incomingOfferPlayers.map(x => `buy:${x.playerId}`),
@@ -195,7 +214,7 @@ export function chatTopicIds(input: NotifInput): string[] {
  * チャットを開くと `markChatSeen` で今ある用件を見た扱いにするので0になり、
  * 新しい用件が来るとまた出ます（オーナー「チャット見ないとその数字消えない」）。
  */
-export function chatUnseenCount(input: NotifInput, seenIds: readonly string[]): number {
+export function chatUnseenCount(input: ChatTopicInput, seenIds: readonly string[]): number {
   const seen = new Set(seenIds)
   return chatTopicIds(input).filter(id => !seen.has(id)).length
 }

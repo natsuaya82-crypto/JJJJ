@@ -280,7 +280,7 @@ export default function Dashboard() {
   const sorted = seasonDivisionStandings(currentSeason, playerTeamId)
   // ホームの「チャット」に出す未読の数。**チャットを開くまで消えない**
   const chatUnseen = chatUnseenCount(
-    { currentSeason, players, teams, playerTeamId } as never,
+    { currentSeason, players, teams, playerTeamId },
     currentSeason.seenChatTopicIds ?? [])
   const myRank = rankOfTeam(sorted, playerTeamId)
 

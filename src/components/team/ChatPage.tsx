@@ -200,7 +200,7 @@ export default function ChatPage() {
   //   ホームの「チャット」の数字はこれで消える（オーナー・2026-08-16
   //   「チャット見ないとその数字消えないみたいな。フレンド横にあった3みたいな感じ」）。
   //   どの用件があるかは utils/notifItems の chatTopicIds 1本＝ホームと同じものを数える
-  const topicKey = chatTopicIds({ currentSeason, players, teams, playerTeamId } as never).join('|')
+  const topicKey = chatTopicIds({ currentSeason, players, teams, playerTeamId }).join('|')
   useEffect(() => {
     markChatSeen(topicKey ? topicKey.split('|') : [])
   }, [topicKey, markChatSeen])
