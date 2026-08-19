@@ -75,6 +75,10 @@ console.log('\n[3b] 開催前でも「参加する」は押せる（申し込み
   check('開催前は編成へ飛ばさない', /if \(!openable\) \{[\s\S]{0,120}return \}/.test(page))
   check('申し込んだあと、次に何が起きるかを出す', /メンバーは .*から組みます/.test(page))
   check('開催前は一覧の見出しが「参加者」', /startsLater \? '参加者'/.test(page))
+  // ★開催前は全員同じレートなので、左の番号は**ただの並び順**。順位に見えるものを出さない
+  //   （オーナー・2026-08-19「何も無しで行こう」）
+  const list = readFileSync('src/components/rated/RatedStandingsPage.tsx', 'utf8')
+  check('開催前は番号を出さない', /\{started && \([\s\S]{0,300}\{rank\}/.test(list))
 }
 
 console.log('\n[3c] 大会を選ぶのはサーバーの1本（rated_current_event）')

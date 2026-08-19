@@ -17,7 +17,12 @@ export function Row({ r, rank, started }: { r: RatedRow; rank: number; started: 
       background: r.mine ? alpha(C.gold, 0.14) : C.surface2,
       borderBottom: `1px solid ${C.border}`,
     }}>
-      <span style={{ width: 22, textAlign: 'center', fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900, color: C.textDim, flexShrink: 0 }}>{rank}</span>
+      {/* ★開催前は番号を出さない（オーナー・2026-08-19「何も無しで行こう」）。
+          まだ1本も走っていないので全員同じレートで、この数字は**ただの並び順**。
+          順位に見えるものを、順位が無いときに出さない */}
+      {started && (
+        <span style={{ width: 22, textAlign: 'center', fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900, color: C.textDim, flexShrink: 0 }}>{rank}</span>
+      )}
       {/* 前日からの上下。数え直さずサーバーが出したものを出す（ratedUi の MoveArrow）。
           ★開催前は順位そのものが無いので出さない（全員「–」が並ぶだけ） */}
       {started && <MoveArrow move={r.move} />}
