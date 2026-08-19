@@ -349,6 +349,8 @@ export default function RatedPage() {
           // ★開催前はまだ1本も走っていないので「参加者」。中身は同じページ（順位表）で、
           //   サーバーが返す `started` で見出しと矢印が変わる
           { label: startsLater ? '参加者' : '順位表', en: startsLater ? 'ENTRANTS' : 'RANKING', to: '/online/rated/standings', on: true },
+          // ★その日の組。受付が開いている（10:00〜）あいだだけ押せる
+          { label: 'あなたの部屋', en: 'GROUP', to: '/online/rated/group', on: openable },
           { label: '前日の結果', en: 'LAST RESULT', to: '/online/rated/result', on: !!result },
         ] as const).map((b, i) => (
           <PressButton

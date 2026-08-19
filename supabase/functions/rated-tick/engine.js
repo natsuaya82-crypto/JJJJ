@@ -105,6 +105,17 @@ var RATING_FLOOR = 0;
 function clampRating(rating) {
   return Math.max(RATING_FLOOR, rating);
 }
+function groupsFromMap(entries, groupOf) {
+  const byNo = /* @__PURE__ */ new Map();
+  for (const e of entries) {
+    const g = groupOf[e.id];
+    if (g == null) continue;
+    const list = byNo.get(g) ?? [];
+    list.push(e);
+    byNo.set(g, list);
+  }
+  return [...byNo.entries()].sort((a, b) => a[0] - b[0]).map(([, list]) => [...list].sort((a, b) => b.rating - a.rating));
+}
 function splitGroups(entries) {
   if (entries.length < GROUP_MIN) return [];
   const sorted = [...entries].sort((a, b) => b.rating - a.rating);
@@ -1248,11 +1259,14 @@ function buildRacePayload(args) {
 }
 
 // src/lib/ratedTick.ts
+function assignGroups(entrants) {
+  return splitGroups(entrants).flatMap((g, i) => g.map((m) => ({ userId: m.id, groupNo: i + 1 })));
+}
 function runRatedRound(args) {
-  const { dateISO, day, entrants, lineups } = args;
+  const { dateISO, day, entrants, lineups, groupOf } = args;
   const course = ratedMatchCourse(dateISO);
   const pool = entrants.map((e) => ({ id: e.userId, rating: e.rating }));
-  const groups = splitGroups(pool);
+  const groups = groupOf && Object.keys(groupOf).length > 0 ? groupsFromMap(pool, groupOf) : splitGroups(pool);
   if (groups.length === 0) return { skipped: true, groups: 0, rows: [], races: [] };
   const byId = new Map(entrants.map((e) => [e.userId, e]));
   const rows = [];
@@ -1317,6 +1331,7 @@ function runRatedRound(args) {
 }
 export {
   GROUP_MIN,
+  assignGroups,
   ratedCourse,
   ratedDateOf,
   ratedDayOf,

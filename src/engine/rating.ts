@@ -182,6 +182,34 @@ export function rankProgressOf(rating: number): {
  *
  * 10人に満たなければ空を返す（＝その日は流会）。
  */
+/**
+ * **保存してある組の番号で並べ直す。**
+ *
+ * 組は**その日の受付が開いた時点（10:00）で決めて保存**します
+ * （オーナー・2026-08-19「当日はまずレート分けされて部屋が見れるんでしょ？」）。
+ * 走らせるときに `splitGroups` をやり直すと、**当日ずっと見せていた部屋と
+ * 実際に走った組が食い違います**（10:00 以降に入った人がいると割り方が変わるため）。
+ *
+ * ★番号を持っていない人（10:00 より後に参加した人）は**その日は走りません**。
+ *   次の日の 10:00 で組に入ります。
+ */
+export function groupsFromMap(
+  entries: readonly RatedEntry[],
+  groupOf: Readonly<Record<string, number>>,
+): RatedEntry[][] {
+  const byNo = new Map<number, RatedEntry[]>()
+  for (const e of entries) {
+    const g = groupOf[e.id]
+    if (g == null) continue
+    const list = byNo.get(g) ?? []
+    list.push(e)
+    byNo.set(g, list)
+  }
+  return [...byNo.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([, list]) => [...list].sort((a, b) => b.rating - a.rating))
+}
+
 export function splitGroups(entries: readonly RatedEntry[]): RatedEntry[][] {
   if (entries.length < GROUP_MIN) return []
   const sorted = [...entries].sort((a, b) => b.rating - a.rating)

@@ -5,6 +5,7 @@
  "src/engine/interactiveRace.ts": 817,
  "src/engine/playerGenerator.ts": 1549,
  "src/engine/raceEngine.ts": 490,
+ "src/engine/rating.ts": 228,
  "src/engine/transferMarket.ts": 368,
  "src/engine/worldAthletics.ts": 730,
  "src/store/gameStore.ts": 714,

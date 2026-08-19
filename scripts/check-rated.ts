@@ -17,9 +17,10 @@
  *   ・`ratedCourse` の乱数の空回しをやめる（3日とも同じ区間数になる）       → [5]
  */
 import {
-  applyElo, splitGroups, rankOf, clampRating, RANK_BANDS, RATED_K, ELO_SCALE, GROUP_MAX, GROUP_MIN, RATING_START,
+  applyElo, splitGroups, groupsFromMap, rankOf, clampRating, RANK_BANDS, RATED_K, ELO_SCALE, GROUP_MAX, GROUP_MIN, RATING_START,
 } from '../src/engine/rating'
 import { ratedCourse, courseDistanceKm, SEG_MIN, SEG_MAX } from '../src/engine/ratedCourse'
+import { assignGroups } from '../src/lib/ratedTick'
 
 let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
@@ -175,6 +176,34 @@ console.log('\n[5] その日のコース')
   const kms = courses.map(courseDistanceKm)
   console.log(`      総距離 ${Math.min(...kms)}〜${Math.max(...kms)} km`)
   check('総距離に幅がある', Math.max(...kms) - Math.min(...kms) > 100)
+}
+
+console.log('\n[6] その日の組は 10:00 に決めて、そのとおりに走らせる')
+{
+  // ★オーナー・2026-08-19「当日はまずレート分けされて部屋が見れるんでしょ？」
+  //   当日ずっと見せた部屋と、実際に走った組が食い違ってはいけない。
+  const pool = Array.from({ length: 25 }, (_, i) => ({ id: `u${i}`, rating: 1000 + i * 10 }))
+  const assigned = assignGroups(pool)
+  check('全員に番号が付く', assigned.length === pool.length, `${assigned.length}`)
+  check('番号は1始まり', Math.min(...assigned.map(a => a.groupNo)) === 1)
+
+  const map = Object.fromEntries(assigned.map(a => [a.userId, a.groupNo]))
+  const rebuilt = groupsFromMap(pool, map)
+  check('保存した番号どおりに組み直せる',
+    rebuilt.length === new Set(assigned.map(a => a.groupNo)).size, `${rebuilt.length}組`)
+  check('人数も同じ',
+    rebuilt.reduce((n, g) => n + g.length, 0) === pool.length)
+
+  // ★10:00 より後に入った人（番号を持っていない）はその日走らない
+  const late = [...pool, { id: 'late', rating: 9999 }]
+  const withLate = groupsFromMap(late, map)
+  check('番号を持っていない人は走らない',
+    !withLate.some(g => g.some(m => m.id === 'late')))
+  // ★割り直すと組が変わってしまう＝見せていた部屋と食い違う、を数字で示す
+  const resplit = splitGroups(late)
+  check('割り直すと組が変わる（だから保存したものを使う）',
+    JSON.stringify(resplit.map(g => g.length)) !== JSON.stringify(withLate.map(g => g.length)),
+    `割り直し ${resplit.map(g => g.length)} / 保存どおり ${withLate.map(g => g.length)}`)
 }
 
 console.log('')

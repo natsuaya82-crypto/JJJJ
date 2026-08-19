@@ -6,7 +6,11 @@ import { C, alpha, SAIRA, F } from '../../styles/tokens'
 
 // 大会全体の順位表。**トップ100と自分だけ**（オーナー判断）。
 // 前日からの上下（矢印）とレートの増減も出す（オーナー判断・2026-08-14）。
-function Row({ r, rank, started }: { r: RatedRow; rank: number; started: boolean }) {
+/**
+ * 1行ぶん。**自分の部屋（`RatedGroupPage`）も同じ行を使う**（新しく作らない）。
+ * `started` が false なら前日からの上下は出さない（まだ順位が無いので全員「–」になる）。
+ */
+export function Row({ r, rank, started }: { r: RatedRow; rank: number; started: boolean }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 9, padding: '9px 11px',

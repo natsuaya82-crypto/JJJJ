@@ -19,7 +19,7 @@
 // ============================================================================
 import type { HofPlayer, Player } from '../types'
 import { ratedMatchCourse } from '../engine/ratedCourse'
-import { applyElo, clampRating, splitGroups, type RatedEntry } from '../engine/rating'
+import { applyElo, clampRating, groupsFromMap, splitGroups, type RatedEntry } from '../engine/rating'
 import { resolveOrders, type Order } from './roomMachine'
 import { buildRacePayload, type MatchRacePayload, type MatchTeamInfo } from './matchSim'
 
@@ -29,6 +29,16 @@ import { buildRacePayload, type MatchRacePayload, type MatchTeamInfo } from './m
 //   Deno は拡張子なしの相対 import を解決できないので、そのままでは動かない）。
 export { ratedMatchCourse, ratedCourse, ratedDayOf, ratedDateOf } from '../engine/ratedCourse'
 export { GROUP_MIN } from '../engine/rating'
+
+/**
+ * **その日の組を決める**（受付が開く10:00に1回だけ。番号は1始まり）。
+ *
+ * ★Edge Function は**この1本だけ**を呼ぶこと。`splitGroups` を向こうから直に呼ぶと、
+ *   「どう割るか」が殻の側にも現れて2本目の物差しになる（`check-rated-server` が落とす）。
+ */
+export function assignGroups(entrants: readonly RatedEntry[]): { userId: string; groupNo: number }[] {
+  return splitGroups(entrants).flatMap((g, i) => g.map(m => ({ userId: m.id, groupNo: i + 1 })))
+}
 
 /** 1人ぶん。サーバーは `rated_entries` ＋ `profiles` ＋ `rosters.hof` から組み立てる */
 export type RatedEntrant = {
@@ -88,12 +98,20 @@ export function runRatedRound(args: {
   entrants: readonly RatedEntrant[]
   /** 締め切りまでに届いた提出（userId → 区間番号 → 殿堂入りの選手ID） */
   lineups: Readonly<Record<string, Record<number, string>>>
+  /**
+   * **その日の組**（受付が開いた 10:00 に決めて保存してあるぶん・userId → 組の番号）。
+   * ★渡さないと**その場で割り直す**ので、当日ずっと見せていた部屋と食い違います。
+   *   古い回（組を保存していなかった日）だけ、渡さずに走らせること。
+   */
+  groupOf?: Readonly<Record<string, number>>
 }): RatedRoundOutcome {
-  const { dateISO, day, entrants, lineups } = args
+  const { dateISO, day, entrants, lineups, groupOf } = args
   const course = ratedMatchCourse(dateISO)
 
   const pool: RatedEntry[] = entrants.map(e => ({ id: e.userId, rating: e.rating }))
-  const groups = splitGroups(pool)
+  const groups = groupOf && Object.keys(groupOf).length > 0
+    ? groupsFromMap(pool, groupOf)
+    : splitGroups(pool)
   if (groups.length === 0) return { skipped: true, groups: 0, rows: [], races: [] }
 
   const byId = new Map(entrants.map(e => [e.userId, e]))

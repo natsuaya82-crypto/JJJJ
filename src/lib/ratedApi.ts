@@ -223,6 +223,36 @@ export async function fetchResult(): Promise<RatedResult | null> {
  */
 export const STANDINGS_TOP = 100
 
+/** その日の組（自分の部屋）。**組は受付が開いた10:00に決まる** */
+export type RatedGroup = {
+  groupNo: number
+  /** その日の組の数 */
+  groups: number
+  /** レートの高い順。**行は順位表とまったく同じ部品で出す**（順位も増減もまだ無いので0） */
+  members: RatedRow[]
+}
+
+/**
+ * 自分の部屋。受付が開いていて、自分が組に入っていれば返る。
+ * **null は「まだ組に入っていない」**＝10:00 より後に参加した（走るのは翌日から）。
+ */
+export async function fetchMyGroup(): Promise<RatedGroup | null> {
+  const d = await call<{ groupNo: number; groups: number; meId: string
+    members: { userId: string; rating: number; teamName: string; gmName: string
+      primary: string; secondary: string; logoId: string }[] }>('rated_my_group')
+  if (!d?.groupNo) return null
+  // ★自分の行の印はサーバーが返した id で付ける（端末で auth を引き直さない）
+  const meId = d.meId ?? ''
+  return {
+    groupNo: d.groupNo,
+    groups: d.groups,
+    members: (d.members ?? []).map(m => ({
+      ...m, mine: !!meId && m.userId === meId,
+      place: 0, timeSec: 0, delta: 0, move: 0,
+    })),
+  }
+}
+
 export type RatedStandings = {
   top: RatedRow[]
   /** 自分（トップ100に入っていれば top にも同じ人がいる） */

@@ -20,7 +20,7 @@
 //   何度流しても同じ結果になります（締め済みの日は素通り・その日の round は作り直さない）。
 // ============================================================================
 import { createClient } from 'jsr:@supabase/supabase-js@2'
-import { runRatedRound, ratedMatchCourse, ratedDayOf } from './engine.js'
+import { runRatedRound, ratedMatchCourse, ratedDayOf, assignGroups } from './engine.js'
 
 /** 日本時間の「今日」。SQL 側の `rated_today_jst()` と同じ日付になること */
 function todayJst(): string {
@@ -95,7 +95,15 @@ async function closeOverdue(today: string): Promise<string[]> {
       lineups[s.user_id] = line
     }
 
-    const out = runRatedRound({ dateISO: r.date_iso, day: r.day, entrants, lineups })
+    // ★組は**その日の 10:00 に決めて保存してあるもの**を使う。ここで割り直すと、
+    //   当日ずっと画面に出していた「自分の部屋」と実際に走った組が食い違う
+    //   （組を保存していない古い回だけ、空で渡してその場で割る）
+    const { data: gs } = await db
+      .from('rated_round_groups').select('user_id, group_no').eq('round_id', r.id)
+    const groupOf: Record<string, number> = {}
+    for (const g of gs ?? []) groupOf[g.user_id] = g.group_no
+
+    const out = runRatedRound({ dateISO: r.date_iso, day: r.day, entrants, lineups, groupOf })
     if (out.skipped) {
       // 10人に満たない＝流会。レートは動かさない
       await db.from('rated_rounds').update({ status: 'void', closed_at: new Date().toISOString() }).eq('id', r.id)
@@ -144,7 +152,30 @@ async function openToday(today: string): Promise<string> {
     .upsert({ event_id: ev.id, day, date_iso: today, seg_count: segCount },
             { onConflict: 'event_id,date_iso', ignoreDuplicates: true })
   if (error) throw error
-  return `${today}（${day}/${ev.total_days}日目・${segCount}区間）受付開始`
+
+  // ★**受付が開いた時点でその日の組を決めて保存する**（オーナー・2026-08-19
+  //   「当日はまずレート分けされて部屋が見れるんでしょ？」）。
+  //   割り方は engine の `assignGroups` 1本（アプリとまったく同じ関数）。
+  //   もう入っている行は触らない（何度流しても組は変わらない）。
+  const { data: round } = await db
+    .from('rated_rounds').select('id').eq('event_id', ev.id).eq('date_iso', today).single()
+  let grouped = 0
+  if (round?.id) {
+    const { count } = await db
+      .from('rated_round_groups').select('*', { count: 'exact', head: true }).eq('round_id', round.id)
+    if (!count) {
+      const entrants = await loadEntrants(ev.id)
+      const assigned = assignGroups(entrants.map(e => ({ id: e.userId, rating: e.rating })))
+      if (assigned.length > 0) {
+        const { error: ge } = await db.from('rated_round_groups').upsert(
+          assigned.map(a => ({ round_id: round.id, user_id: a.userId, group_no: a.groupNo })),
+          { onConflict: 'round_id,user_id', ignoreDuplicates: true })
+        if (ge) throw ge
+      }
+      grouped = new Set(assigned.map(a => a.groupNo)).size
+    }
+  }
+  return `${today}（${day}/${ev.total_days}日目・${segCount}区間）受付開始${grouped ? ` / ${grouped}グループ` : ''}`
 }
 
 Deno.serve(async () => {

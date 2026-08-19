@@ -403,6 +403,18 @@ create table if not exists public.rated_lineups (
 );
 
 -- 結果（1人1行）。順位表はここだけ読めば出るので軽い
+-- **その日の組**。受付が開いた 10:00 に決めて、ここへ入れる。
+-- ★当日ずっと「自分の部屋」を見せるので、走らせるときに割り直さないこと
+--   （10:00 以降に参加した人がいると割り方が変わり、見せていた顔ぶれと食い違う）。
+--   番号を持っていない人はその日走らない＝翌日の 10:00 で組に入る。
+create table if not exists public.rated_round_groups (
+  round_id uuid    not null references public.rated_rounds(id) on delete cascade,
+  user_id  uuid    not null references auth.users(id) on delete cascade,
+  group_no integer not null,
+  primary key (round_id, user_id)
+);
+create index if not exists rated_round_groups_g_idx on public.rated_round_groups (round_id, group_no);
+
 create table if not exists public.rated_results (
   round_id     uuid    not null references public.rated_rounds(id) on delete cascade,
   user_id      uuid    not null references auth.users(id) on delete cascade,
@@ -467,6 +479,7 @@ alter table public.rated_lineups   enable row level security;
 alter table public.rated_results   enable row level security;
 alter table public.rated_races     enable row level security;
 alter table public.rated_players   enable row level security;
+alter table public.rated_round_groups enable row level security;
 
 -- ============================================================
 -- 2. ポリシー・トリガー・既定値を外す
@@ -519,6 +532,7 @@ drop policy if exists rated_entries_select     on public.rated_entries;
 drop policy if exists rated_rounds_select      on public.rated_rounds;
 drop policy if exists rated_lineups_select_own on public.rated_lineups;
 drop policy if exists rated_results_select     on public.rated_results;
+drop policy if exists rated_round_groups_select on public.rated_round_groups;
 drop policy if exists rated_races_select       on public.rated_races;
 drop policy if exists rated_players_select     on public.rated_players;
 
@@ -619,6 +633,7 @@ drop function if exists public.rated_today_jst()                             cas
 drop function if exists public.rated_open_round()                            cascade;
 drop function if exists public.rated_hof_count(uuid)                         cascade;
 drop function if exists public.rated_current_event()                         cascade;
+drop function if exists public.rated_my_group()                             cascade;
 drop function if exists public.rated_join()                                  cascade;
 drop function if exists public.rated_today()                                 cascade;
 drop function if exists public.rated_me()                                    cascade;
@@ -2185,6 +2200,36 @@ end $$;
  * 大会の順位表。**トップ100と自分だけ**（オーナー判断。参加者が増えても全員は配らない）。
  * 直近の走り終わった日の順位と増減を添える。
  */
+/*
+ * **自分の部屋（その日の組）。** 受付が開いていて、自分が組に入っていれば返す。
+ *   { groupNo, groups, members: [{userId, teamName, gmName, rating, primary, secondary, logoId}] }
+ *   入っていなければ null（＝10:00 より後に参加した＝その日は走らない）。
+ */
+create function public.rated_my_group() returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare me uuid := auth.uid(); r record; g int; n int;
+begin
+  if me is null then return null; end if;
+  select * into r from public.rated_open_round();
+  if r.id is null then return null; end if;
+  select group_no into g from public.rated_round_groups where round_id = r.id and user_id = me;
+  if g is null then return null; end if;
+  select count(distinct group_no) into n from public.rated_round_groups where round_id = r.id;
+  return jsonb_build_object(
+    'groupNo', g, 'groups', n, 'meId', me,
+    'members', coalesce((
+      select jsonb_agg(jsonb_build_object(
+               'userId', m.user_id, 'rating', rp.rating,
+               'teamName', coalesce(p.team_name, ''), 'gmName', coalesce(p.gm_name, ''),
+               'primary', coalesce(p.color_primary, ''), 'secondary', coalesce(p.color_secondary, ''),
+               'logoId', coalesce(p.logo_id, ''))
+             order by rp.rating desc, m.user_id)
+        from public.rated_round_groups m
+        join public.rated_players rp on rp.user_id = m.user_id
+        left join public.profiles p on p.user_id = m.user_id
+       where m.round_id = r.id and m.group_no = g), '[]'::jsonb));
+end $$;
+
 create function public.rated_standings() returns jsonb
 language plpgsql stable security definer set search_path = public as $$
 declare me uuid := auth.uid(); ev uuid; last_round uuid; n int; my_rank_json jsonb;
@@ -2482,6 +2527,7 @@ begin
     'rated_submit(jsonb)',
     'rated_result()',
     'rated_standings()',
+    'rated_my_group()',
     'rated_ranks(uuid[])'
   ] loop
     execute format('revoke all on function public.%s from public, anon', f);

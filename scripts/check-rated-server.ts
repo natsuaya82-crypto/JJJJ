@@ -343,6 +343,16 @@ console.log('\n[6] 締めた回は二度と締めない（Edge Function の歯�
   check('殻に Elo もグループ分けも書いていない',
     !/applyElo|splitGroups|RATED_K|RANK_BANDS/.test(fn))
   check('走らせるのは runRatedRound 1本', (fn.match(/runRatedRound\(/g) ?? []).length === 1)
+
+  // ★組は**受付が開いた10:00に決めて保存**し、走らせるときはそれを使う
+  //   （オーナー・2026-08-19「当日はまずレート分けされて部屋が見れるんでしょ？」）。
+  //   走らせる側で割り直すと、当日ずっと見せていた部屋と食い違う。
+  check('受付が開いたら組を決めて保存する', /rated_round_groups[\s\S]{0,400}assignGroups\(/.test(fn)
+    || /assignGroups\([\s\S]{0,400}rated_round_groups/.test(fn))
+  // ★`groupOf` という字が**どこかにある**だけでは足りない（宣言だけしてあって
+  //   渡していない、が緑になる。実際にそれで素通りした）。**渡しているか**を見る
+  check('走らせるときは保存した組を渡す', /runRatedRound\(\{[^}]*groupOf/s.test(fn))
+  check('組は作り直さない（もうあれば何もしない）', /if \(!count\)/.test(fn))
 }
 
 console.log(failed === 0 ? '\n  → OK\n' : `\n  → NG ${failed}件\n`)

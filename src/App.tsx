@@ -38,6 +38,7 @@ import RatedPage from './components/rated/RatedPage'
 import RatedLineupPage from './components/rated/RatedLineupPage'
 import RatedResultPage from './components/rated/RatedResultPage'
 import RatedStandingsPage from './components/rated/RatedStandingsPage'
+import RatedGroupPage from './components/rated/RatedGroupPage'
 import Dashboard from './components/dashboard/Dashboard'
 import TeamManagement from './components/team/TeamManagement'
 import Onboarding from './components/onboarding/Onboarding'
@@ -397,6 +398,7 @@ function AppRoutes({ onBackToTitle }: { resetGame: () => void; onBackToTitle: ()
           <Route path="/online/rated/lineup" element={<RatedLineupPage />} />
           <Route path="/online/rated/result" element={<RatedResultPage />} />
           <Route path="/online/rated/standings" element={<RatedStandingsPage />} />
+          <Route path="/online/rated/group" element={<RatedGroupPage />} />
           {onlineAvailable() && <Route path="/online/history/:matchId" element={<MatchReplayPage />} />}
           {onlineAvailable() && <Route path="/friends" element={<FriendsPage />} />}
           {onlineAvailable() && <Route path="/friends/list" element={<FriendListPage />} />}
