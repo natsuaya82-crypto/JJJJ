@@ -17,6 +17,7 @@ import { natLabel } from '../../data/nationalities'
 import { SpecChip } from '../player/PlayerChips'
 import { courseProfile } from '../../data/races'
 import PlayerList from '../player/PlayerList'
+import { MORALE_DEFAULT } from '../../utils/condition'
 
 
 const weatherLabel: Record<string, string> = { sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風' }
@@ -39,7 +40,7 @@ function autoFill(
   const scoreOf = (p: Player, seg: import('../../types').Segment) =>
     calcBaseAbility(p.ratings, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.statWeights)
     * calcSegmentAffinity(p.specialty, seg)
-    * calcConditionModifier(p.fatigue ?? 0, p.morale ?? 70, p.form ?? 0)
+    * calcConditionModifier(p.fatigue ?? 0, p.morale ?? MORALE_DEFAULT, p.form ?? 0)
   const table = new Map<string, number>()
   for (const seg of open) for (const p of pool) table.set(`${seg.index}:${p.id}`, scoreOf(p, seg))
   const at = (segIdx: number, pid: string) => table.get(`${segIdx}:${pid}`) ?? 0
@@ -167,7 +168,7 @@ export function LineupPhase({
         // おすすめ(最適)表示も自動配置と同じ基準（疲労・士気・調子込み）で算出する
         const score = calcBaseAbility(p.ratings, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.statWeights)
                     * calcSegmentAffinity(p.specialty, seg)
-                    * calcConditionModifier(p.fatigue ?? 0, p.morale ?? 70, p.form ?? 0)
+                    * calcConditionModifier(p.fatigue ?? 0, p.morale ?? MORALE_DEFAULT, p.form ?? 0)
         pairs.push({ segIndex: seg.index, playerId: p.id, score })
       }
     }

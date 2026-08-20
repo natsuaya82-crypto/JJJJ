@@ -399,8 +399,8 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const playersAfterMorale = streakMoraleDelta !== 0
         ? playersAfterRetire.map(p => {
             if (p.teamId !== state.playerTeamId || p.status === 'retired') return p
-            // 連勝・連敗の効き。連敗でも10は下回らせない（上下限は condition.ts）
-            return setMorale(p, Math.max(10, (p.morale ?? MORALE_DEFAULT) + streakMoraleDelta))
+            // 連勝・連敗の効き。★**ここで下限を書かないこと**（上下限は condition.ts の 0〜100 だけ）
+            return setMorale(p, (p.morale ?? MORALE_DEFAULT) + streakMoraleDelta)
           })
         : playersAfterRetire
 

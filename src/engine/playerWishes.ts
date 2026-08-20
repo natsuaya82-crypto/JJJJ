@@ -20,6 +20,7 @@ import { faMarketSalary, ovr, seasonAppearances, seasonPerfProfile } from '../ut
 import { openWishIds } from '../utils/talkSync'
 import { canWishTransfer } from '../utils/transferEligibility'
 import { dreamRegionOf } from '../utils/transferDecision'
+import { MORALE_DEFAULT } from '../utils/condition'
 
 export function generatePlayerWishes(params: {
   players: Player[]
@@ -72,8 +73,8 @@ export function generatePlayerWishes(params: {
         const amb = (ovr(p) - 72) + (myStandRank - trTotalTeams / 2) * 1.2
         if (amb > score) { score = amb; reason = 'team_performance' }
       }
-      if ((p.morale ?? 70) < 50) {
-        const un = (50 - (p.morale ?? 70)) * 0.8
+      if ((p.morale ?? MORALE_DEFAULT) < 50) {
+        const un = (50 - (p.morale ?? MORALE_DEFAULT)) * 0.8
         if (un > score) { score = un; reason = 'unhappy' }
       }
       // 年俸重視の性格：相場の7割未満で使われていると「安すぎる」と不満を持つ（純粋なお金理由の移籍希望）。

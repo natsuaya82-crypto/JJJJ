@@ -142,6 +142,9 @@ function segmentAwardPoints(teamCount, rank) {
   return rank === 1 ? 1 : 0;
 }
 
+// src/utils/condition.ts
+var MORALE_DEFAULT = 70;
+
 // src/engine/raceEngine.ts
 var isNum = (v) => typeof v === "number" && Number.isFinite(v);
 function safeRatings(r) {
@@ -284,7 +287,7 @@ function assignLineupByTerrain(roster, race) {
     if (roster.length === used.size) break;
     const candidates = roster.filter((p) => !used.has(p.id)).map((p) => ({
       id: p.id,
-      score: calcBaseAbility(p.ratings, seg3.uphillPct, seg3.downhillPct, seg3.distanceKm, seg3.statWeights) * calcSegmentAffinity(p.specialty, seg3) * calcConditionModifier(p.fatigue ?? 0, p.morale ?? 70, p.form ?? 0)
+      score: calcBaseAbility(p.ratings, seg3.uphillPct, seg3.downhillPct, seg3.distanceKm, seg3.statWeights) * calcSegmentAffinity(p.specialty, seg3) * calcConditionModifier(p.fatigue ?? 0, p.morale ?? MORALE_DEFAULT, p.form ?? 0)
     })).sort((a, b) => b.score - a.score);
     if (candidates.length === 0) continue;
     lineup[seg3.index] = candidates[0].id;
@@ -369,7 +372,7 @@ function simulateRace(race, lineups, teams, players, _seasonProgress, playerTeam
       const clubMod = team ? calcClubModifier(team, race.location) : 1;
       const rand = calcRandomFactor(traits);
       const fatigue = player.specialty === "grinder" ? Math.min(player.fatigue ?? 0, 40) : player.fatigue ?? 0;
-      const condMod = calcConditionModifier(fatigue, player.morale ?? 70, player.form ?? 0);
+      const condMod = calcConditionModifier(fatigue, player.morale ?? MORALE_DEFAULT, player.form ?? 0);
       const traitMod = calcTraitModifier(traits, seg3.uphillPct, seg3.downhillPct, seg3.distanceKm, seg3.index, totalSegs);
       const isLastThird = seg3.index >= Math.floor(totalSegs * 2 / 3);
       const isFirstThird = seg3.index < Math.floor(totalSegs / 3);

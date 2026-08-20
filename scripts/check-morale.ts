@@ -52,7 +52,34 @@ check('最下位は下がる', moraleDeltaForRank(20, 20) < 0)
 check('中位は動かない', moraleDeltaForRank(10, 20) === 0)
 check('出走数が変われば「下位」の線も動く', moraleDeltaForRank(14, 16) < 0 && moraleDeltaForRank(14, 20) === 0)
 
-// ── ⑤ 実際に6年ぶん回す。★ここが本体（張り付いていないか・差がつくか） ──
+// ── ⑤ 下限も既定値も1つだけ（A-10・オーナー判断「加減は0でしょ」） ──
+//   以前は下限が3通りあった：`withMorale` の 0／レース後だけ 10（`withRaceMorale`）／
+//   連敗のときだけ 10（`seasonSlice` の手書き）。既定値も 70 と 60 の2通りで、
+//   移籍・契約更新・売出可否の3か所だけが 60 を見ていた。
+//
+//   ★**ソース全体を見ること。** condition.ts だけを見ると、手書きのクランプ
+//     （`Math.max(10, …)`）は別のファイルにあるので1文字も当たらない
+import { readdirSync as rd, statSync } from 'node:fs'
+import { join } from 'node:path'
+const walkTs = (dir: string): string[] => rd(dir).flatMap(f => {
+  const q = join(dir, f)
+  return statSync(q).isDirectory() ? walkTs(q) : /\.tsx?$/.test(q) ? [q] : []
+})
+const allSrc = walkTs('src')
+// ★**コメントを外してから見ること。** 経緯（「以前は Math.max(10, …) だった」）を
+//   condition.ts に書いてあるので、素のまま探すと**その説明文に当たって**落ちる
+const code = (f: string) => readFileSync(f, 'utf8')
+  .replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
+const floors = allSrc.filter(f => /Math\.max\(\s*10\s*,[^)]*morale/i.test(code(f)))
+check('士気の下限を手書きしている場所が無い', floors.length === 0,
+  `${floors.join(', ')} — 上下限は utils/condition.ts の 0〜100 だけ`)
+check('レース専用の下限が復活していない', !/MORALE_RACE_FLOOR|withRaceMorale/.test(code('src/utils/condition.ts')),
+  '下限は0の1本（A-10）')
+const defaults = allSrc.filter(f => /morale \?\? (?!MORALE_DEFAULT)\w/.test(code(f)))
+check('士気の既定値を MORALE_DEFAULT 以外で書いていない', defaults.length === 0,
+  `${defaults.join(', ')} — 既定値は MORALE_DEFAULT(70) 1本`)
+
+// ── ⑥ 実際に6年ぶん回す。★ここが本体（張り付いていないか・差がつくか） ──
 const CLUBS = 20, PER = 25
 let players: any[] = []
 for (let c = 0; c < CLUBS; c++) for (let i = 0; i < PER; i++)

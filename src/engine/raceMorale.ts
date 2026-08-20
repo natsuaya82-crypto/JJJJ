@@ -29,7 +29,7 @@
 //   ★`growPlayer` の毎年+5 は**外しました**。70へ戻る形なら要らず、
 //     残すと結局100へ寄ります。
 import type { Player } from '../types'
-import { MORALE_DEFAULT, withRaceMorale } from '../utils/condition'
+import { MORALE_DEFAULT, withMorale } from '../utils/condition'
 
 /** 毎レース、士気を既定値(70)へこの割合だけ戻す */
 export const MORALE_RECOVER = 0.3
@@ -71,7 +71,7 @@ export function applyRaceMorale(params: {
     const benchPenalty = (!racingIds.has(p.id) && (p.teamRole === 'ace' || p.teamRole === 'key_player'))
       ? (p.teamRole === 'ace' ? 4 : 2) : 0
     const delta = moraleDeltaForRank(st.rank, st.teamCount) + (segWinIds.has(p.id) ? 5 : 0) - benchPenalty
-    return withRaceMorale({ ...p, morale: back }, delta)
+    return withMorale({ ...p, morale: back }, delta)
   })
 }
 

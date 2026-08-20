@@ -3,6 +3,7 @@ import {
   calcBaseAbility, calcAffinity, calcConditionModifier,
   calcTraitModifier, calcWeatherModifier, calcClubModifier, scoreToTime,
 } from './raceEngine'
+import { MORALE_DEFAULT } from '../utils/condition'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -198,7 +199,7 @@ export function calcFinalSegTime(
   const aff = calcAffinity(player.specialty, seg.uphillPct, seg.downhillPct, seg.distanceKm)
   const clubMod = team ? calcClubModifier(team, race.location) : 1.0
   const fatigue = player.specialty === 'grinder' ? Math.min(player.fatigue ?? 0, 40) : (player.fatigue ?? 0)
-  const condMod = calcConditionModifier(fatigue, player.morale ?? 70, player.form ?? 0)
+  const condMod = calcConditionModifier(fatigue, player.morale ?? MORALE_DEFAULT, player.form ?? 0)
   const traitMod = calcTraitModifier(traits, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.index, totalSegs)
   const weatherMod = race.conditions
     ? calcWeatherModifier(race.conditions.weather, player.specialty, player.ratings.stamina, player.ratings.mental)

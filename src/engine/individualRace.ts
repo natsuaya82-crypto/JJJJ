@@ -5,6 +5,7 @@
 import { type Player } from '../types'
 import { individualBaseTime, individualEventAbility } from '../utils/eventTime'
 import { calcWeatherModifier } from './raceEngine'
+import { MORALE_DEFAULT } from '../utils/condition'
 
 export function simulateIndividualTime(player: Player, distance: 5000 | 10000 | 21097 | 42195, weather?: 'sunny' | 'cloudy' | 'rainy' | 'windy'): number {
   const o = individualEventAbility(player, distance)
@@ -15,7 +16,7 @@ export function simulateIndividualTime(player: Player, distance: 5000 | 10000 | 
   // コンディション低下ペナルティ（最高で0＝アンカー通り）
   const formPen = (2 - (player.form ?? 0)) * 4
   const fatiguePen = base * ((player.fatigue ?? 0) / 100) * 0.05 * distDamp   // 疲労で最大+5%（長距離は圧縮）
-  const moralePen = Math.max(0, 80 - (player.morale ?? 70)) * 0.12
+  const moralePen = Math.max(0, 80 - (player.morale ?? MORALE_DEFAULT)) * 0.12
   const noise = Math.random() * base * 0.03 * distDamp                        // 毎回0〜+3%のぶらつき（長距離は圧縮）
   // 天気補正（レースと同じ関数）。performance倍率を時間係数(2-mod)に反転して適用し、長距離では圧縮
   const weatherExcess = weather

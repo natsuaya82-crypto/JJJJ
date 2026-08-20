@@ -6,6 +6,7 @@ import { appraiseMove, CONSENT_LINE, type Destination } from './transferDecision
 import { strHash } from './hash'
 import { POACH_PREMIUM } from '../data/economy'
 import { type Race } from '../types'
+import { MORALE_DEFAULT } from './condition'
 
 /**
  * 記録や結果に「焼き込まれた名前」ではなく、いまの名前を返す。
@@ -148,7 +149,7 @@ export function segOvr(p: Player, uphillPct: number, downhillPct: number, distan
 
 // Segment OVR adjusted for current condition (fatigue/morale/form)
 export function effSegOvr(p: Player, uphillPct: number, downhillPct: number, distanceKm: number, statWeights?: Partial<Record<keyof Player['ratings'], number>>): number {
-  return Math.round(segOvr(p, uphillPct, downhillPct, distanceKm, statWeights) * calcConditionModifier(p.fatigue ?? 0, p.morale ?? 70, p.form ?? 0))
+  return Math.round(segOvr(p, uphillPct, downhillPct, distanceKm, statWeights) * calcConditionModifier(p.fatigue ?? 0, p.morale ?? MORALE_DEFAULT, p.form ?? 0))
 }
 
 // OVR→市場給与の「素体」(円)。非線形（スターほど跳ね上がる）。区分線形で下記アンカーを通す。
@@ -360,7 +361,7 @@ type SeasonLike = { year: number; races?: readonly RaceLike[]; eclSeries?: { rac
 //   ECL出場経験あり → 率の閾値を-0.10緩和 / P=0の必要回数を2→1に緩和。
 // ・契約残1年以下 or 士気45未満は保護しない（不満・満了間近は普通に動く）。
 export function keyPlayerStatus(player: Player, currentSeason: SeasonLike, pastSeasons: readonly SeasonLike[]): 'locked' | 'key' | 'open' {
-  if (player.contract.yearsLeft <= 1 || (player.morale ?? 60) < 45) return 'open'
+  if (player.contract.yearsLeft <= 1 || (player.morale ?? MORALE_DEFAULT) < 45) return 'open'
 
   // ECL出場経験（過去＋今季）→ 閾値を10%緩和
   const eclRaces: RaceLike[] = [

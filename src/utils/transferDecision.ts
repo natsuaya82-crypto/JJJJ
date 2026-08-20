@@ -35,6 +35,7 @@ import { TIER_POTENTIAL_CAP, type ClubTier } from './clubTier'
 import { RUNNING_SLOTS, SQUAD_DEPTH_SLOTS } from '../data/rosterRules'
 // 「そのクラブで何番手か」は squadNeeds の1本
 import { squadRankOf } from './squadNeeds'
+import { MORALE_DEFAULT } from './condition'
 
 /**
  * 憧れの地域は選手のタイプで決まる。持久系→アフリカ高地／スピード系→ヨーロッパのトラック／
@@ -499,7 +500,7 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext = {}): 
     : (p.personality ?? 'salary') === 'winning' ? 0.05
     : 0
 
-  const morale = (p.morale ?? 60) < 40 ? 0.1 : (p.morale ?? 60) >= 75 ? -0.05 : 0
+  const morale = (p.morale ?? MORALE_DEFAULT) < 40 ? 0.1 : (p.morale ?? MORALE_DEFAULT) >= 75 ? -0.05 : 0
   const bonus = ctx.bonus ?? 0
 
   // ★今の水準で1戦も走っていない選手は、格上のクラブへは移らない。

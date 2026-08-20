@@ -30,6 +30,7 @@ import { contractTalkCtx, contractMonthsLeft, needsRenewalAttention } from '../.
 import { seasonDivisionStandings, rankOfTeam } from '../../utils/league'
 import { panelStyle } from '../ui/Panel'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
+import { MORALE_DEFAULT } from '../../utils/condition'
 
 
 
@@ -264,7 +265,7 @@ export default function Dashboard() {
   // 在籍は player.teamId 1本（utils/rosterSync）。ロスター画面と同じ取り方
   const mainPlayers = getTeamPlayers(playerTeamId).filter(p => p.status !== 'retired')
   const avgMorale = mainPlayers.length > 0
-    ? Math.round(mainPlayers.reduce((s, p) => s + (p.morale ?? 70), 0) / mainPlayers.length) : 70
+    ? Math.round(mainPlayers.reduce((s, p) => s + (p.morale ?? MORALE_DEFAULT), 0) / mainPlayers.length) : 70
 
   const nextMainRace = currentSeason.races[currentSeason.currentRaceIndex] ?? null
   type NextRaceData = { race: Race; kind: 'main'; number: number; total: number }

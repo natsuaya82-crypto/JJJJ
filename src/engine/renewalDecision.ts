@@ -14,6 +14,7 @@
 //   - 乱数を引かない（同じ提示には毎回同じ返事）
 import { MAX_CONTRACT_ROUNDS, effectiveDemandSalary } from '../utils/contractTalk'
 import type { ContractRequest, Player } from '../types'
+import { MORALE_DEFAULT } from '../utils/condition'
 
 export function judgeRenewalOffer(args: {
   request: ContractRequest
@@ -32,7 +33,7 @@ const personality = player.personality ?? 'salary'
 const demand = effectiveDemandSalary(req)
 const ratio = demand > 0 ? salary / demand : 2
 // 士気が高い選手は譲歩する（要求を丸呑みしなくても交渉で下げられる余地を作る）
-const moraleDiscount = (player.morale ?? 60) >= 80 ? 0.05 : (player.morale ?? 60) >= 65 ? 0.02 : 0
+const moraleDiscount = (player.morale ?? MORALE_DEFAULT) >= 80 ? 0.05 : (player.morale ?? MORALE_DEFAULT) >= 65 ? 0.02 : 0
 const acceptThresh = (personality === 'winning' && isGoodTeam ? 0.90 : personality === 'loyalty' ? 0.92 : 0.95) - moraleDiscount
 const counterThresh = personality === 'salary' ? 0.77 : 0.73
 const isLastRound = req.round >= MAX_CONTRACT_ROUNDS  // 交渉のラウンド上限は contractTalk の1本

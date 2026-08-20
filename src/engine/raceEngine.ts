@@ -1,6 +1,7 @@
 import type { Player, Specialty, RaceResults, Race, Team, Segment } from '../types'
 import type { TraitId } from '../utils/traitUtils'
 import { positionPointsFor, segmentAwardPoints, divisionOf, teamsInDivision } from '../utils/league'
+import { MORALE_DEFAULT } from '../utils/condition'
 
 // セーブ破損や旧データで ratings 自体（または一部の能力）が欠けている選手が混ざっても、
 // 描画・計算の途中で例外を投げてアプリが真っ白にならないようにするための防御。
@@ -229,7 +230,7 @@ export function assignLineupByTerrain(roster: Player[], race: Race): Record<numb
         id: p.id,
         score: calcBaseAbility(p.ratings, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.statWeights)
              * calcSegmentAffinity(p.specialty, seg)
-             * calcConditionModifier(p.fatigue ?? 0, p.morale ?? 70, p.form ?? 0),
+             * calcConditionModifier(p.fatigue ?? 0, p.morale ?? MORALE_DEFAULT, p.form ?? 0),
       }))
       .sort((a, b) => b.score - a.score)
     if (candidates.length === 0) continue
@@ -411,7 +412,7 @@ export function simulateRace(
       const clubMod  = team ? calcClubModifier(team, race.location) : 1.0
       const rand     = calcRandomFactor(traits)
       const fatigue  = player.specialty === 'grinder' ? Math.min(player.fatigue ?? 0, 40) : (player.fatigue ?? 0)
-      const condMod  = calcConditionModifier(fatigue, player.morale ?? 70, player.form ?? 0)
+      const condMod  = calcConditionModifier(fatigue, player.morale ?? MORALE_DEFAULT, player.form ?? 0)
       const traitMod = calcTraitModifier(traits, seg.uphillPct, seg.downhillPct, seg.distanceKm, seg.index, totalSegs)
       const isLastThird = seg.index >= Math.floor(totalSegs * 2 / 3)
       const isFirstThird = seg.index < Math.floor(totalSegs / 3)
