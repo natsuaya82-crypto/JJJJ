@@ -21,6 +21,7 @@ import { dropFriendRequest, loadFriendRequests } from '../../lib/useFriendReques
 import { useRatedRank } from '../../lib/useRatedRanks'
 import { RankBadge } from '../rated/ratedUi'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
+import ScreenPortal from '../ui/ScreenPortal'
 
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -218,9 +219,11 @@ export default function FriendRequestsPage() {
       </div>
 
       {/* 共有用カード（オフスクリーン） */}
-      <div ref={shareRef} style={{ position: 'fixed', left: '-99999px', top: 0, pointerEvents: 'none' }}>
-        <GmShareCard team={myTeam} code={myCodeText} />
-      </div>
+      <ScreenPortal>
+        <div ref={shareRef} style={{ position: 'fixed', left: '-99999px', top: 0, pointerEvents: 'none' }}>
+          <GmShareCard team={myTeam} code={myCodeText} />
+        </div>
+      </ScreenPortal>
 
       {confirmSend && (
         <ConfirmDialog

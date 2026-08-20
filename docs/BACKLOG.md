@@ -1327,15 +1327,29 @@ const initialSlots = useMemo(() => {
   中身は `border-radius: 2px` が4件（細い棒の端。意図どおり）と `999px` が2件
   （ピル）と `0` が2件。いまは実害が無いが、見張りが無いので増えても気づけない
 
-- **U-9. ページの中に自前で `position: fixed` を書いているものが16ファイル** …
-  `createPortal` を通していないもの：`EclPage` / `ContractInfoModal` / `PlayerSheet` /
-  `ResultsPhase` / `LineupPhase` / `SimPhase` / `RacePage` / `FriendRequestsPage` /
-  `TermsGate` / `Onboarding` / `WorldTournamentPage` / `NationalSquadSelectPage` /
-  `CreateMyPlayerPage` / `DraftRoom` / `GmInvitePicker` / `GmInviteChat`。
-  **`<main>` の中に書いた fixed は実機（iOS）で下タブに食われる**（CLAUDE.md）。
-  `Layout` の外に出る画面（Onboarding・DraftRoom・TermsGate）と、
-  画面全体を差し替えるもの（PlayerSheet・GmInvitePicker）は `<main>` の外なので
-  問題にならないが、**`<main>` の中にいるものは実機で確認が要る**
+- **U-9. ページの中に自前で `position: fixed` を書いている** … `済`（2026-08-20）。
+  `src/components/ui/ScreenPortal.tsx` を通して `<main>` の外（`document.body`）へ出す形にした。
+  包んだのは**`<main>` の中にいる9ファイル12か所**：
+  `EclPage` 1 / `CreateMyPlayerPage` 1 / `RacePage` 1 / `WorldTournamentPage` 3 /
+  `NationalSquadSelectPage` 2 / `LineupPhase` 1 / `ResultsPhase` 2 / `SimPhase` 2 /
+  `FriendRequestsPage` 1。
+
+  **`<main>` の外にいるものは包んでいません**（理由は `check-screen-portal.ts` の
+  `OUTSIDE_MAIN` に1件ずつ書いた）：`App` / `Layout` / `TermsGate` / `Onboarding` /
+  `DraftRoom` / `DataUpdateScreen` / `LoadingOverlay` / `ForceUpdateModal` / `IntroModal` /
+  `ContractInfoModal` / `PlayerSheet` / `GmInvitePicker` / `GmInviteChat`。
+
+  **見た目は変わりません。** 規格どおりのブラウザでは `fixed` はもともと viewport 基準
+  （`<main>` の `position: fixed` は包含ブロックを作らず、出現アニメ `page-in` も
+  opacity だけで transform を使っていない）。実際に Chromium で同じ入れ子を作り、
+  main の中と body 直下で矩形が一致することを確かめた（スクロール途中でも同じ）。
+  **iOS で崩れる場合だけ直る**、という形。
+
+  `check-screen-portal` が見張る。★閉じ方は1つではない
+  （`), document.body)` と、改行して `document.body,`）——片方だけを見る書き方にすると
+  もう片方が素通りで NG になり続ける（実際に `RankUpOverlay` で落ちた）。
+  ★**免除が生きているかも見ること**——「fixed を1つも書いていない」だけを見ていると、
+  もう全部包んであるファイルが一覧に残り続けても緑のままになる。
 
 - **U-10. `env(safe-area-inset-bottom)` の手書きが17件**（`bottomStack` を通していない）
 

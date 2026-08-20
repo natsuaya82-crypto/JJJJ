@@ -19,6 +19,7 @@ import { rankedStandings, seasonDivisionStandings, rankOfTeam } from '../../util
 import { requiredExpForLevel } from '../../engine/growth'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
+import ScreenPortal from '../ui/ScreenPortal'
 
 
 const RANK_ROW_STYLE = (rank: number, isPlayer: boolean): React.CSSProperties => {
@@ -252,25 +253,27 @@ export function ResultsPhase({
             </div>
           </div>
         </div>
-        <div style={{
-          position: 'fixed', bottom: bottomStack(adH), left: 0, right: 0, margin: '0 auto',
-          width: '100%', maxWidth: '480px', padding: '8px 12px 10px',
-          background: `linear-gradient(to top, ${C.bg} 72%, ${alpha(C.bg, 0)})`, zIndex: 35,
-        }}>
-          {isLastRace ? (
-            <button className={`btn-game ${COMPETITION_BTN[competition]}`} onClick={finish} style={{ width: '100%' }}>
-              <span className="btn-game__inner">
-                {onContinue ? 'シーズン終了 — 戻る' : 'シーズン終了 — ホームへ'}
-              </span>
-            </button>
-          ) : (
-            <button className={`btn-game ${COMPETITION_BTN[competition]}`} onClick={finish} style={{ width: '100%' }}>
-              <span className="btn-game__inner">
-                {onContinue ? '次の試合へ →' : 'ホームへ戻る'}
-              </span>
-            </button>
-          )}
-        </div>
+        <ScreenPortal>
+          <div style={{
+            position: 'fixed', bottom: bottomStack(adH), left: 0, right: 0, margin: '0 auto',
+            width: '100%', maxWidth: '480px', padding: '8px 12px 10px',
+            background: `linear-gradient(to top, ${C.bg} 72%, ${alpha(C.bg, 0)})`, zIndex: 35,
+          }}>
+            {isLastRace ? (
+              <button className={`btn-game ${COMPETITION_BTN[competition]}`} onClick={finish} style={{ width: '100%' }}>
+                <span className="btn-game__inner">
+                  {onContinue ? 'シーズン終了 — 戻る' : 'シーズン終了 — ホームへ'}
+                </span>
+              </button>
+            ) : (
+              <button className={`btn-game ${COMPETITION_BTN[competition]}`} onClick={finish} style={{ width: '100%' }}>
+                <span className="btn-game__inner">
+                  {onContinue ? '次の試合へ →' : 'ホームへ戻る'}
+                </span>
+              </button>
+            )}
+          </div>
+        </ScreenPortal>
       </div>
     )
   }
@@ -546,29 +549,31 @@ padding: '8px 10px',
         </div>
       )}
 
-      <div style={{
-        position: 'fixed', bottom: bottomStack(adH), left: 0, right: 0, margin: '0 auto',
-        width: '100%', maxWidth: '480px', padding: '8px 12px 10px',
-        background: `linear-gradient(to top, ${C.bg} 72%, ${alpha(C.bg, 0)})`, zIndex: 35,
-      }}>
-        {hasExp ? (
-          <button className={`btn-game ${COMPETITION_BTN[competition]}`} onClick={() => setView('exp')} style={{ width: '100%' }}>
-            <span className="btn-game__inner">経験値を確認 →</span>
-          </button>
-        ) : isLastRace ? (
-          <button className={`btn-game ${COMPETITION_BTN[competition]}`} onClick={finish} style={{ width: '100%' }}>
-            <span className="btn-game__inner">
-              {onContinue ? 'シーズン終了 — 戻る' : 'シーズン終了 — ホームへ'}
-            </span>
-          </button>
-        ) : (
-          <button className={`btn-game ${COMPETITION_BTN[competition]}`} onClick={finish} style={{ width: '100%' }}>
-            <span className="btn-game__inner">
-              {onContinue ? '次の試合へ →' : 'ホームへ戻る'}
-            </span>
-          </button>
-        )}
-      </div>
+      <ScreenPortal>
+        <div style={{
+          position: 'fixed', bottom: bottomStack(adH), left: 0, right: 0, margin: '0 auto',
+          width: '100%', maxWidth: '480px', padding: '8px 12px 10px',
+          background: `linear-gradient(to top, ${C.bg} 72%, ${alpha(C.bg, 0)})`, zIndex: 35,
+        }}>
+          {hasExp ? (
+            <button className={`btn-game ${COMPETITION_BTN[competition]}`} onClick={() => setView('exp')} style={{ width: '100%' }}>
+              <span className="btn-game__inner">経験値を確認 →</span>
+            </button>
+          ) : isLastRace ? (
+            <button className={`btn-game ${COMPETITION_BTN[competition]}`} onClick={finish} style={{ width: '100%' }}>
+              <span className="btn-game__inner">
+                {onContinue ? 'シーズン終了 — 戻る' : 'シーズン終了 — ホームへ'}
+              </span>
+            </button>
+          ) : (
+            <button className={`btn-game ${COMPETITION_BTN[competition]}`} onClick={finish} style={{ width: '100%' }}>
+              <span className="btn-game__inner">
+                {onContinue ? '次の試合へ →' : 'ホームへ戻る'}
+              </span>
+            </button>
+          )}
+        </div>
+      </ScreenPortal>
     </div>
   )
 }

@@ -12,6 +12,7 @@ import type { Specialty, Ratings, Nationality } from '../../types'
 import { NATIONALITY_META, GEO_REGION_ORDER, natLabel } from '../../data/nationalities'
 import { SPECIALTIES } from '../../utils/squadNeeds'
 import { C, alpha, SAIRA, FONT, bottomStack, F } from '../../styles/tokens'
+import ScreenPortal from '../ui/ScreenPortal'
 
 
 const STATS: { key: keyof Ratings; label: string }[] = [
@@ -239,12 +240,14 @@ export default function CreateMyPlayerPage() {
         </div>
       </BottomSheet>
 
-      {/* 確定バー（下部固定） */}
-      <div style={{ position: 'fixed', left: 0, right: 0, bottom: bottomStack(adH, { aboveNav: true }), maxWidth: 480, margin: '0 auto', padding: '12px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
-        <button onClick={confirm} disabled={!canConfirm} className={`btn-game ${canConfirm ? 'btn-game--gold' : ''}`} style={{ width: '100%', opacity: canConfirm ? 1 : 0.5 }}>
-          <span className="btn-game__inner">{remaining !== 0 ? `残り ${remaining} を振り分けてください` : !name.trim() ? '名前を入力してください' : 'この選手で確定'}</span>
-        </button>
-      </div>
+      <ScreenPortal>
+        {/* 確定バー（下部固定） */}
+        <div style={{ position: 'fixed', left: 0, right: 0, bottom: bottomStack(adH, { aboveNav: true }), maxWidth: 480, margin: '0 auto', padding: '12px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
+          <button onClick={confirm} disabled={!canConfirm} className={`btn-game ${canConfirm ? 'btn-game--gold' : ''}`} style={{ width: '100%', opacity: canConfirm ? 1 : 0.5 }}>
+            <span className="btn-game__inner">{remaining !== 0 ? `残り ${remaining} を振り分けてください` : !name.trim() ? '名前を入力してください' : 'この選手で確定'}</span>
+          </button>
+        </div>
+      </ScreenPortal>
     </div>
   )
 }

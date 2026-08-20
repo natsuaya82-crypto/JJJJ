@@ -18,6 +18,7 @@ import { SpecChip } from '../player/PlayerChips'
 import { courseProfile } from '../../data/races'
 import PlayerList from '../player/PlayerList'
 import { MORALE_DEFAULT } from '../../utils/condition'
+import ScreenPortal from '../ui/ScreenPortal'
 
 
 const weatherLabel: Record<string, string> = { sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風' }
@@ -463,34 +464,36 @@ export function LineupPhase({
       </div>
 
       {/* ボトムバー（fixed：常に画面下端＝広告の上に固定。選手を何人置いても位置が動かない） */}
-      <div style={{
-        position: 'fixed', bottom: bottomStack(adH, { extra: bottomInset ?? 0 }), left: 0, right: 0, margin: '0 auto',
-        width: '100%', maxWidth: '480px',
-        padding: '8px 14px calc(10px)',
-        background: `linear-gradient(to top, ${C.bg} 68%, ${alpha(C.bg, 0)})`,
-        display: 'flex', alignItems: 'center', gap: '6px',
-        zIndex: 35,
-      }}>
-        <button onClick={clearRaceLineup} style={{ padding: '10px 12px',border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: F.body, cursor: 'pointer', fontFamily: 'inherit' }}>クリア</button>
-        {allSegsFilled ? (
-          <>
-            {onSkipRace && (
-              <SkipRaceButton onClick={onSkipRace} />
-            )}
-            <button
-              className={`btn-game ${COMPETITION_BTN[competition]}`}
-              onClick={() => { if (!startDisabled) onStart(segTactics) }}
-              style={{ flex: 1, opacity: startDisabled ? 0.5 : 1 }}
-            >
-              <span className="btn-game__inner">{startLabel ?? 'レース開始！'}</span>
+      <ScreenPortal>
+        <div style={{
+          position: 'fixed', bottom: bottomStack(adH, { extra: bottomInset ?? 0 }), left: 0, right: 0, margin: '0 auto',
+          width: '100%', maxWidth: '480px',
+          padding: '8px 14px calc(10px)',
+          background: `linear-gradient(to top, ${C.bg} 68%, ${alpha(C.bg, 0)})`,
+          display: 'flex', alignItems: 'center', gap: '6px',
+          zIndex: 35,
+        }}>
+          <button onClick={clearRaceLineup} style={{ padding: '10px 12px',border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: F.body, cursor: 'pointer', fontFamily: 'inherit' }}>クリア</button>
+          {allSegsFilled ? (
+            <>
+              {onSkipRace && (
+                <SkipRaceButton onClick={onSkipRace} />
+              )}
+              <button
+                className={`btn-game ${COMPETITION_BTN[competition]}`}
+                onClick={() => { if (!startDisabled) onStart(segTactics) }}
+                style={{ flex: 1, opacity: startDisabled ? 0.5 : 1 }}
+              >
+                <span className="btn-game__inner">{startLabel ?? 'レース開始！'}</span>
+              </button>
+            </>
+          ) : (
+            <button style={{ flex: 1, padding: '12px',border: 'none', background: C.surface2, color: C.textGhost, fontSize: F.sub, fontWeight: '700', cursor: 'default', fontFamily: 'inherit' }}>
+              {segments.length - filledCount}区間未設定
             </button>
-          </>
-        ) : (
-          <button style={{ flex: 1, padding: '12px',border: 'none', background: C.surface2, color: C.textGhost, fontSize: F.sub, fontWeight: '700', cursor: 'default', fontFamily: 'inherit' }}>
-            {segments.length - filledCount}区間未設定
-          </button>
-        )}
-      </div>
+          )}
+        </div>
+      </ScreenPortal>
     </div>
   )
 }

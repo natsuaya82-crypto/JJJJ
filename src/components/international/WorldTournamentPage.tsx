@@ -17,6 +17,7 @@ import { formatRaceTime } from '../../utils/eventTime'
 import { runWithLoading } from '../../store/loadingStore'
 import { C, alpha, rankColor, SAIRA, FONT, bottomStack, F } from '../../styles/tokens'
 import { useAdHeight } from '../layout/Layout'
+import ScreenPortal from '../ui/ScreenPortal'
 
 
 type Phase = 'individuals' | 'entry' | 'lineup' | 'simulating' | 'results'
@@ -154,16 +155,18 @@ export default function WorldTournamentPage() {
           </div>
         </div>
         {/* 次へは下部固定（タブバー＋広告の上）。スクロール不要 */}
-        <div style={{ position: 'fixed', left: 0, right: 0, bottom: bottomStack(adH, { aboveNav: true }), maxWidth: 480, margin: '0 auto', padding: '14px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
-          <button
-            onClick={() => {
-              if (last) { markWorldIndividualsSeen(); setPhase('entry') } else setIndStep(indStep + 1)
-              window.scrollTo(0, 0)
-            }}
-            className="btn-game btn-game--purple"
-            style={{ width: '100%' }}
-          ><span className="btn-game__inner">{last ? '駅伝へ →' : `次へ（${WA_EVENT_LABEL[inds[indStep + 1].event]}）→`}</span></button>
-        </div>
+        <ScreenPortal>
+          <div style={{ position: 'fixed', left: 0, right: 0, bottom: bottomStack(adH, { aboveNav: true }), maxWidth: 480, margin: '0 auto', padding: '14px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
+            <button
+              onClick={() => {
+                if (last) { markWorldIndividualsSeen(); setPhase('entry') } else setIndStep(indStep + 1)
+                window.scrollTo(0, 0)
+              }}
+              className="btn-game btn-game--purple"
+              style={{ width: '100%' }}
+            ><span className="btn-game__inner">{last ? '駅伝へ →' : `次へ（${WA_EVENT_LABEL[inds[indStep + 1].event]}）→`}</span></button>
+          </div>
+        </ScreenPortal>
       </div>
     )
   }
@@ -199,18 +202,20 @@ export default function WorldTournamentPage() {
           </div>
         </div>
         {/* 次へは下部固定・次に何が来るか明記（駅伝第N戦へ / 総合成績へ） */}
-        <div style={{ position: 'fixed', left: 0, right: 0, bottom: bottomStack(adH, { aboveNav: true }), maxWidth: 480, margin: '0 auto', padding: '14px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
-          <button
-            onClick={() => {
-              markWorldIndividualRevealed()
-              setRevealOpen(false)
-              if (isFinal) navigate('/national/result')
-              else window.scrollTo(0, 0)
-            }}
-            className="btn-game btn-game--purple"
-            style={{ width: '100%' }}
-          ><span className="btn-game__inner">{nextLabel}</span></button>
-        </div>
+        <ScreenPortal>
+          <div style={{ position: 'fixed', left: 0, right: 0, bottom: bottomStack(adH, { aboveNav: true }), maxWidth: 480, margin: '0 auto', padding: '14px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
+            <button
+              onClick={() => {
+                markWorldIndividualRevealed()
+                setRevealOpen(false)
+                if (isFinal) navigate('/national/result')
+                else window.scrollTo(0, 0)
+              }}
+              className="btn-game btn-game--purple"
+              style={{ width: '100%' }}
+            ><span className="btn-game__inner">{nextLabel}</span></button>
+          </div>
+        </ScreenPortal>
       </div>
     )
   }
@@ -228,24 +233,26 @@ export default function WorldTournamentPage() {
         </div>
         <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.purple, letterSpacing: 3, fontWeight: 900, margin: '4px 14px 8px' }}>順位（{t.raceIndex}/{t.races.length}戦消化・合計ポイント）・国を長押しで代表詳細</div>
         <StandingsTable rows={standRows} onRowLongPress={id => { if (id.startsWith('nat_')) navigate(`/teams/national/${id.slice(4)}`) }} />
-        <div style={{ position: 'fixed', left: 0, right: 0, bottom: bottomStack(adH, { aboveNav: true }), maxWidth: 480, margin: '0 auto', padding: '14px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
-          {pendingReveal ? (
-            // 種目結果が未発表なら、まず結果を見せる（何の結果かを明記）
-            <button onClick={() => { setRevealOpen(true); window.scrollTo(0, 0) }} className="btn-game btn-game--purple" style={{ width: '100%' }}><span className="btn-game__inner">{WA_EVENT_LABEL[t.individuals![revealIdx].event]}の結果を見る →</span></button>
-          ) : done ? (
-            <button onClick={() => navigate('/national/result')} className="btn-game btn-game--purple" style={{ width: '100%' }}><span className="btn-game__inner">最終結果へ →</span></button>
-          ) : t.japanIn ? (
-            <button onClick={() => setPhase('lineup')} className="btn-game btn-game--purple" style={{ width: '100%' }}><span className="btn-game__inner">第{t.raceIndex + 1}戦 区間配置へ →</span></button>
-          ) : (
-            // 日本が出ていない年。再生を見せられ続けないよう、区間配置と同じスキップを並べる。
-            // ★**大会の中に「最後までスキップ」を置かないこと**（オーナー・2026-08-16）。
-            //   まとめて飛ばす口はホームのカードの「結果だけ見る」1つだけ（lib/worldSkip）
-            <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
-              <SkipRaceButton onClick={() => runWithLoading('結果を計算中…', () => run(undefined, true), 500)} label="結果だけ見る" />
-              <button onClick={() => runWithLoading('レース準備中…', () => run(), 500)} className="btn-game btn-game--purple" style={{ flex: 1 }}><span className="btn-game__inner">第{t.raceIndex + 1}戦を観戦する</span></button>
-            </div>
-          )}
-        </div>
+        <ScreenPortal>
+          <div style={{ position: 'fixed', left: 0, right: 0, bottom: bottomStack(adH, { aboveNav: true }), maxWidth: 480, margin: '0 auto', padding: '14px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
+            {pendingReveal ? (
+              // 種目結果が未発表なら、まず結果を見せる（何の結果かを明記）
+              <button onClick={() => { setRevealOpen(true); window.scrollTo(0, 0) }} className="btn-game btn-game--purple" style={{ width: '100%' }}><span className="btn-game__inner">{WA_EVENT_LABEL[t.individuals![revealIdx].event]}の結果を見る →</span></button>
+            ) : done ? (
+              <button onClick={() => navigate('/national/result')} className="btn-game btn-game--purple" style={{ width: '100%' }}><span className="btn-game__inner">最終結果へ →</span></button>
+            ) : t.japanIn ? (
+              <button onClick={() => setPhase('lineup')} className="btn-game btn-game--purple" style={{ width: '100%' }}><span className="btn-game__inner">第{t.raceIndex + 1}戦 区間配置へ →</span></button>
+            ) : (
+              // 日本が出ていない年。再生を見せられ続けないよう、区間配置と同じスキップを並べる。
+              // ★**大会の中に「最後までスキップ」を置かないこと**（オーナー・2026-08-16）。
+              //   まとめて飛ばす口はホームのカードの「結果だけ見る」1つだけ（lib/worldSkip）
+              <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+                <SkipRaceButton onClick={() => runWithLoading('結果を計算中…', () => run(undefined, true), 500)} label="結果だけ見る" />
+                <button onClick={() => runWithLoading('レース準備中…', () => run(), 500)} className="btn-game btn-game--purple" style={{ flex: 1 }}><span className="btn-game__inner">第{t.raceIndex + 1}戦を観戦する</span></button>
+              </div>
+            )}
+          </div>
+        </ScreenPortal>
       </div>
     )
   }

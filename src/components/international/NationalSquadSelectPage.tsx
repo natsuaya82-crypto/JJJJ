@@ -17,6 +17,7 @@ import { calcBaseAbility, calcAffinity } from '../../engine/raceEngine'
 import { useAdHeight } from '../layout/Layout'
 import { SpecChip } from '../player/PlayerChips'
 import PlayerList from '../player/PlayerList'
+import ScreenPortal from '../ui/ScreenPortal'
 
 const SQUAD = 20
 
@@ -266,24 +267,26 @@ export default function NationalSquadSelectPage() {
         </PlayerList>
 
         {/* 選出バー（固定・タブバーと広告の上） */}
-        <div style={{
-          position: 'fixed', left: 0, right: 0, bottom: barBottom, margin: '0 auto', maxWidth: 480,
-          padding: '10px 16px 10px',
-          background: `linear-gradient(180deg, transparent, ${C.bg} 30%)`,
-          display: 'flex', alignItems: 'center', gap: 12, zIndex: 35,
-        }}>
-          {pickerPicked.size === 0 ? (
-            <button disabled style={{
-              flex: 1, padding: '13px 0',cursor: 'default',
-              background: C.surface2, border: `2px solid ${C.border2}`, color: C.textDim,
-              fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900,
-            }}>候補をタップで選択</button>
-          ) : (
-            <button onClick={confirmPick} className="btn-game btn-game--purple" style={{ flex: 1 }}>
-              <span className="btn-game__inner">この{pickerPicked.size}人を選出</span>
-            </button>
-          )}
-        </div>
+        <ScreenPortal>
+          <div style={{
+            position: 'fixed', left: 0, right: 0, bottom: barBottom, margin: '0 auto', maxWidth: 480,
+            padding: '10px 16px 10px',
+            background: `linear-gradient(180deg, transparent, ${C.bg} 30%)`,
+            display: 'flex', alignItems: 'center', gap: 12, zIndex: 35,
+          }}>
+            {pickerPicked.size === 0 ? (
+              <button disabled style={{
+                flex: 1, padding: '13px 0',cursor: 'default',
+                background: C.surface2, border: `2px solid ${C.border2}`, color: C.textDim,
+                fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900,
+              }}>候補をタップで選択</button>
+            ) : (
+              <button onClick={confirmPick} className="btn-game btn-game--purple" style={{ flex: 1 }}>
+                <span className="btn-game__inner">この{pickerPicked.size}人を選出</span>
+              </button>
+            )}
+          </div>
+        </ScreenPortal>
       </div>
     )
   }
@@ -421,25 +424,27 @@ export default function NationalSquadSelectPage() {
       </div>
 
       {/* ボトムバー（区間配置と同じ構造：クリア＋確定）。タブバー(58px)＋広告の上に固定 */}
-      <div style={{
-        position: 'fixed', bottom: barBottom, left: 0, right: 0, margin: '0 auto',
-        width: '100%', maxWidth: '480px',
-        padding: '8px 14px 10px',
-        background: `linear-gradient(to top, ${C.bg} 68%, ${alpha(C.bg, 0)})`,
-        display: 'flex', alignItems: 'center', gap: 6,
-        zIndex: 35,
-      }}>
-        <button onClick={() => setSlots({})} style={{ padding: '10px 12px',border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: F.body, cursor: 'pointer', fontFamily: 'inherit' }}>クリア</button>
-        {full ? (
-          <button onClick={save} className="btn-game btn-game--purple" style={{ flex: 1 }}>
-            <span className="btn-game__inner">この{filledCount}人で確定</span>
-          </button>
-        ) : (
-          <button style={{ flex: 1, padding: 12,border: 'none', background: C.surface2, color: C.textGhost, fontSize: F.sub, fontWeight: 700, cursor: 'default', fontFamily: 'inherit' }}>
-            残り{SQUAD - filledCount}枠 未選出
-          </button>
-        )}
-      </div>
+      <ScreenPortal>
+        <div style={{
+          position: 'fixed', bottom: barBottom, left: 0, right: 0, margin: '0 auto',
+          width: '100%', maxWidth: '480px',
+          padding: '8px 14px 10px',
+          background: `linear-gradient(to top, ${C.bg} 68%, ${alpha(C.bg, 0)})`,
+          display: 'flex', alignItems: 'center', gap: 6,
+          zIndex: 35,
+        }}>
+          <button onClick={() => setSlots({})} style={{ padding: '10px 12px',border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: F.body, cursor: 'pointer', fontFamily: 'inherit' }}>クリア</button>
+          {full ? (
+            <button onClick={save} className="btn-game btn-game--purple" style={{ flex: 1 }}>
+              <span className="btn-game__inner">この{filledCount}人で確定</span>
+            </button>
+          ) : (
+            <button style={{ flex: 1, padding: 12,border: 'none', background: C.surface2, color: C.textGhost, fontSize: F.sub, fontWeight: 700, cursor: 'default', fontFamily: 'inherit' }}>
+              残り{SQUAD - filledCount}枠 未選出
+            </button>
+          )}
+        </div>
+      </ScreenPortal>
     </div>
   )
 }

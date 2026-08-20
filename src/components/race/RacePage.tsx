@@ -27,6 +27,7 @@ import {
 } from '../../engine/interactiveRace'
 import type { ISim, InteractiveSegResult } from '../../engine/interactiveRace'
 import { buildTeamRankings, countSegmentsByTeam } from '../../engine/raceEngine'
+import ScreenPortal from '../ui/ScreenPortal'
 
 type Phase = 'lineup' | 'simulating' | 'results'
 
@@ -257,11 +258,13 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
           </div>
 
         </div>
-        <div style={{ position: 'fixed', bottom: bottomStack(adH), left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px', padding: '8px 14px 10px', background: `linear-gradient(to top, ${C.bg} 68%, ${alpha(C.bg, 0)})`, zIndex: 35 }}>
-          <button className="btn-game btn-game--gold" onClick={onDone} style={{ width: '100%' }}>
-            <span className="btn-game__inner">ホームに戻る</span>
-          </button>
-        </div>
+        <ScreenPortal>
+          <div style={{ position: 'fixed', bottom: bottomStack(adH), left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px', padding: '8px 14px 10px', background: `linear-gradient(to top, ${C.bg} 68%, ${alpha(C.bg, 0)})`, zIndex: 35 }}>
+            <button className="btn-game btn-game--gold" onClick={onDone} style={{ width: '100%' }}>
+              <span className="btn-game__inner">ホームに戻る</span>
+            </button>
+          </div>
+        </ScreenPortal>
         </>
       )}
     </div>

@@ -13,6 +13,7 @@ import { useAdHeight } from '../layout/Layout'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { useSegmentRecords } from '../../lib/useSegmentRecords'
 import { FaceOrDot } from './SegmentDetailCard'
+import ScreenPortal from '../ui/ScreenPortal'
 
 
 function computeAnimGaps(
@@ -428,106 +429,108 @@ export function SimPhase({
   // ── イベント発生：ヘッダーと広告の間に固定（スクロールなし）──
   if (atEvent && pendingEvent && !peekRace) {
     return (
-      <div style={{
-        fontFamily: SAIRA,
-        position: 'fixed', top: 52, bottom: bottomStack(adH), left: 0, right: 0, margin: '0 auto',
-        width: '100%', maxWidth: 480, zIndex: 30, overflow: 'hidden',
-        background: `radial-gradient(ellipse at 50% 30%, ${alpha(segCol, 0.22)} 0%, ${C.bg} 65%)`,
-        display: 'flex', flexDirection: 'column',
-      }}>
-        <style>{`
-          @keyframes ev-pop { 0%{opacity:0;transform:scale(0.6)} 55%{opacity:1;transform:scale(1.08)} 100%{opacity:1;transform:scale(1)} }
-          @keyframes ev-in  { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
-          @keyframes ev-line { from{width:0} to{width:64px} }
-        `}</style>
+      <ScreenPortal>
+        <div style={{
+          fontFamily: SAIRA,
+          position: 'fixed', top: 52, bottom: bottomStack(adH), left: 0, right: 0, margin: '0 auto',
+          width: '100%', maxWidth: 480, zIndex: 30, overflow: 'hidden',
+          background: `radial-gradient(ellipse at 50% 30%, ${alpha(segCol, 0.22)} 0%, ${C.bg} 65%)`,
+          display: 'flex', flexDirection: 'column',
+        }}>
+          <style>{`
+            @keyframes ev-pop { 0%{opacity:0;transform:scale(0.6)} 55%{opacity:1;transform:scale(1.08)} 100%{opacity:1;transform:scale(1)} }
+            @keyframes ev-in  { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+            @keyframes ev-line { from{width:0} to{width:64px} }
+          `}</style>
 
-        {eventIntro ? (
-          /* 発生演出 */
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
-            <div style={{ height: 2, background: segCol, animation: 'ev-line 0.5s ease forwards', boxShadow: `0 0 10px ${segCol}` }} />
-            <div style={{ fontSize: 34, fontWeight: 900, color: C.text, letterSpacing: 4, animation: 'ev-pop 0.6s cubic-bezier(0.2,0.8,0.3,1.2) forwards', textShadow: `0 0 20px ${alpha(segCol, 0.6)}` }}>
-              イベント発生
+          {eventIntro ? (
+            /* 発生演出 */
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
+              <div style={{ height: 2, background: segCol, animation: 'ev-line 0.5s ease forwards', boxShadow: `0 0 10px ${segCol}` }} />
+              <div style={{ fontSize: 34, fontWeight: 900, color: C.text, letterSpacing: 4, animation: 'ev-pop 0.6s cubic-bezier(0.2,0.8,0.3,1.2) forwards', textShadow: `0 0 20px ${alpha(segCol, 0.6)}` }}>
+                イベント発生
+              </div>
+              <div style={{ fontSize: F.body, fontWeight: 800, color: segCol, letterSpacing: 3, animation: 'ev-in 0.5s ease 0.2s both' }}>
+                {pendingEvent.type}
+              </div>
             </div>
-            <div style={{ fontSize: F.body, fontWeight: 800, color: segCol, letterSpacing: 3, animation: 'ev-in 0.5s ease 0.2s both' }}>
-              {pendingEvent.type}
-            </div>
-          </div>
-        ) : (
-          /* 選択画面 */
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '18px 18px 16px', animation: 'ev-in 0.3s ease' }}>
-            {/* 状況 */}
-            <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                <span style={{ fontSize: F.caption, fontWeight: 900, letterSpacing: 3, color: segCol, textShadow: `0 0 8px ${alpha(segCol, 0.5)}` }}>{pendingEvent.type}</span>
-                <span style={{ fontSize: F.caption, color: C.textDim }}>{currentSegIdx}区</span>
-                {lowStaminaHint && (
-                  <span style={{ marginLeft: 'auto', fontSize: F.caption, fontWeight: 800, color: C.red }}>スタミナ低下</span>
+          ) : (
+            /* 選択画面 */
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', padding: '18px 18px 16px', animation: 'ev-in 0.3s ease' }}>
+              {/* 状況 */}
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                  <span style={{ fontSize: F.caption, fontWeight: 900, letterSpacing: 3, color: segCol, textShadow: `0 0 8px ${alpha(segCol, 0.5)}` }}>{pendingEvent.type}</span>
+                  <span style={{ fontSize: F.caption, color: C.textDim }}>{currentSegIdx}区</span>
+                  {lowStaminaHint && (
+                    <span style={{ marginLeft: 'auto', fontSize: F.caption, fontWeight: 800, color: C.red }}>スタミナ低下</span>
+                  )}
+                </div>
+                <div style={{ fontSize: F.title, fontWeight: 700, color: C.text, lineHeight: 1.6, marginBottom: 10 }}>
+                  {pendingEvent.situation}
+                </div>
+                {pendingEvent.battleContext && (
+                  <div style={{ fontSize: F.body, color: C.textSub, lineHeight: 1.6 }}>{pendingEvent.battleContext}</div>
                 )}
+                {/* レース状況を別画面で確認 */}
+                <button onClick={() => setPeekRace(true)} style={{
+                  alignSelf: 'flex-start', marginTop: 16,
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '8px 14px',cursor: 'pointer',
+                  background: 'transparent', border: `1px solid ${alpha(segCol, 0.5)}`,
+                  color: segCol, fontFamily: SAIRA, fontSize: F.body, fontWeight: 700,
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" stroke="currentColor" strokeWidth="1.8"/>
+                    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8"/>
+                  </svg>
+                  レース状況を見る
+                </button>
               </div>
-              <div style={{ fontSize: F.title, fontWeight: 700, color: C.text, lineHeight: 1.6, marginBottom: 10 }}>
-                {pendingEvent.situation}
-              </div>
-              {pendingEvent.battleContext && (
-                <div style={{ fontSize: F.body, color: C.textSub, lineHeight: 1.6 }}>{pendingEvent.battleContext}</div>
-              )}
-              {/* レース状況を別画面で確認 */}
-              <button onClick={() => setPeekRace(true)} style={{
-                alignSelf: 'flex-start', marginTop: 16,
-                display: 'flex', alignItems: 'center', gap: 6,
-                padding: '8px 14px',cursor: 'pointer',
-                background: 'transparent', border: `1px solid ${alpha(segCol, 0.5)}`,
-                color: segCol, fontFamily: SAIRA, fontSize: F.body, fontWeight: 700,
-              }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" stroke="currentColor" strokeWidth="1.8"/>
-                  <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8"/>
-                </svg>
-                レース状況を見る
-              </button>
-            </div>
 
-            {/* 選択肢 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {pendingEvent.choices.map((c, i) => {
-                const sel = selectedChoice === i
-                const label = lowStaminaHint && c.lowStaminaText ? c.lowStaminaText : c.text
-                const effortType = pendingEvent._effects[i]?.effortType
-                const prob = effortType ? choiceSuccessProb(effortType, segStamina, pendingEvent.opponentOvr ?? segStamina) : 1
-                const isSure = prob >= 1
-                const probPct = Math.round(prob * 100)
-                const probCol = isSure ? C.green : probPct >= 65 ? C.green : probPct >= 40 ? C.gold : C.red
-                return (
-                  <button
-                    key={c.id}
-                    onClick={() => handleChoice(i)}
-                    disabled={selectedChoice !== null}
-                    style={{
-                      width: '100%', textAlign: 'left', padding: '14px 16px',
-                      cursor: selectedChoice !== null ? 'default' : 'pointer',
-                      ...glassStyle(sel ? segCol : C.textSub),
-                      // 選んだ肢だけ光らせる（ガラスの影に足す）
-                      ...(sel ? { boxShadow: `inset 0 1px 0 rgba(255,255,255,0.22), 0 0 18px ${alpha(segCol, 0.4)}`, color: C.text } : null),
-                      fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 800,
-                      opacity: selectedChoice !== null && !sel ? 0.4 : 1,
-                      transition: 'all 0.15s ease',
-                      display: 'flex', alignItems: 'center', gap: 10,
-                    }}
-                  >
-                    <span style={{ flex: 1 }}>{label}</span>
-                    <span style={{
-                      flexShrink: 0, fontSize: F.label, fontWeight: 900, color: probCol,
-                      background: alpha(probCol, 0.13), border: `1px solid ${alpha(probCol, 0.4)}`,
-padding: '3px 8px', textAlign: 'center', minWidth: 52,
-                    }}>
-                      {isSure ? '確実' : `成功 ${probPct}%`}
-                    </span>
-                  </button>
-                )
-              })}
+              {/* 選択肢 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {pendingEvent.choices.map((c, i) => {
+                  const sel = selectedChoice === i
+                  const label = lowStaminaHint && c.lowStaminaText ? c.lowStaminaText : c.text
+                  const effortType = pendingEvent._effects[i]?.effortType
+                  const prob = effortType ? choiceSuccessProb(effortType, segStamina, pendingEvent.opponentOvr ?? segStamina) : 1
+                  const isSure = prob >= 1
+                  const probPct = Math.round(prob * 100)
+                  const probCol = isSure ? C.green : probPct >= 65 ? C.green : probPct >= 40 ? C.gold : C.red
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => handleChoice(i)}
+                      disabled={selectedChoice !== null}
+                      style={{
+                        width: '100%', textAlign: 'left', padding: '14px 16px',
+                        cursor: selectedChoice !== null ? 'default' : 'pointer',
+                        ...glassStyle(sel ? segCol : C.textSub),
+                        // 選んだ肢だけ光らせる（ガラスの影に足す）
+                        ...(sel ? { boxShadow: `inset 0 1px 0 rgba(255,255,255,0.22), 0 0 18px ${alpha(segCol, 0.4)}`, color: C.text } : null),
+                        fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 800,
+                        opacity: selectedChoice !== null && !sel ? 0.4 : 1,
+                        transition: 'all 0.15s ease',
+                        display: 'flex', alignItems: 'center', gap: 10,
+                      }}
+                    >
+                      <span style={{ flex: 1 }}>{label}</span>
+                      <span style={{
+                        flexShrink: 0, fontSize: F.label, fontWeight: 900, color: probCol,
+                        background: alpha(probCol, 0.13), border: `1px solid ${alpha(probCol, 0.4)}`,
+  padding: '3px 8px', textAlign: 'center', minWidth: 52,
+                      }}>
+                        {isSure ? '確実' : `成功 ${probPct}%`}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      </ScreenPortal>
     )
   }
 
@@ -536,15 +539,17 @@ padding: '3px 8px', textAlign: 'center', minWidth: 52,
 
       {/* レース状況の覗き見中：イベントに戻る（広告枠の上に配置。買い切り版は0） */}
       {atEvent && peekRace && (
-        <div style={{
-          position: 'fixed', bottom: bottomStack(adH), left: 0, right: 0, margin: '0 auto',
-          width: '100%', maxWidth: 480, zIndex: 55,
-          padding: '14px 12px', background: `linear-gradient(0deg, ${C.bg} 70%, transparent)`,
-        }}>
-          <button onClick={() => setPeekRace(false)} className="btn-game btn-game--gold" style={{ width: '100%' }}>
-            <span className="btn-game__inner">イベントに戻る</span>
-          </button>
-        </div>
+        <ScreenPortal>
+          <div style={{
+            position: 'fixed', bottom: bottomStack(adH), left: 0, right: 0, margin: '0 auto',
+            width: '100%', maxWidth: 480, zIndex: 55,
+            padding: '14px 12px', background: `linear-gradient(0deg, ${C.bg} 70%, transparent)`,
+          }}>
+            <button onClick={() => setPeekRace(false)} className="btn-game btn-game--gold" style={{ width: '100%' }}>
+              <span className="btn-game__inner">イベントに戻る</span>
+            </button>
+          </div>
+        </ScreenPortal>
       )}
 
       {/* 上部：レース全体の進行バー */}
