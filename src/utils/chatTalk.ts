@@ -179,7 +179,13 @@ export function buildIncomingOfferMessages(
     return [
       { from: 'player', kind: key,
         text: `（${o.name}GM）${player.name}選手を移籍金${fmtYen(o.price)}でお譲りいただけないでしょうか。ご検討をお願いします。` },
-      ...(o.ok === false && o.reason
+      // ★**乗り気でも必ず言うこと**（オーナー・2026-08-20「乗り気なら乗り気を追加して欲しい」）。
+      //   以前は `o.ok === false` のときだけ出していたので、**1クラブから来て本人が乗り気の
+      //   ときだけ本人の声が無く**、画面からは「まだ聞いていない」のか「乗り気」なのかが
+      //   区別できませんでした。2クラブ以上のときは乗り気でも「→ 行きたい」が出るので、
+      //   **件数によって本人の声の有無が変わっている**状態でした。
+      //   文面は `appraiseMove` の `shortReason` 1本（行くときは REASON_YES、断るときは SHORT_NO）。
+      ...(o.reason
         ? [{ from: 'player' as const, kind: `incoming_wish:${o.id}`, text: `（代理人）本人に確認しました。${o.reason}とのことです。` }]
         : []),
     ]

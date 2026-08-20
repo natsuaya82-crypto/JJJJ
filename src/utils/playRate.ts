@@ -107,7 +107,15 @@ export function playRateOf(
   //   移籍の関門（`appraiseMove` の unproven）で「1戦も走っていない＝実績なし」扱いになる。
   //   オーナー指摘（2026-08-14）「その前のシーズンは走ってるのにその表示」。
   //   `SETTLED_RACES` を超えたら今季の数字に切り替わる（今季の姿のほうが新しいので）。
-  if (teamRaces < SETTLED_RACES && prevSeason) {
+  const races = seasonAppearances(playerId, list)
+  // ★**今季もう走っているなら、前シーズンを見ないこと。**
+  //   前シーズンの日程は「**いまのクラブ**が去年走ったぶん」なので、**今年そのクラブへ
+  //   移ってきた選手はそこに1本も載っていません**。そのまま使うと 0/10 になり、
+  //   毎レース走っている選手が `appraiseMove` の `unproven` に当たって
+  //   **「今のクラブで1戦も走っていない」**と表示されていました
+  //   （オーナー・2026-08-20「めちゃくちゃ走ってるのに、移籍でこのチームで走ってないですって出る」）。
+  //   前シーズンを見るのは「**今季まだ何も分からないとき**」だけです。
+  if (races === 0 && teamRaces < SETTLED_RACES && prevSeason) {
     const prevList = clubSeasonRaces(prevSeason, clubId, teams, foreignLeagues)
     const prevTeamRaces = racesDone(prevList)
     if (prevTeamRaces > 0) {
@@ -116,6 +124,5 @@ export function playRateOf(
     }
   }
   if (teamRaces === 0) return { fraction: 0.5, teamRaces: 0, races: 0 }
-  const races = seasonAppearances(playerId, list)
   return { fraction: races / teamRaces, teamRaces, races }
 }

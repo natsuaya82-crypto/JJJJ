@@ -27,6 +27,7 @@ import { runTransferMarket } from '../src/engine/transferMarket'
 import { MAX_TIER_DROP_FOR_STARTER } from '../src/utils/transferDecision'
 import { RUNNING_SLOTS } from '../src/data/rosterRules'
 import { squadRankOf } from '../src/utils/squadNeeds'
+import { playRateOf } from '../src/utils/playRate'
 import { logicSource } from './storeSource'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
@@ -191,6 +192,30 @@ console.log('[4] 出場記録が無くても、2段以上格下のクラブは�
   const benchMoved = out.players.find(p => p.id === BENCH)!.teamId !== HI
   check('⑤ 空振りでない（同じ世界で控えは動く）', benchMoved,
     'この世界では誰も動かない＝⑤は何も守っていません')
+}
+
+// ── ⑥ 今季走っている選手を「1戦も走っていない」にしないこと ────────────
+//    前シーズンの日程は「**いまのクラブ**が去年走ったぶん」なので、今年そこへ移ってきた
+//    選手は1本も載っていません。今季もう走っているのにそちらを見ると 0/10 になり、
+//    `appraiseMove` の `unproven`（今のクラブで1戦も走っていない）に当たります。
+console.log('[5] 今季走っている選手は、前シーズンで上書きされない')
+{
+  const mk = (id: string, runners: string[]): Race => ({
+    id, name: id, date: `${YEAR}-01-01`, segments: [{ distanceKm: 10, uphillPct: 0, downhillPct: 0 }],
+    results: { teamResults: [], segmentResults: [{ segment: 1, runners: runners.map(p => ({ playerId: p, teamId: HI })) }] },
+  } as unknown as Race)
+  const thisSeason = { races: [mk('r1', ['p']), mk('r2', ['p']), mk('r3', ['p'])] }
+  // 前季：同じクラブが10戦。本人はそのクラブに居なかったので0戦
+  const prev = { races: Array.from({ length: 10 }, (_, i) => mk(`q${i}`, ['other'])) }
+  const r = playRateOf('p', HI, thisSeason, teams, [], prev)
+  check('⑥ 3戦フル出場なら、前季を渡しても出場率100%', r.fraction === 1 && r.races === 3,
+    `fraction=${r.fraction} races=${r.races} teamRaces=${r.teamRaces}`)
+  // 空振りでないこと：今季まだ1戦も走っていないなら、前季を見る（本来の目的）
+  const notYet = { races: [mk('r1', ['other']), mk('r2', ['other'])] }
+  const prevFull = { races: Array.from({ length: 10 }, (_, i) => mk(`q${i}`, ['p'])) }
+  const r2 = playRateOf('p', HI, notYet, teams, [], prevFull)
+  check('⑥ 空振りでない（今季まだ走っていなければ前季を見る）', r2.fraction === 1 && r2.teamRaces === 10,
+    `fraction=${r2.fraction} teamRaces=${r2.teamRaces}`)
 }
 
 process.exit(failed > 0 ? 1 : 0)
