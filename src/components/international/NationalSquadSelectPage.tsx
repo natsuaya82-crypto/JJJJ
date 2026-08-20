@@ -255,7 +255,6 @@ export default function NationalSquadSelectPage() {
                 key={p.id}
                 player={p}
                 selected={pickerPicked.has(p.id)}
-                hideStatusBadges
                 handlers={pickerRowHandlers(p.id, () => togglePick(p.id))}
                 extra={clubBadge(p.teamId)}
               />
