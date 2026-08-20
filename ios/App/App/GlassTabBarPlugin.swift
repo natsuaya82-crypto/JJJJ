@@ -33,11 +33,14 @@ public class GlassTabBarPlugin: CAPPlugin, CAPBridgedPlugin {
   /// **呼ぶ側で分けないこと**（別々にすると、項目を入れ替えた直後の1フレームだけ
   /// 選択中がずれる。Web の下タブでも同じ形にしてある）
   @objc func apply(_ call: CAPPluginCall) {
-    let items = call.getArray("items", JSObject.self) ?? []
-    let active = call.getString("active") ?? ""
-    let badges = call.getObject("badges") ?? [:]
-    let visible = call.getBool("visible") ?? true
-    let bottomInset = call.getDouble("bottomInset") ?? 0
+    // ★**渡されたものだけを反映する。** 既定値で埋めないこと——
+    //   `apply({ visible: false })` のような**一部だけの更新**ができなくなり、
+    //   隠すために項目を空で渡す → ボタンを作り直す、という無駄が生まれる
+    let items = call.getArray("items", JSObject.self)
+    let active = call.getString("active")
+    let badges = call.getObject("badges")
+    let visible = call.getBool("visible")
+    let bottomInset = call.getDouble("bottomInset")
 
     DispatchQueue.main.async {
       guard let host = self.bridge?.viewController?.view else { call.resolve(); return }
@@ -48,17 +51,17 @@ public class GlassTabBarPlugin: CAPPlugin, CAPBridgedPlugin {
         self.bar = v
       }
       self.bar?.set(
-        items: items.compactMap { item in
+        items: items?.compactMap { item in
           guard let key = item["key"] as? String, let label = item["label"] as? String,
                 let icon = item["icon"] as? String else { return nil }
           return GlassTabBarView.Item(key: key, label: label, icon: icon)
         },
         active: active,
-        badges: badges.reduce(into: [String: Int]()) { acc, kv in
+        badges: badges?.reduce(into: [String: Int]()) { acc, kv in
           if let n = kv.value as? Int { acc[kv.key] = n }
         },
         visible: visible,
-        bottomInset: CGFloat(bottomInset))
+        bottomInset: bottomInset.map { CGFloat($0) })
       call.resolve()
     }
   }
@@ -102,25 +105,26 @@ final class GlassTabBarView: UIView {
   }
   required init?(coder: NSCoder) { fatalError() }
 
-  func set(items: [Item], active: String, badges: [String: Int], visible: Bool, bottomInset: CGFloat) {
-    extraBottom = bottomInset
-    isHidden = !visible
+  /// nil は「そこは変えない」。一部だけ渡せる（隠すだけ・数字だけ、など）
+  func set(items: [Item]?, active: String?, badges: [String: Int]?, visible: Bool?, bottomInset: CGFloat?) {
+    if let bottomInset { extraBottom = bottomInset }
+    if let visible { isHidden = !visible }
     // 項目が変わったときだけ作り直す（毎回作り直すと押した瞬間の見た目が飛ぶ）
-    let keys = items.map { $0.key }
-    if keys != stack.arrangedSubviews.compactMap({ ($0 as? TabButton)?.key }) {
-      stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
-      buttons.removeAll()
-      for it in items {
-        let b = TabButton(item: it, activeColor: activeColor, idleColor: idleColor)
-        b.addTarget(self, action: #selector(tapped(_:)), for: .touchUpInside)
-        stack.addArrangedSubview(b)
-        buttons[it.key] = b
+    if let items {
+      let keys = items.map { $0.key }
+      if keys != stack.arrangedSubviews.compactMap({ ($0 as? TabButton)?.key }) {
+        stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        buttons.removeAll()
+        for it in items {
+          let b = TabButton(item: it, activeColor: activeColor, idleColor: idleColor)
+          b.addTarget(self, action: #selector(tapped(_:)), for: .touchUpInside)
+          stack.addArrangedSubview(b)
+          buttons[it.key] = b
+        }
       }
     }
-    for (key, b) in buttons {
-      b.setActive(key == active)
-      b.setBadge(badges[key] ?? 0)
-    }
+    if let active { for (key, b) in buttons { b.setActive(key == active) } }
+    if let badges { for (key, b) in buttons { b.setBadge(badges[key] ?? 0) } }
     setNeedsLayout()
   }
 

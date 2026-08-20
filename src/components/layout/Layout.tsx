@@ -177,6 +177,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     //   実際に変わるものだけを見る（どこにいるか・数字・レース中か・広告の高さ）
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [useNative, location.pathname, onlineCount, raceInProgress, adH])
+  // ★**Layout が消えたら必ず隠すこと。** ネイティブの下タブは WebView の外
+  //   （`viewController.view` の上）に居るので、**React が消えても勝手には消えません**。
+  //   タイトル・オンボーディング・ドラフト・セーブ復旧は `Layout` の外にあるので、
+  //   これが無いと**下タブが要らない画面に出しっぱなし**になります
+  //   （オーナー・2026-08-20「下タブがいらないタイトル画面とかでも表示されてる」）。
+  //   「下タブが在ってよい範囲＝Layout の中」なので、画面ごとに条件を書かないこと
+  useEffect(() => {
+    if (!useNative) return
+    return () => { void glassTabBar.apply({ visible: false }) }
+  }, [useNative])
   // 押されたら Web が動く（ルーティングは1本のまま）
   useEffect(() => {
     if (!useNative) return

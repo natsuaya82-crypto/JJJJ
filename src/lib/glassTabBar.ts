@@ -22,13 +22,18 @@ import { Capacitor, registerPlugin } from '@capacitor/core'
 export type GlassTabItem = { key: string; label: string; icon: string }
 
 type GlassTabBarPlugin = {
+  /**
+   * 渡したものだけを反映する（省いたものは触らない）。
+   * ★`apply({ visible: false })` で隠すのが**唯一の消し方**。ネイティブの下タブは
+   *   WebView の外に居るので、React 側が消えても**勝手には消えません**
+   */
   apply(o: {
-    items: GlassTabItem[]
-    active: string
-    badges: Record<string, number>
-    visible: boolean
+    items?: GlassTabItem[]
+    active?: string
+    badges?: Record<string, number>
+    visible?: boolean
     /** 広告バナーのぶん。下タブはこのぶん上に浮く（`bottomStack` と同じ考え方） */
-    bottomInset: number
+    bottomInset?: number
   }): Promise<void>
   addListener(e: 'tabTap', cb: (d: { key: string }) => void): Promise<{ remove: () => void }>
 }
