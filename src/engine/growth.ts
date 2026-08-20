@@ -1,5 +1,5 @@
 import type { Player, CardStatKey, Ratings } from '../types'
-import { peakAgeOf, getStatPotentials } from '../utils/playerUtils'
+import { peakAgeOf, getStatPotentials, STAT_CAP } from '../utils/playerUtils'
 import { tierGrowthRate, ANNUAL_BASE_EXP, type ClubTier } from '../utils/clubTier'
 
 // ── EXP システム（設計書準拠） ─────────────────────────────────────────────
@@ -38,7 +38,10 @@ export function processExpGains(
 ): { ratings: Player['ratings']; exp: Partial<Record<CardStatKey, number>> } {
   const newRatings = { ...ratings }
   const newExp = { ...exp }
-  const capOf = (stat: CardStatKey) => Math.min(99, caps[stat] ?? 99)
+  // ★天井は渡ってきた `caps` がそのまま正（`getStatPotentials` が `statCapOf` を掛けている）。
+  //   ここで `Math.min(99, …)` と2つ目の天井を書かないこと——トロフィーで 99 を超えた能力が
+  //   そこで止まる（優勝トロフィーを入れたときに実際に踏んだ）
+  const capOf = (stat: CardStatKey) => caps[stat] ?? STAT_CAP
   for (const [stat, baseGain] of Object.entries(gains) as [CardStatKey, number][]) {
     // 既に能力別ポテンシャル上限に達している能力はEXPを加算しない（カード・EXPの無駄を防ぐ）。
     const cur0 = (newRatings as Record<string, number>)[stat] ?? 0
@@ -144,7 +147,7 @@ export function applyGrowth(input: GrowthInput): GrowthOutcome {
 
   const gained: Partial<Record<CardStatKey, number>> = {}
   ;(Object.keys(baseGains) as CardStatKey[]).forEach(k => {
-    const capped = ((player.ratings as Record<string, number>)[k] ?? 0) >= Math.min(99, (caps as Record<string, number>)[k] ?? 99)
+    const capped = ((player.ratings as Record<string, number>)[k] ?? 0) >= ((caps as Record<string, number>)[k] ?? STAT_CAP)
     const v = capped ? 0 : Math.round((baseGains[k] ?? 0) * potArg * ageM)
     if (v > 0) gained[k] = v
   })

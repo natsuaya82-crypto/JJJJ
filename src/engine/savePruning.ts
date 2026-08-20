@@ -70,7 +70,7 @@ export function pruneSaveData(args: {
   //    能力値・EXP・上限解放などは持たせない。セーブ容量の節約。
   //    ratings は型上は必須だが、読む側は safeRatings/ovr で欠損に耐える作りにしてある。
   //    contract は残す（引退ニュースのカードが p.contract.annualSalary を直接読むため）
-  const LEAN_DROP_KEYS = ['ratings', 'exp', 'potentialBoosts', 'customCaps', 'segmentPBs', 'personalSponsors', 'predictedPick', 'ovrHistory', 'traits'] as const
+  const LEAN_DROP_KEYS = ['ratings', 'exp', 'potentialBoosts', 'trophyBoosts', 'customCaps', 'segmentPBs', 'personalSponsors', 'predictedPick', 'ovrHistory', 'traits'] as const
   // 引退そのものは movePlayer の分岐に任せる（上の引退処理を通っていない経路もここに来るため）。
   // ここに残すのはセーブを軽くするためのデータ削りだけ
   const leanRetired = (p: Player, retiredYear = st.currentSeason.year): Player => {

@@ -267,6 +267,9 @@ export type Player = {
   finalOvr?: number           // 引退時のOVR。引退選手は能力値そのものを消してセーブを軽くするので、
                               // 歴代ドラフト・移籍履歴で出す総合値だけこの1項目で残す
   potentialBoosts?: Partial<Record<CardStatKey, number>>  // ジュエルの上限解放で能力別上限に加算する値
+  // 優勝トロフィーで 99 を超えて上げたぶん（能力ごと・合計で最大11＝110まで）。
+  // ★ジュエルの上限解放（potentialBoosts）とは別に持つこと。混ぜるとジュエルで99を超えられる
+  trophyBoosts?: Partial<Record<CardStatKey, number>>
   customCaps?: Ratings  // マイプレイヤー作成で明示指定した能力別成長上限（あれば getStatPotentials はこれを使う）
   customFace?: { style: number; eye: number; hair: 'black_light' | 'black_dark' | 'brown_light' | 'blond_light'; flip: boolean }  // マイプレイヤーの手動指定顔
   isMyPlayer?: boolean  // アップデート記念のマイプレイヤー（作成した自作選手）
@@ -1082,6 +1085,12 @@ export type GameState = {
   // 結果画面ではヘッダーのジュエル表示自体が隠れていて増減が見えないため、ホーム到達まで持ち越す
   jewelGains?: { label: string; amount: number }[]
   jewels: number
+  /**
+   * **優勝トロフィー**。JPEL 1部優勝で1個・ECL優勝で1個（年最大2個）。
+   * 1個で自チームの選手の能力1つの上限が 99 → +1 される（最大110）。
+   * ★増やす口は2つだけ（`endSeason` の1部優勝・ECL の優勝）。他所で足さないこと
+   */
+  trophies?: number
   achievements?: Achievement[]
   starredOpponents?: string[]
   starredProspects?: string[]

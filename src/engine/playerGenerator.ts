@@ -4,7 +4,7 @@ import type { TraitId } from '../utils/traitUtils'
 import type { Rank } from '../types'
 import { curveOvr } from './ageCurve'
 import { tierOf, tierOfClubId, tierRankSlots, TIER_POTENTIAL_CAP, INITIAL_ROSTER_SIZE, type ClubTier } from '../utils/clubTier'
-import { SPEC_STRONG_STATS, faMarketSalary } from '../utils/playerUtils'
+import { SPEC_STRONG_STATS, faMarketSalary, STAT_CAP } from '../utils/playerUtils'
 import { strHash } from '../utils/hash'
 import { SPECIALTIES } from '../utils/squadNeeds'
 import { buildNationalityBag } from '../data/nationTalent'
@@ -1415,7 +1415,8 @@ export function statCapsFor(id: string, specialty: Specialty, potential: number)
   const out: Record<string, number> = {}
   for (const stat of ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery'] as const) {
     const jitter = (hashForCap(id + stat) % 9) - 6
-    out[stat] = Math.min(99, Math.round((strong.has(stat) ? potential + 12 : potential - 5) + jitter))
+    // 生成はトロフィーを持たないので、天井はふつうの STAT_CAP
+    out[stat] = Math.min(STAT_CAP, Math.round((strong.has(stat) ? potential + 12 : potential - 5) + jitter))
   }
   return out
 }

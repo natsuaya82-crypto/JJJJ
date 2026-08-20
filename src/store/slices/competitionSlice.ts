@@ -279,6 +279,7 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
     let newAch: NonNullable<GameState['achievements']> = []
     let eclResult = state.currentSeason.eclResult
     let eclFinalRank = 0   // 最終戦のみ確定する年間総合順位（ジュエルの総合ボーナス用）
+    let eclWon = false     // ECL優勝（優勝トロフィーの入手条件。最終戦でしか立たない）
 
     if (isFinal) {
       // 最終順位＝累計ポイント降順
@@ -293,6 +294,7 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
         updatedTeams = state.teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget + prize } } : t)
       }
       const won = champion?.id === state.playerTeamId
+      eclWon = won
       if (won) newAch = [{ id: `ecl-champion-${year}`, name: 'ECL制覇', desc: `${year}年 ECLで優勝`, earnedAtYear: year, rarity: 'legendary' as const }]
 
       // 優勝チームの出走メンバー（全5戦の延べ）と大会MVP（全戦の区間で最も突出した走り）
@@ -359,6 +361,9 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
       // このレースで出た区間新に張り替える（前のリーグ戦のバッジ記録が残って誤表示されるのを防ぐ）
       raceNewSegmentRecords: newSegRecordMarksEcl,
       achievements: [...(state.achievements ?? []), ...newAch],
+      // 優勝トロフィー：**ECL優勝で1個**（JPEL 1部優勝ぶんは endSeason が足す）。
+      // ★シリーズが終わった回だけ。`won` はシリーズ最終戦でしか立たない
+      ...(eclWon ? { trophies: (state.trophies ?? 0) + 1 } : {}),
       currentSeason: {
         ...state.currentSeason,
         eclSeries: { ...series, races: newRaces, raceIndex: nextIndex, points: newPoints },

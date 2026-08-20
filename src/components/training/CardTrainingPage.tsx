@@ -5,7 +5,7 @@ import PageHeader from '../ui/PageHeader'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import type { CardStatKey } from '../../types'
-import { ovr, isStatMaxed, getStatPotentials, limitBreakCost } from '../../utils/playerUtils'
+import { ovr, isStatMaxed, getStatPotentials, limitBreakCost, statCapOf, STAT_CAP } from '../../utils/playerUtils'
 import {
   CARD_STAT_LABELS,
   detectCombo, MAX_FUSION_CARDS,
@@ -24,6 +24,7 @@ import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
 import PlayerList from '../player/PlayerList'
 import ScreenCover from '../ui/ScreenCover'
+import { trophyBlockReason } from '../../utils/trophy'
 
 const statKeys: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
 // 種類数 → メニュー倍率（表示用。実効値は cardCombo.ts と一致）
@@ -34,7 +35,7 @@ export default function CardTrainingPage() {
   const {
     trainingCards, players, playerTeamId, applyTrainingCards, dismissDroppedCards,
     fusionPlayerId, fusionCardIds, setFusionPlayer, removeFusionCard, clearFusion,
-    openPlayerSheet, jewels, breakStatLimit, claimDailyGreatSuccess,
+    openPlayerSheet, jewels, breakStatLimit, claimDailyGreatSuccess, spendTrophy, trophies,
   } = useGameStore()
   // 買い切り版の「大成功確約 1日1回」が今日まだ残っているか（区切りは朝10時）
   const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
@@ -87,6 +88,7 @@ export default function CardTrainingPage() {
   const [useFreeGreat, setUseFreeGreat] = useState(false)
   // 上限解放：MAXの能力をタップ→確認ダイアログでジュエル消費して上限+1
   const [limitBreakStat, setLimitBreakStat] = useState<CardStatKey | null>(null)
+  const [trophyStat, setTrophyStat] = useState<CardStatKey | null>(null)
   const [barAnimated, setBarAnimated] = useState(false)
 
   useEffect(() => {
@@ -180,6 +182,16 @@ export default function CardTrainingPage() {
         icon={<CardTrainingHeaderSVG width={60} height={43} />}
         onBack={onBack}
         right={<div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {(trophies ?? 0) > 0 && (
+            <div style={{
+              padding: '4px 10px',
+              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+              border: `1px solid ${alpha(C.cyan, 0.5)}`,
+            }}>
+              <span style={{ fontSize: F.body }}>🏆</span>
+              <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900, color: C.cyan, marginLeft: 3 }}>{trophies}</span>
+            </div>
+          )}
           <div style={{
             padding: '4px 10px',
             background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
@@ -235,6 +247,19 @@ export default function CardTrainingPage() {
         />
       )}
       {gmPassOpen && <GmPassSheet onClose={() => setGmPassOpen(false)} />}
+      {trophyStat && (() => {
+        const cap = statCapOf(targetPlayer, trophyStat)
+        return (
+          <ConfirmDialog
+            title="優勝トロフィーを使う"
+            message={`${CARD_STAT_LABELS[trophyStat]}の上限を ${cap} から ${cap + 1} にします。トロフィーを1つ消費します（所持 ${trophies}）。`}
+            confirmLabel="使う"
+            accent={C.cyan}
+            onConfirm={() => { spendTrophy(targetPlayer.id, trophyStat); audio.playSe('levelup'); setTrophyStat(null) }}
+            onCancel={() => setTrophyStat(null)}
+          />
+        )
+      })()}
       {limitBreakStat && (() => {
         const cap = (getStatPotentials(targetPlayer) as Record<string, number>)[limitBreakStat]
         if (cap >= 99) return null
@@ -288,13 +313,16 @@ export default function CardTrainingPage() {
             const gainPct = req > 0 ? Math.max(0, gainExp / req - basePct) : 0
             const levelUp = req > 0 && curExp + delta >= req
             const cap = (getStatPotentials(targetPlayer) as Record<string, number>)[k]
-            const canBreak = maxed && cap < 99
+            // 99 まではジュエル、99 からは優勝トロフィー。**どちらも同じ関門から出す**
+            const canBreak = maxed && cap < STAT_CAP
+            const trophyReason = trophyBlockReason({ trophies, playerTeamId }, targetPlayer, k)
+            const canTrophy = maxed && trophyReason === null
             return (
-              <div key={k} onClick={canBreak ? () => setLimitBreakStat(k) : undefined} style={{
+              <div key={k} onClick={canBreak ? () => setLimitBreakStat(k) : canTrophy ? () => setTrophyStat(k) : undefined} style={{
                 padding: '5px 6px',textAlign: 'center',
                 background: maxed ? alpha(C.gold, 0.1) : delta > 0 ? alpha('#9FE88D', 0.12) : alpha(C.surface, 0.8),
                 border: `1px solid ${maxed ? alpha(C.gold, 0.4) : delta > 0 ? alpha('#9FE88D', 0.35) : C.border}`,
-                cursor: canBreak ? 'pointer' : 'default',
+                cursor: canBreak || canTrophy ? 'pointer' : 'default',
               }}>
                 <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.textDim, marginBottom: 2 }}>{CARD_STAT_LABELS[k]}</div>
                 <div style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: 700, color: maxed ? C.gold : delta > 0 ? '#9FE88D' : C.textSub, marginBottom: 4 }}>
@@ -305,6 +333,7 @@ export default function CardTrainingPage() {
                   <div style={{ position: 'absolute', left: `${basePct * 100}%`, top: 0, height: '100%', width: `${maxed ? 0 : gainPct * 100}%`, background: '#9FE88D',transition: 'left 0.25s ease, width 0.25s ease' }}/>
                 </div>
                 {canBreak && <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.gold, marginTop: 3 }}>タップで上限解放</div>}
+                {canTrophy && <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.cyan, marginTop: 3 }}>🏆 タップで {cap} → {cap + 1}</div>}
               </div>
             )
           })}

@@ -4,6 +4,7 @@ import { type Facilities, type Player, type Team } from '../types'
 import { withMorale } from '../utils/condition'
 import { facilitiesOf } from '../utils/facilities'
 import { type TieredTeam } from '../utils/clubTier'
+import { statCapOf } from '../utils/playerUtils'
 
 /**
  * **戦術室のぶんを能力に乗せる。ここ1本。**
@@ -27,8 +28,8 @@ export function withFacilityBoost(
     if (boost <= 0 || !p.ratings) return p
     return { ...p, ratings: {
       ...p.ratings,
-      pacing: Math.min(99, p.ratings.pacing + boost),
-      mental: Math.min(99, p.ratings.mental + boost) }}
+      pacing: Math.min(statCapOf(p, 'pacing'), p.ratings.pacing + boost),
+      mental: Math.min(statCapOf(p, 'mental'), p.ratings.mental + boost) }}
   })
 }
 

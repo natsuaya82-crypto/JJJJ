@@ -79,6 +79,24 @@ function hashStr(s: string): number {
   return Math.abs(strHash(s) | 0)
 }
 
+/**
+ * **能力値の天井の決まりはここ1本。**
+ *
+ * ・ふつうの天井は `STAT_CAP`(99)。育成でここを超えることはない
+ * ・**優勝トロフィー**（`Player.trophyBoosts`）を注いだぶんだけ、その能力だけ
+ *   `STAT_CAP_MAX`(110) まで上がる。自チームの選手だけが持てる
+ *   （JPEL 1部優勝・ECL優勝で1個ずつ。年最大2個）
+ *
+ * ★**99 と 110 を他所に手書きしないこと。**（`check-stat-cap` が落とします）
+ */
+export const STAT_CAP = 99
+export const STAT_CAP_MAX = 110
+
+/** その能力の天井（トロフィーを注いだぶんを足した最終形） */
+export function statCapOf(p: { trophyBoosts?: Partial<Record<CardStatKey, number>> }, stat: CardStatKey): number {
+  return Math.min(STAT_CAP_MAX, STAT_CAP + (p.trophyBoosts?.[stat] ?? 0))
+}
+
 export function getStatPotentials(p: Player): Ratings {
   const ratings = safeRatings(p.ratings) as Record<string, number>
   // マイプレイヤーは能力別の成長上限を明示指定（現在値未満にはしない・99天井）。ジュエル解放分は加算
@@ -88,7 +106,7 @@ export function getStatPotentials(p: Player): Ratings {
       const boost = p.potentialBoosts?.[stat as CardStatKey] ?? 0
       const cap = (p.customCaps as Record<string, number>)[stat] ?? 0
       const cur = ratings[stat] ?? 0
-      ;(out as Record<string, number>)[stat] = Math.min(99, Math.max(cur, cap + boost))
+      ;(out as Record<string, number>)[stat] = Math.min(statCapOf(p, stat as CardStatKey), Math.max(cur, cap + boost))
     }
     return out
   }
@@ -100,7 +118,7 @@ export function getStatPotentials(p: Player): Ratings {
     const boost = p.potentialBoosts?.[stat as CardStatKey] ?? 0   // ジュエルの上限解放分
     const ceil = (strong.has(stat) ? p.potential + 12 : p.potential - 5) + jitter + boost
     const cur = ratings[stat] ?? 0
-    ;(out as Record<string, number>)[stat] = Math.min(99, Math.max(cur, Math.round(ceil)))
+    ;(out as Record<string, number>)[stat] = Math.min(statCapOf(p, stat as CardStatKey), Math.max(cur, Math.round(ceil)))
   }
   return out
 }

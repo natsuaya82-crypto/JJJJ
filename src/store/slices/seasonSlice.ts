@@ -701,6 +701,10 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         // 退団（FA流出・移籍）と海外移籍（クラブ間・日本↔海外）を移籍履歴に記録（移籍ページの日付・移籍金表示用）
         transferHistory: [...(state.transferHistory ?? []), ...departureRecords].slice(-800),
         jewels: state.jewels + objJewels + seasonAchievementJewels + rankJewels,
+        // 優勝トロフィー：**JPEL 1部優勝で1個**（ECL優勝ぶんは competitionSlice が足す）。
+        // ★1部だけ。2部・3部の優勝では出ない（オーナー・2026-08-20「1部優勝で1個でしょ」）
+        trophies: (state.trophies ?? 0)
+          + (divisionOf(state.teams.find(t => t.id === state.playerTeamId)) === TOP_DIVISION && myFinalRank === 1 ? 1 : 0),
         // 最終戦ぶんがまだ未表示なので上書きせず足す
         jewelGains: [...(state.jewelGains ?? []), ...seasonJewelGains].slice(-20),
         gmRep: newGmRep,

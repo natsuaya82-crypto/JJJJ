@@ -7,9 +7,10 @@ import { type CardRarity, type CardStatKey, type Player, type TrainingCard } fro
 import { MAX_FUSION_CARDS, detectCombo, planExchange } from '../../utils/cardCombo'
 import { rankOfTeam, seasonDivisionStandings } from '../../utils/league'
 import { getStatPotentials, limitBreakCost } from '../../utils/playerUtils'
+import { canSpendTrophy } from '../../utils/trophy'
 
 type Slice = Pick<GameStore,
-  'claimPreseasonCards' | 'buyTrainingCard' | 'applyTrainingCards' | 'exchangeCards' | 'breakStatLimit' | 'removeTrainingCard' | 'addTrainingCards' | 'dismissDroppedCards' | 'setFusionPlayer' | 'addFusionCard' | 'removeFusionCard' | 'clearFusion' | 'setTrainingFocus' | 'setTrainingPlan'>
+  'claimPreseasonCards' | 'buyTrainingCard' | 'applyTrainingCards' | 'exchangeCards' | 'breakStatLimit' | 'spendTrophy' | 'removeTrainingCard' | 'addTrainingCards' | 'dismissDroppedCards' | 'setFusionPlayer' | 'addFusionCard' | 'removeFusionCard' | 'clearFusion' | 'setTrainingFocus' | 'setTrainingPlan'>
 
 export const createCardsSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
@@ -151,6 +152,30 @@ export const createCardsSlice = (set: SetGame, get: () => GameStore): Slice => (
       return {
         jewels: state.jewels - cost,
         players: state.players.map(p => p.id === playerId ? np : p) }
+    })
+  },
+
+
+  /**
+   * **優勝トロフィーで 99 を超える。** 1個で能力1つの上限が +1（天井は `STAT_CAP_MAX`=110）。
+   *
+   * ★**関門はここ1本。** 画面は押せるかどうかを同じ条件から出すこと（`canSpendTrophy`）。
+   *   ・自チームの選手だけ（トロフィーは自チームを勝たせた対価）
+   *   ・**99 に届いている能力だけ**（そこまではジュエルの上限解放の領分）
+   *   ・110 まで
+   * ★上限が上がるだけで**値は上がらない**。そこからはカード合成で育てる
+   *   （オーナー・2026-08-20「あげた後もカード合成必要よ？」）
+   */
+  spendTrophy: (playerId, stat) => {
+    set(state => {
+      const player = state.players.find(p => p.id === playerId)
+      if (!player || !canSpendTrophy(state, player, stat)) return state
+      return {
+        trophies: (state.trophies ?? 0) - 1,
+        players: state.players.map(p => p.id === playerId
+          ? { ...p, trophyBoosts: { ...(p.trophyBoosts ?? {}), [stat]: (p.trophyBoosts?.[stat] ?? 0) + 1 } }
+          : p),
+      }
     })
   },
 

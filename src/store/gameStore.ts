@@ -306,6 +306,8 @@ export type GameStore = GameState & {
   applyTrainingCards: (playerId: string, cardIds: string[], multiplier?: number) => void
   // ジュエルで能力1つの上限を+1する（コストは playerUtils.limitBreakCost。99が天井）
   breakStatLimit: (playerId: string, stat: CardStatKey) => void
+  // 優勝トロフィーで 99 を超えて能力1つの上限を+1する（110が天井・自チームの選手のみ）
+  spendTrophy: (playerId: string, stat: CardStatKey) => void
   // カードの交換。レートも種類も utils/cardCombo.ts の CARD_EXCHANGES 1本。
   // statKey は完全休養からの交換でだけ効く（もらうカードの種類を指名する）。
   // もらえた枚数を返す（束が組めなければ0）

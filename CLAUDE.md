@@ -127,6 +127,8 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/styles/tokens.ts` | 色・フォント（`SAIRA` / `FONT` / `JP`）・順位の色（`rankColor`）・`HEADER_H` |
 | `src/utils/league.ts` の得点 | `positionPointsFor`（1位＝出走数…最下位1点）／`segmentAwardPoints`（出走数で3/2/1→2/1→1）。**本編もオンラインも同じ** |
 | `src/data/races.ts` | コースの実体と、`courseTypeOf`（種別）／`courseProfile`（起伏の平均） |
+| `src/utils/playerUtils.ts` の `statCapOf` | **能力値の天井**。ふつうは `STAT_CAP`(99)、**優勝トロフィー**を注いだぶんだけその能力だけ `STAT_CAP_MAX`(110) まで。**99 と 110 を他所に手書きしないこと**（`check-trophy` が見張る）|
+| `src/utils/trophy.ts` の `trophyBlockReason` | **優勝トロフィーを注げるか**と、注げないときの理由。**画面の「押せるか」と store の「受け付けるか」を同じ関数から出すこと**（`bidGate` と同じ形）。自チームのみ／**99 に届いている能力だけ**／110まで。上がるのは**上限だけ**で、値はカード合成で育てる |
 | `src/data/segmentWeights.ts` の `terrainWeights` | **区間の重み（どの能力がどれだけ効くか）の唯一の決まり。** 本編の400区間は1つずつ手で調整した重みを `data/races.ts` に持つ。持たない区間（ECL・ランクマッチ・世界選手権）は**地形と距離からここで作る**。★**合計は必ず 1.00**——タイムは `加重平均で score → PACE_TABLE で 秒/km` で、表の上端が `[99, 154]` で外はクランプなので、**目盛りがずれると上位の能力差がそのまま消える**。以前 `calcBaseAbility` の中に2本目の式があり、足したぶんを引いていなかったので合計が 1.18 まで膨らみ、**ECL の70区間とランクマッチのコースで OVR 89〜95 から上が同タイム**だった（10km・登り2% で OVR 95 と 99 が 26分40秒）。**重みをデータに焼かないこと**——セーブに乗って1シーズン8KB増える（実測）。`check-segment-weights` が見張る |
 | `src/utils/anchors.ts` の `lerpAnchors` | **アンカー表を引く唯一の関数**（OVR→年俸・score→秒/km・種目適性値→タイム）。同じループが3か所に写されていて、**下端の扱いだけが3通り**に割れていた。違いは消さず `belowFirst` で名前を付けて渡す。**上端は必ずクランプ**（表の外へ外挿しない。伸ばしたいときは表そのものを伸ばす） |
 | `src/components/player/PlayerChips.tsx` | **選手の名前の横に出る小さな札**。`SpecChip`（タイプ）／`ForeignChip`（外国籍）。大きさ（sm/md）だけ選べて、色・濃さ・枠線・丸みは1つに固定 |
