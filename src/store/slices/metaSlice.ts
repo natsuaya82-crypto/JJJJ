@@ -82,10 +82,20 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const pruned = (state.pendingGifts ?? []).filter(g => !g.expiresAt || g.expiresAt >= nowISO)
       const prunedChanged = pruned.length !== (state.pendingGifts ?? []).length
 
-      const GIFT_VERSION = '2.0.5-1000dl'
+      // ★**中身を変えたら版も変えること。** ギフトはセーブに実体で載るので、
+      //   コードだけ直しても**既に配られたぶんは古い中身のまま**です。
+      //   `-2` は 8/20 に選手作成を足したぶん（初版はトロフィー5個だけだった）。
+      const GIFT_VERSION = '2.0.5-1000dl-2'
       if ((state.giftGivenVersions ?? []).includes(GIFT_VERSION)) {
         return prunedChanged ? { pendingGifts: pruned } : state
       }
+      // ★**前の版の未受け取りを取り下げる。** 上のコメントにそう書いてあるのに
+      //   実際には**何もしていませんでした**（期限切れの掃除だけ）。取り下げないと、
+      //   中身を差し替えた版と古い版が2件並んで両方受け取れます。
+      //   取り下げるのは**この仕組みが配ったぶんだけ**（`giftGivenVersions` に載っている版）。
+      //   `gift_` で始まる、のような形で見ると、他から入れたギフトまで消えます。
+      const mine = new Set((state.giftGivenVersions ?? []).map(v => `gift_${v}`))
+      const withdrawn = pruned.filter(g => !mine.has(g.id))
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()  // 配布から1か月
       const gift: Gift = {
         id: `gift_${GIFT_VERSION}`,
@@ -95,9 +105,10 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
         message: '',
         cards: [],
         trophies: 5,
+        playerCreates: 1,
         expiresAt }
       return {
-        pendingGifts: [...pruned, gift],
+        pendingGifts: [...withdrawn, gift],
         giftGivenVersions: [...(state.giftGivenVersions ?? []), GIFT_VERSION] }
     })
   },
@@ -115,6 +126,7 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
         trainingCards: [...(state.trainingCards ?? []), ...gift.cards],
         jewels: (state.jewels ?? 0) + (gift.jewels ?? 0),
         trophies: (state.trophies ?? 0) + (gift.trophies ?? 0),
+        playerCreateLeft: (state.playerCreateLeft ?? 0) + (gift.playerCreates ?? 0),
         pendingGifts: (state.pendingGifts ?? []).filter(g => g.id !== id) }
     })
   },
@@ -226,7 +238,7 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
     customFace: NonNullable<import('../../types').Player['customFace']>
   }) => {
     const state = get()
-    if (state.inauguralPlayerCreated) return false
+    if ((state.playerCreateLeft ?? 0) <= 0) return false
     const myTeam = state.teams.find(t => t.id === state.playerTeamId)
     if (!myTeam) return false
     const STAT_KEYS: (keyof import('../../types').Ratings)[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
@@ -243,7 +255,10 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
       if (!lowKey) break
       caps[lowKey] += 1; budget -= 1
     }
-    const id = `myplayer-inaugural-${state.currentSeason.year}`
+    // ★**同じ年に2人つくれる**ようになったので、年だけの ID だと衝突します
+    //   （2人目が1人目を上書きして消える）。既にいるぶんを数えて連番にする
+    const seq = state.players.filter(pl => pl.id.startsWith('myplayer-inaugural-')).length + 1
+    const id = `myplayer-inaugural-${state.currentSeason.year}-${seq}`
     const newPlayer: import('../../types').Player = {
       id, name: params.name, nameKana: '', age: params.age,
       nationality: params.nationality, origin: 'マイプレイヤー',
@@ -271,7 +286,7 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
     set({
       players: moved.players,
       teams: moved.teams,
-      inauguralPlayerCreated: true })
+      playerCreateLeft: Math.max(0, (state.playerCreateLeft ?? 0) - 1) })
     return true
   },
 })

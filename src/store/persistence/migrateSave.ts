@@ -400,7 +400,7 @@ export const migrateSave = (persistedState: unknown, version: number) => {
     // v33: 初年度のマイ選手作成（配分500）を足した。既存セーブは初年度をとっくに
     //      過ぎているので「作成済み」にしておく。ここを false のままにすると、
     //      アップデート記念のぶん（配分560）が初年度枠として500で開いてしまう。
-    if (version < 33 && s.isInitialized) s.inauguralPlayerCreated = true
+    if (version < 33 && s.isInitialized) s.inauguralPlayerCreated = true   // v44 で playerCreateLeft へ移す
 
     // v34: 海外クラブの表示名が5文字で切られていた（「ストックホルム」が「ストックホ」）。
     //      正しい都市名は FOREIGN_CLUB_CITY にそろっているのに、shortName に別途
@@ -601,6 +601,14 @@ export const migrateSave = (persistedState: unknown, version: number) => {
         if (!c || !jy || !year || year - jy >= 2) return p
         return { ...p, contract: { ...c, signedOnJoin: true } }
       })
+    }
+    // v44: 「選手を1人つくる」を真偽値（inauguralPlayerCreated）から
+    //   残り回数（playerCreateLeft）へ。1000DL記念でもう1回配るため。
+    //   **移さないと全員が「まだ作っていない」に見えて、作った人がもう1人作れます。**
+    if (version < 44) {
+      const made = (s as { inauguralPlayerCreated?: boolean }).inauguralPlayerCreated
+      s.playerCreateLeft = made ? 0 : 1
+      delete (s as { inauguralPlayerCreated?: boolean }).inauguralPlayerCreated
     }
     return s
   } catch (e) {

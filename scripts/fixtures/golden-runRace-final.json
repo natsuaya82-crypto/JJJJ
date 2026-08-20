@@ -13,7 +13,6 @@
  "gmTenures": "4f53cda18c2baa0c (2B)",
  "growthReport": "74234e98afe7498f (4B)",
  "hofRoster": "4f53cda18c2baa0c (2B)",
- "inauguralPlayerCreated": "fcbcf165908dd18a (5B)",
  "isInitialized": "b5bea41b6c623f7c (4B)",
  "japanRecords": "44136fa355b3678a (2B)",
  "jewelGains": "4ab75323e791307f (63B)",
@@ -27,6 +26,7 @@
  "pastSeasons": "4f53cda18c2baa0c (2B)",
  "pendingGifts": "4f53cda18c2baa0c (2B)",
  "pendingGmMove": "74234e98afe7498f (4B)",
+ "playerCreateLeft": "6b86b273ff34fce1 (1B)",
  "playerTeamId": "6e7823b6e67138d4 (7B)",
  "players": "7ad181f7d1ac3fac (4314369B)",
  "raceDroppedCards": "ca1d3d48235d8369 (575B)",
@@ -50,5 +50,5 @@
  "worldAthleticsResults": "4f53cda18c2baa0c (2B)",
  "worldRecords": "44136fa355b3678a (2B)",
  "worldRepresentatives": "4f53cda18c2baa0c (2B)",
- "$all": "65419c24f247a2bb (4828350B)"
+ "$all": "c535ccc8c71308eb (4828340B)"
 }

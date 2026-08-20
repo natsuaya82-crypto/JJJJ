@@ -14,7 +14,7 @@
  *     ★カード合成には**年齢・ポテンシャル・施設の倍率が掛からない**（`SOURCE_RULES`）。
  *       これを勘違いすると必要枚数を3倍近く見誤る（実際に誤った）ので、枚数で数える。
  */
-import { greatSuccessChance, activeEvents, EVENTS, GREAT_SUCCESS_CHANCE } from '../src/data/events'
+import { greatSuccessChance, activeEvents, EVENTS, GREAT_SUCCESS_CHANCE, GREAT_SUCCESS_EVENT_MULT } from '../src/data/events'
 import { jstGameDayISO } from '../src/utils/jstDate'
 import { requiredExpForLevel } from '../src/engine/growth'
 import { RARITY_EXP } from '../src/utils/cardCombo'
@@ -55,10 +55,16 @@ for (const e of EVENTS) {
   check(`${e.title}：${endDay} 9:59 まで続いて 10:00 に終わる`, on(lastOk) && on(justOk) && !on(over))
 }
 
-console.log('\n[3] 大成功の確率（イベント中だけ100%）')
+console.log('\n[3] 大成功の確率（イベント中だけ倍率が掛かる）')
 {
   check('ふだんは5%', greatSuccessChance('2026-08-21') === GREAT_SUCCESS_CHANCE)
-  check('イベント中は100%', greatSuccessChance('2026-08-22') === 1)
+  // ★倍率は data/events の GREAT_SUCCESS_EVENT_MULT 1本（オーナー・2026-08-20「3日間大成功2倍」。
+  //   はじめ100%で組んでいたのを2倍に変えた）。ここに数字を書かないこと
+  check(`イベント中は${GREAT_SUCCESS_EVENT_MULT}倍`,
+    greatSuccessChance('2026-08-22') === Math.min(1, GREAT_SUCCESS_CHANCE * GREAT_SUCCESS_EVENT_MULT),
+    String(greatSuccessChance('2026-08-22')))
+  // ★1 を超えないこと（超えると「確約」と見分けが付かず、広告のボタンが消える）
+  check('1 を超えない', greatSuccessChance('2026-08-22') <= 1)
   check('終わったら戻る', greatSuccessChance('2026-08-25') === GREAT_SUCCESS_CHANCE)
   // 広告まわりを隠す判定も同じ関数から出していること（画面に日付や 0.05 を書かない）
   const page = readFileSync('src/components/training/CardTrainingPage.tsx', 'utf8')

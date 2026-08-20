@@ -39,7 +39,7 @@ export default function CreateMyPlayerPage() {
   const createMyPlayer = useGameStore(s => s.createMyPlayer)
   // 作れるのは新規データの初年度に1人だけ（ドラフトに参加しない代わり）
   const TOTAL = MY_PLAYER_POINTS
-  const alreadyCreated = useGameStore(s => s.inauguralPlayerCreated)
+  const alreadyCreated = useGameStore(s => (s.playerCreateLeft ?? 0) <= 0)
 
   const adH = useAdHeight()
   const [name, setName] = useState('')

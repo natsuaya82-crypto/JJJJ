@@ -376,7 +376,15 @@ export type GameStore = GameState & {
   /** マイ選手の作成。初年度の1人('inaugural')とアップデート記念の1人('gift')は別枠 */
   createMyPlayer: (params: { name: string; age: number; specialty: Specialty; nationality: Nationality; ratings: Ratings; customFace: NonNullable<Player['customFace']> }) => boolean
   /** 初年度に作る1人を作成済みか（記念の myPlayerCreated とは別に持つ） */
-  inauguralPlayerCreated: boolean
+  /**
+   * **「選手を1人つくる」があと何回できるか。**
+   *
+   * ★以前は `inauguralPlayerCreated`（作ったか否かの真偽値）でした。1000DL記念で
+   *   もう一度配ることになったので**数**にしています（オーナー・2026-08-20
+   *   「1000dl記念で選手作成とトロフィー配布」）。記念のたびに +1 するだけで済み、
+   *   記念ごとに真偽値が増えていきません。
+   */
+  playerCreateLeft: number
 }
 
 function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
@@ -478,7 +486,7 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     adsRemoved: false,
     twitterIntroSeen: false,
     myPlayerCreated: false,
-    inauguralPlayerCreated: false } as unknown as Omit<GameStore, keyof ReturnType<typeof create>>
+    playerCreateLeft: 1 } as unknown as Omit<GameStore, keyof ReturnType<typeof create>>
 }
 
 export type SetGame = (partial: GameStore | Partial<GameStore> | ((s: GameStore) => GameStore | Partial<GameStore>)) => void

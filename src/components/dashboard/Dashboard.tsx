@@ -73,7 +73,7 @@ function PreseasonHub({
 }) {
   const campDone    = !!campBonus?.applied
   const draftDone   = isFirstSeason || (!!draftState && draftState.isComplete)
-  const inauguralPlayerCreated = useGameStore(s => s.inauguralPlayerCreated)
+  const canCreatePlayer = useGameStore(s => (s.playerCreateLeft ?? 0) > 0)
   // 開幕してよいかは utils/seasonStart の1本。**ここで条件を組み直さないこと。**
   // ★以前ここに `allReady`（カード・ドラフト・人数）があったのに、**ボタンは
   //   `rosterShort` しか見ていません**でした（allReady が効くのは文字が「開幕！」に
@@ -127,8 +127,8 @@ function PreseasonHub({
         </div>
       )}
 
-      {/* ①' 初年度のマイ選手作成 */}
-      {isFirstSeason && !inauguralPlayerCreated && (
+      {/* ①' マイ選手作成。★初年度に限らない——1000DL記念で配った回数ぶんも同じ行から入る */}
+      {canCreatePlayer && (
         <div style={{ ...rowStyle, borderTop: `1px solid ${alpha(C.border3, 0.6)}` }}>
           {dot(false)}
           <div style={{ flex: 1 }}>
@@ -140,7 +140,7 @@ function PreseasonHub({
       )}
 
       {/* ③ シーズン目標 */}
-      <div style={{ ...rowStyle, borderTop: (isFirstSeason && inauguralPlayerCreated) ? `1px solid ${alpha(C.border3, 0.6)}` : 'none' }}>
+      <div style={{ ...rowStyle, borderTop: !canCreatePlayer ? `1px solid ${alpha(C.border3, 0.6)}` : 'none' }}>
         {dot(true)}
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: F.sub, fontWeight: 700, color: C.text }}>今シーズンの目標</div>

@@ -404,8 +404,9 @@ export function collectNotifications(input: NotifInput) {
  *   「まずこれ、カードじゃないし。優勝トロフィーだし」）。中身を増やしたら
  *   ここだけ直せば両方に出ます。
  */
-export function giftContents(gift: { cards?: unknown[]; jewels?: number; trophies?: number }): string {
+export function giftContents(gift: { cards?: unknown[]; jewels?: number; trophies?: number; playerCreates?: number }): string {
   const parts: string[] = []
+  if (gift.playerCreates) parts.push(`選手作成${gift.playerCreates}回`)
   if (gift.trophies) parts.push(`優勝トロフィー${gift.trophies}個`)
   if (gift.jewels) parts.push(`ジュエル${gift.jewels}個`)
   if (gift.cards?.length) parts.push(`カード${gift.cards.length}枚`)

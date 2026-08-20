@@ -236,7 +236,6 @@
  "hofRoster": {
   "$len": 0
  },
- "inauguralPlayerCreated": "boolean",
  "isInitialized": "boolean",
  "japanRecords": {},
  "jewels": "number",
@@ -404,6 +403,7 @@
   "$len": 0
  },
  "pendingGmMove": "null",
+ "playerCreateLeft": "number",
  "playerTeamId": "string",
  "players": {
   "$len": 1300,

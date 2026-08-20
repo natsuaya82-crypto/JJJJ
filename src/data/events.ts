@@ -32,10 +32,14 @@ export const GREAT_SUCCESS_CHANCE = 0.05
  * ★`to` は**その日を含む**（`from <= 今日 <= to`）。8/22〜8/24 で3日間。
  */
 export const EVENTS: GameEvent[] = [
-  // 1000DL突破記念（オーナー・2026-08-20「8/22〜8/25大成功100パー！3日だけで！」）。
-  // ★「3日だけ」を採って 8/22〜8/24 にしてある。4日にするなら to を 2026-08-25 へ
-  { id: 'dl1000-great', title: '1000DL記念 大成功100%', from: '2026-08-22', to: '2026-08-24' },
+  // 1000DL突破記念（オーナー・2026-08-20「3日間大成功2倍」）。
+  // ★はじめ「大成功100%」で組みましたが、**2倍**に変わりました。
+  // ★「3日だけ」なので 8/22〜8/24。日付の区切りは日本時間の朝10時（`jstGameDayISO`）
+  { id: 'dl1000-great', title: '1000DL記念 大成功2倍', from: '2026-08-22', to: '2026-08-24' },
 ]
+
+/** イベント中の大成功確率の倍率 */
+export const GREAT_SUCCESS_EVENT_MULT = 2
 
 /**
  * その日に開催中のイベント。
@@ -58,7 +62,11 @@ export function isEventActive(id: string, today: string): boolean {
 /**
  * いまの合成の大成功確率。**画面はこれを呼ぶ（0.05 と書かない）。**
  * 広告視聴・GMパスの確約はイベントとは別で、呼ぶ側が確定させる。
+ *
+ * ★**1 を超えないこと。** 倍率を上げていったときに 1 を超えると、
+ *   「確定」との区別が付かなくなります（画面は `< 1` で広告のボタンを出す）。
  */
 export function greatSuccessChance(today: string): number {
-  return isEventActive('dl1000-great', today) ? 1 : GREAT_SUCCESS_CHANCE
+  const mult = isEventActive('dl1000-great', today) ? GREAT_SUCCESS_EVENT_MULT : 1
+  return Math.min(1, GREAT_SUCCESS_CHANCE * mult)
 }
