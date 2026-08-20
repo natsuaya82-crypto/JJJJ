@@ -74,12 +74,8 @@ export default function RatedStandingsPage() {
         </div>
       )}
 
-      {/* ★長押しは見えない操作なので、必ずどこかに書いておくこと（走友会と同じ） */}
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 8 }}>
-        <div style={{ flex: 1, fontSize: F.caption, color: C.textDim }}>長押しで相手のチームを見られます</div>
-        <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>
-          {st.entrants}人が{st.started ? '参加中' : 'エントリー中'}
-        </div>
+      <div style={{ textAlign: 'right', marginTop: 8, fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>
+        {st.entrants}人が{st.started ? '参加中' : 'エントリー中'}
       </div>
     </RatedShell>
   )

@@ -333,13 +333,6 @@ export default function RatedPage() {
               殿堂入り {hof?.length ?? 0} / {HOF_MAX}
             </div>
           )}
-          {/* ★エントリーしたあと、**次に何が起きるか**を必ず出す。
-              出さないと「押したのに何も起きない」に見える（メンバーを組むのは当日） */}
-          {joined && !openable && (
-            <div style={{ fontSize: F.label, color: C.cyan, marginTop: 8, textAlign: 'center' }}>
-              メンバーは {startLabel} {RESULT_HHMM} から組みます
-            </div>
-          )}
           {!!notice && (
             <div style={{ fontSize: F.label, color: C.orange, marginTop: 8, textAlign: 'center' }}>{notice}</div>
           )}

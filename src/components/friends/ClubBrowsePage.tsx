@@ -15,18 +15,12 @@
 //   ★開いた瞬間におすすめが並びます（何も打っていないときは「おすすめ」を出す作りなので）。
 import PageHeader from '../ui/PageHeader'
 import { ClubSearch } from './FriendClubPage'
-import { C, SAIRA, F } from '../../styles/tokens'
+import { SAIRA } from '../../styles/tokens'
 
 export default function ClubBrowsePage() {
   return (
     <div style={{ fontFamily: SAIRA, minHeight: '100%', paddingBottom: 80 }}>
       <PageHeader eyebrow="CLUB" title="走友会をさがす" />
-      <div style={{ padding: '2px 16px 10px' }}>
-        {/* ★長押しは見えない操作なので必ず書いておく（走友会・ランクマッチと同じ） */}
-        <div style={{ fontSize: F.label, color: C.textDim, lineHeight: 1.6 }}>
-          押すとメンバーと紹介文を見られます。入るには、いまの走友会を抜ける必要があります。
-        </div>
-      </div>
       <ClubSearch readOnly />
     </div>
   )

@@ -25,9 +25,8 @@ export default function RatedGroupPage() {
       {/* ★組に入っていないときは**理由を出す**（黙って空にしない）。
           10:00 より後にエントリーした人はその日走らない＝翌日の 10:00 で組に入る */}
       {!g ? (
-        <div style={{ padding: '22px 14px', textAlign: 'center', fontSize: F.body, color: C.textDim, lineHeight: 1.8 }}>
-          今日の組にはまだ入っていません。<br />
-          組は毎日10:00に決まります。次の10:00から走れます。
+        <div style={{ padding: '22px 14px', textAlign: 'center', fontSize: F.body, color: C.textDim }}>
+          今日の組はまだありません
         </div>
       ) : (
         <>
@@ -44,11 +43,6 @@ export default function RatedGroupPage() {
           </div>
           <div style={{ overflow: 'hidden', border: `1px solid ${C.border}` }}>
             {g.members.map((m, i) => <Row key={m.userId} r={m} rank={i + 1} started={false} />)}
-          </div>
-          <div style={{ marginTop: 8, fontSize: F.label, color: C.textDim, lineHeight: 1.7 }}>
-            この顔ぶれで今日のレースを走ります。順位は 23:59 の締め切り後に決まります。
-            {/* ★長押しは見えない操作なので必ず書いておく（走友会・参加者一覧と同じ） */}
-            <br />長押しで相手のチームを見られます。
           </div>
         </>
       )}
