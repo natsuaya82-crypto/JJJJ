@@ -113,7 +113,7 @@ console.log('\n[4] 出品中(移籍リスト掲載)：希望額が受諾ライ�
   check('それ未満は却下', listed(ask * LISTED_COUNTER_RATIO - 1).bid.status === 'rejected')
   check(`逆提示は${BID_MAX_ROUND}巡目からしない`, listed(ask * 0.8, BID_MAX_ROUND).bid.status === 'rejected')
   // ★出品中でも、額が足りずに断られたら通知する（黙って消さない）。
-  //   交渉禁止にはしない（金額の問題）＝ locksNegotiation('bid_rejected') が false
+  //   交渉決裂なので来季まで交渉禁止＝ locksNegotiation('bid_rejected') が true
   check('出品中でも断られたら通知が出る', listed(1).expired?.kind === 'bid_rejected', String(listed(1).expired?.kind))
 
   // ★逆提示額に下限があること★

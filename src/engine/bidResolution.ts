@@ -16,13 +16,24 @@ import type { Destination } from '../utils/transferDecision'
 /**
  * **入札が終わったとき、その選手と来季まで交渉できなくするか。唯一の決まり。**
  *
- * 来季まで止めるのは「話が決裂した」ときだけ——主力ガードで門前払い（`bid`）や、
- * 費用合意を放置して流れたとき。
+ * 来季まで止めるのは**交渉が決裂したとき**——主力ガードで門前払い（`bid`）、
+ * 費用合意を放置して流れたとき、そして**額が足りずに断られたとき**（`bid_rejected`）。
  *
- * 止めないのは**そのときの事情**で終わったもの：
- *   ・`bid_rejected` … 額が足りなかった（積み直せばいい）
- *   ・`outbid`       … 競り負けた（金額の問題）
- *   ・`bid_gone`     … 相手が他所へ移った（こちらは何もしていない）
+ * ★`bid_rejected` は 2026-08-19 に**止める側へ戻しました**。オーナー
+ *   「額が足りないのも、そんな額では移籍できません。交渉決裂で終わりでしょ」。
+ *   ここを止めない仕様にしたのは前のセッションの**勝手な判断**で、頼まれていたのは
+ *   「返事が返らない」の修理だけでした（`ef992aa`）。
+ *
+ * 止めないのは**選手がもう動いてしまった**もの：
+ *   ・`outbid`   … 競り負けた（相手クラブへ移った）
+ *   ・`bid_gone` … 話している間に他所へ移った
+ *
+ * ★この2つを止めないのは**実質どちらでも同じ**です。移った選手は
+ *   `isTransferLocked`（移籍したばかり・2年）でどのみちオファーを出せません
+ *   （オーナー・2026-08-19「競り負けた場合はもう移籍してるから、
+ *   移籍したばかりでまずオファー出せないやん？」）。**効くのは1つだけ**——
+ *   競り勝ったクラブの話を本人が断って**残留した**とき（`applyTransfers` の
+ *   `stayNegs`）。この場合その選手は動いていないので、また出せる。
  *
  * ★**呼ぶ側で書かないこと。** 本編の1戦（`resolveTransferBids`）とサブの1戦
  *   （`competitionSlice`）に別々に書いてあり、**サブ側は競り負けまで来季まで
@@ -32,7 +43,7 @@ import type { Destination } from '../utils/transferDecision'
 export function locksNegotiation(kind: ExpiredNegKind | undefined): boolean {
   return !NO_LOCK_KINDS.has(kind ?? 'bid')
 }
-const NO_LOCK_KINDS = new Set<ExpiredNegKind>(['outbid', 'bid_rejected', 'bid_gone'])
+const NO_LOCK_KINDS = new Set<ExpiredNegKind>(['outbid', 'bid_gone'])
 
 export function resolveTransferBids(params: {
   bids: TransferBid[]

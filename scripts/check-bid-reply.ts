@@ -103,18 +103,24 @@ console.log('\n[3] 文面がある（種類を足して文面を足し忘れて�
     const t = EXPIRED_NEG_TEXT[k]
     check(`${k} の文面がある`, !!t && t.title('◯◯').length > 0 && t.note.length > 0)
   }
-  // 「来季まで交渉できません」と書いてあるのに、実際は交渉できる、を防ぐ
-  check('断られた・競り負けた・移られた の文面に「来季まで交渉できません」は無い',
-    (['bid_rejected', 'bid_gone', 'outbid'] as ExpiredNegKind[])
-      .every(k => !EXPIRED_NEG_TEXT[k].note.includes('来季まで交渉できません')))
+  // ★**文面と判定が食い違わないこと。** 「来季まで交渉できません」と書いてあるのに
+  //   交渉できる（またはその逆）を防ぐ。判定は locksNegotiation 1本なので突き合わせる
+  for (const k of ['bid', 'bid_rejected', 'bid_gone', 'outbid'] as ExpiredNegKind[]) {
+    const says = EXPIRED_NEG_TEXT[k].note.includes('来季まで交渉できません')
+    check(`${k} の文面と判定が合っている`, says === locksNegotiation(k),
+      `文面「${EXPIRED_NEG_TEXT[k].note}」/ 止める=${locksNegotiation(k)}`)
+  }
 }
 
 console.log('\n[4] 来季まで交渉できなくなるのは「決裂した」ときだけ（locksNegotiation 1本）')
 {
   check('主力ガードで門前払いは止める', locksNegotiation('bid'))
-  check('額が足りなかっただけなら止めない', !locksNegotiation('bid_rejected'))
-  check('競り負けただけなら止めない', !locksNegotiation('outbid'))
-  check('相手が他所へ移っただけなら止めない', !locksNegotiation('bid_gone'))
+  // ★オーナー・2026-08-19「額が足りないのも、そんな額では移籍できません。交渉決裂で終わりでしょ」
+  check('額が足りずに断られたら止める', locksNegotiation('bid_rejected'))
+  // ★この2つを止めないのは、選手がもう相手クラブへ移っていて、どのみち
+  //   `isTransferLocked`（移籍したばかり・2年）でオファーを出せないから
+  check('競り負けは止めない（相手クラブへ移っている）', !locksNegotiation('outbid'))
+  check('相手が他所へ移ったのは止めない', !locksNegotiation('bid_gone'))
   // 種類が入っていない古いセーブは、元々入札ぶんだけだったので入札として扱う
   check('種類が無いときは入札として扱う（古いセーブ）', locksNegotiation(undefined))
 }
