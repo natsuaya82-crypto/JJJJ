@@ -396,8 +396,10 @@ border: `2px dashed ${C.border2}`,
         </div>
       </div>
 
-      {/* Ad option */}
-      {canApply && (
+      {/* Ad option。★**大成功が100%のイベント中は丸ごと出さない**——
+          確定させる手段（広告・GMパス・無料1回）に意味が無いのに見せると、
+          広告を見せられたと感じるし、GMパスの1回を無駄に使わせてしまう */}
+      {canApply && greatSuccessChance() < 1 && (
         <div style={{ margin: '14px 14px 0', textAlign: 'center' }}>
           {adWatched ? (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 4px' }}>
