@@ -2,6 +2,7 @@ import { createPortal } from 'react-dom'
 import { useAdHeight } from '../layout/Layout'
 import { C, alpha, SAIRA, F, bottomStack } from '../../styles/tokens'
 import type { Player } from '../../types'
+import { useCoversScreen } from '../../lib/screenCover'
 
 
 // レンタル要請の下部シート。移籍市場・他チームタブ共通。
@@ -12,6 +13,7 @@ export default function LoanSheet({ player, slots, pending, onSubmit, onClose }:
   onSubmit: (years: number) => void
   onClose: () => void
 }) {
+  useCoversScreen()
   const adH = useAdHeight()
   const full = slots >= 3
 

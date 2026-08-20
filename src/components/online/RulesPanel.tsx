@@ -5,6 +5,7 @@ import type { MatchRules } from '../../lib/roomsApi'
 import { MATCH_COURSES, CATEGORY_LABEL, courseById, randomCourseIds, type CourseCategory } from '../../data/matchCourses'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import GlassButton from '../ui/GlassButton'
+import { useCoversScreen } from '../../lib/screenCover'
 
 
 const RACE_COUNTS = [1, 3, 5, 10] as const
@@ -24,6 +25,7 @@ type Props = {
 
 /** 45秒のあいだホストがルールを決める画面。ゲストは同じ内容を見ているだけ。 */
 export default function RulesPanel({ rules, isHost, deadline, teams, maxTeams, onChange, onConfirm, busy }: Props) {
+  useCoversScreen()
   const [left, setLeft] = useState(() => (deadline ? secondsLeft(deadline) : 0))
   const [picking, setPicking] = useState<number | null>(null)
 

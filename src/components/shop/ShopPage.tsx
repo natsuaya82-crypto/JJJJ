@@ -9,6 +9,7 @@ import { RARITY_COLORS, RARITY_LABELS, CARD_NAMES } from '../../utils/cardCombo'
 import { JewelIcon } from '../icons/Icons'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
+import { useCoversScreen } from '../../lib/screenCover'
 
 
 
@@ -51,6 +52,7 @@ function ConfirmModal({ item, jewels, onConfirm, onCancel }: {
   onCancel: () => void
 }) {
   const col = RARITY_COLORS[item.rarity]
+  useCoversScreen()
   const [qty, setQty] = useState<typeof QTY_OPTIONS[number]>(1)
   const total = item.price * qty
   const after = jewels - total
@@ -149,6 +151,7 @@ padding: '10px 14px', marginBottom: 16,
 
 function ResultModal({ cards, onClose }: { cards: TrainingCard[]; onClose: () => void }) {
   const col = cards[0] ? RARITY_COLORS[cards[0].rarity] : C.gold
+  useCoversScreen()
   return createPortal((
     <div style={{
       position: 'fixed', inset: 0, zIndex: 1001,

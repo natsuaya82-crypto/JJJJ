@@ -21,6 +21,7 @@ import { ROSTER_MAX, ROSTER_MIN } from '../../data/rosterRules'
 import SortSelect from '../ui/SortSelect'
 import { comparePlayers, PLAYER_SORT_LABEL, type PlayerSortKey } from '../../utils/playerSort'
 import PlayerList from '../player/PlayerList'
+import { useCoversScreen } from '../../lib/screenCover'
 
 const SORT_OPTIONS: { value: PlayerSortKey; label: string }[] = [
   { value: 'ovr', label: PLAYER_SORT_LABEL.ovr },
@@ -102,6 +103,7 @@ export default function TeamManagement() {
   const [menuPlayerId, setMenuPlayerId] = useState<string | null>(null)
   // 解雇確認（違約金を見せてから実行）
   const [releasePlayerId, setReleasePlayerId] = useState<string | null>(null)
+  useCoversScreen(!!releasePlayerId)
   const [releaseError, setReleaseError] = useState(false)
   const releasePlayerWithBuyout = useGameStore(s => s.releasePlayerWithBuyout)
   const lp = useRef<{ t?: number; long: boolean }>({ long: false })

@@ -24,6 +24,7 @@ import { requiredExpForLevel } from '../../engine/growth'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
 import PlayerList from '../player/PlayerList'
+import { useCoversScreen } from '../../lib/screenCover'
 
 const statKeys: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
 // 種類数 → メニュー倍率（表示用。実効値は cardCombo.ts と一致）
@@ -80,6 +81,7 @@ export default function CardTrainingPage() {
   }, [searchParams])
 
   const [applied, setApplied] = useState<{ combo: NonNullable<ReturnType<typeof detectCombo>>; greatSuccess: boolean; preRatings: Partial<Record<CardStatKey, number>>; preExp: Partial<Record<CardStatKey, number>> } | null>(null)
+  useCoversScreen(!!applied)
   const [adWatched, setAdWatched] = useState(false)
   const [adConfirmOpen, setAdConfirmOpen] = useState(false)
   const [gmPassOpen, setGmPassOpen] = useState(false)   // GMパス購入シート（未購入者向けの案内から開く）

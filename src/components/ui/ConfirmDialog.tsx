@@ -2,6 +2,7 @@ import { createPortal } from 'react-dom'
 import { C, SAIRA, F } from '../../styles/tokens'
 import GlassButton from './GlassButton'
 import { panelStyle } from './Panel'
+import { useCoversScreen } from '../../lib/screenCover'
 
 
 // アプリ調の確認ダイアログ（素の window.confirm の置き換え用）
@@ -30,6 +31,7 @@ export default function ConfirmDialog({
   /** タイトルの下に差し込む追加表示（相手のチームカードなど） */
   children?: React.ReactNode
 }) {
+  useCoversScreen()
   return createPortal((
     <div
       style={{

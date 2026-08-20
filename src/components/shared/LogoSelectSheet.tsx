@@ -3,6 +3,7 @@ import { LOGO_PRESETS, logoPresetSrc } from '../../data/logoPresets'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useAdHeight } from '../layout/Layout'
 import { C, alpha, SAIRA, HEADER_H, bottomStack, F } from '../../styles/tokens'
+import { useCoversScreen } from '../../lib/screenCover'
 
 
 // チームロゴの選択画面（フルスクリーンのオーバーレイ）。設定・オンボーディング両方から使う。
@@ -14,6 +15,7 @@ export default function LogoSelectSheet({ team, value, onSelect, onClose }: {
   onClose: () => void
 }) {
   const adH = useAdHeight()
+  useCoversScreen()
   const pick = (id: string) => { onSelect(id); onClose() }
 
   const tile = (selected: boolean): React.CSSProperties => ({

@@ -6,6 +6,7 @@ import GmInviteChat from './GmInviteChat'
 import { useAdHeight } from '../layout/Layout'
 import { C, alpha, bottomStack, F } from '../../styles/tokens'
 import PlayerList from '../player/PlayerList'
+import { useCoversScreen } from '../../lib/screenCover'
 
 // ============================================================================
 // **退任について来てもらう1人を選ぶ画面。**
@@ -30,6 +31,7 @@ export default function GmInvitePicker({ roster, dest, invite, onPick, onClose }
   onClose: () => void
 }) {
   const adH = useAdHeight()
+  useCoversScreen()
   // タップした相手とその場でチャットする。**返事はその1往復で決まる**
   const [talking, setTalking] = useState<Player | null>(null)
   return (

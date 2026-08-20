@@ -4,6 +4,7 @@ import { useAdHeight } from '../layout/Layout'
 import { C, alpha, SAIRA, FONT, bottomStack, F } from '../../styles/tokens'
 import { LOADING_TIPS } from '../../data/tips'
 import TipText from './TipText'
+import { useCoversScreen } from '../../lib/screenCover'
 
 
 // 全画面ローディング。真っ暗＋中央TIPS＋右下ローディングバー（スピナー廃止）。App直下に常駐。
@@ -22,6 +23,8 @@ export default function LoadingOverlay() {
     wasActive.current = active
   }, [active])
 
+  // 下タブ（ネイティブ）は WebView の外なので、覆っていることを自分から伝える
+  useCoversScreen(active)
   if (!active) return null
 
   return (

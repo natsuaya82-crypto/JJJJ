@@ -4,6 +4,7 @@ import { rankOf } from '../../engine/rating'
 import { rankChangeOf } from './rankArt'
 import { RANK_ART } from './rankArt'
 import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
+import { useCoversScreen } from '../../lib/screenCover'
 
 // ============================================================================
 // **段位が変わったときだけ出す全画面。**
@@ -22,6 +23,7 @@ export default function RankUpOverlay({ before, after, onClose }: {
   const dir = rankChangeOf(before, after)
   const [shown, setShown] = useState(false)
   useEffect(() => { const t = setTimeout(() => setShown(true), 30); return () => clearTimeout(t) }, [])
+  useCoversScreen(!!dir)
   if (!dir) return null
 
   const art = RANK_ART[rankOf(after)]

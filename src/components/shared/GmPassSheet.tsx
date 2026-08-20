@@ -6,6 +6,7 @@ import { purchaseAdFree, restoreAdFree, lastIapError, adFreeProduct, AD_FREE_FAL
 import NoticeDialog from '../ui/NoticeDialog'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import GlassButton from '../ui/GlassButton'
+import { useCoversScreen } from '../../lib/screenCover'
 
 
 // ============================================================================
@@ -220,6 +221,7 @@ export function GmPassCard() {
 
 // 全画面に重ねて出す版。背景タップか「閉じる」で閉じる。
 export function GmPassSheet({ onClose }: { onClose: () => void }) {
+  useCoversScreen()
   return createPortal((
     <div
       style={{

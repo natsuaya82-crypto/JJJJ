@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import { REPORT_REASONS, REPORT_DETAIL_MAX, sendReport, blockUser, invalidateBlocked, type ReportReason } from '../../lib/moderationApi'
+import { useCoversScreen } from '../../lib/screenCover'
 
 
 export type ReportTarget = {
@@ -25,6 +26,7 @@ export default function ReportSheet({ target, onClose, onDone }: {
   onDone: (message: string, blocked: boolean) => void
 }) {
   const [reason, setReason] = useState<ReportReason | null>(null)
+  useCoversScreen()
   const [detail, setDetail] = useState('')
   const [alsoBlock, setAlsoBlock] = useState(!!target.userId)
   const [busy, setBusy] = useState(false)

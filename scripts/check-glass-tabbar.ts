@@ -73,6 +73,49 @@ check('ネイティブ側にルーティングを書いていない',
   !/(pathname|navigate|webView\.load|evaluateJavaScript)/.test(swift),
   '押されたら tabTap を投げるだけ。行き先を決めるのは Web 側')
 
+// ── ④ 覆っているものは全部「覆っている」と言っているか ──────
+//   ネイティブの下タブは WebView の外に居るので、**Web 側のどんな覆いも被せられない**。
+//   Web の下タブ(z-index 50)だったころは、シートもローディングも z-index が上なので
+//   黙って隠れていた。ネイティブにした瞬間だけ、この「黙って隠れる」が消える。
+//   （オーナー「下タブ全然出てくる。いらない画面でもローディングとか」
+//     「ホームボタン押してるのに飛ばなかったりする選手詳細とか」）
+//
+//   ★**画面のほうを実際に数えること**（一覧を手で持たない）。
+//     `position: 'fixed'` ＋ `inset: 0` の層を持つファイルは、`useCoversScreen` を
+//     呼んでいるか、`LAYOUT_UNMOUNTED` に理由が書いてあること。
+const LAYOUT_UNMOUNTED: Record<string, string> = {
+  'src/App.tsx': '土台。Layout をマウントする側',
+  'src/components/layout/Layout.tsx': '下タブを出している側',
+  'src/components/title/TermsGate.tsx': 'タイトル画面。Layout はまだマウントされていない',
+  'src/components/draft/DraftRoom.tsx': 'ドラフト。App.tsx が content を差し替えるので Layout が居ない',
+  'src/components/ui/DataUpdateScreen.tsx': 'アップデート後の初回起動。Layout の外',
+}
+const covers = walk('src').filter(f => {
+  const t = readFileSync(f, 'utf8')
+  return [...t.matchAll(/position: 'fixed'[^}]*/g)].some(m => m[0].includes('inset: 0'))
+})
+// ★**import 行に当たらないように、呼んでいるかを見ること。**
+//   最初 `includes('useCoversScreen')` と書いていて、呼び出しを消しても
+//   `import { useCoversScreen } …` が残るので**緑のまま**だった
+// ★**コメントも外すこと。** `Layout` の説明文に `useCoversScreen()` と書いてあるので、
+//   素のまま探すと「Layout も呼んでいる」ことになって免除が死んだ判定になる
+const callsCover = (f: string) => readFileSync(f, 'utf8')
+  .replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
+  .split('\n').some(ln => !/^\s*import\b/.test(ln) && /useCoversScreen\(/.test(ln))
+const silent = covers.filter(f => !callsCover(f) && LAYOUT_UNMOUNTED[f] === undefined)
+check(`画面を覆うものは useCoversScreen を呼んでいる（${covers.length}件）`, silent.length === 0,
+  `${silent.join(', ')} — 呼ばないと、その上に下タブが残って押せてしまいます`)
+// 免除が生きているか。「もう覆っていない」だけでなく「もう呼んでいる」も死んだ免除
+const deadReasons = Object.keys(LAYOUT_UNMOUNTED).filter(f => !covers.includes(f) || callsCover(f))
+check('LAYOUT_UNMOUNTED の免除が全部生きている', deadReasons.length === 0,
+  `${deadReasons.join(', ')} — もう覆っていない／もう呼んでいるので一覧から外すこと`)
+
+// 覆う側が「隠す」を自分で決めていないこと（判断は Layout 1本）
+const selfHide = covers.filter(f => f !== 'src/components/layout/Layout.tsx'
+  && /glassTabBar/.test(readFileSync(f, 'utf8')))
+check('覆う側が下タブを直接触っていない', selfHide.length === 0,
+  `${selfHide.join(', ')} — 隠すかどうかを決めるのは Layout`)
+
 // 一部だけ渡せること（隠すのに項目を空で渡すと、ボタンを作り直してちらつく）
 check('apply は渡したものだけを反映する', /call\.getBool\("visible"\)\s*$/m.test(swift) ||
   /let visible = call\.getBool\("visible"\)(?!\s*\?\?)/.test(swift),

@@ -11,6 +11,7 @@ import { fmtYen } from '../../utils/money'
 import { tierOfPlayerClub, allTieredClubs } from '../../utils/clubTier'
 import GlassButton from '../ui/GlassButton'
 import { facilitiesOf } from '../../utils/facilities'
+import { useCoversScreen } from '../../lib/screenCover'
 
 
 // 移籍金オファーの下部シート（成立確率つき）。移籍市場・他チームタブ共通。
@@ -21,6 +22,7 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
   onSubmit: (fee: number) => void
   onClose: () => void
 }) {
+  useCoversScreen()
   const adH = useAdHeight()
   const val = calcTransferValue(player)
   // 出品中はクラブ希望額(askingPrice)が受諾ライン。デフォルト入札額も希望額に合わせる（満額＝ほぼ成立）。

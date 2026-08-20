@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { C, alpha, F } from '../../styles/tokens'
+import { useCoversScreen } from '../../lib/screenCover'
 
 /**
  * 【起動時に一度だけ出す全画面のお知らせ】
@@ -31,6 +32,7 @@ export default function IntroModal({
   onClose: () => void
   accent?: string
 }) {
+  useCoversScreen()
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 9999,

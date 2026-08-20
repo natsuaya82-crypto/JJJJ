@@ -1,7 +1,9 @@
 import { C, CARD, F, glassStyle } from '../../styles/tokens'
+import { useCoversScreen } from '../../lib/screenCover'
 const APP_STORE_URL = 'https://apps.apple.com/jp/app/jpel-manager/id6779638017'
 
 export default function ForceUpdateModal() {
+  useCoversScreen()
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 9999,

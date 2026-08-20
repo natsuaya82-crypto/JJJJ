@@ -30,6 +30,7 @@ import { WA_HOST_CITY } from '../../engine/worldAthletics'
 import { waRaceRows } from '../../utils/waRaces'
 import { ranRaces, raceKey, splitRaceKey, shortRaceName } from '../../utils/raceHistory'
 import { ForeignChip } from '../player/PlayerChips'
+import { useCoversScreen } from '../../lib/screenCover'
 
 
 const RADAR_KEYS: { key: keyof Player['ratings']; abbr: string }[] = [
@@ -237,6 +238,7 @@ export default function PlayerSheet() {
     return () => { document.body.style.overflow = prev }
   }, [player?.id])
 
+  useCoversScreen(!!player)
   if (!player) return null
 
   const team = clubIndex.byId(player.teamId)

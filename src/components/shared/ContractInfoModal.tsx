@@ -5,6 +5,7 @@ import { ovr, ratingColor } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
+import { useCoversScreen } from '../../lib/screenCover'
 
 
 const CONTRACT_TYPE_LABEL: Record<string, string> = {
@@ -31,6 +32,7 @@ export default function ContractInfoModal() {
   const players = useGameStore(s => s.players)
 
   const player = players.find(p => p.id === contractInfoPlayerId)
+  useCoversScreen(!!player)
   if (!player) return null
 
   const playerOvr = ovr(player)

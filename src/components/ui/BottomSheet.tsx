@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { C, F } from '../../styles/tokens'
 import { useAdHeight } from '../layout/Layout'
+import { useCoversScreen } from '../../lib/screenCover'
 
 // 画面下から出るシートの入れもの。中身だけを渡す。
 //
@@ -34,6 +35,7 @@ export default function BottomSheet({ open, onClose, title, children }: {
     return () => { document.body.style.overflow = prev }
   }, [open])
 
+  useCoversScreen(open)
   if (!open) return null
 
   return createPortal((

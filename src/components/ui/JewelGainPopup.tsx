@@ -4,6 +4,7 @@ import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import { JewelIcon } from '../icons/Icons'
 import GlassButton from './GlassButton'
 import { panelStyle } from './Panel'
+import { useCoversScreen } from '../../lib/screenCover'
 
 const JEWEL = C.jewel
 
@@ -19,6 +20,7 @@ const JEWEL = C.jewel
 export default function JewelGainPopup() {
   const gains = useGameStore(s => s.jewelGains) ?? []
   const dismiss = useGameStore(s => s.dismissJewelGains)
+  useCoversScreen(gains.length > 0)
   if (gains.length === 0) return null
 
   const total = gains.reduce((s, g) => s + g.amount, 0)

@@ -12,6 +12,7 @@ import { C, alpha, HEADER_H, NAV_H, NAV_FLOAT, NAV_STACK, MAIN_GAP, bottomStack,
 import PressButton from '../ui/PressButton'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { leaveRoom } from '../../lib/roomsApi'
+import { useScreenCovered } from '../../lib/screenCover'
 
 type MenuAction = { label: string; path?: string; action?: () => void; color?: string }
 /**
@@ -164,19 +165,26 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   //   レース中か（raceInProgress）は1つも移していない。渡すだけ
   //   （オーナー・2026-08-20「リキッドグラスまがい」「下タブだけでいいよ」）。
   const useNative = nativeTabBarAvailable()
+  // ★**覆っているものがあるときは隠すこと。** ネイティブの下タブは WebView の外に
+  //   居るので、**Web 側のどんな覆いも被せられません**（ローディング z-index 9999 でも
+  //   下タブだけが上に残る／選手詳細を開いたまま「ホーム」が押せてしまい、裏で移動
+  //   するのにシートは載ったままなので「飛ばない」ように見える）。
+  //   覆う側は `lib/screenCover` の `useCoversScreen()` を呼ぶだけで、
+  //   **隠すかどうかを決めるのはここ1本**（`raceInProgress` と同じ扱い）
+  const covered = useScreenCovered()
   useEffect(() => {
     if (!useNative) return
     void glassTabBar.apply({
       items: NAV.map(n => ({ key: n.to, label: n.label, icon: n.asset })),
       active: NAV.find(n => isActive(n.to))?.to ?? '/',
       badges: { '/online': onlineCount },
-      visible: !raceInProgress,
+      visible: !raceInProgress && !covered,
       bottomInset: adH,
     })
     // ★**毎レンダーで渡さないこと。** ネイティブへの受け渡しは1回ぶんが安くないので、
     //   実際に変わるものだけを見る（どこにいるか・数字・レース中か・広告の高さ）
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [useNative, location.pathname, onlineCount, raceInProgress, adH])
+  }, [useNative, location.pathname, onlineCount, raceInProgress, covered, adH])
   // ★**Layout が消えたら必ず隠すこと。** ネイティブの下タブは WebView の外
   //   （`viewController.view` の上）に居るので、**React が消えても勝手には消えません**。
   //   タイトル・オンボーディング・ドラフト・セーブ復旧は `Layout` の外にあるので、

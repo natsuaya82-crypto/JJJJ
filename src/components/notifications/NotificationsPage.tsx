@@ -24,6 +24,7 @@ import { useFriendRequests } from '../../lib/useFriendRequests'
 import { useClubGifts, dropClubGift } from '../../lib/useClubGifts'
 import { claimClubGift } from '../../lib/clubsApi'
 import { stashGifts, peekGifts, clearGifts } from '../../lib/giftInbox'
+import { useCoversScreen } from '../../lib/screenCover'
 
 const EMPTY_IDS: string[] = []
 
@@ -145,6 +146,7 @@ export default function NotificationsPage() {
   const claimGift = useGameStore(s => s.claimGift)
 
   const [claimedGift, setClaimedGift] = useState<(typeof pendingGifts)[number] | null>(null)
+  useCoversScreen(!!claimedGift)
 
   // 走友会のなかまから届いたカード
   const addTrainingCards = useGameStore(s => s.addTrainingCards)

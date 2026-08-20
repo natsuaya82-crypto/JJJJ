@@ -10,6 +10,7 @@ import { appraiseGmInvite } from '../../utils/gmInvite'
 import { gmInviteAskLine, gmInviteYesLine, gmInviteNoLine, gmInviteFeeLine } from '../../utils/chatLines'
 import { ovr, ratingColor, SPEC_COLOR } from '../../utils/playerUtils'
 import { C, alpha, SAIRA, bottomStack, F } from '../../styles/tokens'
+import { useCoversScreen } from '../../lib/screenCover'
 
 // ============================================================================
 // **声をかけた相手との1往復。ここで返事が出る。**
@@ -32,6 +33,7 @@ export default function GmInviteChat({ player, dest, onAgreed, onClose }: {
   onAgreed: () => void
   onClose: () => void
 }) {
+  useCoversScreen()
   const adH = useAdHeight()
   const store = useGameStore()
   const verdict = useMemo(() => appraiseGmInvite({

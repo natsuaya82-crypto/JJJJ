@@ -147,6 +147,7 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 保存だけが止まります**（画面の中だけが進んでファイルは何時間も前のまま＝次の起動でその
 時間ぶんが丸ごと消える）。`serializePending` は失敗を掴んで `saveHealth` を failed にし、
 復旧画面へ回します。
+| `src/lib/screenCover.ts` | **「いま画面を覆っているものがあるか」**。`useCoversScreen(開いているか)` を**覆う側が呼ぶだけ**で、隠すかどうかを決めるのは `Layout` 1本。★ネイティブの下タブは WebView の外に居るので、**Web 側のどんな覆いも被せられません**——Web の下タブ(z-index 50)だったころはシートもローディングも z-index が上なので**黙って隠れて**いました。ネイティブにした瞬間だけ、この「黙って隠れる」が消えます（オーナー・2026-08-20「下タブ全然出てくる。いらない画面でもローディングとか」／「ホームボタン押してるのに飛ばなかったりする選手詳細とか」＝下タブが押せてしまい裏で移動するがシートは載ったまま）。**早期リターンより上で呼ぶこと**（開いているかは引数で渡す）|
 | `src/components/layout/Layout.tsx` の `glassTabBar` | **ネイティブの下タブ（iOS 26 のガラス）の出し入れ**。触ってよいのは `Layout` だけで、`lib/glassTabBar.ts` もネイティブ側も**渡すだけの管**（タブの一覧・どこにいるか・数字・レース中かは全部 `Layout` が決める）。★**`Layout` が消えるときに必ず `apply({ visible: false })` すること**——下タブは WebView の**外**（`viewController.view` の上）に居るので、**React が消えても勝手には消えません**。タイトル・オンボーディング・ドラフト・セーブ復旧は `Layout` の外なので、これが無いと出しっぱなしになります（オーナー・2026-08-20「下タブがいらないタイトル画面とかでも表示されてる」）。**画面ごとに出し入れを書かないこと**（Webの下タブとネイティブで答えが割れます）。`check-glass-tabbar` が見張る |
 | `ios/App/App.xcodeproj/project.pbxproj` | **iOS のビルドに入るファイルの一覧**。Swift を足したら4行（`PBXBuildFile` / `PBXFileReference` / グループの子 / `Sources` フェーズ）を入れる。**IDは24桁の16進で、既にあるものと重ねないこと**——重ねると Xcode は片方しか見ないので、新しいファイルが**1行もコンパイルされず** `cannot find '◯◯' in scope` で落ちる（2026-08-20・`GlassTabBarPlugin` を `MainViewController` と同じIDにした）。`check-xcode-project` が見張る |
 | `supabase/all.sql` | **サーバー側（Supabase）の全部**。表・関数・ポリシー・権限。**流すのはこの1本だけ**（下の節） |
