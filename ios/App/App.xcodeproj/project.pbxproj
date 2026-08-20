@@ -13,7 +13,7 @@
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
 		7A8B9C0D1E2F00027A8B9C0D /* IAPPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A8B9C0D1E2F00017A8B9C0D /* IAPPlugin.swift */; };
 		7A8B9C0D1E2F00047A8B9C0D /* KeychainPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A8B9C0D1E2F00037A8B9C0D /* KeychainPlugin.swift */; };
-		7A8B9C0D1E2F00067A8B9C0D /* GlassTabBarPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A8B9C0D1E2F00057A8B9C0D /* GlassTabBarPlugin.swift */; };
+		7A8B9C0D1E2F00087A8B9C0D /* GlassTabBarPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A8B9C0D1E2F00077A8B9C0D /* GlassTabBarPlugin.swift */; };
 		7A8B9C0D1E2F00067A8B9C0D /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A8B9C0D1E2F00057A8B9C0D /* MainViewController.swift */; };
 		504EC30D1FED79650016851F /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30B1FED79650016851F /* Main.storyboard */; };
 		504EC30F1FED79650016851F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 504EC30E1FED79650016851F /* Assets.xcassets */; };
@@ -28,7 +28,7 @@
 		504EC3071FED79650016851F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		7A8B9C0D1E2F00017A8B9C0D /* IAPPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IAPPlugin.swift; sourceTree = "<group>"; };
 		7A8B9C0D1E2F00037A8B9C0D /* KeychainPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainPlugin.swift; sourceTree = "<group>"; };
-		7A8B9C0D1E2F00057A8B9C0D /* GlassTabBarPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassTabBarPlugin.swift; sourceTree = "<group>"; };
+		7A8B9C0D1E2F00077A8B9C0D /* GlassTabBarPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlassTabBarPlugin.swift; sourceTree = "<group>"; };
 		7A8B9C0D1E2F00057A8B9C0D /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
 		504EC30C1FED79650016851F /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		504EC30E1FED79650016851F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -74,7 +74,7 @@
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				7A8B9C0D1E2F00017A8B9C0D /* IAPPlugin.swift */,
 				7A8B9C0D1E2F00037A8B9C0D /* KeychainPlugin.swift */,
-				7A8B9C0D1E2F00057A8B9C0D /* GlassTabBarPlugin.swift */,
+				7A8B9C0D1E2F00077A8B9C0D /* GlassTabBarPlugin.swift */,
 				7A8B9C0D1E2F00057A8B9C0D /* MainViewController.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
@@ -170,7 +170,7 @@
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				7A8B9C0D1E2F00027A8B9C0D /* IAPPlugin.swift in Sources */,
 				7A8B9C0D1E2F00047A8B9C0D /* KeychainPlugin.swift in Sources */,
-				7A8B9C0D1E2F00067A8B9C0D /* GlassTabBarPlugin.swift in Sources */,
+				7A8B9C0D1E2F00087A8B9C0D /* GlassTabBarPlugin.swift in Sources */,
 				7A8B9C0D1E2F00067A8B9C0D /* MainViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

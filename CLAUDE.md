@@ -147,6 +147,7 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 保存だけが止まります**（画面の中だけが進んでファイルは何時間も前のまま＝次の起動でその
 時間ぶんが丸ごと消える）。`serializePending` は失敗を掴んで `saveHealth` を failed にし、
 復旧画面へ回します。
+| `ios/App/App.xcodeproj/project.pbxproj` | **iOS のビルドに入るファイルの一覧**。Swift を足したら4行（`PBXBuildFile` / `PBXFileReference` / グループの子 / `Sources` フェーズ）を入れる。**IDは24桁の16進で、既にあるものと重ねないこと**——重ねると Xcode は片方しか見ないので、新しいファイルが**1行もコンパイルされず** `cannot find '◯◯' in scope` で落ちる（2026-08-20・`GlassTabBarPlugin` を `MainViewController` と同じIDにした）。`check-xcode-project` が見張る |
 | `supabase/all.sql` | **サーバー側（Supabase）の全部**。表・関数・ポリシー・権限。**流すのはこの1本だけ**（下の節） |
 | `supabase/all.sql` の `club_member_cap` | **走友会の人数の上限（30）**。以前は入るとき30・承認だけ50で、承認制の走友会だけ50人まで入れた |
 

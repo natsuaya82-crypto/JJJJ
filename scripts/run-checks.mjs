@@ -186,6 +186,8 @@ const CHECKS = [
   'wa-entry',
   // Supabase の SQL が1本か・データを消さないか・アプリの rpc と噛み合っているか
   'supabase-sql',
+  // 足した Swift が本当にビルドに入っているか（IDが重複すると片方が黙って消える）
+  'xcode-project',
   // 画面の一本化（色・下タブまわりの数字・共通クラスの手書き）。
   // 他の点検はどれも src/components の見た目を見ていないので、ここだけが画面の見張り
   'ui-tokens',
