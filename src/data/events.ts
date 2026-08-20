@@ -26,15 +26,16 @@ export const GREAT_SUCCESS_CHANCE = 0.05
 /**
  * 開催中のイベント。**終わったら消すこと。**
  *
- * いまは空＝どのイベントもやっていない（ふだんの値がそのまま使われる）。
+ * ここに1行足すだけで始まり、消すだけで終わる。
+ * 配布のほうは store の `grantUpdateGifts`（`GIFT_VERSION` を変えると全員に配られる）。
  *
- * ■次のアップデートで入れる予定（2.0.2 には入れない）
- *   1000DL記念：カード合成の大成功が100%になる5日間
- *     { id: 'dl1000-great', title: '1000DL記念 大成功100%', from: 'YYYY-MM-DD', to: 'YYYY-MM-DD' }
- *   日付はオーナーが決める。ここに1行足すだけで始まり、消すだけで終わる。
- *   ジュエルの配布は store の grantUpdateGifts（GIFT_VERSION を変えると全員に配られる）。
+ * ★`to` は**その日を含む**（`from <= 今日 <= to`）。8/22〜8/24 で3日間。
  */
-export const EVENTS: GameEvent[] = []
+export const EVENTS: GameEvent[] = [
+  // 1000DL突破記念（オーナー・2026-08-20「8/22〜8/25大成功100パー！3日だけで！」）。
+  // ★「3日だけ」を採って 8/22〜8/24 にしてある。4日にするなら to を 2026-08-25 へ
+  { id: 'dl1000-great', title: '1000DL記念 大成功100%', from: '2026-08-22', to: '2026-08-24' },
+]
 
 /** その日付（既定は今日）に開催中のイベント */
 export function activeEvents(now: Date = new Date()): GameEvent[] {

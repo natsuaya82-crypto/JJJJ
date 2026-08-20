@@ -82,17 +82,17 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const pruned = (state.pendingGifts ?? []).filter(g => !g.expiresAt || g.expiresAt >= nowISO)
       const prunedChanged = pruned.length !== (state.pendingGifts ?? []).length
 
-      const GIFT_VERSION = '1.0.6-apology'
+      const GIFT_VERSION = '2.0.5-1000dl'
       if ((state.giftGivenVersions ?? []).includes(GIFT_VERSION)) {
         return prunedChanged ? { pendingGifts: pruned } : state
       }
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()  // 配布から1か月
       const gift: Gift = {
         id: `gift_${GIFT_VERSION}`,
-        title: 'バグ修正のお詫び',
-        message: '不具合でご迷惑をおかけしたお詫びに、ジュエル1000個をお贈りします。受け取り期間は配布から1か月です。',
+        title: '1000ダウンロード突破記念',
+        message: '優勝トロフィーを5個お贈りします。受け取り期間は配布から1か月です。',
         cards: [],
-        jewels: 1000,
+        trophies: 5,
         expiresAt }
       return {
         pendingGifts: [...pruned, gift],
