@@ -37,24 +37,28 @@ export const EVENTS: GameEvent[] = [
   { id: 'dl1000-great', title: '1000DL記念 大成功100%', from: '2026-08-22', to: '2026-08-24' },
 ]
 
-/** その日付（既定は今日）に開催中のイベント */
-export function activeEvents(now: Date = new Date()): GameEvent[] {
-  const y = now.getFullYear()
-  const m = String(now.getMonth() + 1).padStart(2, '0')
-  const d = String(now.getDate()).padStart(2, '0')
-  const today = `${y}-${m}-${d}`
+/**
+ * その日に開催中のイベント。
+ *
+ * ★**`today` は呼ぶ側から渡すこと**（`utils/jstDate` の `jstGameDayISO()`）。
+ *   `data/` は `utils/` を import できない（`check-layers`）。お知らせポップの
+ *   `nextNewsPopup(seenIds, today)` と同じ形。
+ * ★**端末のローカル日付で決めないこと。** 日本時間の朝10時区切りで揃える
+ *   （オーナー・2026-08-20「日本時間やね」「22の10時から25日の9:59まで」）。
+ */
+export function activeEvents(today: string): GameEvent[] {
   return EVENTS.filter(e => e.from <= today && today <= e.to)
 }
 
 /** そのイベントが開催中か */
-export function isEventActive(id: string, now?: Date): boolean {
-  return activeEvents(now).some(e => e.id === id)
+export function isEventActive(id: string, today: string): boolean {
+  return activeEvents(today).some(e => e.id === id)
 }
 
 /**
  * いまの合成の大成功確率。**画面はこれを呼ぶ（0.05 と書かない）。**
  * 広告視聴・GMパスの確約はイベントとは別で、呼ぶ側が確定させる。
  */
-export function greatSuccessChance(now?: Date): number {
-  return isEventActive('dl1000-great', now) ? 1 : GREAT_SUCCESS_CHANCE
+export function greatSuccessChance(today: string): number {
+  return isEventActive('dl1000-great', today) ? 1 : GREAT_SUCCESS_CHANCE
 }

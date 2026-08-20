@@ -25,6 +25,7 @@ import { panelStyle } from '../ui/Panel'
 import PlayerList from '../player/PlayerList'
 import ScreenCover from '../ui/ScreenCover'
 import { trophyBlockReason } from '../../utils/trophy'
+import { jstGameDayISO } from '../../utils/jstDate'
 
 const statKeys: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
 // 種類数 → メニュー倍率（表示用。実効値は cardCombo.ts と一致）
@@ -143,7 +144,7 @@ export default function CardTrainingPage() {
     // 広告視聴済みならそちらで確約。無料確約(買い切り版1日1回)は選んだときだけ消費する
     const freeUsed = !adWatched && useFreeGreat && claimDailyGreatSuccess()
     // 大成功の確率は data/events の1本（期間限定イベント中は100%になる）
-    const greatSuccess = adWatched || freeUsed || Math.random() < greatSuccessChance()
+    const greatSuccess = adWatched || freeUsed || Math.random() < greatSuccessChance(jstGameDayISO())
     const multiplier = greatSuccess ? 1.5 : 1.0
     applyTrainingCards(targetPlayer.id, cardIds, multiplier)
     setApplied({ combo, greatSuccess, preRatings, preExp })
@@ -165,7 +166,7 @@ export default function CardTrainingPage() {
     }}>
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 1, background: `linear-gradient(90deg, transparent, ${alpha(PURPLE, 0.3)}, transparent)`, pointerEvents: 'none' }}/>
       {/* 開催中のイベント（data/events の1本。終わったら自動的に消える） */}
-      {activeEvents().map(ev => (
+      {activeEvents(jstGameDayISO()).map(ev => (
         <div key={ev.id} style={{
           marginBottom: 8, padding: '6px 10px',
           background: `linear-gradient(180deg, ${alpha(C.gold, 0.18)}, ${alpha(C.gold, 0.08)})`,
@@ -399,7 +400,7 @@ border: `2px dashed ${C.border2}`,
       {/* Ad option。★**大成功が100%のイベント中は丸ごと出さない**——
           確定させる手段（広告・GMパス・無料1回）に意味が無いのに見せると、
           広告を見せられたと感じるし、GMパスの1回を無駄に使わせてしまう */}
-      {canApply && greatSuccessChance() < 1 && (
+      {canApply && greatSuccessChance(jstGameDayISO()) < 1 && (
         <div style={{ margin: '14px 14px 0', textAlign: 'center' }}>
           {adWatched ? (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '6px 4px' }}>

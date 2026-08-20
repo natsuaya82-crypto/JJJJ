@@ -14,3 +14,17 @@
 export function jstTodayISO(): string {
   return new Date(Date.now() + 9 * 3600_000).toISOString().slice(0, 10)
 }
+
+/**
+ * **日本時間の「今日」。ただし朝10時で切り替わる版。**
+ *
+ * ゲームの中の1日はログインボーナスと同じ朝10時区切り。イベントの期間も
+ * それに合わせる（オーナー・2026-08-20「22の10時から25日の9:59まで」）。
+ *
+ * ★**端末のローカル時刻ではなく日本時間で決めること。** 海外にいる人や
+ *   時計をずらしている端末で、始まる時刻がバラバラになる。
+ *   （JST = UTC+9。そこから10時間戻すと「10時で日付が変わる」になる）
+ */
+export function jstGameDayISO(now: number = Date.now()): string {
+  return new Date(now - 3600_000).toISOString().slice(0, 10)
+}
