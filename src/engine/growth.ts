@@ -294,6 +294,14 @@ export function growPlayer(p: Player, allowAnnualGrowth = false, clubTierForGrow
     potential,
     fatigue: 5,
     form: 0,
-    contract: { ...p.contract, yearsLeft: Math.max(0, p.contract.yearsLeft - 1) },
+    // ★契約が切れたら「加入したときの契約」の印も消す。残すと、無所属になった選手が
+    //   `isTransferLocked` で止まったまま誰にも獲られなくなる
+    contract: {
+      ...p.contract,
+      yearsLeft: Math.max(0, p.contract.yearsLeft - 1),
+      // ★契約が切れたら「加入したときの契約」の印も消す。残すと、無所属になった選手が
+      //   `isTransferLocked` で止まったまま誰にも獲られなくなる
+      ...(p.contract.yearsLeft <= 1 ? { signedOnJoin: false } : {}),
+    },
   }
 }

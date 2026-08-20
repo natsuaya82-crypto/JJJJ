@@ -86,10 +86,15 @@ console.log('\n[5] 引退希望を受けた選手・加入1年目の選手')
 
   const fresh = P({ joinedYear: 2030 })
   check('今季加入の判定', isNewJoin(fresh, 2030))
-  check('加入1年目は引き抜かれない', !canBePoached(fresh, CTX))
   check('年が分からないときは加入1年目の判定をしない', !isNewJoin(fresh, undefined))
-  check('海外挑戦は本人とGMが望んだ話なので加入1年目でも止めない',
-    canGoOverseasDream(P({ joinedYear: 2030, overseasListed: 'europe' } as Partial<Player>), CTX))
+  // ★引き抜きを止めるのは「加入したときの契約が続いているか」1本
+  //   （`isTransferLocked`。2026-08-20 に「加入から2年」の固定から変えた）
+  const onJoinDeal = P({ contract: { annualSalary: 1000, yearsLeft: 3, faEligibleYear: 2033, signedOnJoin: true } } as Partial<Player>)
+  check('加入したときの契約が続いている選手は引き抜かれない', !canBePoached(onJoinDeal, CTX))
+  check('契約を更新したら引き抜かれる', canBePoached(P({ contract: { annualSalary: 1000, yearsLeft: 3, faEligibleYear: 2033, signedOnJoin: false } } as Partial<Player>), CTX))
+  check('海外挑戦は本人とGMが望んだ話なので、加入したときの契約でも止めない',
+    canGoOverseasDream(P({ joinedYear: 2030, overseasListed: 'europe',
+      contract: { annualSalary: 1000, yearsLeft: 3, faEligibleYear: 2033, signedOnJoin: true } } as Partial<Player>), CTX))
 }
 
 console.log('\n[6] 条件がソースに手書きでコピーし直されていない')

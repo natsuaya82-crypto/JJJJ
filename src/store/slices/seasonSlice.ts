@@ -311,7 +311,8 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         if (cpuRenewIds.has(p.id)) {
           const newSalary = cpuRenewalSalary(withHistory)
           const years = newContractYears(withHistory, newYear)
-          return { ...withHistory, contract: { ...withHistory.contract, yearsLeft: years, annualSalary: newSalary, faEligibleYear: newYear + years } }
+          // 契約を更新したら「加入したときの契約」の印を消す＝そこから動けるようになる
+          return { ...withHistory, contract: { ...withHistory.contract, yearsLeft: years, annualSalary: newSalary, faEligibleYear: newYear + years, signedOnJoin: false } }
         }
         return withHistory
       })

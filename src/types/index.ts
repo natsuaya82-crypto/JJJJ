@@ -243,6 +243,12 @@ export type Player = {
     contractType?: 'standard' | 'development' | 'dual'
     bonusClauses?: BonusClause[]
     rookieDeal?: boolean   // ドラフト直後の初回契約（相場より安い）。次の更新では相場基準の要求になる
+    /**
+     * **そのクラブに加入したときに結んだ契約か。** これが立っている間は移籍で動かせない
+     * （`utils/transferEligibility` の `isTransferLocked`。レンタルは止めない）。
+     * 契約を更新したら消す＝そこから動けるようになる。
+     */
+    signedOnJoin?: boolean
   }
   nationality: Nationality
   origin: string

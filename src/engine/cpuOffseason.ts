@@ -207,7 +207,7 @@ export function runCpuLoans(
       if (sid === receiver || (givenLoan[sid] ?? 0) >= 1) continue
       const found = rosterOf(sid).find((p, i) =>
         hasNoPlayingTime(i + 1) && p.age <= LOAN_MAX_AGE
-        // ★レンタルは `TRANSFER_LOCK_YEARS` の対象外（オーナー・2026-08-14「レンタルのみ」）。
+        // ★レンタルは `isTransferLocked` の対象外（オーナー・2026-08-14「レンタルのみ」）。
         //   ここは今までどおり「同じ年に二度は動かさない」だけ
         && !loanedIds.has(p.id) && p.joinedYear !== ctx.year
         && needsPlayer(myRoster, p))

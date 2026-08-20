@@ -141,7 +141,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     set(state => ({
       players: state.players.map(p =>
         p.id === playerId
-          ? { ...p, contract: { ...p.contract, yearsLeft: p.contract.yearsLeft + years, annualSalary: salary } }
+          ? { ...p, contract: { ...p.contract, yearsLeft: p.contract.yearsLeft + years, annualSalary: salary, signedOnJoin: false } }
           : p
       ),
       currentSeason: {
@@ -548,7 +548,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
           ...p,
           teamRole: teamRole ?? p.teamRole,
           // 更新成立でルーキー契約は終了
-          contract: { ...p.contract, annualSalary: salary, yearsLeft: newYears, contractType: contractType ?? p.contract.contractType, faEligibleYear: state.currentSeason.year + newYears, rookieDeal: false } } : p)
+          contract: { ...p.contract, annualSalary: salary, yearsLeft: newYears, contractType: contractType ?? p.contract.contractType, faEligibleYear: state.currentSeason.year + newYears, rookieDeal: false, signedOnJoin: false } } : p)
       } else if (newStatus === 'rejected' && isLastRound) {
         // 最終ラウンドで拒否 → 更新を拒み退団へ（移籍リスト入り＝契約満了でFA、他チームはフリー移籍で獲得可）
         // 来年まで更新オファーもロックする
@@ -583,7 +583,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
           ...p,
           teamRole: req.offerTeamRole ?? p.teamRole,
           // 更新成立でルーキー契約は終了
-          contract: { ...p.contract, annualSalary: req.counterSalary!, yearsLeft: cNewYears, contractType: req.offerContractType ?? p.contract.contractType, faEligibleYear: state.currentSeason.year + cNewYears, rookieDeal: false } } : p),
+          contract: { ...p.contract, annualSalary: req.counterSalary!, yearsLeft: cNewYears, contractType: req.offerContractType ?? p.contract.contractType, faEligibleYear: state.currentSeason.year + cNewYears, rookieDeal: false, signedOnJoin: false } } : p),
         currentSeason: {
           ...state.currentSeason,
           contractRequests: (state.currentSeason.contractRequests ?? []).map(r => r.id === requestId ? { ...r, status: 'accepted' as const } : r),

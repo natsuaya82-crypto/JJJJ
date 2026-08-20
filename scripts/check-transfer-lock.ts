@@ -1,9 +1,13 @@
 /**
- * 【移籍したら2年は動かせない。ただしレンタルは別】
+ * 【加入したときの契約が続いている間は動かせない。ただしレンタルは別】
  * 【レンタルの相手は主力ではない】
  *
  * ■なぜ要るのか（オーナー・2026-08-14）
  *   「移籍して2年は動かせなくしよう。レンタルのみ」
+ *   → 2026-08-20 に「**新加入選手は最初の契約分はブロック**」へ。契約年数は
+ *     `newContractYears` で 1〜5年（若いほど長い）なので、18歳の新人は5年動かせず、
+ *     33歳のベテランは1年で動ける。「1年契約なんだから動きやすさを前提にしてるやろ」
+ *     「獲得に失敗したらロックは普通じゃね」（オーナー）。年齢ごとの扱いを別に書かなくて済む。
  *   「レンタルも、主力の90とかをレンタルしようとしてくるのなに？」
  *
  *   2回目以降の移籍のうち**70.1%が「前の年に移ったばかり」**でした
@@ -16,7 +20,7 @@
  *   なので、そこだけを見るとU23で一番強い選手＝主力が候補に入ります。
  *   レース結果に依らない**序列**（走れる7人に入るか）を先に見るようにしました。
  */
-import { isTransferLocked, TRANSFER_LOCK_YEARS } from '../src/utils/transferEligibility'
+import { isTransferLocked } from '../src/utils/transferEligibility'
 import { generateLoanOffers, LOAN_BENCH_PLAY_RATE } from '../src/engine/cpuMarket'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
@@ -34,17 +38,38 @@ const check = (name: string, ok: boolean, detail = '') => {
   if (!ok) failed++
 }
 
-console.log(`[1] 移籍したら ${TRANSFER_LOCK_YEARS} 年は動かせない`)
+console.log('[1] 加入したときの契約が続いている間は動かせない')
 {
-  const p = (joinedYear: number) => ({ id: 'x', joinedYear } as unknown as Player)
-  check('加入した年は動かせない', isTransferLocked(p(2030), 2030))
-  check('その翌年もまだ動かせない', isTransferLocked(p(2030), 2031))
-  check(`${TRANSFER_LOCK_YEARS}年経ったら動かせる`, !isTransferLocked(p(2030), 2030 + TRANSFER_LOCK_YEARS))
-  check('もっと経てば当然動かせる', !isTransferLocked(p(2030), 2040))
-  // ★joinedYear が無い選手（初期ロスター・古いセーブ）を止めると世界が丸ごと凍る
-  check('joinedYear が無い選手は止めない',
+  const p = (signedOnJoin?: boolean, yearsLeft = 3) =>
+    ({ id: 'x', joinedYear: 2030, contract: { yearsLeft, signedOnJoin } } as unknown as Player)
+  check('加入したときの契約なら動かせない', isTransferLocked(p(true), 2030))
+  check('何年経っても、その契約のうちは動かせない', isTransferLocked(p(true), 2040))
+  check('更新したら動かせる（印が消える）', !isTransferLocked(p(false), 2031))
+  // ★印が無い選手（初期ロスター・古いセーブ）を止めると世界が丸ごと凍る
+  check('印が無い選手は止めない', !isTransferLocked(p(undefined), 2030))
+  check('契約そのものが無い選手も止めない',
     !isTransferLocked({ id: 'y' } as unknown as Player, 2030))
-  check('年が分からないときも止めない', !isTransferLocked(p(2030), undefined))
+}
+
+console.log('\n[1b] 印を付けるのは movePlayer 1本。更新で消す')
+{
+  const src = (f: string) => readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+  // ★**呼ぶ側で付けないこと。** クラブ間の移動は movePlayer を通るので、
+  //   ここ1本で付ければ書き忘れた経路だけロックが効かない、が起きない
+  const mv = src('src/utils/movePlayer.ts')
+  check('movePlayer が印を付ける', /signedOnJoin = true/.test(mv))
+  check('レンタルには付けない', /!onLoan && !backToOwner && dest/.test(mv))
+  // 更新で消える口が全部あるか（自チームの更新2つ・延長・CPUの更新）
+  const market = src('src/store/slices/marketSlice.ts')
+  const season = src('src/store/slices/seasonSlice.ts')
+  check('自チームの契約更新で消える', (market.match(/signedOnJoin: false/g) ?? []).length >= 3,
+    `${(market.match(/signedOnJoin: false/g) ?? []).length}か所`)
+  check('CPUの契約更新でも消える', /signedOnJoin: false/.test(season))
+  // ★契約が切れた選手（無所属）を止めると、誰にも獲られなくなる
+  check('契約が切れたら印も消える', /signedOnJoin: false/.test(src('src/engine/growth.ts')))
+  // ★経緯の説明文にも当たるので、**export が残っていないか**だけを見る
+  check('古い定数（TRANSFER_LOCK_YEARS）を export していない',
+    !/export const TRANSFER_LOCK_YEARS/.test(readFileSync('src/utils/transferEligibility.ts', 'utf8')))
 }
 
 console.log('\n[2] 市場とトレードは関門を通す。レンタルは通さない')
@@ -104,4 +129,4 @@ console.log('\n[3] レンタルの相手は主力ではない（世界を作っ�
 
 console.log('')
 if (failed > 0) { console.log(`✗ 移籍の間隔かレンタルの相手選びが崩れています（${failed}件）`); process.exit(1) }
-console.log(`✓ 移籍したら${TRANSFER_LOCK_YEARS}年動かせない（レンタルは別）。レンタルの相手は主力ではない`)
+console.log('✓ 加入したときの契約が続いている間は動かせない（レンタルは別）。レンタルの相手は主力ではない')

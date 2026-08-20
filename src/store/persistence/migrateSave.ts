@@ -589,6 +589,19 @@ export const migrateSave = (persistedState: unknown, version: number) => {
         }) }
       })
     }
+    // v43: 移籍のロックを「加入から2年」から「加入したときの契約が続いている間」へ。
+    //   これまでロックされていた選手（加入から2年未満）に印を立てて、挙動を引き継ぐ。
+    //   印が無い選手は止まらないので、ここで立てないと**旧セーブの世界が一斉に解錠**される。
+    if (version < 43 && Array.isArray(s.players)) {
+      const year = (s.currentSeason as { year?: number } | undefined)?.year ?? 0
+      s.players = (s.players as Record<string, unknown>[]).map(p => {
+        if (!p || typeof p !== 'object') return p
+        const jy = p.joinedYear as number | undefined
+        const c = p.contract as Record<string, unknown> | undefined
+        if (!c || !jy || !year || year - jy >= 2) return p
+        return { ...p, contract: { ...c, signedOnJoin: true } }
+      })
+    }
     return s
   } catch (e) {
     // 旧セーブの変換中に例外が出ても読み込み自体は失敗させず、変換前のデータをそのまま渡す。

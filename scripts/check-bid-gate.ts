@@ -24,7 +24,6 @@
  */
 import { readFileSync } from 'node:fs'
 import { bidBlockReason, loanBlockReason, MAX_BIDS_PER_PLAYER, LOAN_SLOTS } from '../src/utils/bidGate'
-import { TRANSFER_LOCK_YEARS } from '../src/utils/transferEligibility'
 import type { Player } from '../src/types'
 
 let failed = 0
@@ -42,9 +41,9 @@ const P = (over: Partial<Player> = {}): Player => ({
   nationality: 'JPN', status: 'active',
   ratings: { speed: 70, stamina: 70, mountainUp: 70, mountainDown: 70, pacing: 70, mental: 70, recovery: 70 },
   potential: 80, growthCurve: 'normal', morale: 60, fatigue: 0,
-  // ★移籍ロックに掛からない加入年を入れること（入れないと全部が「移籍したばかり」で
+  // ★移籍ロックに掛からない契約を入れること（入れないと全部が「移籍したばかり」で
   //   止まり、他の条件を1つも通らない＝空振りの緑になる）
-  joinedYear: YEAR - TRANSFER_LOCK_YEARS,
+  joinedYear: YEAR - 3,
   contract: { annualSalary: 10_000_000, yearsLeft: 3 },
   ...over,
 } as unknown as Player)
@@ -67,7 +66,7 @@ console.log('\n[2] 出せない条件は、どれを引いても必ず理由が�
     ['残高マイナス', P(), gate({ myTeam: { finance: { budget: -1, deficitStreak: 0 } } })],
     ['3年連続赤字', P(), gate({ myTeam: { finance: { budget: 1_000_000_000, deficitStreak: 3 } } })],
     ['交渉決裂で来季まで', P({ transferLockedUntilYear: YEAR + 1 }), gate()],
-    ['移籍したばかり', P({ joinedYear: YEAR }), gate()],
+    ['加入したときの契約が続いている', P({ contract: { annualSalary: 1000, yearsLeft: 3, faEligibleYear: YEAR + 3, signedOnJoin: true } as never }), gate()],
     ['レンタル中', P({ loan: { ownerTeamId: 'x', years: 1 } as never }), gate()],
     ['非売', P({ noSale: true }), gate()],
     ['海外挑戦中', P({ overseasListed: true }), gate()],
@@ -89,8 +88,9 @@ console.log('\n[2] 出せない条件は、どれを引いても必ず理由が�
 
 console.log('\n[3] レンタルは入札と条件が違う（移籍したばかりでも借りられる）')
 {
-  check('移籍したばかりでもレンタルは通る', loanBlockReason(P({ joinedYear: YEAR }), gate()) === null,
-    String(loanBlockReason(P({ joinedYear: YEAR }), gate())))
+  const justJoined = P({ contract: { annualSalary: 1000, yearsLeft: 3, faEligibleYear: YEAR + 3, signedOnJoin: true } as never })
+  check('加入したときの契約が続いていてもレンタルは通る', loanBlockReason(justJoined, gate()) === null,
+    String(loanBlockReason(justJoined, gate())))
   check('レンタル枠が満杯なら止まる',
     !!loanBlockReason(P(), gate({ loanSlotsUsed: LOAN_SLOTS })))
   check('すでに申請中なら止まる', !!loanBlockReason(P(), gate({ loanRequested: true })))

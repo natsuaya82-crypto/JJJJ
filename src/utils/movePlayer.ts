@@ -182,7 +182,15 @@ export function movePlayer(
       // 引退後は能力が消えるので、歴代ドラフト・移籍履歴の表示用に総合値だけ控える
       q.finalOvr = p.finalOvr ?? ovr(p)
     }
-    if (opts.contract) q.contract = { ...p.contract, ...opts.contract }
+    // ★**加入したときの契約に印を付ける**（`utils/transferEligibility` の `isTransferLocked`）。
+    //   この印が立っている間は移籍で動かせない。契約を更新したら消す。
+    //   レンタル（`onLoan`）と、レンタルから戻るとき（`backToOwner`）は保有権が動かないので付けない。
+    //   ★ここで付けるのは、**クラブ間の移動は movePlayer 1本を通る**から。
+    //     呼ぶ側で書くと、1つ書き忘れた経路だけロックが効かない形になる。
+    if (opts.contract) {
+      q.contract = { ...p.contract, ...opts.contract }
+      if (!onLoan && !backToOwner && dest) q.contract.signedOnJoin = true
+    }
     if (opts.teamRole) q.teamRole = opts.teamRole
     if (opts.lockUntilYear != null) q.transferLockedUntilYear = opts.lockUntilYear
     return q

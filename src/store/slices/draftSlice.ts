@@ -394,7 +394,8 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
           ...p,
           teamRole: teamRole ?? p.teamRole,
           // rookieDeal: ドラフト初回契約は相場の半分まで下げられるが、次の更新では相場基準の要求になる
-          contract: { ...p.contract, annualSalary: salary, yearsLeft: years, contractType, rookieDeal: true } } : p),
+          // ドラフトの初回契約も「加入したときの契約」＝その間は動かせない（レンタルは通る）
+          contract: { ...p.contract, annualSalary: salary, yearsLeft: years, contractType, rookieDeal: true, signedOnJoin: true } } : p),
         // 名簿はここで並べ替えない。所属から組み直す決まりに任せる（指名の時点で入っている）
       }
     })
