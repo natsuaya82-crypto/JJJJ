@@ -121,14 +121,20 @@ export function actionButton(color: string, disabled = false): React.CSSProperti
 //   見れるようにしてほしい」）。長押しを付けるのは**ロゴ〜本文のところだけ**で、
 //   右のボタン（入る／申請）には付けない——ボタンの上で長押しして離すと
 //   押した扱いにもなるため（`MemberRow` と同じ理由）。
-function ClubCard({ club, right, onPeek }: { club: ClubBrief; right?: React.ReactNode; onPeek?: () => void }) {
+function ClubCard({ club, right, onPeek, onTap }: {
+  club: ClubBrief; right?: React.ReactNode
+  /** 長押しで中身を見る */
+  onPeek?: () => void
+  /** タップでも中身を見る（**見るだけの一覧のとき**。入るボタンが無いので取り合いにならない） */
+  onTap?: () => void
+}) {
   const longPress = useLongPress()
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
       background: C.surface2, border: `1px solid ${C.border2}`,
     }}>
-      <div {...(onPeek ? longPress(onPeek) : {})}
+      <div {...(onPeek ? longPress(onPeek, onTap) : {})}
         style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, cursor: onPeek ? 'pointer' : 'default' }}>
       <ClubLogo logoId={club.logoId} size={44} />
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -297,7 +303,16 @@ export function ClubHeaderCard({ club, right }: { club: ClubBrief; right?: React
 }
 
 // ── 未所属：検索画面 ───────────────────────────────────
-function ClubSearch({ onChanged }: { onChanged: () => void }) {
+/**
+ * 走友会を探す画面。**入っていない人の入口**と、**入っている人が他所を見るページ**の
+ * 両方がこれ1つ（オーナー・2026-08-20「走友会の右上とかに検索ボタンおけば？」
+ * 「脱退しないと入れないし、詳細見れるくらいのやつで」）。
+ *
+ * `readOnly` のときは**入る・申請・自分で作る**を出さない。見るだけ。
+ * ★画面を新しく作らないこと。ここに枝を1つ足すのが正解で、
+ *   似た一覧をもう1枚書くと「おすすめの出し方」が2通りになる。
+ */
+export function ClubSearch({ onChanged, readOnly }: { onChanged?: () => void; readOnly?: boolean }) {
   const navigate = useNavigate()
   const [q, setQ] = useState('')
   const [term, setTerm] = useState('') // 実際に検索に使っている言葉
@@ -312,7 +327,7 @@ function ClubSearch({ onChanged }: { onChanged: () => void }) {
 
   const refresh = () => {
     invalidateFriendsCache('myClub', 'clubReco', 'clubReqSent')
-    list.reload(); sent.reload(); onChanged()
+    list.reload(); sent.reload(); onChanged?.()
   }
 
   const onJoin = async (club: ClubBrief) => {
@@ -381,7 +396,12 @@ function ClubSearch({ onChanged }: { onChanged: () => void }) {
          ) : (
            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
              {(list.data ?? []).map(c => (
-               <ClubCard key={c.id} club={c} onPeek={() => navigate(`/friends/club/${c.code}`)} right={
+               <ClubCard key={c.id} club={c}
+                 onPeek={() => navigate(`/friends/club/${c.code}`)}
+                 // ★見るだけのときはタップでも開く（入るボタンが無いので取り合いにならない）
+                 onTap={readOnly ? () => navigate(`/friends/club/${c.code}`) : undefined}
+                 right={
+                 readOnly ? null :
                  requested.has(c.id) ? (
                    <button onClick={() => onCancelReq(c)} disabled={busy === c.id} className="btn-press" style={actionButton(C.textDim)}>
                      申請中
@@ -401,12 +421,12 @@ function ClubSearch({ onChanged }: { onChanged: () => void }) {
            </div>
          )}
 
-        <SectionLabel>自分で作る</SectionLabel>
-        <button onClick={() => setMaking(true)} className="btn-press" style={{
+        {!readOnly && <SectionLabel>自分で作る</SectionLabel>}
+        {!readOnly && <button onClick={() => setMaking(true)} className="btn-press" style={{
           width: '100%', padding: '14px',cursor: 'pointer',
           border: `2px solid ${C.goldDark}`, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
           color: C.gold, fontSize: F.sub, fontWeight: 900, fontFamily: SAIRA,
-        }}>走友会を作る</button>
+        }}>走友会を作る</button>}
       </div>
 
       {confirm && (
@@ -1513,6 +1533,7 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
 
 // ── 入口 ─────────────────────────────────────────────
 export default function FriendClubPage() {
+  const navigate = useNavigate()
   const mine = useFriendsQuery(myClub, [], 'myClub')
   // ★ここは**自分の走友会**だけ。人の走友会は `/friends/club/<コード>`（`ClubViewPage`）で、
   //   入口を分けてある。以前は `?code=` を付けてこの画面へ飛ばしていたが、
@@ -1520,7 +1541,26 @@ export default function FriendClubPage() {
 
   return (
     <div style={{ fontFamily: SAIRA, minHeight: '100%', paddingBottom: 80 }}>
-      <PageHeader title="走友会" />
+      {/* ★入っている人が**他の走友会を見に行く道**。入っていないときは、この画面そのものが
+          探す画面なので出さない（オーナー・2026-08-20「走友会の右上とかに検索ボタンおけば？」）。
+          入っていると自分の走友会のページに置き換わるので、**探す道が1本も無かった**
+          （テスターの報告・2026-08-20「他の走友会を見ることができない」） */}
+      <PageHeader title="走友会" right={mine.data ? (
+        <button
+          onClick={() => navigate('/friends/clubs')}
+          aria-label="走友会をさがす"
+          className="btn-press"
+          style={{
+            width: 34, height: 34, flexShrink: 0, padding: 0, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: `1px solid ${alpha(C.gold, 0.45)}`, background: alpha(C.gold, 0.10), color: C.gold,
+          }}>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+            <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.9"/>
+            <path d="M16 16l4.5 4.5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"/>
+          </svg>
+        </button>
+      ) : undefined} />
 
       {/* 走友会の説明は、まだ入っていない人にだけ出す。
           入ったあとも出し続けると、掲示板に着くまでの行数が増えるだけになる */}

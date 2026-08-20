@@ -46,10 +46,23 @@ const src = files.map(f => readFileSync(f, 'utf8')).join('\n')
 //      この形を禁止したと書いてあるコメント自身に当たって永久に落ちる
 check('`/friends/club?code=` へ飛ばす場所が無い', !/navigate\(`\/friends\/club\?code=/.test(src))
 
-// ② 人の走友会へ行く道は3つ（フレンド一覧・フレンド詳細・走友会の検索結果）。
-//    増えたときに①③を通っているか確かめたいので、数を数える
+// ② 人の走友会へ行く道は4つ。増えたときに①③を通っているか確かめたいので数える。
+//    フレンド一覧・フレンド詳細・走友会の検索結果（長押し）・**同（タップ／見るだけのとき）**
 const links = (src.match(/\/friends\/club\/\$\{/g) ?? []).length
-check('人の走友会への入口は3つ', links === 3, `${links}つ`)
+check('人の走友会への入口は4つ', links === 4, `${links}つ`)
+
+// ⑤ 入っている人が他所を探せること（テスターの報告・2026-08-20
+//    「走友会に入ってる場合、他の走友会を見ることができない」）
+const home = readFileSync('src/components/friends/FriendClubPage.tsx', 'utf8')
+check('入っているときだけ「さがす」を出す', /right=\{mine\.data \? \(/.test(home))
+check('さがすの行き先は専用のページ', /navigate\('\/friends\/clubs'\)/.test(home))
+// ★見るだけ＝入る・申請・自分で作るを出さない（オーナー・2026-08-20
+//   「脱退しないと入れないし、詳細見れるくらいのやつで」）
+check('見るだけのときは入るボタンを出さない', /readOnly \? null :/.test(home))
+check('見るだけのときは「自分で作る」も出さない', /\{!readOnly && <SectionLabel>自分で作る/.test(home))
+const browse = readFileSync('src/components/friends/ClubBrowsePage.tsx', 'utf8')
+check('さがすページは探す画面をそのまま使う（一覧を2枚書かない）',
+  /<ClubSearch readOnly \/>/.test(browse) && !/searchClubs\(/.test(browse))
 
 // ③ 見るだけ。メンバーの行は readOnly で出す（「···」も長押しも出ない）
 const view = readFileSync('src/components/friends/ClubViewPage.tsx', 'utf8')
