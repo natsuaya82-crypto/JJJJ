@@ -108,6 +108,28 @@ const collect = (): Row[] => {
   return out
 }
 
+// ★**世界を歳を取らせてから測ること。** 生成時の年齢は国内18〜32・海外18〜28なので、
+//   1年目の世界には33歳以上が**1人もいません**（引退年齢は30〜36）。
+//   そこで「33歳以上の移籍が0件」と数えても、市場ではなく生成を見ているだけです。
+const WARM = Number(process.env.WARM ?? 6)
+for (let y = 0; y < WARM; y++) {
+  useGameStore.getState().endSeason()
+  useGameStore.getState().beginSeasonDraft()
+  const ds0 = useGameStore.getState().draftState
+  if (ds0) {
+    for (let i = 0; i < 400; i++) {
+      const ds = useGameStore.getState().draftState
+      if (!ds || ds.isComplete) break
+      useGameStore.getState().cpuPick()
+    }
+    useGameStore.getState().advanceDraft()
+  }
+  useGameStore.setState({ currentSeason: { ...useGameStore.getState().currentSeason, phase: 'postseason' } } as never)
+}
+seen.clear()
+console.log(`（${WARM}年ぶん進めてから測ります）`)
+
+
 const all: Row[] = []
 // ★動かす前の姿を控える（動いたあとに読むと、所属も序列も変わっている）
 const st0 = { players: useGameStore.getState().players, teams: useGameStore.getState().teams, foreignLeagues: useGameStore.getState().foreignLeagues }
@@ -144,7 +166,17 @@ const BANDS = ['85+', '78-84', '71-77', '〜70']
 const ABANDS = ['〜23', '24-28', '29-32', '33〜']
 
 console.log(`世界：国内 ${teams.length} ／ 海外 ${foreignIds.size} クラブ ／ 選手 ${st0.players.length}人`)
-console.log(`1年ぶん（オフ1回＋シーズン中12回）に動いた件数：${all.length}`)
+const kindC = new Map<string, number>()
+for (const r of all) kindC.set(r.kind, (kindC.get(r.kind) ?? 0) + 1)
+console.log(`1年ぶん（オフ1回＋シーズン中12回）に動いた件数：${all.length}　` +
+  [...kindC].map(([k, n]) => `${k}=${n}`).join(' ') +
+  `（移籍金つき＝1クラブあたり ${((kindC.get('cash') ?? 0) / clubsAll.length).toFixed(1)}人/年）`)
+const sizes = clubsAll.map(c => (rosterOf.get(c.id) ?? []).filter(p => p.status === 'active').length).sort((a, b) => a - b)
+// ★この助走は**レースを走らせません**（endSeason → ドラフト → endSeason … だけ）。
+//   出場記録もお金の出入りも本編とは違うので、**人数と需要の数字は目安**です。
+//   本編で確かめるときは runRace を挟むこと。
+console.log(`名簿の人数：最小${sizes[0]} 中央${sizes[sizes.length >> 1]} 最大${sizes[sizes.length - 1]}`
+  + `（下限${ROSTER_MIN}未満 ${sizes.filter(n => n < ROSTER_MIN).length}クラブ／上限${ROSTER_MAX}超 ${sizes.filter(n => n > ROSTER_MAX).length}クラブ）`)
 
 // (1) 需要
 const active = st0.players.filter(p => p.status === 'active' && p.teamId)
@@ -269,7 +301,7 @@ for (const b of ABANDS) console.log(`    ${b.padEnd(6)} ${declStarterDeepAges.ge
 // ── (7) 33歳以上はなぜ動かないのか ──────────────────────
 import { isTransferLocked } from '../src/utils/transferEligibility'
 import { willRelease, isSurplus } from '../src/utils/transferDecision'
-import { CPU_SELL_FLOOR } from '../src/data/rosterRules'
+import { CPU_SELL_FLOOR, ROSTER_MAX, ROSTER_MIN } from '../src/data/rosterRules'
 import { comparePlayers } from '../src/utils/playerSort'
 
 console.log(`\n【(7) 年齢ごとの「そもそも市場に出られるか」】`)
