@@ -42,6 +42,9 @@ const MARKET_SORT_OPTIONS: { value: PlayerSortKey; label: string }[] = [
 
 type Tab = 'market' | 'market-results' | 'trade' | 'listings'
 
+/** 検索結果を一度に出す件数。足りなければ「もっと見る」で100件ずつ増える */
+const MARKET_PAGE = 100
+
 export default function TransferPage() {
   const {
     teams, players, playerTeamId, currentSeason, foreignLeagues, pastSeasons,
@@ -95,6 +98,18 @@ export default function TransferPage() {
   }
   const [mktSortKey, setMktSortKey] = useState<PlayerSortKey>(savedF.sortKey as PlayerSortKey)
   const [mktSortDir, setMktSortDir] = useState<'desc' | 'asc'>(savedF.sortDir as 'desc' | 'asc')
+  /**
+   * **一度に出す件数。**（オーナー・2026-08-20「aにしよう / 100件ずつ出るように」）
+   *
+   * ★何も選ばずに検索すると、**世界の5,775人ぶんの行を一度に描いて**いた
+   *   （世界5,800人 − 自チーム）。上限も、映っているぶんだけ描く仕組みも無い。
+   *   実機ではメモリが尽きて**WebViewごと読み直され、タイトル画面に戻る**
+   *   （テスターの報告・2026-08-20「とても重くなってスクロールが上手くできなかったり、
+   *   タイトルに戻る」）。ブラウザのプレビューでは再現しにくい。
+   */
+  const [mktShown, setMktShown] = useState(MARKET_PAGE)
+  // 絞り込みや並べ替えを変えたら先頭に戻す（前の続きから100件、にしない）
+  useEffect(() => { setMktShown(MARKET_PAGE) }, [location.key, mktSortKey, mktSortDir])
   // フィルタ変更をモジュールスコープへ同期（アンマウント後の復元用）
   useEffect(() => {
     saveMarketFilters({ search: mktSearch, spec: mktSpec, nat: mktNat, avail: mktAvail, team: mktTeam, age: mktAge, league: mktLeague, sortKey: mktSortKey, sortDir: mktSortDir })
@@ -340,7 +355,7 @@ export default function TransferPage() {
             )}
             {/* ロスターと同じカード：タップ＝メニュー / 長押し＝詳細。箱に入れず縦に並べる */}
             <PlayerList>
-            {marketPlayers.map(p => {
+            {marketPlayers.slice(0, mktShown).map(p => {
               const isListed = listedIds.has(p.id)
               const hasBid = activeBids.some(b => b.playerId === p.id)
               const bidLocked = p.transferLockedUntilYear != null && currentSeason.year < p.transferLockedUntilYear
@@ -367,6 +382,16 @@ export default function TransferPage() {
               )
             })}
             </PlayerList>
+
+            {/* ★**全部を一度に描かない。** 5,775人ぶん並べると実機が落ちる（上の mktShown）。
+                残りが分かるように件数を出す */}
+            {marketPlayers.length > mktShown && (
+              <div style={{ padding: '14px 0 4px' }}>
+                <GlassButton full color={C.cyan} onClick={() => setMktShown(n => n + MARKET_PAGE)}>
+                  もっと見る（残り{marketPlayers.length - mktShown}名）
+                </GlassButton>
+              </div>
+            )}
 
             {/* タップメニュー（ロスターと同じ操作系） */}
             {(() => {
