@@ -39,10 +39,11 @@
  */
 import {
   CHOICE_EFFECTS, EVENT_SCALE, EVENT_SPECIALTIES, SPEC_BONUS, WATER_EFFECTS,
-  calcNaturalDrain, calcSegOvr, choiceSuccessProb, generateSegmentEvents, resolveChoice,
+  calcNaturalDrain, calcSegOvr, choiceSuccessProb, generateSegmentEvents, resolveChoice, SPEC_BONUS,
 } from '../src/engine/interactiveRace'
 import { SPECIALTY_LABELS } from '../src/types'
 import type { Player, Ratings, Segment, Specialty, Team } from '../src/types'
+import { terrainWeights } from '../src/data/segmentWeights'
 
 let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
@@ -175,10 +176,14 @@ console.log('\n[4] 自分と相手が同じ目盛り（相手も自然消耗を�
   for (const c of cpus) cpuLineups[c.teamId] = { 0: c.id }
 
   // 区間の長さを変えて見る。**消耗は距離で変わる**ので、長い区間ほどズレが大きく出る
+  // ★**実在する区間と同じ形にすること。** 区間は必ず重みを持つ（`data/segmentWeights`）。
+  //   重み無しで組むと score の目盛りがずれ、この点検だけが別の世界を見ることになる
+  const mk = (km: number, up: number, down: number): Segment =>
+    ({ index: 0, distanceKm: km, uphillPct: up, downhillPct: down, statWeights: terrainWeights(km, up, down) })
   const SEGS: [string, Segment][] = [
-    ['10km 平坦', { index: 0, distanceKm: 10, uphillPct: 0, downhillPct: 0 }],
-    ['20km 平坦', { index: 0, distanceKm: 20, uphillPct: 0, downhillPct: 0 }],
-    ['22km 登り45%', { index: 0, distanceKm: 22, uphillPct: 45, downhillPct: 0 }],
+    ['10km 平坦', mk(10, 0, 0)],
+    ['20km 平坦', mk(20, 0, 0)],
+    ['22km 登り45%', mk(22, 45, 0)],
   ]
   for (const [label, seg] of SEGS) {
     const segOvr = calcSegOvr(me, seg)
@@ -205,7 +210,36 @@ console.log('\n[4] 自分と相手が同じ目盛り（相手も自然消耗を�
     // 生のOVRを相手にすると（＝消耗を引かないと）gap は -20 より下へ沈み、
     // 攻めの成功率が下限10%に張り付く
     check(`${label}：gapが沈んでいない（-20より上）`, lo > -20, `最小 ${lo}`)
-    check(`${label}：攻めが下限10%に張り付いていない`, aggLo > 12, `${aggLo.toFixed(0)}%`)
+    // ★**目盛りの大きさに依らない形で見ること。** 以前は `aggLo > 12`（一番きつい場面でも
+    //   12%より上）と書いていたが、これは score の目盛りが 1.09 倍に水増しされていた頃の
+    //   校正値だった（2026-08-20 に重みを 1.00 へ正規化して、この判定だけが落ちた）。
+    //   本当に見たいのは「場面によって成功率が変わるか」で、それは幅で見るのが正しい。
+    //   生のOVRを相手にする（＝消耗を引かない）バグでは gap が -20〜-41 に沈み、
+    //   **どの場面でも下限に張り付く＝幅が 0** になるので、この形でも必ず落ちる。
+    check(`${label}：攻めの成功率が場面で変わる（下限に張り付いていない）`, aggHi - aggLo > 15,
+      `${aggLo.toFixed(0)}〜${aggHi.toFixed(0)}%（幅 ${(aggHi - aggLo).toFixed(0)}）`)
+
+    // ★**ここが本体。目盛りが同じかを、目盛りの大きさに依らない形で見る。**
+    //   自分とまったく同じ能力の相手なら gap は 0 でなければならない。
+    //   相手だけ消耗を引き忘れる（＝左右で単位が違う）と、その分だけ必ずずれる。
+    //   上の2つ（`lo > -20` と 幅）はどちらも**校正値**なので、目盛りが変わると
+    //   バグを入れても素通りする（2026-08-20 に正規化したとき実際に素通りした）。
+    const twin = P('twin', 'tw', 65)
+    const twinLineups: Record<string, Record<number, string>> = { tw: { 0: 'twin' } }
+    const evs2 = generateSegmentEvents({
+      seg, playerBaseTime: 3000, cpuTimesForSeg: { tw: 3000 },
+      cumulativeTimes: { __player__: 9000, tw: 9000 },
+      isFirstSeg: false, isLastSeg: false, player: me, totalSegs: 7,
+      players: [me, twin], cpuLineups: twinLineups, teams: [T('my'), T('tw')] })
+    const twinGaps = evs2.filter(e => e.opponentOvr != null).map(e => myStamina - e.opponentOvr!)
+    // 開いてよいのは**得意タイプのぶんだけ**（`withSpecBonus` が相手から SPEC_BONUS を引く）。
+    // 相手の消耗を引き忘れると距離ぶんずれる（10kmで13・20kmで26・22kmで29）。
+    // ★**距離を3つ見ているのが効いている**——消耗は距離で増えるが得意ぶんは 8 で一定なので、
+    //   短い区間では許容に隠れても、長い区間で必ず外へ出る
+    check(`${label}：同じ能力の相手なら gap は得意ぶんまで（左右が同じ目盛り）`,
+      twinGaps.length > 0 && twinGaps.every(g => Math.abs(g) <= SPEC_BONUS + 0.01),
+      twinGaps.length === 0 ? '相手が出てきませんでした'
+        : `${Math.min(...twinGaps).toFixed(1)}〜${Math.max(...twinGaps).toFixed(1)}（許容 ±${SPEC_BONUS}）`)
   }
 }
 

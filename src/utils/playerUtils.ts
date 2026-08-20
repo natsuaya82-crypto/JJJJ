@@ -7,6 +7,7 @@ import { strHash } from './hash'
 import { POACH_PREMIUM } from '../data/economy'
 import { type Race } from '../types'
 import { MORALE_DEFAULT } from './condition'
+import { lerpAnchors } from './anchors'
 
 /**
  * 記録や結果に「焼き込まれた名前」ではなく、いまの名前を返す。
@@ -164,15 +165,9 @@ const SALARY_ANCHORS: [number, number][] = [
   [45, 3_000_000], [50, 4_000_000], [60, 6_000_000], [70, 10_000_000],
   [80, 30_000_000], [90, 70_000_000], [95, 100_000_000], [99, 150_000_000],
 ]
+// 表の引き方は `utils/anchors` 1本（下端はクランプ＝OVR45未満も最下段の年俸）
 function ovrSalary(o: number): number {
-  const pts = SALARY_ANCHORS
-  if (o <= pts[0][0]) return pts[0][1]
-  if (o >= pts[pts.length - 1][0]) return pts[pts.length - 1][1]
-  for (let i = 0; i < pts.length - 1; i++) {
-    const [o0, v0] = pts[i], [o1, v1] = pts[i + 1]
-    if (o >= o0 && o <= o1) return v0 + (o - o0) * (v1 - v0) / (o1 - o0)
-  }
-  return pts[pts.length - 1][1]
+  return lerpAnchors(SALARY_ANCHORS, o)
 }
 
 // ── 海外リーグ出場記録の圧縮 ──

@@ -127,6 +127,8 @@ Cowork・Claude Code CLI・Web・GitHub Actions など、どの環境から入�
 | `src/styles/tokens.ts` | 色・フォント（`SAIRA` / `FONT` / `JP`）・順位の色（`rankColor`）・`HEADER_H` |
 | `src/utils/league.ts` の得点 | `positionPointsFor`（1位＝出走数…最下位1点）／`segmentAwardPoints`（出走数で3/2/1→2/1→1）。**本編もオンラインも同じ** |
 | `src/data/races.ts` | コースの実体と、`courseTypeOf`（種別）／`courseProfile`（起伏の平均） |
+| `src/data/segmentWeights.ts` の `terrainWeights` | **区間の重み（どの能力がどれだけ効くか）の唯一の決まり。** 本編の400区間は1つずつ手で調整した重みを `data/races.ts` に持つ。持たない区間（ECL・ランクマッチ・世界選手権）は**地形と距離からここで作る**。★**合計は必ず 1.00**——タイムは `加重平均で score → PACE_TABLE で 秒/km` で、表の上端が `[99, 154]` で外はクランプなので、**目盛りがずれると上位の能力差がそのまま消える**。以前 `calcBaseAbility` の中に2本目の式があり、足したぶんを引いていなかったので合計が 1.18 まで膨らみ、**ECL の70区間とランクマッチのコースで OVR 89〜95 から上が同タイム**だった（10km・登り2% で OVR 95 と 99 が 26分40秒）。**重みをデータに焼かないこと**——セーブに乗って1シーズン8KB増える（実測）。`check-segment-weights` が見張る |
+| `src/utils/anchors.ts` の `lerpAnchors` | **アンカー表を引く唯一の関数**（OVR→年俸・score→秒/km・種目適性値→タイム）。同じループが3か所に写されていて、**下端の扱いだけが3通り**に割れていた。違いは消さず `belowFirst` で名前を付けて渡す。**上端は必ずクランプ**（表の外へ外挿しない。伸ばしたいときは表そのものを伸ばす） |
 | `src/components/player/PlayerChips.tsx` | **選手の名前の横に出る小さな札**。`SpecChip`（タイプ）／`ForeignChip`（外国籍）。大きさ（sm/md）だけ選べて、色・濃さ・枠線・丸みは1つに固定 |
 | `src/utils/teamHistory.ts` | **優勝回数の数え方**。**クラブの優勝（`teamHistoryOf`）と監督の優勝（`gmCareerTitles`）を混ぜないこと。**記録室の見出しの★・自チーム記録・クラブ詳細ページは**クラブ**、GMキャリアのページだけが**監督**（どのクラブで何年に、の内訳もそちら）。以前は自チーム記録が監督の通算を出していて、移籍すると前のクラブの優勝がいまのクラブの記録として並んでいた。数え直しを画面に書かないこと |
 | `src/components/online/HofList.tsx` | 殿堂入りチームの一覧の見た目と並び替え。自分の殿堂入りページとフレンド・走友会の相手のぶんが共通 |

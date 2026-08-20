@@ -145,6 +145,67 @@ function segmentAwardPoints(teamCount, rank) {
 // src/utils/condition.ts
 var MORALE_DEFAULT = 70;
 
+// src/data/segmentWeights.ts
+function terrainWeights(distanceKm, uphillPct, downhillPct) {
+  const flatPct = Math.max(0, 100 - uphillPct - downhillPct);
+  const longBonus = Math.min(distanceKm / 20, 1);
+  const shortBonus = Math.max(0, 1 - distanceKm / 8);
+  const flat = {
+    speed: 0.62 + shortBonus * 0.12,
+    stamina: 0.14 + longBonus * 0.12,
+    mountainUp: 0,
+    mountainDown: 0,
+    pacing: 0.12,
+    mental: 0.06,
+    recovery: 0.06 + longBonus * 0.06
+  };
+  const up = {
+    speed: 0,
+    mountainDown: 0,
+    mountainUp: 0.72,
+    stamina: 0.15 + longBonus * 0.05,
+    mental: 0.07,
+    pacing: 0.04,
+    recovery: 0.02
+  };
+  const down = {
+    mountainDown: 0.72,
+    speed: 0.16,
+    mountainUp: 0,
+    stamina: 0,
+    mental: 0.07,
+    pacing: 0.03,
+    recovery: 0.02
+  };
+  const keys = Object.keys(flat);
+  const mixed = {};
+  for (const k of keys) {
+    mixed[k] = flatPct / 100 * flat[k] + uphillPct / 100 * up[k] + downhillPct / 100 * down[k];
+  }
+  const sum = keys.reduce((s, k) => s + mixed[k], 0);
+  if (sum <= 0) return mixed;
+  for (const k of keys) mixed[k] = mixed[k] / sum;
+  return mixed;
+}
+
+// src/utils/anchors.ts
+function lerpAnchors(anchors, x, opts) {
+  const pts = anchors;
+  const [x0, y0] = pts[0];
+  const last = pts[pts.length - 1];
+  if (x >= last[0]) return last[1];
+  if (x <= x0) {
+    if (opts?.belowFirst !== "extend") return y0;
+    const [x1, y1] = pts[1];
+    return y0 + (x0 - x) * (y0 - y1) / (x1 - x0);
+  }
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [a, ya] = pts[i], [b, yb] = pts[i + 1];
+    if (x >= a && x <= b) return ya + (x - a) * (yb - ya) / (b - a);
+  }
+  return last[1];
+}
+
 // src/engine/raceEngine.ts
 var isNum = (v) => typeof v === "number" && Number.isFinite(v);
 function safeRatings(r) {
@@ -162,18 +223,8 @@ function safeRatings(r) {
 }
 function calcBaseAbility(ratingsIn, uphillPct, downhillPct, distanceKm, statWeights) {
   const ratings = safeRatings(ratingsIn);
-  if (statWeights) {
-    return Object.keys(statWeights).reduce((sum, key) => {
-      return sum + ratings[key] * (statWeights[key] ?? 0);
-    }, 0);
-  }
-  const flatPct = Math.max(0, 100 - uphillPct - downhillPct);
-  const longBonus = Math.min(distanceKm / 20, 1);
-  const shortBonus = Math.max(0, 1 - distanceKm / 8);
-  const flatScore = ratings.speed * (0.62 + shortBonus * 0.12) + ratings.stamina * (0.14 + longBonus * 0.12) + ratings.pacing * 0.12 + ratings.mental * 0.06 + ratings.recovery * (0.06 + longBonus * 0.06);
-  const upScore = ratings.mountainUp * 0.72 + ratings.stamina * (0.15 + longBonus * 0.05) + ratings.mental * 0.07 + ratings.pacing * 0.04 + ratings.recovery * 0.02;
-  const downScore = ratings.mountainDown * 0.72 + ratings.speed * 0.16 + ratings.mental * 0.07 + ratings.pacing * 0.03 + ratings.recovery * 0.02;
-  return flatPct / 100 * flatScore + uphillPct / 100 * upScore + downhillPct / 100 * downScore;
+  const w = statWeights ?? terrainWeights(distanceKm, uphillPct, downhillPct);
+  return Object.keys(w).reduce((sum, key) => sum + ratings[key] * (w[key] ?? 0), 0);
 }
 function calcAffinity(specialty, uphillPct, downhillPct, distanceKm) {
   const flatPct = Math.max(0, 100 - uphillPct - downhillPct);
@@ -264,14 +315,7 @@ var PACE_TABLE = [
   [99, 154]
 ];
 function scoreToBasePace(score) {
-  const t = PACE_TABLE;
-  if (score <= t[0][0]) return t[0][1];
-  if (score >= t[t.length - 1][0]) return t[t.length - 1][1];
-  for (let i = 0; i < t.length - 1; i++) {
-    const [s0, p0] = t[i], [s1, p1] = t[i + 1];
-    if (score >= s0 && score <= s1) return p0 + (score - s0) / (s1 - s0) * (p1 - p0);
-  }
-  return t[t.length - 1][1];
+  return lerpAnchors(PACE_TABLE, score);
 }
 function scoreToTime(score, distanceKm, uphillPct = 0, downhillPct = 0) {
   const gradePenalty = uphillPct * 0.4 - downhillPct * 0.35;

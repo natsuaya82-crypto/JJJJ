@@ -2,6 +2,8 @@ import type { Player, Specialty, RaceResults, Race, Team, Segment } from '../typ
 import type { TraitId } from '../utils/traitUtils'
 import { positionPointsFor, segmentAwardPoints, divisionOf, teamsInDivision } from '../utils/league'
 import { MORALE_DEFAULT } from '../utils/condition'
+import { terrainWeights } from '../data/segmentWeights'
+import { lerpAnchors } from '../utils/anchors'
 
 // セーブ破損や旧データで ratings 自体（または一部の能力）が欠けている選手が混ざっても、
 // 描画・計算の途中で例外を投げてアプリが真っ白にならないようにするための防御。
@@ -22,6 +24,20 @@ export function safeRatings(r: Player['ratings'] | undefined | null): Player['ra
   }
 }
 
+/**
+ * その区間で、その選手の能力がどれだけ効くか（＝score）。
+ *
+ * ★**枝は1本だけ。** 重みは区間が持っているものを使い、無ければ地形から作る——
+ *   その「地形から作る」も `data/segmentWeights.ts` の `terrainWeights` 1本です。
+ *   ここに2本目の式を書かないこと（`check-segment-weights` が落とします）。
+ *
+ * ★**重みの合計は必ず 1.00。** score は OVR と同じ目盛りでなければいけません。
+ *   `scoreToTime` が引く `PACE_TABLE` の上端は `[99, 154]` で表の外はクランプするので、
+ *   目盛りがずれると**上位の能力差がそのまま消えます**。
+ *   以前ここに2本目の式があり、足したぶんを引いていなかったので合計が 1.18 まで膨らみ、
+ *   重みを持たない区間（ECL の70本・ランクマッチのコース）では
+ *   **OVR 89〜95 から上が同タイム**になっていました（2026-08-20 に実測）。
+ */
 export function calcBaseAbility(
   ratingsIn: Player['ratings'],
   uphillPct: number,
@@ -30,34 +46,9 @@ export function calcBaseAbility(
   statWeights?: Partial<Record<keyof Player['ratings'], number>>,
 ): number {
   const ratings = safeRatings(ratingsIn)
-  if (statWeights) {
-    return (Object.keys(statWeights) as (keyof typeof ratings)[]).reduce((sum, key) => {
-      return sum + ratings[key] * (statWeights[key] ?? 0)
-    }, 0)
-  }
-  const flatPct = Math.max(0, 100 - uphillPct - downhillPct)
-  const longBonus = Math.min(distanceKm / 20, 1.0)
-  const shortBonus = Math.max(0, 1 - distanceKm / 8)
-  // 地形ごとに最重要スタットを大きく偏らせ、コースに特色を持たせる
-  // flat: speed支配。長距離はstamina+recoveryが伸びる
-  const flatScore = ratings.speed    * (0.62 + shortBonus * 0.12)
-                  + ratings.stamina  * (0.14 + longBonus  * 0.12)
-                  + ratings.pacing   * 0.12
-                  + ratings.mental   * 0.06
-                  + ratings.recovery * (0.06 + longBonus  * 0.06)
-  // uphill: mountainUp圧倒的支配
-  const upScore   = ratings.mountainUp * 0.72
-                  + ratings.stamina    * (0.15 + longBonus * 0.05)
-                  + ratings.mental     * 0.07
-                  + ratings.pacing     * 0.04
-                  + ratings.recovery   * 0.02
-  // downhill: mountainDown圧倒的支配
-  const downScore = ratings.mountainDown * 0.72
-                  + ratings.speed        * 0.16
-                  + ratings.mental       * 0.07
-                  + ratings.pacing       * 0.03
-                  + ratings.recovery     * 0.02
-  return (flatPct / 100) * flatScore + (uphillPct / 100) * upScore + (downhillPct / 100) * downScore
+  const w = statWeights ?? terrainWeights(distanceKm, uphillPct, downhillPct)
+  return (Object.keys(w) as (keyof typeof ratings)[])
+    .reduce((sum, key) => sum + ratings[key] * (w[key] ?? 0), 0)
 }
 
 export function calcAffinity(
@@ -180,15 +171,9 @@ const PACE_TABLE: [number, number][] = [
   [99,  154],
 ]
 
+// 表の引き方は `utils/anchors` 1本（下端はクランプ＝score 0 未満は無いので延長は要らない）
 function scoreToBasePace(score: number): number {
-  const t = PACE_TABLE
-  if (score <= t[0][0]) return t[0][1]
-  if (score >= t[t.length - 1][0]) return t[t.length - 1][1]
-  for (let i = 0; i < t.length - 1; i++) {
-    const [s0, p0] = t[i], [s1, p1] = t[i + 1]
-    if (score >= s0 && score <= s1) return p0 + (score - s0) / (s1 - s0) * (p1 - p0)
-  }
-  return t[t.length - 1][1]
+  return lerpAnchors(PACE_TABLE, score)
 }
 
 export function scoreToTime(score: number, distanceKm: number, uphillPct = 0, downhillPct = 0): number {

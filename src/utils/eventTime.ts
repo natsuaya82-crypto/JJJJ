@@ -42,6 +42,7 @@ export function formatRaceTime(sec: number): string {
 // ============================================================================
 import type { Player } from '../types'
 import { safeRatings } from '../engine/raceEngine'
+import { lerpAnchors } from './anchors'
 
 // 距離別ベストタイム(秒)の能力アンカー[能力値, 秒]。コンディション最高(form+2/疲労0/モラール80+)での値。
 //  能力: 50 / 70 / 90 / 99
@@ -73,16 +74,7 @@ export function individualEventAbility(player: Player, distance: 5000 | 10000 | 
 }
 
 // 種目適性値から距離別ベストタイム(コンディション最高時)。アンカーを区分線形で通し、50未満は最下段の傾きで延長。
+// 表の引き方は `utils/anchors` 1本。**下端だけ延長する**（弱い選手も差が出るように）
 export function individualBaseTime(o: number, distance: 5000 | 10000 | 21097 | 42195): number {
-  const pts = IND_ANCHORS[distance]
-  const oo = Math.min(99, o)
-  if (oo <= pts[0][0]) {
-    const [o0, t0] = pts[0], [o1, t1] = pts[1]
-    return t0 + (pts[0][0] - oo) * (t0 - t1) / (o1 - o0)
-  }
-  for (let i = 0; i < pts.length - 1; i++) {
-    const [o0, t0] = pts[i], [o1, t1] = pts[i + 1]
-    if (oo >= o0 && oo <= o1) return t0 + (oo - o0) * (t1 - t0) / (o1 - o0)
-  }
-  return pts[pts.length - 1][1]
+  return lerpAnchors(IND_ANCHORS[distance], Math.min(99, o), { belowFirst: 'extend' })
 }

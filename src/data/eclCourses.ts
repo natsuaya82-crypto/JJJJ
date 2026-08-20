@@ -10,6 +10,9 @@ export type EclCourse = {
   segments: Segment[]
 }
 
+// ★**重みはここに書かない。** 本編（`data/races.ts`）は1区間ずつ手で調整した重みを持つが、
+//   こちらは地形から決まるので `calcBaseAbility` が `data/segmentWeights` の
+//   `terrainWeights` から作る。**データに焼くとセーブに乗って1シーズン8KB増える。**
 function seg(index: number, distanceKm: number, uphillPct: number, downhillPct: number, recommended?: Specialty): Segment {
   return { index, distanceKm, uphillPct, downhillPct, ...(recommended ? { recommended } : {}) }
 }
