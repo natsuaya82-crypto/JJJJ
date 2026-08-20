@@ -1,6 +1,5 @@
 import type { ClubTier } from './clubTier'
 import { RUNNING_SLOTS } from '../data/rosterRules'
-import { peakAgeOfCurve } from '../engine/ageCurve'
 import { ovr } from './playerUtils'
 import { effectiveOvr } from './foreignClubProfile'
 import type { Player } from '../types'
@@ -63,37 +62,23 @@ import type { Player } from '../types'
  */
 export const TIER_FALL_LIMIT = 3
 
-/**
- * **伸びしろをどれだけ格に織り込むか。** この考えの唯一のツマミ。
- *
- * 0 … 今の力だけで見る。**18歳のドラフト1位が全員格20になって破綻する**
- * 1 … 天井（potential）そのままで見る。18歳のOVR55が格2になり、
- *     ビッグクラブが即座に買いに来る
- *
- * 移籍金は既に `transferFeeAgeMultiplier` で 22歳以下を×5・32歳以上を×2 している
- * ＝「若い＝将来ぶんの価値がある」は**お金の側では既に効いていて、格の側にだけ無かった**。
- * ここはその揃え直し。**バランスの数字なので、変えるときはオーナーに確認すること。**
- */
-export const YOUTH_POTENTIAL_WEIGHT = 0.5
-
-/**
- * **年齢込みの実力。** 選手の格を出す唯一の材料。
- *
- *   ピーク前 … 今のOVRと天井（potential）を、ピークまでの距離で混ぜる
- *   ピーク後 … `effectiveOvr`（33歳から1歳ごとに-3）。天井はもう関係ない
- *
- * ★`ovr` を直に使わないこと。18歳と30歳の同じOVR70はまったく違う選手で、
- *   市場はそれを区別している（移籍金の年齢倍率）。
- */
-export function careerOvr(p: Player): number {
-  const peak = peakAgeOfCurve(p.growthCurve ?? 'normal')
-  const now = effectiveOvr(p)
-  if (p.age >= peak) return now
-  // 18歳で最大、ピークで0になる重み
-  const span = Math.max(1, peak - 18)
-  const w = Math.min(1, Math.max(0, (peak - p.age) / span)) * YOUTH_POTENTIAL_WEIGHT
-  return now + Math.max(0, (p.potential ?? now) - now) * w
-}
+// ★**伸びしろ（potential）は格に織り込みません。** 一度 `YOUTH_POTENTIAL_WEIGHT` という
+//   ツマミを置きましたが、要らないと分かったので消しました（オーナー・2026-08-20
+//   「2は今の数値でしょ。所属した数年はブロックが入るし、数値が伸びると1年ごとの
+//    改訂で選手の格が上がるわけでしょ？」）。理由は3つとも既に仕組みの側にあります。
+//
+//     ・**下へ落ちない**  … 加入したときの契約が続く間は動かせない（`isTransferLocked`。
+//                          18歳の新人は5年）。伸びる前に売られる、が起きない
+//     ・**格は毎年上がる** … 能力が伸びれば、翌年の改定で選手の格が自然に上がる
+//     ・**上へは制限なし** … 関門は落ちる側にしか無い（下の `TIER_FALL_LIMIT`）ので、
+//                          選手の格が低い若手が格上のクラブに居ても何も止まらない
+//
+//   ★以前「w=0 だと18歳が全員格20になって破綻する」と書いていましたが、あれは
+//     「選手の格 ± 1 の範囲にしか動けない」という**両側の帯**で考えていたときの話で、
+//     片側だけの関門にした今は当てはまりません。**訂正します。**
+//
+//   材料は `effectiveOvr`（33歳から1歳ごとに-3）1本。**`ovr` を直に使わないこと**——
+//   移籍金は既に年齢で ×5〜×2 と差を付けているので、格の側だけ年齢を見ないと食い違います。
 
 /**
  * **各格の線。** 世界中の選手を強い順に並べ、世界中の在籍枠を格の高い順に並べて、
@@ -123,7 +108,7 @@ export function tierLines(
     const t = tierOfClub(p.teamId)
     if (!t) continue
     seats[t]++
-    vals.push(careerOvr(p))
+    vals.push(effectiveOvr(p))
   }
   vals.sort((a, b) => b - a)
   // index 0 は使わない（格は1〜20）
@@ -147,7 +132,7 @@ export function tierLines(
  * 届く一番上の格を返す。どこにも届かなければ格20。
  */
 export function playerTierOf(p: Player, lines: readonly number[]): ClubTier {
-  const v = careerOvr(p)
+  const v = effectiveOvr(p)
   for (let t = 1; t <= 20; t++) if (v >= lines[t]) return t as ClubTier
   return 20
 }
