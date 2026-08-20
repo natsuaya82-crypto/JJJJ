@@ -21,6 +21,7 @@ class MainViewController: CAPBridgeViewController {
   override func capacitorDidLoad() {
     bridge?.registerPluginInstance(IAPPlugin())      // GMパス（広告なし）の購入・復元
     bridge?.registerPluginInstance(KeychainPlugin()) // フレンド機能のアカウント保存
+    bridge?.registerPluginInstance(GlassTabBarPlugin()) // 下タブ（iOS 26 のガラス）
 
     // 音の設定を「ゲーム音」に戻す。
     //

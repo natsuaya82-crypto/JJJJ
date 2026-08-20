@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { audio } from '../../utils/audio'
+import { glassTabBar, nativeTabBarAvailable } from '../../lib/glassTabBar'
 import { useGameStore } from '../../store/gameStore'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useNotifCount } from '../notifications/useNotifCount'
@@ -13,11 +14,16 @@ import ConfirmDialog from '../ui/ConfirmDialog'
 import { leaveRoom } from '../../lib/roomsApi'
 
 type MenuAction = { label: string; path?: string; action?: () => void; color?: string }
-type NavItem = { to: string; label: string; icon: () => React.ReactElement }
+/**
+ * `asset` は**ネイティブの下タブ**（iOS 26 のガラス）へ渡す画像の名前。
+ * `Assets.xcassets` の imageset と同じ字にすること（`ios/App/App/Assets.xcassets/tab_*.imageset`）。
+ * 絵は `icon` の SVG から起こしてあるので、**片方だけ描き直さないこと**。
+ */
+type NavItem = { to: string; label: string; asset: string; icon: () => React.ReactElement }
 
 const NAV: NavItem[] = [
   {
-    to: '/', label: 'ホーム',
+    to: '/', label: 'ホーム', asset: 'tab_home',
     icon: () => (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H5a1 1 0 01-1-1V9.5z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
@@ -26,7 +32,7 @@ const NAV: NavItem[] = [
     ),
   },
   {
-    to: '/team', label: 'マイチーム',
+    to: '/team', label: 'マイチーム', asset: 'tab_team',
     icon: () => (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <circle cx="9" cy="7" r="3" stroke="currentColor" strokeWidth="1.8"/>
@@ -37,7 +43,7 @@ const NAV: NavItem[] = [
     ),
   },
   {
-    to: '/transfer', label: '移籍',
+    to: '/transfer', label: '移籍', asset: 'tab_transfer',
     icon: () => (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <path d="M7 16l-4-4 4-4M17 8l4 4-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
@@ -46,7 +52,7 @@ const NAV: NavItem[] = [
     ),
   },
   {
-    to: '/teams', label: 'チーム',
+    to: '/teams', label: 'チーム', asset: 'tab_teams',
     icon: () => (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <rect x="3" y="3" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.8"/>
@@ -57,7 +63,7 @@ const NAV: NavItem[] = [
     ),
   },
   {
-    to: '/online', label: 'オンライン',
+    to: '/online', label: 'オンライン', asset: 'tab_online',
     icon: () => (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
         <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8"/>
@@ -152,6 +158,37 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { label: '操作方法・遊び方', path: '/help', color: C.text },
     { label: '設定', path: '/more', color: C.text },
   ]
+
+  // ★**下タブがネイティブに変わっても、決めるのはここのまま。**
+  //   どのタブか（NAV）・どこにいるか（isActive）・数字（onlineCount）・
+  //   レース中か（raceInProgress）は1つも移していない。渡すだけ
+  //   （オーナー・2026-08-20「リキッドグラスまがい」「下タブだけでいいよ」）。
+  const useNative = nativeTabBarAvailable()
+  useEffect(() => {
+    if (!useNative) return
+    void glassTabBar.apply({
+      items: NAV.map(n => ({ key: n.to, label: n.label, icon: n.asset })),
+      active: NAV.find(n => isActive(n.to))?.to ?? '/',
+      badges: { '/online': onlineCount },
+      visible: !raceInProgress,
+      bottomInset: adH,
+    })
+    // ★**毎レンダーで渡さないこと。** ネイティブへの受け渡しは1回ぶんが安くないので、
+    //   実際に変わるものだけを見る（どこにいるか・数字・レース中か・広告の高さ）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [useNative, location.pathname, onlineCount, raceInProgress, adH])
+  // 押されたら Web が動く（ルーティングは1本のまま）
+  useEffect(() => {
+    if (!useNative) return
+    let off: (() => void) | undefined
+    void glassTabBar.addListener('tabTap', ({ key }) => {
+      if (roomId) { setAskLeaveRoom(key); return }
+      audio.playSe('transition')
+      navigate(key)
+    }).then(h => { off = h.remove })
+    return () => off?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [useNative, roomId])
 
   const isActive = (to: string) => {
     if (to === '/') return location.pathname === '/'
@@ -314,7 +351,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* ── Bottom Nav ──
           下端に貼り付けず**浮かせたガラス**。浮かせたぶん（NAV_FLOAT）は
           `bottomStack` が足すので、上に置く画面がずれない。 */}
-      {raceInProgress ? null : <nav className="bottom-nav" style={{
+      {raceInProgress || useNative ? null : <nav className="bottom-nav" style={{
         position: 'fixed', bottom: bottomStack(adH, { extra: NAV_FLOAT }),
         left: NAV_FLOAT, right: NAV_FLOAT, margin: '0 auto',
         width: `calc(100% - ${NAV_FLOAT * 2}px)`, maxWidth: 480 - NAV_FLOAT * 2,
