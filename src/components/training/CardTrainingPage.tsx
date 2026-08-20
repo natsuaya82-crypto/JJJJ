@@ -185,11 +185,12 @@ export default function CardTrainingPage() {
           {(trophies ?? 0) > 0 && (
             <div style={{
               padding: '4px 10px',
+              display: 'flex', alignItems: 'center', gap: 4,
               background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
               border: `1px solid ${alpha(C.cyan, 0.5)}`,
             }}>
-              <TrophyIcon size={15} color={C.cyan} />
-              <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900, color: C.cyan, marginLeft: 3 }}>{trophies}</span>
+              <TrophyIcon size={14} color={C.cyan} />
+              <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900, color: C.cyan }}>{trophies}</span>
             </div>
           )}
           <GlassButton size="sm" style={{ padding: '6px 12px' }} onClick={() => navigate('/cards/list')}>一覧</GlassButton>

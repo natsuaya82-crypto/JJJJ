@@ -113,10 +113,12 @@ export function CardTrainingHeaderSVG({ width = 100, height = 72 }: { width?: nu
  */
 export function TrophyIcon({ size = 16, color = C.gold }: { size?: number; color?: string }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
-      <path d="M7 4h10v6a5 5 0 01-10 0V4z" stroke={color} strokeWidth="1.8" strokeLinejoin="round"/>
-      <path d="M7 6H4.5v1.5A3.5 3.5 0 007.6 11M17 6h2.5v1.5A3.5 3.5 0 0116.4 11" stroke={color} strokeWidth="1.6" strokeLinecap="round"/>
-      <path d="M12 15v3M9 20h6" stroke={color} strokeWidth="1.8" strokeLinecap="round"/>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, display: 'block' }}>
+      {/* ★浅くて広い椀にすること。細長くするとワイングラスに見えます（最初そうなった） */}
+      <path d="M5 3h14v4a7 7 0 01-14 0V3z" stroke={color} strokeWidth="2" strokeLinejoin="round"/>
+      {/* 取っ手。これが無いとゴブレットに見える */}
+      <path d="M5 4H2v1.5A3.5 3.5 0 005.4 9M19 4h3v1.5A3.5 3.5 0 0118.6 9" stroke={color} strokeWidth="1.7" strokeLinecap="round"/>
+      <path d="M12 14v4M8 21h8" stroke={color} strokeWidth="2" strokeLinecap="round"/>
     </svg>
   )
 }
