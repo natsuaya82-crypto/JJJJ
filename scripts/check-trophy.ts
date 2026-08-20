@@ -90,8 +90,12 @@ console.log('\n[4] 増える口は2つだけ（1部優勝・ECL優勝）')
   //   だけで見失う。増える道は「1部優勝」と「ECL優勝」の2つだけ
   check('増える道その1：JPEL 1部優勝', /TOP_DIVISION && myFinalRank === 1 \? 1 : 0/.test(logic))
   check('増える道その2：ECL優勝', /eclWon \? \{ trophies:/.test(logic))
+  // 増える道は3つ（1部優勝・ECL優勝・運営からの配布）、減る道は1つ（使う）。
+  // ★配布はギフト1本を通すこと（`grantUpdateGifts` の GIFT_VERSION を変えると全員に配られる）。
+  //   画面や他のスライスから直接足さない
+  check('増える道その3：運営からの配布（ギフト）', /trophies: \(state\.trophies \?\? 0\) \+ \(gift\.trophies \?\? 0\)/.test(logic))
   const touches = (logic.match(/trophies: \(state\.trophies \?\? 0\)/g) ?? []).length
-  check('trophies を書き換えているのは3か所だけ（増2・減1）', touches === 3, `${touches}か所`)
+  check('trophies を書き換えているのは4か所だけ（増3・減1）', touches === 4, `${touches}か所`)
   check('減らしているのは1か所', (logic.match(/trophies: \(state\.trophies \?\? 0\) - 1/g) ?? []).length === 1)
   check('1部だけ（TOP_DIVISION を見ている）', /TOP_DIVISION && myFinalRank === 1/.test(logic))
   check('関門は utils/trophy 1本（store に条件を手書きしていない）',

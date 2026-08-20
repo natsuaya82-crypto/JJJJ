@@ -340,6 +340,7 @@ export type Gift = {
   message: string
   cards: TrainingCard[]
   jewels?: number       // ジュエル配布ギフト（お詫び等）。cards は空でよい
+  trophies?: number     // 優勝トロフィー配布（記念配布など）。cards は空でよい
   expiresAt?: string    // 受け取り期限（ISO日時）。過ぎたら受け取り不可で自動削除
 }
 export type ComboResult = {

@@ -71,6 +71,10 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
   // ギフト配布＋期限切れギフトの掃除（毎回起動時に呼ばれる・冪等）。
   // **配るのは常に1件だけ。** 新しいギフトを出すときは GIFT_VERSION を変え、
   // 前のギフトを未受け取りの人からは取り下げる（古いお知らせが残り続けないように）。
+  //
+  // ★**中身を差し替えると、前のギフトを受け取っていない人には二度と届かない。**
+  //   差し替えるときは、前のが役目を終えているかを必ず確かめること
+  //   （中身は `cards` / `jewels` / `trophies` を組み合わせられる）。
   grantUpdateGifts: () => {
     set(state => {
       // 期限切れ（expiresAt を過ぎた）ギフトは毎回掃除する
@@ -108,6 +112,7 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
       return {
         trainingCards: [...(state.trainingCards ?? []), ...gift.cards],
         jewels: (state.jewels ?? 0) + (gift.jewels ?? 0),
+        trophies: (state.trophies ?? 0) + (gift.trophies ?? 0),
         pendingGifts: (state.pendingGifts ?? []).filter(g => g.id !== id) }
     })
   },
