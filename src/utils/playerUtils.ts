@@ -97,16 +97,33 @@ export function statCapOf(p: { trophyBoosts?: Partial<Record<CardStatKey, number
   return Math.min(STAT_CAP_MAX, STAT_CAP + (p.trophyBoosts?.[stat] ?? 0))
 }
 
+/**
+ * **ふつうの天井（99まで）に、優勝トロフィーぶんを乗せる。** 能力別の上限を出す2つの道
+ * （マイプレイヤーの `customCaps` と、potential から出す道）が同じここを通る。
+ *
+ * ★**「トロフィーぶんを ceil に足す」ではありません。** それだと、いま99の選手でも
+ *   potential から出る天井が98なら 98+1=99 にしかならず、**上限が上がりません**
+ *   （オーナー・2026-08-20「トロフィー使ったのに99max表示なんだけど」）。
+ *   ピークを過ぎると `growPlayer` が potential を毎年下げるので、**99のまま天井だけ
+ *   99を割った選手**が普通に出ます。マイプレイヤーも `customCaps` が最大92なので同じ。
+ *
+ *   なので **「99で頭打ちにしてから足す」** 順にします。1個で必ず +1 になります。
+ */
+function withTrophy(p: Player, stat: CardStatKey, naturalCap: number): number {
+  const base = Math.min(STAT_CAP, naturalCap)
+  return Math.min(statCapOf(p, stat), base + (p.trophyBoosts?.[stat] ?? 0))
+}
+
 export function getStatPotentials(p: Player): Ratings {
   const ratings = safeRatings(p.ratings) as Record<string, number>
-  // マイプレイヤーは能力別の成長上限を明示指定（現在値未満にはしない・99天井）。ジュエル解放分は加算
+  // マイプレイヤーは能力別の成長上限を明示指定（現在値未満にはしない）。ジュエル解放分は加算
   if (p.customCaps) {
     const out = {} as Ratings
     for (const stat of ALL_STAT_KEYS) {
       const boost = p.potentialBoosts?.[stat as CardStatKey] ?? 0
       const cap = (p.customCaps as Record<string, number>)[stat] ?? 0
       const cur = ratings[stat] ?? 0
-      ;(out as Record<string, number>)[stat] = Math.min(statCapOf(p, stat as CardStatKey), Math.max(cur, cap + boost))
+      ;(out as Record<string, number>)[stat] = withTrophy(p, stat as CardStatKey, Math.max(cur, cap + boost))
     }
     return out
   }
@@ -118,7 +135,7 @@ export function getStatPotentials(p: Player): Ratings {
     const boost = p.potentialBoosts?.[stat as CardStatKey] ?? 0   // ジュエルの上限解放分
     const ceil = (strong.has(stat) ? p.potential + 12 : p.potential - 5) + jitter + boost
     const cur = ratings[stat] ?? 0
-    ;(out as Record<string, number>)[stat] = Math.min(statCapOf(p, stat as CardStatKey), Math.max(cur, Math.round(ceil)))
+    ;(out as Record<string, number>)[stat] = withTrophy(p, stat as CardStatKey, Math.max(cur, Math.round(ceil)))
   }
   return out
 }

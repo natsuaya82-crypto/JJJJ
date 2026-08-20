@@ -68,6 +68,25 @@ console.log('\n[2] 上限だけが上がる（値は上がらない）')
     String((getStatPotentials(after) as Record<string, number>).speed))
   check('注いでいない能力は 99 のまま',
     (getStatPotentials(after) as Record<string, number>).stamina <= STAT_CAP)
+
+  // ★★**天井が99を割っている選手でも +1 されること。**
+  //   上の `after` は potential が高いので、`getStatPotentials` の中のもう片方の天井
+  //   （potential から出る ceil）が最初から100を超えていました。**つまりここは
+  //   「99から100へ上げられるか」を一度も試していませんでした**（空振りの緑）。
+  //   実機で 2026-08-20 に発覚（オーナー「トロフィー使ったのに99max表示なんだけど」）。
+  //
+  //   99のまま天井だけ99を割る選手は普通に出ます：
+  //     ・ピークを過ぎると `growPlayer` が毎年 potential を下げる
+  //     ・マイプレイヤーは `customCaps` が最大92（ジュエルの上限解放で99へ届く形）
+  const R99 = { speed: 99, stamina: 80, mountainUp: 80, mountainDown: 80, pacing: 80, mental: 80, recovery: 80 }
+  for (const [label, base] of [
+    ['ピークを過ぎて potential が落ちた選手', { id: 'aged', specialty: 'pacemaker', potential: 80, age: 34, ratings: R99 }],
+    ['マイプレイヤー（customCaps 92 ＋ ジュエル解放7）', { id: 'mine', specialty: 'pacemaker', potential: 92, age: 25, ratings: R99, customCaps: { ...R99, speed: 92 }, potentialBoosts: { speed: 7 } }],
+  ] as [string, unknown][]) {
+    const b = (getStatPotentials(base as never) as Record<string, number>).speed
+    const a = (getStatPotentials({ ...(base as object), trophyBoosts: { speed: 1 } } as never) as Record<string, number>).speed
+    check(`${label}：トロフィー1個で天井が 99 → 100`, b === STAT_CAP && a === STAT_CAP + 1, `${b} → ${a}`)
+  }
 }
 
 console.log('\n[3] ★タイムが実際に速くなる（PACE_TABLE を伸ばし忘れたら落ちる）')
