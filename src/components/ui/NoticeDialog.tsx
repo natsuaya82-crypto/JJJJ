@@ -2,6 +2,7 @@ import { C, SAIRA, F } from '../../styles/tokens'
 import GlassButton from './GlassButton'
 import { panelStyle } from './Panel'
 import ScreenCover from './ScreenCover'
+import DialogMessage from './DialogMessage'
 
 
 // アプリ調のお知らせダイアログ（素の window.alert の置き換え用）。
@@ -42,7 +43,7 @@ export default function NoticeDialog({
         <div style={{ fontSize: F.tiny, color: accent, letterSpacing: '2px', fontWeight: 900, marginBottom: 8, fontFamily: SAIRA }}>お知らせ</div>
         <div style={{ fontSize: F.title, fontWeight: 800, color: C.text, marginBottom: message || children ? 10 : 18, lineHeight: 1.4 }}>{title}</div>
         {children}
-        {message && <div style={{ fontSize: F.body, color: C.textSub, lineHeight: 1.6, marginTop: children ? 10 : 0, marginBottom: 18 }}>{message}</div>}
+        {message && <DialogMessage text={message} style={{ marginTop: children ? 10 : 0, marginBottom: 18 }} />}
         <GlassButton full color={accent} onClick={onClose} style={{ padding: '12px', marginTop: message ? 0 : 8, fontFamily: SAIRA, fontSize: F.subLg }}>
           {okLabel}
         </GlassButton>

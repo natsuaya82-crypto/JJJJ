@@ -2,6 +2,7 @@ import { C, SAIRA, F } from '../../styles/tokens'
 import GlassButton from './GlassButton'
 import { panelStyle } from './Panel'
 import ScreenCover from './ScreenCover'
+import DialogMessage from './DialogMessage'
 
 
 // アプリ調の確認ダイアログ（素の window.confirm の置き換え用）
@@ -45,7 +46,7 @@ export default function ConfirmDialog({
         <div style={{ fontSize: F.tiny, color: accent, letterSpacing: '2px', fontWeight: 900, marginBottom: 8, fontFamily: SAIRA }}>確認</div>
         <div style={{ fontSize: F.title, fontWeight: 800, color: C.text, marginBottom: message || children ? 10 : 18, lineHeight: 1.4 }}>{title}</div>
         {children && <div style={{ marginBottom: message ? 10 : 18 }}>{children}</div>}
-        {message && <div style={{ fontSize: F.body, color: C.textSub, lineHeight: 1.6, marginBottom: 18 }}>{message}</div>}
+        {message && <DialogMessage text={message} style={{ marginBottom: 18 }} />}
         <div style={{ display: 'flex', gap: 10 }}>
           <GlassButton color={C.textSub} onClick={onCancel} style={{ flex: 1, padding: '12px', fontFamily: SAIRA, fontSize: F.sub }}>
             {cancelLabel}
