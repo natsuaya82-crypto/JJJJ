@@ -156,13 +156,26 @@ club_posts 2 / club_reactions 1）。
 
 毎日 **日本時間 10:00** に、前日ぶんを締めて・走らせて・レートを書き、その日のコースを出します。
 
+**上げるのは GitHub のボタン1つです。手元に CLI を入れる必要はありません。**
+
+> GitHub → **Actions** → **Deploy Edge Function (rated-tick)** → **Run workflow**
+
+`engine.js` が古いままコミットされていないかを上げる直前に見て、違っていればそこで止まります。
+
+（CLI を使いたいときだけ。ふだんは要りません）
+
 ```bash
 npm run build:edge                    # engine.js を作り直す（src を変えたら必ず）
 supabase functions deploy rated-tick  # 上げる
 ```
 
-毎日の起動は **ダッシュボード → Edge Functions → `rated-tick` → Schedules** で
-`0 1 * * *`（UTC 01:00 ＝ 日本時間 10:00）。
+**毎日の起動も GitHub でやっています**（`.github/workflows/rated-tick-cron.yml`。
+UTC 01:00 ＝ 日本時間 10:00）。**Supabase 側の設定は要りません。**
+
+★ダッシュボードの **Edge Functions → Schedules** は**探さないこと**。
+プランや版によって出ないことがあり、実際に見つかりませんでした（2026-08-14 / 08-20 の2回、
+この README を読んで探し回っています）。だから GitHub の cron に移してあります。
+Supabase 側で回せるようになったら、そちらへ移して `rated-tick-cron.yml` を消してください。
 
 手で流すこともできます（締め忘れの取り戻しにも使えます。何度流しても同じ結果です）。
 
