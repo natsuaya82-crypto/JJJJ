@@ -92,7 +92,9 @@ for (let run = 0; run < RUNS; run++) {
   let live: IncomingOffer[] = []
   for (let i = 0; i < races.length; i++) {
     const r = generateTransferActivity(
-      players, teams, MY, i, [], live, [], new Set(), YEAR, races.length, foreignClubs)
+      players, teams, MY, i, [], live, [], new Set(), YEAR, races.length, foreignClubs,
+      // この点検の世界はレース結果を持たないので「まだ分からない」を返す＝序列で見る
+      () => ({ fraction: 0, teamRaces: 0 }))
     rounds.push({ fresh: r.incomingOffers.filter(o => !live.some(l => l.id === o.id)), raceIndex: i, run })
     live = r.incomingOffers
   }
@@ -126,7 +128,8 @@ console.log('[1.5] **1年に来る件数**（上限だけ見ても「多すぎ�
     let got = 0
     for (let i = 0; i < sch.length; i++) {
       const r = generateTransferActivity(
-        players0, teams, MY, i, [], live, [], new Set(), YEAR, sch.length, foreignClubs)
+        players0, teams, MY, i, [], live, [], new Set(), YEAR, sch.length, foreignClubs,
+        () => ({ fraction: 0, teamRaces: 0 }))
       got += r.incomingOffers
         .filter(o => !live.some(l => l.id === o.id) && o.offeredPrice > 0 && !o.id.startsWith('inc-lst-')).length
       live = r.incomingOffers

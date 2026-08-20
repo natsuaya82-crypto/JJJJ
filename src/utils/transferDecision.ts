@@ -253,6 +253,34 @@ export const CONSENT_LINE = 0.5
 export const MAX_TIER_DROP_FOR_STARTER = 2
 
 /**
+ * **その選手はいま走れているか。** 移籍の関門（2段以上下へ行かない・格下のクラブが
+ * 主力に声を掛けない）が使う唯一の判定。
+ *
+ * 順番に意味があります。
+ *   ① 今季3戦以上こなしているなら、**出場率が正**（実際に走ったかどうかが分かる）
+ *   ② まだ分からないなら、**序列**（走れる7人に入るか）で代わりに見る
+ *
+ * ★②が要るのは、シーズンの頭は全員が出場0で**主力も控えも区別が付かない**ため。
+ *   ここが無かったころ、開幕直後の市場では関門が素通りしていました。
+ * ★①を先に見るのは、②だけだと**干されている主力**（序列は上だが1戦も走っていない）が
+ *   出番を求めて格下へ移れなくなるため。オーナー・2026-08-20
+ *   「出れないから移籍するならわかるけど、わざわざ3部とかに行くのはなぜ？」。
+ * ★序列が分からない呼び出し口（渡していない）は、①だけで判断します。
+ */
+export function isStarterNow(a: {
+  playFraction: number
+  teamRaces: number
+  /** 出す側の名簿での序列。**省略＝分からない**（出場率だけで見る） */
+  squadRank?: number
+}): boolean {
+  if (a.teamRaces >= SETTLED_APPEARANCE_RACES) return a.playFraction >= 0.5
+  return a.squadRank != null && a.squadRank <= RUNNING_SLOTS
+}
+
+/** 出場率を「その選手の姿」として信用しはじめるレース数（`appraiseMove` の関門と同じ線） */
+const SETTLED_APPEARANCE_RACES = 3
+
+/**
  * 無所属を「格いくつ」として数えるか。**格は1〜20なので、その外側**。
  * クラブが無い状態はどのクラブよりも下、という意味しか持たせていない。
  */
@@ -346,6 +374,12 @@ export type MoveContext = {
    */
   playFraction: number
   teamRaces: number
+  /**
+   * **出す側の名簿での序列**（1番手＝そのクラブで一番強い）。
+   * 出場記録がまだ無いときに「走れているか」を代わりに見る（`isStarterNow`）。
+   * 省略しても関門は働きますが、**シーズンの頭だけ素通りします。**
+   */
+  srcSquadRank?: number
   /** 交渉ボーナス（スカウト施設・年俸の上積みなど） */
   bonus?: number
   /**
@@ -542,7 +576,8 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext): Appra
   //     下のクラブへ移れないと、行き場が無くて引退するだけになる
   //     （オーナー「85の36歳とかは全然2部でも欲しいでしょ」）。
   //   ★止めるのは**いま走れている選手だけ**。控えが出番を求めて格下へ落ちるのは止めない。
-  const starterNow = races >= 3 && frac >= 0.5
+  // 「いま走れているか」は `isStarterNow` 1本（出場記録が無いときは序列で代わりに見る）
+  const starterNow = isStarterNow({ playFraction: frac, teamRaces: races, squadRank: ctx.srcSquadRank })
   const tooFarDown = !freeAgent && !declining && starterNow && -gap >= MAX_TIER_DROP_FOR_STARTER
 
   const score = tier + playingTime + benched + title + ecl + dreamFit + capped + personality + morale + bonus

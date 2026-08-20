@@ -443,8 +443,10 @@ export function playerConsentToMove(
   //   既定値を戻すと、渡し忘れた呼び出し口で appraiseMove の関門が黙って死にます
   //   （詳しくは utils/transferDecision の MoveContext）
   playFraction: number, teamRaces: number, consentBonus = 0, clubBlessed = false,
+  /** 出す側の名簿での序列。出場記録が無いときの代わり（utils/transferDecision の isStarterNow） */
+  srcSquadRank?: number,
 ): { ok: boolean; reason: string } {
-  const a = appraiseMove(p, dest, { srcTier, playFraction, teamRaces, bonus: consentBonus, clubBlessed })
+  const a = appraiseMove(p, dest, { srcTier, playFraction, teamRaces, bonus: consentBonus, clubBlessed, srcSquadRank })
   // 「主力だから残りたい」は行き先の情報とは別軸。ここだけ従来どおり残す
   const key = isDataKeyPlayer(p, playFraction, teamRaces) && !clubBlessed
   if (key && a.score - 0.3 < CONSENT_LINE) {

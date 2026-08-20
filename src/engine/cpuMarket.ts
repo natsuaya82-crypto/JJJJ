@@ -16,8 +16,8 @@ import { comparePlayers } from '../utils/playerSort'
 import { calcTransferValue, faMarketSalary, ovr, perfOf } from '../utils/playerUtils'
 import { roundRobin } from '../utils/roundRobin'
 import { saleAnsweredIds } from '../utils/saleAnswer'
-import { needsPlayer, thinSpecialties, wouldMakeLineup } from '../utils/squadNeeds'
-import { MAX_OFFERS_PER_PLAYER, MAX_TIER_DROP_FOR_STARTER, hasNoPlayingTime, regionOfLeague } from '../utils/transferDecision'
+import { needsPlayer, squadRankOf, thinSpecialties, wouldMakeLineup } from '../utils/squadNeeds'
+import { MAX_OFFERS_PER_PLAYER, MAX_TIER_DROP_FOR_STARTER, hasNoPlayingTime, isStarterNow, regionOfLeague } from '../utils/transferDecision'
 import { canBePoached, canClubApproachAgain, canGoOverseasDream, canLoanOut, canReceiveFreeContact, isOwnedBy } from '../utils/transferEligibility'
 
 export function cpuStrategy(lastRank: number, totalTeams: number, avgAge: number): 'contend' | 'rebuild' | 'balanced' {
@@ -321,6 +321,9 @@ export function generateTransferActivity(
   currentYear = 0,                       // 今のシーズン年。加入1年目の選手をオファー対象から外すのに使う
   totalRaces = 0,                        // 今季のレース数。契約残りの月数を出すのに使う（フリー接触の解禁時期）
   foreignClubs: ForeignClub[] = [],      // 海外180クラブ。**打診の関門は国内52と同じ1本**（下の「自チームへの打診」）
+  // 出場率の材料（utils/playRate の playRateOf を包んで渡すこと）。**既定値は置きません**
+  // ——置くと「渡し忘れても動く」＝関門が黙って序列だけになるので、渡し忘れが起きます
+  playRate: (playerId: string) => { fraction: number; teamRaces: number },
 ): { listings: TransferListing[]; incomingOffers: IncomingOffer[] } {
   const validListings = existingListings.filter(l => l.expiresAtRace > raceIndex)
   const validIncoming = existingIncoming.filter(o => o.expiresAtRace > raceIndex)
@@ -467,11 +470,16 @@ export function generateTransferActivity(
   //   最初から決まっている往復で1レース1件の枠を使い切っていました
   //   （実測・格5のクラブ：OVR85+への打診の23%、OVR80-84への打診の46%が2段以上下から）。
   //
-  //   ★「走れているか」は**序列**（走れる7人に入るか）で見ます。出場率で見ると
-  //     シーズンの頭は全員0＝主力も控えも区別が付かない（レンタルの打診で同じ形を踏んでいる）。
+  //   ★「走れているか」は `utils/transferDecision` の `isStarterNow` 1本。
+  //     今季3戦以上こなしていれば出場率、まだなら序列（走れる7人）で代わりに見ます。
+  //     ここに判定を手書きしないこと——**同じ問いが本人の関門（`tooFarDown`）にもある**ので、
+  //     食い違うと「声は掛かるが本人は必ず断る」往復が生まれます。
   //   ★止めるのは**主力への打診だけ**。控えに格下から声が掛かるのは現実にあるので止めない。
+  //     **干されている主力もここでは控え扱い**（序列は上でも走っていないなら、出番を求めて
+  //     格下へ行く話は成立する。オーナー・2026-08-20「出れないから移籍するならわかる」）。
   const myTier = tierOf(teams.find(t => t.id === playerTeamId) ?? { tier: 20 } as Team)
   const myRoster = players.filter(p => p.teamId === playerTeamId && p.status === 'active').sort(comparePlayers('ovr'))
+
 
   for (const club of offerClubs) {
     if (newIncoming.length >= MAX_NEW_OFFERS_PER_RACE) break
@@ -525,7 +533,12 @@ export function generateTransferActivity(
     // 本人が今季そのクラブを断っていたら、もう来ない（canClubApproachAgain）
     targets = targets.filter(p => canClubApproachAgain(p, club.id, currentYear))
     // ★2段以上格下のクラブは、主力（走れる7人）には声を掛けない（上の myTier のコメント）
-    if (tier - myTier >= MAX_TIER_DROP_FOR_STARTER) targets = targets.filter(p => !wouldMakeLineup(myRoster, p))
+    if (tier - myTier >= MAX_TIER_DROP_FOR_STARTER) {
+      targets = targets.filter(p => {
+        const { fraction, teamRaces } = playRate(p.id)
+        return !isStarterNow({ playFraction: fraction, teamRaces, squadRank: squadRankOf(myRoster, p) })
+      })
+    }
     if (targets.length === 0) continue
     targets = [...targets].sort((a, b) => effectiveOvr(b) - effectiveOvr(a))
     const target = targets[0]

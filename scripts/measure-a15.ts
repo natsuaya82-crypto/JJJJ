@@ -15,13 +15,14 @@
  *   見えている記録を毎回ぜんぶ拾って集合に足す。
  */
 import { useGameStore } from '../src/store/gameStore'
+import { ovr } from '../src/utils/playerUtils'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { newSeasonStandings, DIVISIONS, DIVISION_RACES, divisionOf } from '../src/utils/league'
 import { drawSeasonSchedules } from '../src/data/races'
-import type { SeasonStanding, Team, Player } from '../src/types'
+import type { SeasonStanding, Team, Player, Race } from '../src/types'
 import { simulateRace, bgLineup } from '../src/engine/raceEngine'
 
 const YEAR = 2030
@@ -111,12 +112,45 @@ const collect = (): Row[] => {
 // ★**世界を歳を取らせてから測ること。** 生成時の年齢は国内18〜32・海外18〜28なので、
 //   1年目の世界には33歳以上が**1人もいません**（引退年齢は30〜36）。
 //   そこで「33歳以上の移籍が0件」と数えても、市場ではなく生成を見ているだけです。
+//
+// ★★**助走でも必ずレースを走らせること。** 走らせないと出場記録が1本も残らず、
+//   `playRateOf` が全員「分からない(0.5 / 0戦)」を返す＝関門が一度も発火しない世界に
+//   なります（2026-08-20 に2回これで測り違えました）。名簿は毎年動くので、
+//   **その年の名簿でその年の日程を走らせる**こと。
 const WARM = Number(process.env.WARM ?? 6)
+
+/** いまの store の日程を、いまの名簿で走らせて結果を書き戻す */
+function simulateAll() {
+  const st = useGameStore.getState()
+  const ps = st.players
+  const run = (rs: Race[] | undefined, clubIds: string[]): Race[] | undefined => {
+    if (!rs) return rs
+    return rs.map(r => {
+      if (r.results) return r
+      const lineups: Record<string, Record<number, string>> = {}
+      for (const id of clubIds) lineups[id] = bgLineup(ps.filter(p => p.teamId === id && p.status === 'active'), r)
+      return { ...r, results: simulateRace(r, lineups, st.teams, ps, 0.5) }
+    })
+  }
+  const cs = st.currentSeason
+  const myD = divisionOf(st.teams.find(t => t.id === MY)!)
+  const idsOf = (d: number) => st.teams.filter(t => divisionOf(t) === d).map(t => t.id)
+  const nextDiv: Record<number, Race[]> = { ...(cs.divisionRaces ?? {}) }
+  for (const d of DIVISIONS) { if (d !== myD && nextDiv[d]) nextDiv[d] = run(nextDiv[d], idsOf(d))! }
+  const nextFor: Record<string, Race[]> = { ...(cs.foreignRaces ?? {}) }
+  for (const l of st.foreignLeagues ?? []) {
+    if (nextFor[l.id]) nextFor[l.id] = run(nextFor[l.id], l.clubs.map(c => c.id))!
+  }
+  useGameStore.setState({ currentSeason: {
+    ...cs, races: run(cs.races, idsOf(myD))!, divisionRaces: nextDiv, foreignRaces: nextFor,
+    currentRaceIndex: (cs.races ?? []).length, phase: 'postseason' } } as never)
+}
+
 for (let y = 0; y < WARM; y++) {
+  simulateAll()
   useGameStore.getState().endSeason()
   useGameStore.getState().beginSeasonDraft()
-  const ds0 = useGameStore.getState().draftState
-  if (ds0) {
+  if (useGameStore.getState().draftState) {
     for (let i = 0; i < 400; i++) {
       const ds = useGameStore.getState().draftState
       if (!ds || ds.isComplete) break
@@ -124,12 +158,23 @@ for (let y = 0; y < WARM; y++) {
     }
     useGameStore.getState().advanceDraft()
   }
-  useGameStore.setState({ currentSeason: { ...useGameStore.getState().currentSeason, phase: 'postseason' } } as never)
 }
+// 測る年ぶんも走らせてから endSeason へ入る（出場率はこの年のもので見る）
+simulateAll()
+console.log(`（${WARM}年ぶん走らせてから測ります）`)
+
 seen.clear()
-console.log(`（${WARM}年ぶん進めてから測ります）`)
 
 
+// ★世界の強さの分布。CLAUDE.md が TIER_GROWTH_RATE を決めたときに数えたのと同じ物差し
+{
+  const ps = useGameStore.getState().players.filter(p => p.status === 'active')
+  const n = (t: number) => ps.filter(p => ovr(p) >= t).length
+  console.log(`世界の強さ（${WARM}年後）：OVR92+ ${n(92)} ／ 90+ ${n(90)} ／ 85+ ${n(85)}　（在籍 ${ps.length}人）`)
+  console.log(`  走れる椅子は 232クラブ × ${RUNNING_SLOTS}区間 = ${232 * RUNNING_SLOTS}`)
+}
+// 市場が読むのと同じ「走り終わったシーズン」を控える
+const seasonAtMeasure = { ...useGameStore.getState().currentSeason }
 const all: Row[] = []
 // ★動かす前の姿を控える（動いたあとに読むと、所属も序列も変わっている）
 const st0 = { players: useGameStore.getState().players, teams: useGameStore.getState().teams, foreignLeagues: useGameStore.getState().foreignLeagues }
@@ -154,7 +199,6 @@ for (let i = 0; i < 12; i++) {
 
 
 // ── ここから A-15★ の集計 ────────────────────────────────
-import { ovr } from '../src/utils/playerUtils'
 import { tierOfPlayerClub, allTieredClubs } from '../src/utils/clubTier'
 import { needsPlayer, squadRankOf } from '../src/utils/squadNeeds'
 
@@ -252,7 +296,9 @@ import { playRateOf } from '../src/utils/playRate'
 import { isDeclining } from '../src/engine/ageCurve'
 import { MAX_TIER_DROP_FOR_STARTER } from '../src/utils/transferDecision'
 
-const season0 = { races: ranRaces, divisionRaces, foreignRaces }
+// ★出場率は**測る年のもの**を見る。1年目の season を使い回すと、
+//   助走のあいだに動いた選手が全員「そのクラブで0戦」になります
+const season0 = seasonAtMeasure
 let starters = 0, wouldBlock = 0, decl = 0
 const blockedBand = new Map<string, number>()
 const blockedKind = new Map<string, number>()
@@ -301,7 +347,7 @@ for (const b of ABANDS) console.log(`    ${b.padEnd(6)} ${declStarterDeepAges.ge
 // ── (7) 33歳以上はなぜ動かないのか ──────────────────────
 import { isTransferLocked } from '../src/utils/transferEligibility'
 import { willRelease, isSurplus } from '../src/utils/transferDecision'
-import { CPU_SELL_FLOOR, ROSTER_MAX, ROSTER_MIN } from '../src/data/rosterRules'
+import { CPU_SELL_FLOOR, ROSTER_MAX, ROSTER_MIN, RUNNING_SLOTS } from '../src/data/rosterRules'
 import { comparePlayers } from '../src/utils/playerSort'
 
 console.log(`\n【(7) 年齢ごとの「そもそも市場に出られるか」】`)
@@ -331,3 +377,36 @@ for (const b of ABANDS) {
 const ages = new Map<number, number>()
 for (const p of active) ages.set(p.age, (ages.get(p.age) ?? 0) + 1)
 console.log(`  年齢の分布：` + [...ages.keys()].sort((a, b) => a - b).map(a => `${a}:${ages.get(a)}`).join(' '))
+
+// ── (8) OVR85+ が格下へ行った理由 ───────────────────────
+// 「どこでもエース級がわざわざ格下に行く」（オーナー・2026-08-20）の中身を1件ずつ見る。
+import { appraiseMove, hasNoPlayingTime } from '../src/utils/transferDecision'
+import { squadRankOf as sqRank } from '../src/utils/squadNeeds'
+
+console.log(`\n【(8) OVR85+ が格下へ行った ${rows.filter(r => dirOf(r) === '格下' && ovr(pmap.get(r.playerId)!) >= 85).length}件の中身】`)
+const leadC = new Map<string, number>()
+const profC = new Map<string, number>()
+const dropC = new Map<number, number>()
+for (const r of rows) {
+  if (dirOf(r) !== '格下') continue
+  const p = pmap.get(r.playerId)!
+  if (ovr(p) < 85) continue
+  const srcRoster = (rosterOf.get(r.from) ?? []).filter(x => x.status === 'active')
+  const dstRoster = (rosterOf.get(r.to) ?? []).filter(x => x.status === 'active' && x.id !== p.id)
+  const { fraction, teamRaces: tr } = playRateOf(p.id, r.from, season0, st0.teams, st0.foreignLeagues)
+  const a = appraiseMove(p, {
+    clubId: r.to, tier: tierOf(r.to), squadRank: sqRank(dstRoster, p), squadSize: dstRoster.length + 1,
+  } as never, { srcTier: tierOf(r.from), playFraction: fraction, teamRaces: tr, clubBlessed: true })
+  leadC.set(a.lead, (leadC.get(a.lead) ?? 0) + 1)
+  const srcRank = sqRank(srcRoster, p)
+  const starter = tr >= 3 && fraction >= 0.5
+  const decl = isDeclining(p.growthCurve ?? 'normal', p.age)
+  const prof = `${srcRank <= RUNNING_SLOTS ? '出す側で走れる7人' : hasNoPlayingTime(srcRank) ? '出す側で15番手以降' : '出す側で8-14番手'}／${starter ? '実際に走っている' : '走っていない'}／${decl ? 'ピーク越え' : 'ピーク前'}`
+  profC.set(prof, (profC.get(prof) ?? 0) + 1)
+  dropC.set(tierOf(r.to) - tierOf(r.from), (dropC.get(tierOf(r.to) - tierOf(r.from)) ?? 0) + 1)
+}
+console.log('  本人が「行く」と言った一番の理由')
+for (const [k, n] of [...leadC].sort((a, b) => b[1] - a[1])) console.log(`    ${k.padEnd(14)} ${n}件`)
+console.log('  どういう選手か')
+for (const [k, n] of [...profC].sort((a, b) => b[1] - a[1])) console.log(`    ${k} … ${n}件`)
+console.log('  落差 ' + [...dropC].sort((a, b) => a[0] - b[0]).map(([d, n]) => `${d}段=${n}`).join(' '))

@@ -47,9 +47,6 @@ const CHECKS = [
   // countered で上乗せの機会）を選んだので書き直した（docs/BACKLOG.md A-3）。
   // うち1件は別の理由で、通知の金額に「億」を期待していた（P0-1 で「万」に統一済み）。
   'transfer-bid',
-  // 出場率が移籍の判断に届いているか。**関門は書いてあるのに材料が渡っていない**という
-  // 形（2026-08-20）を見張る。世界を1つ作って実際に流す＋その世界で移籍が起こせることも見る
-  'play-rate',
   // trade-value は片付いた（20件 → 0件）。内訳は 移設で見えなくなっていたもの7件・
   // CLAUDE.md に現行仕様として書いてあるのにテストが古かったもの13件。
   'trade-value',
@@ -92,7 +89,10 @@ const CHECKS = [
   'bid-gate',
   // レース・順位・記録
   'race-points', 'race-record', 'background-race', 'round-robin', 'division-rank',
-  'division-sync', 'away-records', 'domestic-records', 'segment-recommend', 'play-rate',
+  'division-sync', 'away-records', 'domestic-records', 'segment-recommend',
+  // 出場率が移籍の判断に届いているか。**関門は書いてあるのに材料が渡っていない**という
+  // 形（2026-08-20）を見張る。世界を1つ作って実際に流す＋その世界で移籍が起こせることも見る
+  'play-rate',
   // 世界大会・コース
   'national-pool', 'wa-races', 'course-names', 'world-courses',
   // continental は**分布の検査**。以前は種を固定しておらず、走らせるたびに別の世界を

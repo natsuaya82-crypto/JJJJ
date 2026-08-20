@@ -123,13 +123,18 @@ function racesFor(clubId: string, runnerIds: string[], n: number): Race[] {
  * 名簿は SIZE 人ずつ（CPU_SELL_FLOOR を超えないと1人も出せない）。
  */
 const STAR = 'hi-star'
+const BENCH = 'hi-bench'
 function world(): Player[] {
   return [
     // ★STAR を1番手にしないこと。**エース（1番手）は市場に出ません**（sellCandidatesOf の slice(1)）。
     //   ここを 88 で置いた最初の版は、④も③も「移籍が起こせない世界」で緑でした
     player('hi-top', HI, 90),
     player(STAR, HI, 88, 'mountain_up'),
-    ...Array.from({ length: SIZE - 2 }, (_, i) => player(`hi${i}`, HI, 86)),
+    // ⑤の対照用：**同じ穴を埋められる控え**（15番手以降）。これが居ないと、
+    //   lo が欲しがるのは STAR だけ＝止めた瞬間に「誰も動かない世界」になり、
+    //   ⑤が「守っている」のか「起こせない」のか区別できません
+    player(BENCH, HI, 80, 'mountain_up'),
+    ...Array.from({ length: SIZE - 3 }, (_, i) => player(`hi${i}`, HI, 86)),
     ...Array.from({ length: SIZE }, (_, i) => player(`lo${i}`, LO, 62)),
     ...Array.from({ length: SIZE }, (_, i) => player(`my${i}`, 'my', 60)),
   ]
@@ -166,5 +171,26 @@ check('④ 出場0なら格下へ動く（この世界でその移籍が起こ�
 const starter = run(10)
 check(`③ 10戦フル出場なら ${MAX_TIER_DROP_FOR_STARTER}段以上下へは動かない`, !starter.moved,
   `${STAR} が ${starter.to} へ動きました`)
+
+// ── ⑤ 出場記録が1本も無いとき（シーズンの頭・旧セーブ）でも、
+//    **序列で見る2本目の関門**が主力を守る（`transferMarket` の買う側）。
+//    `tooFarDown` は出場率で見るので、ここが無いと開幕直後は素通りします。
+console.log('[4] 出場記録が無くても、2段以上格下のクラブは主力を買えない')
+{
+  current = world()
+  const noData = { year: YEAR, races: [], divisionRaces: {}, foreignRaces: {} }
+  const out = runTransferMarket(
+    { players: current, teams, foreignLeagues: [] as ForeignLeague[] },
+    { playerTeamId: 'my', year: YEAR, season: noData, pastSeasons: [] as ArchivedSeason[],
+      rosterCapFor: () => 30, destinationOf, excludeIds: new Set<string>(), date: `${YEAR}-02-01` })
+  const star = out.players.find(p => p.id === STAR)!
+  // STAR は HI で2番手＝走れる7人。lo は2段下なので買いに来られない
+  check('⑤ 出場データ無しでも、走れる7人は2段下へ売られない', star.teamId === HI,
+    `${STAR} が ${star.teamId} へ動きました`)
+  // 空振りでないこと：同じ世界で**控え**（15番手以降）なら動く
+  const benchMoved = out.players.find(p => p.id === BENCH)!.teamId !== HI
+  check('⑤ 空振りでない（同じ世界で控えは動く）', benchMoved,
+    'この世界では誰も動かない＝⑤は何も守っていません')
+}
 
 process.exit(failed > 0 ? 1 : 0)

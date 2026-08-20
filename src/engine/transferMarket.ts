@@ -303,8 +303,11 @@ export function runTransferMarket(
       // ④本人が行くか。**余剰でも聞く**（出番が無いから必ず頷く、とは限らない）。
       //   主力の引き抜きだけクラブが割増で合意済み＝clubBlessed で「主力だから残りたい」を外す
       const srcTier = tierOfPlayerClub(target.teamId, tieredClubs)
+      // ★**出す側での序列も渡すこと。** 出場記録がまだ無いとき（シーズンの頭・旧セーブ）に
+      //   「走れているか」を序列で代わりに見る（`isStarterNow`）。渡さないと、開幕直後は
+      //   全員が出場0＝控え扱いになり、2段以上下への関門が素通りします
       if (!playerConsentToMove(target, ctx.destinationOf(buyClub.id, target), srcTier,
-        tgtFrac, tgtRaces, 0, !surplus).ok) continue
+        tgtFrac, tgtRaces, 0, !surplus, rank).ok) continue
 
       // 所属・加入年・移籍履歴・移籍リストの札はがしは movePlayer 1本。
       // お金だけは上の帳簿で見ているので money: false（国内側だけ二重に動くのを防ぐ）
