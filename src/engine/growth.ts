@@ -112,18 +112,24 @@ export function nationalityExpMultiplier(_p: Player): number {
 //   season = 所属していれば毎年もらう一律EXP（レースに出たかどうかで分けない）
 //   plan   = 練習方針
 //   card   = 練習カード（自チームだけ。上乗せ）
+//   world  = CPU・海外の1年ぶん（クラブの格ぶんの倍率は呼ぶ側が量に掛ける）
 //
 // ★'race'（走った区間の地形別EXP）と 'bench'（見学EXP）は廃止した。
 //   「レースに出た選手だけ地形に応じて伸びる」をやめて、所属していれば全員同じだけ
 //   伸びる形にしたため（オーナー決定）。CPU・海外がカードを持たないぶんは
 //   クラブの格ごとの倍率（utils/clubTier.ts の tierGrowthRate）で埋める。
-export type GrowthSource = 'season' | 'plan' | 'card'
+export type GrowthSource = 'season' | 'plan' | 'card' | 'world'
 
 /** どの経路にどの倍率が掛かるか。経路ごとの差は、この表だけで表現する。 */
 const SOURCE_RULES: Record<GrowthSource, { age: boolean; potential: boolean; facility: boolean }> = {
   season: { age: true,  potential: true,  facility: true  },
   plan:   { age: false, potential: true,  facility: true  },
   card:   { age: false, potential: false, facility: false },
+  // ★CPU・海外には年齢・ポテンシャル・施設の倍率を掛けない。**元からそうでした**——
+  //   `growPlayer` の年次成長は `ANNUAL_BASE_EXP × tierGrowthRate ÷ 能力数` を素で足すだけで、
+  //   倍率は1つも通っていませんでした。レースごとに移すときに `season` を当てると
+  //   **CPUだけ年+1.15 OVR 速くなります**（実測3000人）。差は表に置いて、量は変えない。
+  world:  { age: false, potential: false, facility: false },
 }
 
 export interface GrowthInput {
@@ -170,6 +176,27 @@ export function applyGrowth(input: GrowthInput): GrowthOutcome {
   return { ratings: r.ratings, exp: r.exp, gained, breakdown }
 }
 
+/**
+ * **CPU・海外の1レースぶんの成長。** レースを進める側（`engine/raceProgress`）と
+ * 点検が**同じここを通ります**（呼ぶ側で量の式を書かないこと）。
+ *
+ * 量は「1年ぶん ÷ そのシーズンのレース数 ÷ 能力数 × クラブの格の倍率」。
+ * 自チームは `ANNUAL_BASE_EXP` をそのまま（カードと施設で伸ばす）、CPU・海外は
+ * カードが無いぶんを `tierGrowthRate` で埋める、という形は変えていません。
+ *
+ * ★倍率（年齢・ポテンシャル・施設）は掛けません（`SOURCE_RULES.world`）。
+ *   `season` を当てるとCPUだけ年 +1.15 OVR 速くなります（実測3000人）。
+ */
+export function growWorldPlayer(p: Player, clubTier: ClubTier, seasonRaces: number): Player {
+  if (p.status !== 'active') return p
+  const per = Math.round(
+    ANNUAL_BASE_EXP * tierGrowthRate(clubTier) / Math.max(1, seasonRaces) / GROW_STAT_KEYS.length)
+  const baseGains: Partial<Record<CardStatKey, number>> = {}
+  for (const k of GROW_STAT_KEYS) baseGains[k as CardStatKey] = per
+  const out = applyGrowth({ player: p, source: 'world', baseGains })
+  return { ...p, ratings: out.ratings, exp: out.exp }
+}
+
 // ── 年次成長・自然老化（CPU・海外。gameStore から移設） ─────────────────────
 
 type RatingsKey = keyof Ratings
@@ -187,12 +214,12 @@ function getPrimaryKey(specialty: string): RatingsKey {
 }
 
 // growPlayer: 年齢増加・自然老化（ピーク後の衰え）＋加齢によるポテンシャル上限の減衰。
-// 自チームの成長はレース/カードEXPで行うため allowAnnualGrowth=false。
-// CPU/海外は allowAnnualGrowth=true で毎年ポテンシャル上限へ向けて成長させる（高数値ほど鈍化）。
+// **成長（EXP）はここではやりません。** 自チームもCPU・海外も `engine/raceProgress` が
+// レースごとに配ります（2026-08-20 に揃えました。下の★）。
 // 一律EXPを配る能力の一覧。自チーム（毎レース）とCPU（年1回）で同じものを使う。
 // 2つ持つと「片方は7能力に配る・もう片方は各能力へ丸ごと」のようにズレる（実際にズレていた）
 export const GROW_STAT_KEYS: RatingsKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
-export function growPlayer(p: Player, allowAnnualGrowth = false, clubTierForGrowth: ClubTier = 20): Player {
+export function growPlayer(p: Player): Player {
   const peakAge = peakAgeOf(p)
   const nextAge = p.age + 1
   const ageDiff = nextAge - peakAge
@@ -206,51 +233,13 @@ export function growPlayer(p: Player, allowAnnualGrowth = false, clubTierForGrow
   else if (ageDiff >= 1) potential = Math.max(50, potential - (ageDiff >= 6 ? 2 : 1))
   const caps = getStatPotentials({ ...p, potential })  // 減衰後の上限で頭打ち
 
-  // CPU・海外の年次成長。自チームは毎レースの一律EXP＋カードで伸びるので、
-  // ここはCPU・海外だけが通る（allowAnnualGrowth）。
-  //
-  // カードが無いぶんをクラブの格の倍率（utils/clubTier.ts の tierGrowthRate）で埋める。
-  // 格1で3.0倍、格11以下は1.5倍。一律EXPは自チームと同じ ANNUAL_BASE_EXP。
-  // ★係数を2箇所に書かないこと。年齢カーブ（engine/ageCurve.ts）と
-  //   この倍率の2つだけで成長が決まる形にしてある。
-  // ★**余ったEXPは持ち越すこと。**（オーナー・2026-08-16「成長してないから
-  //   そんな弱いんじゃないの？普通に92とか見なくなった。格の高いチームでも」）
-  //
-  //   以前は `Math.floor(1年ぶん / 必要EXP)` で、**足りなかったぶんを毎年捨てて**
-  //   いました。必要EXPは `0.5 × 能力² ×（80以上で2倍・90以上で4倍）`なので、
-  //   1年ぶん（`ANNUAL_BASE_EXP × 格の倍率 ÷ 7`）を超えた時点で**永久に0**になります。
-  //
-  //     格1（3.0倍）… 1能力あたり4,539／年   → 能力80の必要EXP 6,400 で頭打ち
-  //     格20（1.5倍）… 1能力あたり2,270／年  → 能力75の必要EXP 2,812 で**1度も伸びない**
-  //
-  //   実測で、19歳OVR75・ポテ99（上限まで育てばOVR95）の選手を格1で18年育てても
-  //   **OVR80どまり**、格10・格20では**75のまま1も伸びません**でした。つまり
-  //   **CPU・海外の選手は成長でOVR80を超えられない**＝世界にいるOVR85+は
-  //   「最初からそう作られた選手」だけで、その世代が老けると二度と現れません
-  //   （12年で OVR85+ が 702人 → 154人）。
-  //
-  //   自チーム側（`processExpGains`）は最初から貯めて使う形でした。**同じにします。**
+  // ★**年次成長（1年ぶんのEXPをまとめて配る）はここから出しました。**
+  //   いまは `engine/raceProgress` が**レースごとに**「年間ぶん ÷ レース数」を配ります
+  //   （自チームとまったく同じ形。オーナー・2026-08-20「レースごとだと嬉しいけど、
+  //   重くなるようなら仕方ない」→ 実測 15ms/レース＝runRace の +3%、到達点は
+  //   91.6%が完全一致・OVRの差の平均 0.02）。**ここに戻さないこと**——戻すと
+  //   1年ぶんが二重に入ります。この関数がやるのは加齢と衰えだけです。
   const expOut: Partial<Record<CardStatKey, number>> = { ...(p.exp ?? {}) }
-  if (allowAnnualGrowth) {
-    const rate = tierGrowthRate(clubTierForGrowth)
-    const per = (ANNUAL_BASE_EXP * rate) / GROW_STAT_KEYS.length
-    for (const stat of GROW_STAT_KEYS) {
-      const cap = caps[stat]
-      if (ratings[stat] >= cap) { expOut[stat as CardStatKey] = 0; continue }
-      let acc = (expOut[stat as CardStatKey] ?? 0) + per
-      let cur = ratings[stat]
-      // 貯まったぶんだけ上げる。自チームと同じ数え方（processExpGains）
-      while (cur < cap) {
-        const need = requiredExpForLevel(cur)
-        if (acc < need) break
-        acc -= need
-        cur++
-      }
-      ratings[stat] = cur
-      // 上限に届いたら余りは残さない（自チームと同じ）
-      expOut[stat as CardStatKey] = cur >= cap ? 0 : Math.round(acc)
-    }
-  }
 
   // 衰え。35歳以降は絶対年齢で急激に落とす（37歳で85バリバリを防ぐ）。身体系を大きく、経験系はやや。
   const PHYS: RatingsKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'recovery']

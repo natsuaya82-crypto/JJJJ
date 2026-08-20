@@ -11,10 +11,10 @@
 //
 // ★乱数は引数で受ける（既定は Math.random）。1人につき「調子の引き直し」1回、
 //   練習プランが効く条件のときだけもう1回。順序は切り出し前と同じ。
-import type { CardStatKey, Player, RaceResults, Season, Team } from '../types'
+import type { CardStatKey, ForeignLeague, Player, RaceResults, Season, Team } from '../types'
 import { withFatigue } from '../utils/condition'
-import { ANNUAL_BASE_EXP } from '../utils/clubTier'
-import { GROW_STAT_KEYS, applyGrowth } from './growth'
+import { ANNUAL_BASE_EXP, allTieredClubs, tierOfPlayerClub } from '../utils/clubTier'
+import { GROW_STAT_KEYS, applyGrowth, growWorldPlayer } from './growth'
 import { facilitiesOf } from '../utils/facilities'
 import { applyRaceMorale, standingOf, type RaceStanding } from './raceMorale'
 
@@ -24,6 +24,8 @@ export function applyRaceProgress(params: {
   /** そのレースを走った選手 */
   racingIds: Set<string>
   teams: Team[]
+  /** 海外リーグ。CPU・海外の成長の速さ（クラブの格）を引くのに要る */
+  foreignLeagues?: ForeignLeague[]
   playerTeamId: string
   currentSeason: Season
   /** 裏で走った部の通算成績の増分（engine/domesticLeague の結果） */
@@ -32,7 +34,7 @@ export function applyRaceProgress(params: {
   awayStanding?: Map<string, RaceStanding>
   rng?: () => number
 }): { players: Player[]; raceExpGains: Record<string, Partial<Record<CardStatKey, number>>> } {
-  const { players, results, racingIds, teams, playerTeamId, currentSeason, awayCareerAdd, awayStanding, rng = Math.random } = params
+  const { players, results, racingIds, teams, foreignLeagues, playerTeamId, currentSeason, awayCareerAdd, awayStanding, rng = Math.random } = params
   // ★チームトーク（レース前に「楽しくいこう／勝ちにいく」で士気 +5／+10）は**廃止**
   //   （オーナー・2026-08-12「チームトークは無くした」）。
   //   選ぶ画面がどこにも無く、build 121 から一度も効いていなかった枝。
@@ -41,6 +43,19 @@ export function applyRaceProgress(params: {
   // ★施設は `facilitiesOf` を通す（格から出る土台＋自分で建てたぶん）。
   //   `facilities` を直接読むと、建てていない施設が0になって**維持費だけ払う**形になる
   const campLv = facilitiesOf(teams.find(t => t.id === playerTeamId)).trainingCamp
+  // ★CPU・海外の成長の速さはそのクラブの格から（`tierGrowthRate`）。
+  //   **232クラブの配列は1回だけ組み、格はクラブごとに1回だけ引くこと**——
+  //   5,800人ぶん引き直すと1レースが数秒になります
+  const tieredClubs = allTieredClubs(teams, foreignLeagues ?? [])
+  const tierCache = new Map<string, number>()
+  const tierOfClub = (id: string) => {
+    const hit = tierCache.get(id)
+    if (hit != null) return hit
+    const v = tierOfPlayerClub(id, tieredClubs) ?? 20
+    tierCache.set(id, v)
+    return v
+  }
+  const seasonRaces = Math.max(1, (currentSeason.races ?? []).length)
   const finalPlayers = players.map(p => {
     // Form: 設計書準拠 レース後再抽選（絶好調10%/好調25%/普通40%/不調20%/最悪5%）
     const fr = rng()
@@ -59,7 +74,18 @@ export function applyRaceProgress(params: {
         ? { career: { ...p.career, totalRaces: p.career.totalRaces + away.races, segmentWins: p.career.segmentWins + away.segWins } }
         : {}
 
-    if (p.teamId !== playerTeamId) return { ...p, form: newForm, ...careerUpdate }
+    // ★**CPU・海外の成長もここで配ります**（2026-08-20。オーナー「レースごとだと
+    //   嬉しいけど、重くなるようなら仕方ない」→ 実測 15ms/レース＝runRace の +3%）。
+    //   以前は `growPlayer` が年1回まとめて配っていて、**自チームだけがシーズン中に
+    //   伸びる**形でした。1年ぶんの量は変えていません（年間ぶん ÷ レース数。実測で
+    //   到達点は 91.6% が完全一致・OVRの差の平均 0.02・最大2）。
+    //   ★倍率の差は `SOURCE_RULES` の表だけで表します（`world` は年齢・ポテンシャル・
+    //     施設が全部 false）。`season` を当てるとCPUだけ年 +1.15 OVR 速くなります。
+    if (p.teamId !== playerTeamId) {
+      if (p.status !== 'active') return { ...p, form: newForm, ...careerUpdate }
+      const grown = growWorldPlayer(p, tierOfClub(p.teamId) as never, seasonRaces)
+      return { ...grown, form: newForm, ...careerUpdate }
+    }
 
     // 成長は「所属していれば全員同じだけ」。走ったかどうかで分けない。
     // 1レースぶんの一律EXP＝年間ぶん ÷ レース数 ÷ 能力数。
@@ -72,8 +98,7 @@ export function applyRaceProgress(params: {
     let newRatings = { ...p.ratings }
     let newExp = { ...(p.exp ?? {}) } as Partial<Record<CardStatKey, number>>
     if (p.status === 'active') {
-      const races = Math.max(1, (currentSeason.races ?? []).length)
-      const perRace = Math.round(ANNUAL_BASE_EXP / races / GROW_STAT_KEYS.length)
+      const perRace = Math.round(ANNUAL_BASE_EXP / seasonRaces / GROW_STAT_KEYS.length)
       const seasonGains: Partial<Record<CardStatKey, number>> = {
         speed: perRace, stamina: perRace, mountainUp: perRace, mountainDown: perRace,
         pacing: perRace, mental: perRace, recovery: perRace }

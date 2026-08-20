@@ -12,8 +12,6 @@ import type { Nationality } from '../../types'
 
 
 const natName = (n: Nationality) => NAT_LABEL[n] ?? n
-const MEDAL = ['🥇', '🥈', '🥉'] // 表示は下でSVG国旗＋色。絵文字は使わないので色で表現
-void MEDAL
 
 export default function NationalResultPage() {
   const navigate = useNavigate()

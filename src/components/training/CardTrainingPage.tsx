@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { greatSuccessChance, activeEvents } from '../../data/events'
 import { comparePlayers } from '../../utils/playerSort'
+import { TrophyIcon } from '../icons/StatIcons'
 import PageHeader from '../ui/PageHeader'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
@@ -11,7 +12,6 @@ import {
   detectCombo, MAX_FUSION_CARDS,
 } from '../../utils/cardCombo'
 import { C, alpha, glassStyle, SAIRA, FONT, PURPLE, F, insideMainBottom } from '../../styles/tokens'
-import { CardTrainingHeaderSVG } from '../icons/StatIcons'
 import PlayerFace from '../player/PlayerFace'
 import PlayerRow from '../player/PlayerRow'
 import TrainingCardSVG from './TrainingCardSVG'
@@ -180,7 +180,6 @@ export default function CardTrainingPage() {
       <PageHeader
         eyebrow={backLabel ? `CARD TRAINING — ${backLabel}` : 'CARD TRAINING'}
         title="カード練習"
-        icon={<CardTrainingHeaderSVG width={60} height={43} />}
         onBack={onBack}
         right={<div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {(trophies ?? 0) > 0 && (
@@ -189,18 +188,10 @@ export default function CardTrainingPage() {
               background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
               border: `1px solid ${alpha(C.cyan, 0.5)}`,
             }}>
-              <span style={{ fontSize: F.body }}>🏆</span>
+              <TrophyIcon size={15} color={C.cyan} />
               <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900, color: C.cyan, marginLeft: 3 }}>{trophies}</span>
             </div>
           )}
-          <div style={{
-            padding: '4px 10px',
-            background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-            border: `1px solid ${alpha(PURPLE, 0.5)}`,
-          }}>
-            <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900, color: PURPLE }}>{trainingCards.length}</span>
-            <span style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.textSub }}> 枚</span>
-          </div>
           <GlassButton size="sm" style={{ padding: '6px 12px' }} onClick={() => navigate('/cards/list')}>一覧</GlassButton>
         </div>}
       />
@@ -334,7 +325,7 @@ export default function CardTrainingPage() {
                   <div style={{ position: 'absolute', left: `${basePct * 100}%`, top: 0, height: '100%', width: `${maxed ? 0 : gainPct * 100}%`, background: '#9FE88D',transition: 'left 0.25s ease, width 0.25s ease' }}/>
                 </div>
                 {canBreak && <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.gold, marginTop: 3 }}>タップで上限解放</div>}
-                {canTrophy && <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.cyan, marginTop: 3 }}>🏆 タップで {cap} → {cap + 1}</div>}
+                {canTrophy && <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: C.cyan, marginTop: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3 }}><TrophyIcon size={11} color={C.cyan} />タップで {cap} → {cap + 1}</div>}
               </div>
             )
           })}

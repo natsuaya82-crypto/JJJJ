@@ -297,15 +297,9 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         // オフシーズンで負傷は全快（負傷状態と復帰カウントを持ち越さない）
         const p = pRaw.status === 'injured' ? { ...pRaw, status: 'active' as const, injuredUntilRace: undefined, injuryName: undefined } : pRaw
         // 自チーム以外(CPU・海外)は毎年ポテンシャルへ向けて成長させる。自チームはレース/カードEXPで成長。
-        const allowAnnualGrowth = p.teamId !== state.playerTeamId
-        // 伸びる量はそのクラブの格で決まる。国内・海外を問わず**いまの格**を引く。
-        // 以前は海外だけ tierOfClubId＝clubTiers.ts の初期値を読んでいたので、
-        // 海外の格が毎年動くようになったあとも、育つ速さだけが初期値のまま固定だった
-        // （最下位を続けて格20まで落ちたクラブの選手が、格1の速さで伸び続ける）。
-        const growTier = tierOfPlayerClub(p.teamId, tieredClubsForGrowth)
-        const grown = p.status === 'active' || p.status === 'injured'
-          ? growPlayer(p, allowAnnualGrowth, growTier)
-          : p
+        // ★成長（EXP）は `engine/raceProgress` がレースごとに配ります。
+        //   ここは加齢と衰えだけ（2026-08-20 に自チームとCPUで形を揃えた）
+        const grown = p.status === 'active' || p.status === 'injured' ? growPlayer(p) : p
         const snap = ovrSnapshot[p.id]
         const withHistory = snap == null ? grown : { ...grown, ovrHistory: [...(p.ovrHistory ?? []), { year: state.currentSeason.year, ovr: snap }].slice(-8) }
         if (cpuRenewIds.has(p.id)) {

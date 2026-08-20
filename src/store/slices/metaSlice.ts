@@ -90,7 +90,9 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const gift: Gift = {
         id: `gift_${GIFT_VERSION}`,
         title: '1000ダウンロード突破記念',
-        message: '優勝トロフィーを5個お贈りします。受け取り期間は配布から1か月です。',
+        // ★**説明文を書かないこと**（オーナー・2026-08-20「キモい説明文書くなって
+        //   言ってるだろ。今後一切禁止で」）。中身は giftContents が名札として出す
+        message: '',
         cards: [],
         trophies: 5,
         expiresAt }

@@ -103,3 +103,20 @@ export function CardTrainingHeaderSVG({ width = 100, height = 72 }: { width?: nu
     </svg>
   )
 }
+
+/**
+ * **優勝トロフィー。** 大きさだけ渡せる。
+ *
+ * ★このアプリのアイコンは全部インラインSVGです。**絵文字を書かないこと**——
+ *   2026-08-20 に 🏆 を2か所へ直書きして、そこだけ見た目が浮いていました
+ *   （リポジトリ全体で絵文字はその2件だけ＝作法を確認せずに貼った）。
+ */
+export function TrophyIcon({ size = 16, color = C.gold }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+      <path d="M7 4h10v6a5 5 0 01-10 0V4z" stroke={color} strokeWidth="1.8" strokeLinejoin="round"/>
+      <path d="M7 6H4.5v1.5A3.5 3.5 0 007.6 11M17 6h2.5v1.5A3.5 3.5 0 0116.4 11" stroke={color} strokeWidth="1.6" strokeLinecap="round"/>
+      <path d="M12 15v3M9 20h6" stroke={color} strokeWidth="1.8" strokeLinecap="round"/>
+    </svg>
+  )
+}

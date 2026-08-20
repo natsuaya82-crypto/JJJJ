@@ -35,7 +35,7 @@
  *   ③余ったEXPが持ち越されている（`Math.floor(per/need)` に戻ったら落ちる）
  */
 import { readFileSync } from 'node:fs'
-import { growPlayer } from '../src/engine/growth'
+import { growPlayer, growWorldPlayer } from '../src/engine/growth'
 import { buildRatingsForRank, generateCpuRosters } from '../src/engine/playerGenerator'
 import { ovr, getStatPotentials, RETIRE_AGE_MIN, RETIRE_AGE_MAX, retirementAgeOf } from '../src/utils/playerUtils'
 import { INITIAL_TEAMS } from '../src/data/teams'
@@ -49,6 +49,8 @@ const check = (name: string, ok: boolean, detail = '') => {
 }
 
 const YEAR = 2030
+/** 1部の1シーズンのレース数（data/races の DIVISION_RACE_DATES と同じ本数） */
+const RACES_PER_SEASON = 10
 // ★1人だけで見ないこと。衰えの判定に `Math.random` が入っているので、1人だと
 //   引きしだいで ±2 ぶれる（最初にそう書いて、伸びているのに落ちる回があった）
 const SRC = generateCpuRosters(INITIAL_TEAMS.slice(0, 2), YEAR).cpuPlayers
@@ -69,7 +71,14 @@ function grownBy(tier: ClubTier) {
     // ★**`growPlayer` は中で加齢する**（`age: nextAge` を返す）。呼ぶ側で `age + 1` を
     //   足さないこと——足すと1回で2歳進み、ピークまでのつもりが引退年齢まで走って
     //   衰えぶんを測ることになる（2026-08-16 に実際にそう測って読み違えた）
-    while (p.age < 27) p = growPlayer(p, true, tier)
+    // ★**ゲームと同じ道を通すこと。** CPU・海外の成長は 2026-08-20 に
+    //   「年1回まとめて」から「レースごと」へ移りました（`engine/raceProgress`）。
+    //   量の式を点検側に写さず、`growWorldPlayer` 1本を呼びます——写すと
+    //   本体を変えたときに点検だけ古い式のまま緑になります。
+    while (p.age < 27) {
+      for (let r = 0; r < RACES_PER_SEASON; r++) p = growWorldPlayer(p, tier, RACES_PER_SEASON)
+      p = growPlayer(p)   // 加齢と衰えは年1回
+    }
     return { start, end: ovr(p), capOvr }
   })
   const avg = (f: (o: typeof outs[0]) => number) => outs.reduce((a, o) => a + f(o), 0) / outs.length
@@ -98,18 +107,23 @@ console.log('\n[2] 格が高いほど速い（倍率が効いている）')
 console.log('\n[3] 余ったEXPを捨てていない')
 {
   const g = readFileSync('src/engine/growth.ts', 'utf8')
+  const rp = readFileSync('src/engine/raceProgress.ts', 'utf8')
+  // ★年1回まとめて配る形に戻っていないか。戻すと1年ぶんが二重に入る
+  check('growPlayer に年次成長が戻っていない', !/allowAnnualGrowth/.test(g))
+  check('CPU・海外の成長はレースごとの道を通る', /growWorldPlayer\(/.test(rp))
   // ★捨てる形（1年ぶん ÷ 必要EXP を切り捨て）に戻ったら落とす
   check('Math.floor(1年ぶん / 必要EXP) の形に戻っていない',
     !/Math\.floor\(per \/ Math\.max\(1, need\)\)/.test(g))
-  check('貯めて使う形になっている', /acc -= need[\s\S]{0,40}cur\+\+/.test(g))
-  check('持ち越したEXPを選手に書き戻している', /exp: expOut/.test(g))
+  // 貯めて使う形は `processExpGains`（自チームとCPU・海外が同じここを通る）
+  check('貯めて使う形になっている', /acc -= req[\s\S]{0,40}cur\+\+/.test(g))
+  check('持ち越したEXPを選手に書き戻している', /exp: out\.exp/.test(g))
   // 1年ぶんに満たない能力でも、翌年に持ち越されて必ずいつか上がる
   const { ratings, potential } = buildRatingsForRank({
     id: SRC[0].id, rank: 'S', specialty: SRC[0].specialty, growthCurve: 'normal', age: 19,
     potentialCap: TIER_POTENTIAL_CAP[20],
   })
   let p: Player = { ...SRC[0], age: 19, ratings, potential, exp: {} }
-  p = growPlayer(p, true, 20)
+  for (let r = 0; r < RACES_PER_SEASON; r++) p = growWorldPlayer(p, 20, RACES_PER_SEASON)
   const carried = Object.values(p.exp ?? {}).some(v => (v ?? 0) > 0)
   check('1年育てた時点でEXPが残っている（空振りの緑ではない）', carried,
     JSON.stringify(p.exp))

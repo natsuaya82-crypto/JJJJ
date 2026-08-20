@@ -191,6 +191,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       // 5つを1周のループで見る順序に意味があるので、分けて何周もしないこと
       const progress = applyRaceProgress({
         players: updatedPlayers, results, racingIds, teams: state.teams,
+        foreignLeagues: state.foreignLeagues,
         playerTeamId, currentSeason: state.currentSeason,
         awayCareerAdd: awayRound.careerAdd,
         // ★士気は走ったクラブ全部が動く（engine/raceMorale）。裏の部のぶんもここで渡す

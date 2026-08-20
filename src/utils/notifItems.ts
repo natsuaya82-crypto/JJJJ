@@ -393,3 +393,21 @@ export function collectNotifications(input: NotifInput) {
     total,
   }
 }
+
+
+/**
+ * **プレゼントの中身の書き方。** 通知の一覧と、受け取ったときの画面が同じ文字を使う。
+ *
+ * ★以前ここが画面に直書きで、しかも `jewels ? 'ジュエル◯個' : 'カード◯枚'` の
+ *   **2択**でした。`trophies` を足したときにどちらの画面も直していなかったので、
+ *   トロフィーのプレゼントが**「カード0枚」**と出ていました（オーナー・2026-08-20
+ *   「まずこれ、カードじゃないし。優勝トロフィーだし」）。中身を増やしたら
+ *   ここだけ直せば両方に出ます。
+ */
+export function giftContents(gift: { cards?: unknown[]; jewels?: number; trophies?: number }): string {
+  const parts: string[] = []
+  if (gift.trophies) parts.push(`優勝トロフィー${gift.trophies}個`)
+  if (gift.jewels) parts.push(`ジュエル${gift.jewels}個`)
+  if (gift.cards?.length) parts.push(`カード${gift.cards.length}枚`)
+  return parts.join('・')
+}
