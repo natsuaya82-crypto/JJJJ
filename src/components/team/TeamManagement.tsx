@@ -1,5 +1,4 @@
 import { useState, useRef } from 'react'
-import { createPortal } from 'react-dom'
 import { squadPlayersOf } from '../../utils/rosterSync'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useStickyTab } from '../../lib/useStickyTab'
@@ -21,7 +20,7 @@ import { ROSTER_MAX, ROSTER_MIN } from '../../data/rosterRules'
 import SortSelect from '../ui/SortSelect'
 import { comparePlayers, PLAYER_SORT_LABEL, type PlayerSortKey } from '../../utils/playerSort'
 import PlayerList from '../player/PlayerList'
-import { useCoversScreen } from '../../lib/screenCover'
+import ScreenCover from '../ui/ScreenCover'
 
 const SORT_OPTIONS: { value: PlayerSortKey; label: string }[] = [
   { value: 'ovr', label: PLAYER_SORT_LABEL.ovr },
@@ -103,7 +102,6 @@ export default function TeamManagement() {
   const [menuPlayerId, setMenuPlayerId] = useState<string | null>(null)
   // 解雇確認（違約金を見せてから実行）
   const [releasePlayerId, setReleasePlayerId] = useState<string | null>(null)
-  useCoversScreen(!!releasePlayerId)
   const [releaseError, setReleaseError] = useState(false)
   const releasePlayerWithBuyout = useGameStore(s => s.releasePlayerWithBuyout)
   const lp = useRef<{ t?: number; long: boolean }>({ long: false })
@@ -395,10 +393,9 @@ export default function TeamManagement() {
         const rp = releasePlayerId ? allPlayers.find(p => p.id === releasePlayerId) : undefined
         if (!rp) return null
         const buyout = rp.contract.annualSalary * Math.max(0, rp.contract.yearsLeft - 1)
-        return createPortal((
-          <>
-            <div onClick={() => setReleasePlayerId(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 320 }} />
-            <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 321, width: 'calc(100% - 48px)', maxWidth: 360, background: C.surface, border: `1.5px solid ${C.border2}`,padding: '20px 18px', boxShadow: '0 16px 48px rgba(0,0,0,0.7)' }}>
+        return (
+          <ScreenCover level="modal" onBackdrop={() => setReleasePlayerId(null)}>
+            <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: 'calc(100% - 48px)', maxWidth: 360, background: C.surface, border: `1.5px solid ${C.border2}`,padding: '20px 18px', boxShadow: '0 16px 48px rgba(0,0,0,0.7)' }}>
               <div style={{ fontSize: F.subLg, fontWeight: 800, color: C.text, marginBottom: 8 }}>{rp.name}を解雇しますか？</div>
               <div style={{ fontSize: F.body, color: C.textSub, lineHeight: 1.7, marginBottom: 4 }}>
                 違約金：<span style={{ color: buyout > 0 ? C.red : C.textDim, fontWeight: 800 }}>{buyout > 0 ? fmtYen(buyout) : 'なし'}</span>
@@ -417,8 +414,8 @@ export default function TeamManagement() {
                 </button>
               </div>
             </div>
-          </>
-        ), document.body)
+          </ScreenCover>
+        )
       })()}
     </div>
   )

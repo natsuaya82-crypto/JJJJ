@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { rankOf } from '../../engine/rating'
 import { rankChangeOf } from './rankArt'
 import { RANK_ART } from './rankArt'
 import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
-import { useCoversScreen } from '../../lib/screenCover'
+import ScreenCover from '../ui/ScreenCover'
 
 // ============================================================================
 // **段位が変わったときだけ出す全画面。**
@@ -23,18 +22,17 @@ export default function RankUpOverlay({ before, after, onClose }: {
   const dir = rankChangeOf(before, after)
   const [shown, setShown] = useState(false)
   useEffect(() => { const t = setTimeout(() => setShown(true), 30); return () => clearTimeout(t) }, [])
-  useCoversScreen(!!dir)
   if (!dir) return null
 
   const art = RANK_ART[rankOf(after)]
   const up = dir === 'up'
   const accent = up ? art.color : C.textDim
 
-  return createPortal(
-    <div
-      onClick={onClose}
+  return (
+    <ScreenCover
+      level="celebration" backdrop="none" onBackdrop={onClose}
       style={{
-        position: 'fixed', inset: 0, zIndex: 3000, fontFamily: FONT,
+        fontFamily: FONT,
         backgroundColor: '#04080f',
         backgroundImage: `radial-gradient(circle at 50% 38%, ${alpha(accent, 0.18)} 0%, transparent 62%)`,
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
@@ -72,7 +70,6 @@ export default function RankUpOverlay({ before, after, onClose }: {
         marginTop: 34, fontSize: F.label, color: C.textGhost,
         opacity: shown ? 1 : 0, transition: 'opacity 0.5s ease 0.8s',
       }}>タップで閉じる</div>
-    </div>,
-    document.body,
+    </ScreenCover>
   )
 }

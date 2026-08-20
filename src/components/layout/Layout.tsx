@@ -169,7 +169,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   //   居るので、**Web 側のどんな覆いも被せられません**（ローディング z-index 9999 でも
   //   下タブだけが上に残る／選手詳細を開いたまま「ホーム」が押せてしまい、裏で移動
   //   するのにシートは載ったままなので「飛ばない」ように見える）。
-  //   覆う側は `lib/screenCover` の `useCoversScreen()` を呼ぶだけで、
+  //   覆う側は `ui/ScreenCover` を通すだけ（名乗るのはあちらの中）。
   //   **隠すかどうかを決めるのはここ1本**（`raceInProgress` と同じ扱い）
   const covered = useScreenCovered()
   useEffect(() => {

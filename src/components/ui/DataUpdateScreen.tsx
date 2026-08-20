@@ -7,6 +7,7 @@ import { teamHistoriesOf } from '../../utils/teamHistory'
 import { seasonAwardsOf } from '../../utils/awards'
 import { eclHistoryOf } from '../../utils/eclHistory'
 import { withCareerCounts } from '../../utils/careerStats'
+import ScreenCover from './ScreenCover'
 
 
 // アップデート後の初回起動だけ出す「データ更新中」画面。
@@ -104,8 +105,8 @@ export default function DataUpdateScreen({ onDone }: { onDone: () => void }) {
   const finished = done >= STEPS.length
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 9998, overflow: 'hidden',
+    <ScreenCover level="boot" backdrop="none" style={{
+      overflow: 'hidden',
       // ★塗りつぶさない（背景の写真が消える）。暗くしたいだけなので黒を薄く重ねる
       background: 'radial-gradient(120% 80% at 50% 32%, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.78) 46%, rgba(0,0,0,0.9) 100%)',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
@@ -155,6 +156,6 @@ export default function DataUpdateScreen({ onDone }: { onDone: () => void }) {
           </div>
         </div>
       </div>
-    </div>
+    </ScreenCover>
   )
 }

@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { useGameStore } from '../../store/gameStore'
 import { audio, audioDiag, audioStatus } from '../../utils/audio'
 import { onlineAvailable } from '../../data/featureFlags'
@@ -20,6 +19,7 @@ import { APP_VERSION } from '../../data/appMeta'
 import { Chevron } from '../ui'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
+import ScreenCover from '../ui/ScreenCover'
 
 
 
@@ -81,10 +81,10 @@ function SettingRow({ icon, label, sub, onClick, danger }: {
 
 // 詳細画面（フルスクリーンのオーバーレイ）
 function DetailScreen({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return createPortal((
-    <div style={{
-      position: 'fixed', top: `calc(${HEADER_H}px + env(safe-area-inset-top))`, left: 0, right: 0, bottom: 0,
-      zIndex: 1000, backgroundColor: OVERLAY_BG,
+  return (
+    <ScreenCover level="dialog" backdrop="none" style={{
+      top: `calc(${HEADER_H}px + env(safe-area-inset-top))`,
+      backgroundColor: OVERLAY_BG,
       maxWidth: 480, margin: '0 auto', display: 'flex', flexDirection: 'column', fontFamily: SAIRA,
     }}>
       <div style={{
@@ -106,8 +106,8 @@ function DetailScreen({ title, onClose, children }: { title: string; onClose: ()
       <div style={{ flex: 1, overflowY: 'auto', padding: '18px 16px 32px' }}>
         {children}
       </div>
-    </div>
-  ), document.body)
+    </ScreenCover>
+  )
 }
 
 type Detail = null | 'team' | 'sound' | 'reset' | 'blocked' | 'resign'

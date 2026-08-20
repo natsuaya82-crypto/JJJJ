@@ -9,6 +9,7 @@
 import { useState } from 'react'
 import { C, alpha, SAIRA, JP, F } from '../../styles/tokens'
 import { TERMS_UPDATED, TERMS_INTRO, TERMS_HIGHLIGHT, TERMS_SECTIONS } from '../../data/termsText'
+import ScreenCover from '../ui/ScreenCover'
 
 
 export default function TermsGate({ onAgree }: { onAgree: () => void }) {
@@ -29,8 +30,7 @@ export default function TermsGate({ onAgree }: { onAgree: () => void }) {
 
   return (
     // 外側：画面全体を暗く覆う幕。後ろのタイトル画面がうっすら透ける。
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 5000,
+    <ScreenCover level="gate" backdrop="none" style={{
       background: 'rgba(2, 6, 14, 0.62)',
       backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -158,6 +158,6 @@ export default function TermsGate({ onAgree }: { onAgree: () => void }) {
           </button>
         </div>
       </div>
-    </div>
+    </ScreenCover>
   )
 }

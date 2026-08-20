@@ -45,7 +45,12 @@ console.log('[1] 枠は IntroModal 1本')
     check(`${name} が全画面の枠を書き写していない`,
       !/position: 'fixed', inset: 0/.test(src) && !/zIndex: 9999/.test(src))
   }
-  check('IntroModal が全画面の枠を持っている', /position: 'fixed', inset: 0/.test(intro))
+  // 枠の実体は `ui/ScreenCover` 1本（2026-08-20 に24ファイルの手書きを寄せた）。
+  // IntroModal はそれを通しているか、を見る
+  check('IntroModal が ScreenCover を通っている', /<ScreenCover/.test(intro))
+  check('全画面の枠の実体は ScreenCover にある',
+    /position: 'fixed', inset: 0, zIndex: COVER\[level\]/.test(
+      readFileSync('src/components/ui/ScreenCover.tsx', 'utf8')))
 }
 
 console.log('\n[2] 文面は data に置く（画面に直書きしない）')

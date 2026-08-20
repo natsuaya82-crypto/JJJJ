@@ -1,9 +1,8 @@
-import { createPortal } from 'react-dom'
 import { LOGO_PRESETS, logoPresetSrc } from '../../data/logoPresets'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useAdHeight } from '../layout/Layout'
 import { C, alpha, SAIRA, HEADER_H, bottomStack, F } from '../../styles/tokens'
-import { useCoversScreen } from '../../lib/screenCover'
+import ScreenCover from '../ui/ScreenCover'
 
 
 // チームロゴの選択画面（フルスクリーンのオーバーレイ）。設定・オンボーディング両方から使う。
@@ -15,7 +14,6 @@ export default function LogoSelectSheet({ team, value, onSelect, onClose }: {
   onClose: () => void
 }) {
   const adH = useAdHeight()
-  useCoversScreen()
   const pick = (id: string) => { onSelect(id); onClose() }
 
   const tile = (selected: boolean): React.CSSProperties => ({
@@ -25,9 +23,9 @@ export default function LogoSelectSheet({ team, value, onSelect, onClose }: {
     border: selected ? `2px solid ${C.gold}` : `1px solid ${alpha(C.gold, 0.14)}`,
   })
 
-  return createPortal((
-    <div style={{
-      position: 'fixed', top: `calc(${HEADER_H}px + env(safe-area-inset-top))`, left: 0, right: 0, bottom: 0, zIndex: 1100,
+  return (
+    <ScreenCover level="page" backdrop="none" style={{
+      top: `calc(${HEADER_H}px + env(safe-area-inset-top))`,
       backgroundColor: C.bg,
       maxWidth: 480, margin: '0 auto',
       display: 'flex', flexDirection: 'column',
@@ -65,6 +63,6 @@ export default function LogoSelectSheet({ team, value, onSelect, onClose }: {
           ))}
         </div>
       </div>
-    </div>
-  ), document.body)
+    </ScreenCover>
+  )
 }

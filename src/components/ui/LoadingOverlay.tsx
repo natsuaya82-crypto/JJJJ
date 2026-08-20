@@ -4,7 +4,7 @@ import { useAdHeight } from '../layout/Layout'
 import { C, alpha, SAIRA, FONT, bottomStack, F } from '../../styles/tokens'
 import { LOADING_TIPS } from '../../data/tips'
 import TipText from './TipText'
-import { useCoversScreen } from '../../lib/screenCover'
+import ScreenCover from './ScreenCover'
 
 
 // 全画面ローディング。真っ暗＋中央TIPS＋右下ローディングバー（スピナー廃止）。App直下に常駐。
@@ -23,13 +23,11 @@ export default function LoadingOverlay() {
     wasActive.current = active
   }, [active])
 
-  // 下タブ（ネイティブ）は WebView の外なので、覆っていることを自分から伝える
-  useCoversScreen(active)
   if (!active) return null
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999, overflow: 'hidden',
+    <ScreenCover level="blocking" backdrop="none" style={{
+      overflow: 'hidden',
       background: 'radial-gradient(120% 80% at 50% 32%, #12101c 0%, #09070f 46%, #050409 100%)',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       fontFamily: FONT,
@@ -86,6 +84,6 @@ export default function LoadingOverlay() {
         </div>
         <div className="jpel-lo-bar" style={{ marginLeft: 'auto' }} />
       </div>
-    </div>
+    </ScreenCover>
   )
 }

@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../ui/PageHeader'
 import { panelStyle } from '../ui/Panel'
@@ -24,7 +23,7 @@ import { useFriendRequests } from '../../lib/useFriendRequests'
 import { useClubGifts, dropClubGift } from '../../lib/useClubGifts'
 import { claimClubGift } from '../../lib/clubsApi'
 import { stashGifts, peekGifts, clearGifts } from '../../lib/giftInbox'
-import { useCoversScreen } from '../../lib/screenCover'
+import ScreenCover from '../ui/ScreenCover'
 
 const EMPTY_IDS: string[] = []
 
@@ -146,7 +145,6 @@ export default function NotificationsPage() {
   const claimGift = useGameStore(s => s.claimGift)
 
   const [claimedGift, setClaimedGift] = useState<(typeof pendingGifts)[number] | null>(null)
-  useCoversScreen(!!claimedGift)
 
   // 走友会のなかまから届いたカード
   const addTrainingCards = useGameStore(s => s.addTrainingCards)
@@ -944,8 +942,9 @@ export default function NotificationsPage() {
       )}
 
       {/* 受け取りました ポップ */}
-      {claimedGift && createPortal((
-        <div onClick={() => setClaimedGift(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}>
+      {claimedGift && (
+        <ScreenCover level="dialog" backdrop="dark" onBackdrop={() => setClaimedGift(null)}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div style={{ ...panelStyle(C.gold), padding: 28, maxWidth: 320, width: '100%', textAlign: 'center', boxShadow: `inset 0 1px 0 rgba(255,255,255,0.10), 0 10px 40px ${alpha(C.gold, 0.25)}` }}>
             <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.gold, letterSpacing: 3, fontWeight: 900, marginBottom: 8 }}>GIFT</div>
             <div style={{ fontFamily: SAIRA, fontSize: F.hero, fontWeight: 900, color: C.gold, marginBottom: 12, textShadow: `0 0 20px ${alpha(C.gold, 0.6)}` }}>受け取りました！</div>
@@ -953,8 +952,8 @@ export default function NotificationsPage() {
             <div style={{ fontSize: F.body, color: C.textDim, marginBottom: 18 }}>{claimedGift.jewels ? `ジュエル${claimedGift.jewels}個を手に入れた` : `カード${claimedGift.cards.length}枚を手に入れた`}</div>
             <button onClick={() => setClaimedGift(null)} style={{ width: '100%', padding: 13, background: `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})`, backdropFilter: 'blur(10px) saturate(118%)', WebkitBackdropFilter: 'blur(10px) saturate(118%)', border: `1px solid ${alpha(C.gold, 0.65)}`, color: C.gold, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22)', fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, cursor: 'pointer' }}>OK</button>
           </div>
-        </div>
-      ), document.body)}
+        </ScreenCover>
+      )}
     </div>
   )
 }

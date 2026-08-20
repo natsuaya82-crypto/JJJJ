@@ -32,17 +32,8 @@ const check = (name: string, ok: boolean, detail = '') => {
 const OUTSIDE_MAIN: Record<string, string> = {
   'src/App.tsx': 'Layout より前に出している（content を包む土台と、Layout 外のモーダル）',
   'src/components/layout/Layout.tsx': '<main> そのものと、その外に置くヘッダー・下タブ・広告',
-  'src/components/title/TermsGate.tsx': 'タイトル画面の上。Layout はまだマウントされていない',
   'src/components/onboarding/Onboarding.tsx': 'ゲーム開始前。Layout の外',
   'src/components/draft/DraftRoom.tsx': 'ドラフトは Layout の外（App.tsx が content を差し替える）',
-  'src/components/ui/DataUpdateScreen.tsx': 'アップデート後の初回起動。Layout の外',
-  'src/components/ui/LoadingOverlay.tsx': 'BrowserRouter 直下。Layout の外',
-  'src/components/ui/ForceUpdateModal.tsx': 'BrowserRouter 直下。Layout の外',
-  'src/components/ui/IntroModal.tsx': 'BrowserRouter 直下。Layout の外',
-  'src/components/shared/ContractInfoModal.tsx': 'App.tsx が Layout より前に出している',
-  'src/components/shared/PlayerSheet.tsx': '最上位に常時マウント（Layout 外でも openPlayerSheet で開ける）',
-  'src/components/team/GmInvitePicker.tsx': 'GmOfferNotice の中。Layout より前',
-  'src/components/team/GmInviteChat.tsx': 'GmOfferNotice の中。Layout より前',
 }
 
 const walk = (dir: string): string[] => readdirSync(dir).flatMap(f => {
@@ -77,7 +68,8 @@ function portaledLines(lines: string[]): boolean[] {
   return inPortal
 }
 
-const files = walk('src').filter(f => f !== 'src/components/ui/ScreenPortal.tsx')
+const files = walk('src').filter(f =>
+  f !== 'src/components/ui/ScreenPortal.tsx' && f !== 'src/components/ui/ScreenCover.tsx')
 const naked: string[] = []
 const unusedReasons = new Set(Object.keys(OUTSIDE_MAIN))
 for (const f of files) {

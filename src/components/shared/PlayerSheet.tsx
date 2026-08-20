@@ -30,7 +30,8 @@ import { WA_HOST_CITY } from '../../engine/worldAthletics'
 import { waRaceRows } from '../../utils/waRaces'
 import { ranRaces, raceKey, splitRaceKey, shortRaceName } from '../../utils/raceHistory'
 import { ForeignChip } from '../player/PlayerChips'
-import { useCoversScreen } from '../../lib/screenCover'
+import ScreenCover from '../ui/ScreenCover'
+import ScreenPortal from '../ui/ScreenPortal'
 
 
 const RADAR_KEYS: { key: keyof Player['ratings']; abbr: string }[] = [
@@ -237,8 +238,6 @@ export default function PlayerSheet() {
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = prev }
   }, [player?.id])
-
-  useCoversScreen(!!player)
   if (!player) return null
 
   const team = clubIndex.byId(player.teamId)
@@ -394,18 +393,17 @@ export default function PlayerSheet() {
   return (
     <>
       {/* SNS共有用カード（画面外に描画してキャプチャする） */}
-      <div ref={shareCardRef} style={{ position: 'fixed', left: '-99999px', top: 0, pointerEvents: 'none' }}>
-        <ShareCard player={player} team={team} />
-      </div>
-      <div
-        onClick={() => openPlayerSheet(null)}
-        style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 200 }}
-      />
+      <ScreenPortal>
+        <div ref={shareCardRef} style={{ position: 'fixed', left: '-99999px', top: 0, pointerEvents: 'none' }}>
+          <ShareCard player={player} team={team} />
+        </div>
+      </ScreenPortal>
+      <ScreenCover level="panel" onBackdrop={() => openPlayerSheet(null)}>
       {/* 記録パッチ専用パネル（閲覧＋自チームは表示パッチ選択） */}
       {showBadges && (
-        <div style={{
-          position: 'fixed', top: 'env(safe-area-inset-top)', bottom: bottomStack(adH),
-          left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px', zIndex: 210,
+        <div onClick={e => e.stopPropagation()} style={{
+          position: 'absolute', top: 'env(safe-area-inset-top)', bottom: bottomStack(adH),
+          left: 0, right: 0, margin: '0 auto', width: '100%', maxWidth: '480px', zIndex: 10,
           background: CARD.bg,overflowY: 'auto',
           fontFamily: FONT,
         }}>
@@ -450,14 +448,16 @@ export default function PlayerSheet() {
         ref={sheetRef}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
+        onClick={e => e.stopPropagation()}
         style={{
           // 上端はダイナミックアイランドの下（セーフエリア）から。下は広告バナー＋ホームバーの上で止める。
-          position: 'fixed', top: 'env(safe-area-inset-top)', bottom: bottomStack(adH), left: 0, right: 0, margin: '0 auto',
+          // ★覆い(ScreenCover)が基準なので absolute（位置は同じ）
+          position: 'absolute', top: 'env(safe-area-inset-top)', bottom: bottomStack(adH), left: 0, right: 0, margin: '0 auto',
           width: '100%', maxWidth: '480px',
           overflowY: 'auto',
           touchAction: 'pan-y',
           backgroundColor: C.bg,
-          zIndex: 201,
+          zIndex: 1,
           fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif",
         }}
       >
@@ -1074,16 +1074,14 @@ export default function PlayerSheet() {
 
         </div>
       </div>
+      </ScreenCover>
 
-      {/* 名前変更ダイアログ */}
+      {/* ★名前変更は覆いの**外**に置くこと。中に入れると、ダイアログを押した指が
+          外側の覆いまで伝わって（Reactの木を伝う）選手詳細ごと閉じる */}
       {renameDraft !== null && (
-        <div
-          onClick={() => setRenameDraft(null)}
-          style={{
-            position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(3px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 20px',
-            fontFamily: FONT,
-          }}
+        <ScreenCover
+          level="dialog" backdrop="blur" onBackdrop={() => setRenameDraft(null)}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 20px', fontFamily: FONT }}
         >
           <div
             onClick={e => e.stopPropagation()}
@@ -1134,7 +1132,7 @@ export default function PlayerSheet() {
               </button>
             </div>
           </div>
-        </div>
+        </ScreenCover>
       )}
     </>
   )

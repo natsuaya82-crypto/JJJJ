@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
 import { greatSuccessChance, activeEvents } from '../../data/events'
 import { comparePlayers } from '../../utils/playerSort'
 import PageHeader from '../ui/PageHeader'
@@ -24,7 +23,7 @@ import { requiredExpForLevel } from '../../engine/growth'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
 import PlayerList from '../player/PlayerList'
-import { useCoversScreen } from '../../lib/screenCover'
+import ScreenCover from '../ui/ScreenCover'
 
 const statKeys: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
 // 種類数 → メニュー倍率（表示用。実効値は cardCombo.ts と一致）
@@ -81,7 +80,6 @@ export default function CardTrainingPage() {
   }, [searchParams])
 
   const [applied, setApplied] = useState<{ combo: NonNullable<ReturnType<typeof detectCombo>>; greatSuccess: boolean; preRatings: Partial<Record<CardStatKey, number>>; preExp: Partial<Record<CardStatKey, number>> } | null>(null)
-  useCoversScreen(!!applied)
   const [adWatched, setAdWatched] = useState(false)
   const [adConfirmOpen, setAdConfirmOpen] = useState(false)
   const [gmPassOpen, setGmPassOpen] = useState(false)   // GMパス購入シート（未購入者向けの案内から開く）
@@ -467,15 +465,10 @@ border: `2px dashed ${C.border2}`,
       </div>
 
       {/* Result overlay */}
-      {applied && createPortal((
-        <div
-          onClick={() => setApplied(null)}
-          style={{
-            position: 'fixed', inset: 0,
-            background: 'rgba(0,0,0,0.88)',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            zIndex: 1000, padding: 24,
-          }}
+      {applied && (
+        <ScreenCover
+          level="dialog" backdrop="dark" onBackdrop={() => setApplied(null)}
+          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}
         >
           <div style={{
             ...panelStyle(applied.combo.color),
@@ -561,8 +554,8 @@ padding: '12px',
               }}
             >閉じる</button>
           </div>
-        </div>
-      ), document.body)}
+        </ScreenCover>
+      )}
     </div>
   )
 }

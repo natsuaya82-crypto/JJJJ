@@ -6,7 +6,7 @@ import GmInviteChat from './GmInviteChat'
 import { useAdHeight } from '../layout/Layout'
 import { C, alpha, bottomStack, F } from '../../styles/tokens'
 import PlayerList from '../player/PlayerList'
-import { useCoversScreen } from '../../lib/screenCover'
+import ScreenCover from '../ui/ScreenCover'
 
 // ============================================================================
 // **退任について来てもらう1人を選ぶ画面。**
@@ -31,13 +31,12 @@ export default function GmInvitePicker({ roster, dest, invite, onPick, onClose }
   onClose: () => void
 }) {
   const adH = useAdHeight()
-  useCoversScreen()
   // タップした相手とその場でチャットする。**返事はその1往復で決まる**
   const [talking, setTalking] = useState<Player | null>(null)
   return (
-    <div style={{
-      position: 'fixed', top: 0, bottom: bottomStack(adH), left: 0, right: 0,
-      margin: '0 auto', width: '100%', maxWidth: 480, zIndex: 1003,
+    <ScreenCover level="page" backdrop="none" style={{
+      bottom: bottomStack(adH),
+      margin: '0 auto', width: '100%', maxWidth: 480,
       background: C.bg, overflowY: 'auto', paddingTop: 'env(safe-area-inset-top)',
     }}>
       <PageHeader title="声をかける選手" eyebrow="INVITE" onBack={onClose} />
@@ -78,6 +77,6 @@ export default function GmInvitePicker({ roster, dest, invite, onPick, onClose }
           onClose={() => setTalking(null)}
         />
       )}
-    </div>
+    </ScreenCover>
   )
 }

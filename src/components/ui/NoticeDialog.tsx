@@ -1,8 +1,7 @@
-import { createPortal } from 'react-dom'
 import { C, SAIRA, F } from '../../styles/tokens'
 import GlassButton from './GlassButton'
 import { panelStyle } from './Panel'
-import { useCoversScreen } from '../../lib/screenCover'
+import ScreenCover from './ScreenCover'
 
 
 // アプリ調のお知らせダイアログ（素の window.alert の置き換え用）。
@@ -26,15 +25,10 @@ export default function NoticeDialog({
   /** タイトルの下に差し込む追加表示（相手のチームカードなど） */
   children?: React.ReactNode
 }) {
-  useCoversScreen()
-  return createPortal((
-    <div
-      style={{
-        position: 'fixed', inset: 0, zIndex: 1000,
-        background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(3px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 20px',
-      }}
-      onClick={onClose}
+  return (
+    <ScreenCover
+      level="dialog" backdrop="blur" onBackdrop={onClose}
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 20px' }}
     >
       <div
         style={{
@@ -53,6 +47,6 @@ export default function NoticeDialog({
           {okLabel}
         </GlassButton>
       </div>
-    </div>
-  ), document.body)
+    </ScreenCover>
+  )
 }

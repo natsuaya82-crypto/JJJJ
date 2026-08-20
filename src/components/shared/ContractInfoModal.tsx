@@ -5,7 +5,7 @@ import { ovr, ratingColor } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
-import { useCoversScreen } from '../../lib/screenCover'
+import ScreenCover from '../ui/ScreenCover'
 
 
 const CONTRACT_TYPE_LABEL: Record<string, string> = {
@@ -32,18 +32,17 @@ export default function ContractInfoModal() {
   const players = useGameStore(s => s.players)
 
   const player = players.find(p => p.id === contractInfoPlayerId)
-  useCoversScreen(!!player)
   if (!player) return null
 
   const playerOvr = ovr(player)
   const ct = player.contract.contractType ?? 'standard'
 
   return (
-    <>
-      <div onClick={closeContractInfo} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 310 }} />
-      <div style={{
-        position: 'fixed', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
-        width: 'min(360px, 92vw)', zIndex: 311,
+    <ScreenCover level="modal" onBackdrop={closeContractInfo}>
+      <div onClick={e => e.stopPropagation()} style={{
+        // ★覆いが inset:0 の基準なので中身は absolute（位置は同じ）
+        position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)',
+        width: 'min(360px, 92vw)',
         background: C.surface,border: `1px solid ${C.border2}`,
         padding: 16, boxShadow: '0 20px 50px rgba(0,0,0,0.7)',
         fontFamily: "'Noto Sans JP', 'Hiragino Sans', system-ui, sans-serif",
@@ -85,6 +84,6 @@ export default function ContractInfoModal() {
 
         <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.12)}`,pointerEvents: 'none' }} />
       </div>
-    </>
+    </ScreenCover>
   )
 }

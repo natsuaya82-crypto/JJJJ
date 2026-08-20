@@ -4,10 +4,9 @@
 // 送り先は Supabase の reports テーブルで、他の利用者からは見えない。
 // 相手が利用者の場合は、ここから同時にブロックもできるようにしてある。
 import { useState } from 'react'
-import { createPortal } from 'react-dom'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import { REPORT_REASONS, REPORT_DETAIL_MAX, sendReport, blockUser, invalidateBlocked, type ReportReason } from '../../lib/moderationApi'
-import { useCoversScreen } from '../../lib/screenCover'
+import ScreenCover from '../ui/ScreenCover'
 
 
 export type ReportTarget = {
@@ -26,7 +25,6 @@ export default function ReportSheet({ target, onClose, onDone }: {
   onDone: (message: string, blocked: boolean) => void
 }) {
   const [reason, setReason] = useState<ReportReason | null>(null)
-  useCoversScreen()
   const [detail, setDetail] = useState('')
   const [alsoBlock, setAlsoBlock] = useState(!!target.userId)
   const [busy, setBusy] = useState(false)
@@ -50,14 +48,9 @@ export default function ReportSheet({ target, onClose, onDone }: {
     onDone(blocked ? '通報してブロックしました' : '通報しました', blocked)
   }
 
-  return createPortal((
-    <div
-      style={{
-        position: 'fixed', inset: 0, zIndex: 1000,
-        background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(3px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 20px',
-      }}
-      onClick={onClose}
+  return (
+    <ScreenCover level="dialog" backdrop="blur" onBackdrop={onClose}
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 20px' }}
     >
       <div
         onClick={e => e.stopPropagation()}
@@ -160,6 +153,6 @@ export default function ReportSheet({ target, onClose, onDone }: {
           </button>
         </div>
       </div>
-    </div>
-  ), document.body)
+    </ScreenCover>
+  )
 }

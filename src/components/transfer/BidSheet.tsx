@@ -1,4 +1,3 @@
-import { createPortal } from 'react-dom'
 import { useState } from 'react'
 import { useAdHeight } from '../layout/Layout'
 import NumberDial from '../ui/NumberDial'
@@ -11,7 +10,7 @@ import { fmtYen } from '../../utils/money'
 import { tierOfPlayerClub, allTieredClubs } from '../../utils/clubTier'
 import GlassButton from '../ui/GlassButton'
 import { facilitiesOf } from '../../utils/facilities'
-import { useCoversScreen } from '../../lib/screenCover'
+import ScreenCover from '../ui/ScreenCover'
 
 
 // 移籍金オファーの下部シート（成立確率つき）。移籍市場・他チームタブ共通。
@@ -22,7 +21,6 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
   onSubmit: (fee: number) => void
   onClose: () => void
 }) {
-  useCoversScreen()
   const adH = useAdHeight()
   const val = calcTransferValue(player)
   // 出品中はクラブ希望額(askingPrice)が受諾ライン。デフォルト入札額も希望額に合わせる（満額＝ほぼ成立）。
@@ -60,10 +58,9 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
   // 本人が拒否なら、クラブと金額合意できても成立しない＝成立見込み0%
   const overallPct = mind === 'refuse' ? 0 : chancePct
 
-  // 画面下から出るものは document.body へ出す。<main> の中に position:fixed で書くと
-  // iOS の実機では main の内側しか覆えず、下タブ(z-index:50)より上に来られない（CLAUDE.md）
-  return createPortal((
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+  return (
+    <ScreenCover level="sheet" onBackdrop={onClose}
+      style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
       <div className="sheet-up" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, margin: '0 auto', maxHeight: '85vh', overflowY: 'auto', background: C.surface,border: `1px solid ${C.border2}`, borderBottom: 'none', boxShadow: '0 -12px 40px rgba(0,0,0,0.6)', paddingTop: 8, paddingLeft: 16, paddingRight: 16, paddingBottom: bottomStack(adH, { aboveNav: true, extra: 16 }) }}>
         <div style={{ width: 38, height: 4,background: C.border3, margin: '4px auto 12px' }} />
         <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.text, marginBottom: 8 }}>{player.name} へ入札</div>
@@ -94,6 +91,6 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
           <button onClick={onClose} style={{ padding: '13px 16px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textDim, fontSize: F.bodyLg, cursor: 'pointer', fontFamily: SAIRA }}>取消</button>
         </div>
       </div>
-    </div>
-  ), document.body)
+    </ScreenCover>
+  )
 }

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { C, alpha, F } from '../../styles/tokens'
-import { useCoversScreen } from '../../lib/screenCover'
+import ScreenCover from './ScreenCover'
 
 /**
  * 【起動時に一度だけ出す全画面のお知らせ】
@@ -32,15 +32,9 @@ export default function IntroModal({
   onClose: () => void
   accent?: string
 }) {
-  useCoversScreen()
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
-      background: 'rgba(4,12,26,0.97)',
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center',
-      padding: '32px 24px',
-    }}>
+    <ScreenCover level="blocking" backdrop="opaque"
+      style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 24px' }}>
       <div style={{
         width: '100%', maxWidth: '360px',
         background: C.surface,
@@ -91,6 +85,6 @@ export default function IntroModal({
           {closeLabel}
         </button>
       </div>
-    </div>
+    </ScreenCover>
   )
 }

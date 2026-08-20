@@ -10,7 +10,7 @@ import { appraiseGmInvite } from '../../utils/gmInvite'
 import { gmInviteAskLine, gmInviteYesLine, gmInviteNoLine, gmInviteFeeLine } from '../../utils/chatLines'
 import { ovr, ratingColor, SPEC_COLOR } from '../../utils/playerUtils'
 import { C, alpha, SAIRA, bottomStack, F } from '../../styles/tokens'
-import { useCoversScreen } from '../../lib/screenCover'
+import ScreenCover from '../ui/ScreenCover'
 
 // ============================================================================
 // **声をかけた相手との1往復。ここで返事が出る。**
@@ -33,7 +33,6 @@ export default function GmInviteChat({ player, dest, onAgreed, onClose }: {
   onAgreed: () => void
   onClose: () => void
 }) {
-  useCoversScreen()
   const adH = useAdHeight()
   const store = useGameStore()
   const verdict = useMemo(() => appraiseGmInvite({
@@ -50,9 +49,9 @@ export default function GmInviteChat({ player, dest, onAgreed, onClose }: {
   const rating = ovr(player)
 
   return (
-    <div style={{
-      position: 'fixed', top: 0, bottom: bottomStack(adH), left: 0, right: 0,
-      margin: '0 auto', width: '100%', maxWidth: 480, zIndex: 1004,
+    <ScreenCover level="page" bump={1} backdrop="none" style={{
+      bottom: bottomStack(adH),
+      margin: '0 auto', width: '100%', maxWidth: 480,
       background: C.bg, overflowY: 'auto', paddingTop: 'env(safe-area-inset-top)',
     }}>
       <PageHeader title={player.name} eyebrow="INVITE" onBack={onClose}
@@ -79,6 +78,6 @@ export default function GmInviteChat({ player, dest, onAgreed, onClose }: {
           {agreed ? '一緒に行く' : '閉じる'}
         </GlassButton>
       </div>
-    </div>
+    </ScreenCover>
   )
 }

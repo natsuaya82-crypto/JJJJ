@@ -1,8 +1,7 @@
 import { useEffect } from 'react'
-import { createPortal } from 'react-dom'
 import { C, F } from '../../styles/tokens'
 import { useAdHeight } from '../layout/Layout'
-import { useCoversScreen } from '../../lib/screenCover'
+import ScreenCover from './ScreenCover'
 
 // 画面下から出るシートの入れもの。中身だけを渡す。
 //
@@ -35,20 +34,17 @@ export default function BottomSheet({ open, onClose, title, children }: {
     return () => { document.body.style.overflow = prev }
   }, [open])
 
-  useCoversScreen(open)
   if (!open) return null
 
-  return createPortal((
-    <>
-      <div
-        onClick={onClose}
-        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 300 }}
-      />
+  return (
+    <ScreenCover level="sheet" onBackdrop={onClose}>
       <div
         className="sheet-up"
+        onClick={e => e.stopPropagation()}
         style={{
-          position: 'fixed', bottom: adH, left: 0, right: 0, margin: '0 auto',
-          width: '100%', maxWidth: 480, zIndex: 301,
+          // ★覆い(ScreenCover)が inset:0 の基準なので、中身は absolute で置く（位置は同じ）
+          position: 'absolute', bottom: adH, left: 0, right: 0, margin: '0 auto',
+          width: '100%', maxWidth: 480,
           background: C.surface,
           border: `1px solid ${C.border2}`, borderBottom: 'none',
           boxShadow: '0 -12px 40px rgba(0,0,0,0.6)',
@@ -79,6 +75,6 @@ export default function BottomSheet({ open, onClose, title, children }: {
           overscrollBehavior: 'contain',
         }}>{children}</div>
       </div>
-    </>
-  ), document.body)
+    </ScreenCover>
+  )
 }

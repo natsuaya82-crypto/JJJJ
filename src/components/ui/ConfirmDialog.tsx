@@ -1,16 +1,13 @@
-import { createPortal } from 'react-dom'
 import { C, SAIRA, F } from '../../styles/tokens'
 import GlassButton from './GlassButton'
 import { panelStyle } from './Panel'
-import { useCoversScreen } from '../../lib/screenCover'
+import ScreenCover from './ScreenCover'
 
 
 // アプリ調の確認ダイアログ（素の window.confirm の置き換え用）
 //
-// ★呼び出し元がどのページの中にいても、必ず document.body 直下（<main> の外）に
-//   出すこと。<main> は -webkit-overflow-scrolling:touch のスクロール領域で、
-//   iOS の WebView はこれを position:fixed の基準にしてしまうため、ページの中から
-//   そのまま fixed で出すと画面全体を覆えない（詳しくは BottomSheet.tsx を参照）。
+// ★覆う層の決まり（<main> の外へ出す・重なりの順・幕・覆っていると名乗る）は
+//   ui/ScreenCover.tsx 1本。ここには書かないこと。
 export default function ConfirmDialog({
   title,
   message,
@@ -31,15 +28,10 @@ export default function ConfirmDialog({
   /** タイトルの下に差し込む追加表示（相手のチームカードなど） */
   children?: React.ReactNode
 }) {
-  useCoversScreen()
-  return createPortal((
-    <div
-      style={{
-        position: 'fixed', inset: 0, zIndex: 1000,
-        background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(3px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 20px',
-      }}
-      onClick={onCancel}
+  return (
+    <ScreenCover
+      level="dialog" backdrop="blur" onBackdrop={onCancel}
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 20px' }}
     >
       <div
         style={{
@@ -63,6 +55,6 @@ export default function ConfirmDialog({
           </GlassButton>
         </div>
       </div>
-    </div>
-  ), document.body)
+    </ScreenCover>
+  )
 }

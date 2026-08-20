@@ -1,10 +1,9 @@
-import { createPortal } from 'react-dom'
 import { useGameStore } from '../../store/gameStore'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import { JewelIcon } from '../icons/Icons'
 import GlassButton from './GlassButton'
 import { panelStyle } from './Panel'
-import { useCoversScreen } from '../../lib/screenCover'
+import ScreenCover from './ScreenCover'
 
 const JEWEL = C.jewel
 
@@ -20,7 +19,6 @@ const JEWEL = C.jewel
 export default function JewelGainPopup() {
   const gains = useGameStore(s => s.jewelGains) ?? []
   const dismiss = useGameStore(s => s.dismissJewelGains)
-  useCoversScreen(gains.length > 0)
   if (gains.length === 0) return null
 
   const total = gains.reduce((s, g) => s + g.amount, 0)
@@ -32,8 +30,9 @@ export default function JewelGainPopup() {
     else merged.push({ ...g })
   }
 
-  return createPortal((
-    <div onClick={dismiss} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 24 }}>
+  return (
+    <ScreenCover level="dialog" backdrop="dark" onBackdrop={dismiss}
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div onClick={e => e.stopPropagation()} style={{ ...panelStyle(JEWEL), padding: 24, maxWidth: 320, width: '100%', boxShadow: `inset 0 1px 0 rgba(255,255,255,0.10), 0 10px 40px ${alpha(JEWEL, 0.25)}` }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontFamily: SAIRA, fontSize: F.body, color: JEWEL, letterSpacing: 3, fontWeight: 900, marginBottom: 6 }}>JEWEL</div>
@@ -54,6 +53,6 @@ export default function JewelGainPopup() {
 
         <GlassButton full color={JEWEL} onClick={dismiss} style={{ padding: 13, fontFamily: SAIRA, fontSize: F.sub }}>OK</GlassButton>
       </div>
-    </div>
-  ), document.body)
+    </ScreenCover>
+  )
 }

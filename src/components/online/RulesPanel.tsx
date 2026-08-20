@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { secondsLeft } from '../../lib/serverTime'
 import type { MatchRules } from '../../lib/roomsApi'
 import { MATCH_COURSES, CATEGORY_LABEL, courseById, randomCourseIds, type CourseCategory } from '../../data/matchCourses'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import GlassButton from '../ui/GlassButton'
-import { useCoversScreen } from '../../lib/screenCover'
+import ScreenCover from '../ui/ScreenCover'
 
 
 const RACE_COUNTS = [1, 3, 5, 10] as const
@@ -25,7 +24,6 @@ type Props = {
 
 /** 45秒のあいだホストがルールを決める画面。ゲストは同じ内容を見ているだけ。 */
 export default function RulesPanel({ rules, isHost, deadline, teams, maxTeams, onChange, onConfirm, busy }: Props) {
-  useCoversScreen()
   const [left, setLeft] = useState(() => (deadline ? secondsLeft(deadline) : 0))
   const [picking, setPicking] = useState<number | null>(null)
 
@@ -203,9 +201,9 @@ function CoursePicker({ onPick, onClose }: { onPick: (id: string) => void; onClo
   const [tab, setTab] = useState<CourseCategory>('main')
   const rows = useMemo(() => MATCH_COURSES.filter(c => c.category === tab), [tab])
 
-  return createPortal((
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 1000, background: C.bg,
+  return (
+    <ScreenCover level="dialog" backdrop="none" style={{
+      background: C.bg,
       display: 'flex', flexDirection: 'column',
       paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)',
     }}>
@@ -241,6 +239,6 @@ function CoursePicker({ onPick, onClose }: { onPick: (id: string) => void; onClo
           </button>
         ))}
       </div>
-    </div>
-  ), document.body)
+    </ScreenCover>
+  )
 }

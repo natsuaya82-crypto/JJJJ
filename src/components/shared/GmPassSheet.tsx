@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { useGameStore } from '../../store/gameStore'
 import { audio } from '../../utils/audio'
 import { purchaseAdFree, restoreAdFree, lastIapError, adFreeProduct, AD_FREE_FALLBACK_PRICE } from '../../utils/iap'
 import NoticeDialog from '../ui/NoticeDialog'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import GlassButton from '../ui/GlassButton'
-import { useCoversScreen } from '../../lib/screenCover'
+import ScreenCover from '../ui/ScreenCover'
 
 
 // ============================================================================
@@ -221,16 +220,12 @@ export function GmPassCard() {
 
 // 全画面に重ねて出す版。背景タップか「閉じる」で閉じる。
 export function GmPassSheet({ onClose }: { onClose: () => void }) {
-  useCoversScreen()
-  return createPortal((
-    <div
+  return (
+    <ScreenCover level="page" backdrop="blur" onBackdrop={onClose}
       style={{
-        position: 'fixed', inset: 0, zIndex: 1200,
-        background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(3px)',
         overflowY: 'auto', WebkitOverflowScrolling: 'touch',
         padding: '28px 16px calc(28px + env(safe-area-inset-bottom, 0px))',
       }}
-      onClick={onClose}
     >
       <div style={{ maxWidth: 420, margin: '0 auto' }} onClick={e => e.stopPropagation()}>
         <GmPassCard />
@@ -245,6 +240,6 @@ export function GmPassSheet({ onClose }: { onClose: () => void }) {
           閉じる
         </button>
       </div>
-    </div>
-  ), document.body)
+    </ScreenCover>
+  )
 }

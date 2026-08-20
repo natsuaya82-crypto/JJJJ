@@ -1,4 +1,3 @@
-import { createPortal } from 'react-dom'
 import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import type { CardRarity, TrainingCard } from '../../types'
@@ -9,7 +8,7 @@ import { RARITY_COLORS, RARITY_LABELS, CARD_NAMES } from '../../utils/cardCombo'
 import { JewelIcon } from '../icons/Icons'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
-import { useCoversScreen } from '../../lib/screenCover'
+import ScreenCover from '../ui/ScreenCover'
 
 
 
@@ -52,19 +51,14 @@ function ConfirmModal({ item, jewels, onConfirm, onCancel }: {
   onCancel: () => void
 }) {
   const col = RARITY_COLORS[item.rarity]
-  useCoversScreen()
   const [qty, setQty] = useState<typeof QTY_OPTIONS[number]>(1)
   const total = item.price * qty
   const after = jewels - total
   const canAfford = after >= 0
 
-  return createPortal((
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 1000,
-      background: 'rgba(0,0,0,0.7)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '0 20px',
-    }} onClick={onCancel}>
+  return (
+    <ScreenCover level="dialog" backdrop="blur" onBackdrop={onCancel}
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 20px' }}>
       <div style={{
         width: '100%', maxWidth: 360,
         background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
@@ -145,20 +139,15 @@ padding: '10px 14px', marginBottom: 16,
           </GlassButton>
         </div>
       </div>
-    </div>
-  ), document.body)
+    </ScreenCover>
+  )
 }
 
 function ResultModal({ cards, onClose }: { cards: TrainingCard[]; onClose: () => void }) {
   const col = cards[0] ? RARITY_COLORS[cards[0].rarity] : C.gold
-  useCoversScreen()
-  return createPortal((
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 1001,
-      background: 'rgba(0,0,0,0.8)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '0 20px',
-    }} onClick={onClose}>
+  return (
+    <ScreenCover level="dialog" bump={1} backdrop="dark" onBackdrop={onClose}
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 20px' }}>
       <div style={{
         width: '100%', maxWidth: 360,
         background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
@@ -204,8 +193,8 @@ function ResultModal({ cards, onClose }: { cards: TrainingCard[]; onClose: () =>
           閉じる
         </GlassButton>
       </div>
-    </div>
-  ), document.body)
+    </ScreenCover>
+  )
 }
 
 export default function ShopPage() {
