@@ -8,7 +8,8 @@
 //   クラブは「強いから」ではなく「必要だから」動く（needsPlayer / wouldMakeLineup）。
 //   誰が参加するかは需要、誰が勝つかは格（出せる額は格の年間予算から）。
 // ★競り負けは金額の問題なので、来季まで交渉不可のロックはかけない。
-import type { ExpiredNegKind, ExpiredNegotiation, ForeignLeague, Player, Race, Season, Team, TransferBid, TransferListing } from '../types'
+import type { ArchivedSeason, ExpiredNegKind, ExpiredNegotiation, ForeignLeague, Player, Race, Season, Team, TransferBid, TransferListing } from '../types'
+import { playRateOf, prevSeasonOf } from '../utils/playRate'
 import { resolveBid, type BidContext } from '../utils/transferBid'
 import { rivalClubsFor } from '../utils/transferRivals'
 import type { Destination } from '../utils/transferDecision'
@@ -52,7 +53,12 @@ export function resolveTransferBids(params: {
   foreignLeagues: ForeignLeague[]
   listings: TransferListing[]
   currentSeason: Season
-  pastSeasons: BidContext['pastSeasons']
+  /**
+   * 前シーズン。**実績（keyPlayerStatus）と出場率（playRateOf）の両方が見る**ので、
+   * 絞った型（`BidContext['pastSeasons']`）ではなく本体を渡すこと。
+   * 絞った型には裏の部・海外リーグの日程が入っておらず、出場率が引けない。
+   */
+  pastSeasons: readonly ArchivedSeason[]
   /** 今季の日程（結果入り）。実績の参照に使う */
   races: Race[]
   /** レース通算数（期限の判定に使う） */
@@ -83,10 +89,16 @@ export function resolveTransferBids(params: {
   // 出せる額は「格の年間予算の TRANSFER_BUDGET_SHARE まで」。手元の資金がそれより
   // 少なければそちらが上限になる。**誰が参加するかは需要、誰が勝つかは格**。
   // 以前は市場価値×1.4の頭打ちで、全クラブが同額を出すので競売になっていなかった
-  const rivalsFor = (target: Player) => rivalClubsFor(target, {
-    teams: teams, players: players, playerTeamId,
-    foreignLeagues: foreignLeagues ?? [],
-    destinationOf: (clubId, p) => destinationOf(clubId, p) })
+  const rivalsFor = (target: Player) => {
+    // 出場率は utils/playRate 1本（相手クラブが本人に断られるかを見るので、本人の今季が要る）
+    const { fraction, teamRaces } = playRateOf(target.id, target.teamId, currentSeason,
+      teams, foreignLeagues ?? [], prevSeasonOf(pastSeasons, currentSeason.year))
+    return rivalClubsFor(target, {
+      teams: teams, players: players, playerTeamId,
+      foreignLeagues: foreignLeagues ?? [],
+      playFraction: fraction, teamRaces,
+      destinationOf: (clubId, p) => destinationOf(clubId, p) })
+  }
   // 競り負けた選手（相手クラブへ実際に移す）
   const outbidMoves: { playerId: string; toTeamId: string; fee: number; playerName: string; clubName: string }[] = []
   const processedBids = bids.map(bid => {

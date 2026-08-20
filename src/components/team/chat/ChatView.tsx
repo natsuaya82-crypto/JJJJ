@@ -106,6 +106,10 @@ export function ChatView({
   // 良い選手には複数クラブが同時に来る（最大5件）。並べ方は本人の希望順（rankIncomingOffers）で、
   // 先頭が本命。GMはどれを受けてもいいが、本人が納得しない先は成立しない
   const rankedOffers = rankIncomingOffers(player.id)
+  // **この選手の今季の出場は、この画面で1回だけ引く**（utils/playRate 1本）。
+  // 取り合いの件数（rivalClubsFor）とフリー移籍の傾き（freeContactConsent）が同じ数字を見る
+  const { fraction: myFrac, teamRaces: myRaces } = playRateOf(
+    player.id, player.teamId, currentSeason, teams, foreignLeagues, prevSeasonOf(pastSeasons, currentSeason.year))
   // 退団予定にしたのに行き先が決まらなかった選手（シーズン終了時に積まれる）
   const undecided = (currentSeason.stayOrLeave ?? []).some(x => x.playerId === player.id)
   const incomingOffer = rankedOffers[0]?.offer ?? null
@@ -156,6 +160,8 @@ export function ChatView({
   const acqRivalCount = isAcq && acqOffer
     ? rivalClubsFor(player, {
         teams, players, playerTeamId, foreignLeagues: foreignLeagues ?? [],
+        // 出場率は utils/playRate 1本（store 側の数え方と揃える）
+        playFraction: myFrac, teamRaces: myRaces,
         destinationOf: (clubId, p) => destinationOf(clubId, p),
       }).length
     : 0
@@ -673,9 +679,8 @@ export function ChatView({
       if (!freeContact) return false
       // 出場率は「そのクラブが走っている日程」で数える1本（utils/playRate）。
       // 決断のときと同じ数字でないと、画面の予告と結果が食い違う
-      const { teamRaces: fcRaces, fraction: fcFrac } = playRateOf(player.id, player.teamId, currentSeason, teams, foreignLeagues, prevSeasonOf(pastSeasons, currentSeason.year))
       // 行き先は store の destinationOf 1本（決断のときに使われるものと同じ）
-      return freeContactConsent(player, destinationOf(freeContact.fromTeamId, player), tierOfPlayerClub(player.teamId, allTieredClubs(teams, foreignLeagues)), fcFrac, fcRaces)
+      return freeContactConsent(player, destinationOf(freeContact.fromTeamId, player), tierOfPlayerClub(player.teamId, allTieredClubs(teams, foreignLeagues)), myFrac, myRaces)
     })()
 
     const buildContractButtons = (): ReplyBtns | null => {

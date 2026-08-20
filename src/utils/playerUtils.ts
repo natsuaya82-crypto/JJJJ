@@ -439,7 +439,10 @@ export function keyPlayerStatus(player: Player, currentSeason: SeasonLike, pastS
  */
 export function playerConsentToMove(
   p: Player, dest: Destination, srcTier: ClubTier | undefined,
-  playFraction = 0.5, teamRaces = 0, consentBonus = 0, clubBlessed = false,
+  // ★**出場率と消化レース数は省略できません。** 引くのは utils/playRate の playRateOf 1本。
+  //   既定値を戻すと、渡し忘れた呼び出し口で appraiseMove の関門が黙って死にます
+  //   （詳しくは utils/transferDecision の MoveContext）
+  playFraction: number, teamRaces: number, consentBonus = 0, clubBlessed = false,
 ): { ok: boolean; reason: string } {
   const a = appraiseMove(p, dest, { srcTier, playFraction, teamRaces, bonus: consentBonus, clubBlessed })
   // 「主力だから残りたい」は行き先の情報とは別軸。ここだけ従来どおり残す
@@ -464,7 +467,7 @@ export function salaryAppealBonus(offerSalary: number, marketSalary: number): nu
 // 通常の移籍同意より腰が重い（-0.2）＋現チームでの出場実績を必ず加味する。
 // 出場している選手・愛着のある選手は基本残留し、干されている選手だけが出て行きやすい。
 export function freeContactConsent(
-  p: Player, dest: Destination, srcTier: ClubTier | undefined, playFraction = 0.5, teamRaces = 0,
+  p: Player, dest: Destination, srcTier: ClubTier | undefined, playFraction: number, teamRaces: number,
 ): boolean {
   return playerConsentToMove(p, dest, srcTier, playFraction, teamRaces, -0.2).ok
 }

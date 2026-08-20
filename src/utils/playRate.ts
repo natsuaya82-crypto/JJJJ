@@ -27,7 +27,7 @@ import { seasonAppearances } from './playerUtils'
 /** 出場率を出すのに要るものだけ。今シーズンも過去シーズンも同じ形で渡せる */
 export type PlayRateSeason = {
   races?: Race[]
-  divisionRaces?: Partial<Record<number, Race[]>>
+  divisionRaces?: Record<number, Race[]>
   foreignRaces?: Record<string, Race[]>
 }
 

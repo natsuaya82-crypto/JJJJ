@@ -11,6 +11,7 @@ import { tierOfPlayerClub, allTieredClubs } from '../../utils/clubTier'
 import GlassButton from '../ui/GlassButton'
 import { facilitiesOf } from '../../utils/facilities'
 import ScreenCover from '../ui/ScreenCover'
+import { playRateOf, prevSeasonOf } from '../../utils/playRate'
 
 
 // 移籍金オファーの下部シート（成立確率つき）。移籍市場・他チームタブ共通。
@@ -38,10 +39,14 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
   const srcTier = tierOfPlayerClub(player.teamId, allTieredClubs(teams, foreignLeagues))
   const scoutLv = facilitiesOf(teams.find(t => t.id === playerTeamId)).scoutOffice
   const consentBase = scoutLv * 0.02
+  // 出場率は utils/playRate 1本。**store の finalizeTransfer と同じ数字を見ること**
+  // （画面が「前向き」と出すのに store が断る、が起きる）
+  const { fraction: bFrac, teamRaces: bRaces } = playRateOf(
+    player.id, player.teamId, currentSeason, teams, foreignLeagues, prevSeasonOf(pastSeasons, currentSeason.year))
   // 年俸ボーナス（相場1.2倍=+0.1 / 1.5倍=+0.2）でどこまで説得できるかを段階表示
-  const mind = playerConsentToMove(player, myDest, srcTier, 0.5, 0, consentBase, true).ok ? 'willing'
-    : playerConsentToMove(player, myDest, srcTier, 0.5, 0, consentBase + 0.1, true).ok ? 'salary12'
-    : playerConsentToMove(player, myDest, srcTier, 0.5, 0, consentBase + 0.2, true).ok ? 'salary15'
+  const mind = playerConsentToMove(player, myDest, srcTier, bFrac, bRaces, consentBase, true).ok ? 'willing'
+    : playerConsentToMove(player, myDest, srcTier, bFrac, bRaces, consentBase + 0.1, true).ok ? 'salary12'
+    : playerConsentToMove(player, myDest, srcTier, bFrac, bRaces, consentBase + 0.2, true).ok ? 'salary15'
     : 'refuse'
   const mindLabel = mind === 'willing' ? '前向き' : mind === 'salary12' ? '高めの年俸なら承諾' : mind === 'salary15' ? '大幅な高年俸なら承諾' : '移籍を望んでいない'
   const mindColor = mind === 'willing' ? C.green : mind === 'refuse' ? C.red : C.gold

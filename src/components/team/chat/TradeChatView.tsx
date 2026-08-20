@@ -54,7 +54,8 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: Team; onC
     const hasKey = getPlayers.some(p => keyPlayerStatus(p, tvCtx.currentSeason, tvCtx.pastSeasons) !== 'open')
     // 本人が断るかは engine/tradeConsent 1本（成立させる tradePlayer・打診の proposeTrade と同じ）。
     // 行き先も store の destinationOf 1本（トレード成立時に使われるものと同じ）
-    const refuser = tradeRefuser(getPlayers, { myTeamId: playerTeamId, teams, foreignLeagues, destinationOf }, tradeConsentBonus(ratio))
+    const refuser = tradeRefuser(getPlayers, { myTeamId: playerTeamId, teams, foreignLeagues, destinationOf,
+      currentSeason, pastSeasons, year: currentSeason.year }, tradeConsentBonus(ratio))
     const blockMsg = refuser?.reason ?? ''
     const nextRound = (neg?.round ?? 0) + 1
     // 出しすぎ（釣り合いの上限を超えている）はストア側で断られる。ここでも同じ文言で先に出す

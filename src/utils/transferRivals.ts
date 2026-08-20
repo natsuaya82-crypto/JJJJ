@@ -36,6 +36,9 @@ export function rivalClubsFor(
     playerTeamId: string
     foreignLeagues: readonly ForeignLeague[]
     destinationOf: (clubId: string, player: Player) => Destination
+    /** その選手の今季の出場（utils/playRate の playRateOf で引いて渡すこと） */
+    playFraction: number
+    teamRaces: number
   },
 ): RivalClub[] {
   const activeRosterByTeam = new Map<string, Player[]>()
@@ -57,7 +60,7 @@ export function rivalClubsFor(
     .filter(t => needsPlayer(activeRosterByTeam.get(t.id) ?? [], target))
     .map(t => ({ t, dest: ctx.destinationOf(t.id, target) }))
     .filter(x => x.dest.squadRank <= RUNNING_SLOTS)
-    .filter(x => appraiseMove(target, x.dest, { srcTier }).ok)
+    .filter(x => appraiseMove(target, x.dest, { srcTier, playFraction: ctx.playFraction, teamRaces: ctx.teamRaces }).ok)
     .map(x => ({
       clubId: x.t.id,
       name: x.t.shortName,

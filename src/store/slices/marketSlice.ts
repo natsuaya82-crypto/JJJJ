@@ -41,7 +41,8 @@ type Slice = Pick<GameStore,
 // **同じものを渡す**ためにここ1本から作る（手書きすると片方だけ古い state を見る事故が起きる）
 const consentCtxOf = (get: () => GameStore) => () => {
   const st = get()
-  return { myTeamId: st.playerTeamId, teams: st.teams, foreignLeagues: st.foreignLeagues, destinationOf: st.destinationOf }
+  return { myTeamId: st.playerTeamId, teams: st.teams, foreignLeagues: st.foreignLeagues, destinationOf: st.destinationOf,
+    currentSeason: st.currentSeason, pastSeasons: st.pastSeasons, year: st.currentSeason.year }
 }
 
 export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => {
@@ -1217,7 +1218,10 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     const salaryBonus = salaryAppealBonus(salary, marketSalary)
     // クラブ間で移籍金が合意済み＝クラブ公認の移籍。「主力だから残りたい」の減点は完全になし
     // （断られるのは愛着の強い選手・順位の低いチームへの誘いくらい）
-    const consent = playerConsentToMove(player, get().destinationOf(myTeam.id, player), tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)), 0.5, 0, scoutLvT * 0.02 + salaryBonus, true)
+    // 出場率は utils/playRate 1本（BidSheet が見せている数字と同じ）
+    const { fraction: cFrac, teamRaces: cRaces } = playRateOf(player.id, player.teamId,
+      state.currentSeason, state.teams, state.foreignLeagues, prevSeasonOf(state.pastSeasons, state.currentSeason.year))
+    const consent = playerConsentToMove(player, get().destinationOf(myTeam.id, player), tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)), cFrac, cRaces, scoutLvT * 0.02 + salaryBonus, true)
     if (!consent.ok) {
       // 交渉決裂: 入札を破談にし、来季までこの選手への移籍金オファーを不可にする
       set(s => ({

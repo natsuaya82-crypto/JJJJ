@@ -328,10 +328,24 @@ export type Destination = {
 export type MoveContext = {
   /** 今の所属クラブの格。無所属(FA)は undefined */
   srcTier?: ClubTier
-  /** 今のクラブでの出場割合 0..1 */
-  playFraction?: number
-  /** 今季の消化レース数。0なら出場データ無しとして扱う */
-  teamRaces?: number
+  /**
+   * **今のクラブでの出場割合 0..1 と、今季の消化レース数。省略できません。**
+   *
+   * 引くのは `utils/playRate` の `playRateOf` 1本（裏の部と海外リーグまで見る唯一の入口）。
+   * 分からないときはその関数が `{ fraction: 0.5, teamRaces: 0 }` を返すので、
+   * **呼ぶ側で 0.5 / 0 を書かないこと。**
+   *
+   * ★ここが省略可だったころ、7つの呼び出し口のうち**移籍の唯一の経路を含む5つ**が
+   *   渡しておらず、既定の 0 が入って下の
+   *     starterNow = races >= 3 && frac >= 0.5
+   *   が常に false になり、オーナー指示（2026-08-14「格下げてまでエースになりたい
+   *   やついないだろ。海外でやってる久保がいきなりJ3に移籍するか？」）で入れた
+   *   関門 `tooFarDown` が**世界中で一度も発火していませんでした**。
+   *   実測（232クラブ5800人・1年）：格下へ動いた561件のうち131件（23.4%）が本来は止まる。
+   *   必須にしてあるのは、同じことがもう一度起きないようにするためです。**戻さないこと。**
+   */
+  playFraction: number
+  teamRaces: number
   /** 交渉ボーナス（スカウト施設・年俸の上積みなど） */
   bonus?: number
   /**
@@ -427,7 +441,7 @@ function playingTimeScore(d: Destination): number {
 /**
  * その選手がその移籍をどう見るか。**移籍の可否を出すところは必ずここを通すこと。**
  */
-export function appraiseMove(p: Player, d: Destination, ctx: MoveContext = {}): Appraisal {
+export function appraiseMove(p: Player, d: Destination, ctx: MoveContext): Appraisal {
   const declining = isDeclining(p.growthCurve ?? 'normal', p.age)
 
   // ★**無所属（FA）は、比べる相手が「クラブが無い」状態**。
@@ -461,8 +475,8 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext = {}): 
   // 3. 今のクラブで干されているか。
   //    ★行き先でも出られないなら効かない。「出たいから動く」のであって、
   //      別のベンチへ移りたいわけではない（格上でも20番手なら行かない、が保たれる）
-  const races = ctx.teamRaces ?? 0
-  const frac = ctx.playFraction ?? 0.5
+  const races = ctx.teamRaces
+  const frac = ctx.playFraction
   const benched = races >= 3 && frac < 0.4 && playingTime > 0 ? 0.2 : 0
 
   // 4. 優勝争いをしているクラブか
@@ -613,7 +627,7 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext = {}): 
  * 点数の高い順に並べ、承諾ラインに届いているものだけが「行ってもいい」先。
  */
 export function rankOffers(
-  p: Player, dests: readonly Destination[], ctx: MoveContext = {},
+  p: Player, dests: readonly Destination[], ctx: MoveContext,
 ): { dest: Destination; appraisal: Appraisal }[] {
   return dests
     .map(dest => ({ dest, appraisal: appraiseMove(p, dest, ctx) }))

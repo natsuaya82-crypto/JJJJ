@@ -1,99 +1,170 @@
 /**
- * 【出場率】他の部・海外のクラブの選手でも、出場率が正しく出ること。
+ * **出場率が移籍の判断に本当に届いているか**の網（`utils/playRate` の `playRateOf`）。
  *
  * ■なぜ要るのか
- *   出場率は `seasonAppearances(id, currentSeason.races) / currentRaceIndex` と
- *   書かれていた。`currentSeason.races` は**自分の部の日程だけ**なので、
- *   1部・2部のクラブの選手はそこに1本も載らず、**出場率が必ず0**になっていた。
+ *   `appraiseMove` にはオーナー指示（2026-08-14「格下げてまでエースになりたいやつ
+ *   いないだろ。海外でやってる久保がいきなりJ3に移籍するか？」）で入れた関門があります。
  *
- *   これは表示の粗ではなく移籍の判断に直結する。`transferDecision.appraiseMove` は
- *   「今のクラブで干されている」に +0.2 を付けるので、出場率0だと全員に付く。
- *   3部で遊んでいると、1部・2部の主力が全員「干されている」扱いになる。
+ *       starterNow  = races >= 3 && frac >= 0.5
+ *       tooFarDown  = !freeAgent && !declining && starterNow && -gap >= MAX_TIER_DROP_FOR_STARTER
  *
- *   いまは `utils/playRate.ts` の `playRateOf` 1本。そのクラブが所属する部
- *   （海外ならそのリーグ）の日程で数えるので、置き場所の違いは呼ぶ側に出てこない。
+ *   ところが `playFraction` / `teamRaces` が**省略可**だったため、7つの呼び出し口のうち
+ *   **移籍の唯一の経路（`engine/transferMarket.ts`）を含む5つ**が渡しておらず、
+ *   既定の `teamRaces = 0` が入って `starterNow` が**常に false**。
+ *   関門は書いてあるのに**世界中で一度も発火していませんでした**（2026-08-20 に発覚）。
+ *
+ *   実測（232クラブ5800人・1年）：格下へ動いた 561件のうち **131件（23.4%）が本来は止まる**
+ *   （OVR85+ が58件、78-84 が72件）。
+ *
+ * ■この点検が見るもの
+ *   ① 型が必須のままか（`MoveContext` の2つに `?` が付いていない）
+ *   ② 呼び出し口に 0.5 / 0 の手書きが無いか（**否定**なので安全側）
+ *   ③ **世界を1つ作って実際に流し**、走れている選手が2段下へ移らないこと
+ *   ④ ③が空振りでないこと＝**同じ世界で出場記録だけ消すと、その移籍が起きる**
+ *      （「起きない」だけを見ると、そもそも移籍が起こせない世界でも緑になります）
  */
-import { playRateOf, clubSeasonRaces, racesDone } from '../src/utils/playRate'
-import { ALL_DOMESTIC_TEAMS } from '../src/utils/domesticClubs'
-import { divisionOf } from '../src/utils/league'
-import { seeksPlayingTime } from '../src/utils/transferDecision'
-import type { Team } from '../src/types'
+import { runTransferMarket } from '../src/engine/transferMarket'
+import { MAX_TIER_DROP_FOR_STARTER } from '../src/utils/transferDecision'
+import { RUNNING_SLOTS } from '../src/data/rosterRules'
+import { squadRankOf } from '../src/utils/squadNeeds'
+import { logicSource } from './storeSource'
+import { readFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
+import type { Destination } from '../src/utils/transferDecision'
+import type { ArchivedSeason, ForeignLeague, Player, Race, Team } from '../src/types'
 
-const problems: string[] = []
+let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
   console.log(`  ${ok ? 'ok' : 'NG'}  ${name}${ok || !detail ? '' : ` — ${detail}`}`)
-  if (!ok) problems.push(name)
+  if (!ok) failed++
 }
+/** コメントを外してから見る（この点検の説明文や、コードの中の経緯の説明に当たるため） */
+const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
 
-const teams = ALL_DOMESTIC_TEAMS as Team[]
-const d1 = teams.find(t => divisionOf(t) === 1)!
-const d3 = teams.find(t => divisionOf(t) === 3)!
-
-// 1レース分の器。その選手が走ったことにする
-const race = (id: string, ranAs: string[]) => ({
-  id, name: id, date: '2027-05-08', location: '', type: 'league', segments: [], conditions: {},
-  results: { teamRankings: [], segmentResults: ranAs.map((pid, i) => ({ segmentIndex: i, runners: [{ playerId: pid, teamId: 'x', rank: 1, timeSec: 1000 }] })) },
-})
-
-// 自分は3部（7戦）、1部は10戦を裏で走っている。どちらのエースも全戦に出ている
-const season = {
-  races: Array.from({ length: 7 }, (_, i) => race(`d3-${i}`, ['ace3'])),
-  divisionRaces: {
-    1: Array.from({ length: 10 }, (_, i) => race(`d1-${i}`, ['ace1'])),
-    2: Array.from({ length: 8 }, (_, i) => race(`d2-${i}`, ['ace2'])),
-    3: Array.from({ length: 7 }, (_, i) => ({ ...race(`d3-${i}`, ['ace3']), results: undefined })),
-  },
-} as never
-
-console.log('[1] そのクラブが走っている日程を引ける')
+// ── ① 型が必須のままか ──────────────────────────────
+console.log('[1] 出場率は省略できない（型）')
 {
-  const mine = clubSeasonRaces(season, d3.id, teams)
-  const away = clubSeasonRaces(season, d1.id, teams)
-  check('自分の部は結果の入っている season.races 側を見る', racesDone(mine) === 7, `${racesDone(mine)}戦`)
-  check('他の部は divisionRaces 側を見る', racesDone(away) === 10, `${racesDone(away)}戦`)
+  const src = readFileSync('src/utils/transferDecision.ts', 'utf8')
+  const ctx = src.slice(src.indexOf('export type MoveContext'), src.indexOf('export type Appraisal'))
+  check('MoveContext.playFraction が必須', /^\s*playFraction: number/m.test(ctx),
+    '`playFraction?:` に戻すと、渡し忘れた呼び出し口で関門が黙って死にます')
+  check('MoveContext.teamRaces が必須', /^\s*teamRaces: number/m.test(ctx))
+  const pu = strip(readFileSync('src/utils/playerUtils.ts', 'utf8'))
+  check('playerConsentToMove の2つも必須',
+    /playFraction: number, teamRaces: number/.test(pu),
+    '`playFraction = 0.5, teamRaces = 0` に戻さないこと')
 }
 
-console.log('')
-console.log('[2] 出場率は部が違っても正しく出る')
+// ── ② 手書きが無いか（否定） ─────────────────────────
+console.log('[2] 0.5 / 0 を手書きしていない')
 {
-  const me = playRateOf('ace3', d3.id, season, teams)
-  const other = playRateOf('ace1', d1.id, season, teams)
-  check('自分の部のエースは 7/7', me.races === 7 && me.teamRaces === 7 && me.fraction === 1)
-  check('1部のエースも 10/10（0にならない）', other.races === 10 && other.teamRaces === 10 && other.fraction === 1,
-    `${other.races}/${other.teamRaces}`)
-  const sub = playRateOf('bench1', d1.id, season, teams)
-  check('1部の控えは 0/10（走っていない人はちゃんと0）', sub.races === 0 && sub.teamRaces === 10)
+  const compSrc = readdirSync('src/components', { recursive: true, encoding: 'utf8' })
+    .filter(f => f.endsWith('.tsx') || f.endsWith('.ts'))
+    .map(f => readFileSync(join('src/components', f), 'utf8')).join('\n')
+  const all = strip(logicSource() + '\n' + compSrc)
+  // `playerConsentToMove(..., 0.5, 0, ...)`（位置引数）
+  // ★改行をまたぐこと。`srcTier,\n  0.5, 0, 0, ...` と折り返されると、
+  //   `/, 0\.5, 0,/` は**1件も当たりません**（実際にそれで空振りしました）
+  check('playerConsentToMove に 0.5, 0 を渡していない', !/,\s*0\.5,\s*0,/.test(all))
+  // `appraiseMove(..., { playFraction: 0.5, teamRaces: 0 })`（名前つき）
+  check('appraiseMove に 0.5 / 0 を書いていない',
+    !/playFraction: 0\.5/.test(all) && !/teamRaces: 0(?!\.)/.test(all.replace(/fraction: 0\.5, teamRaces: 0 \}/g, '')))
+  // 移籍の唯一の経路が playRateOf を通っているか（**入口の数と通っている数を両方数える**）
+  const tm = strip(readFileSync('src/engine/transferMarket.ts', 'utf8'))
+  check('transferMarket が playRateOf を通る', /playRateOf\(/.test(tm),
+    '出場率を数え直さず playRateOf 1本から引くこと')
+  check('transferMarket が season.races を直に数えていない',
+    !/season\.races\b(?!\s*\?\?\s*\[\])/.test(tm.replace(/ctx\.season\.races \?\? \[\]/g, '')),
+    '自分の部の日程しか入っていないので、他の部と海外の212クラブが全員「0戦」になります')
 }
 
-console.log('')
-console.log('[3] 「干されている」が他の部の主力に付かない')
-{
-  // seeksPlayingTime は序列と出場率の両方を見る。出場率が0だと主力でも「出たい」になる
-  const ace = playRateOf('ace1', d1.id, season, teams)
-  check('1部のエースは出番を求めない', !seeksPlayingTime({
-    squadRank: 1, age: 28, races: ace.races, teamRaces: ace.teamRaces,
-  }))
-  const deep = playRateOf('bench1', d1.id, season, teams)
-  check('1部の序列外の控えは出番を求める', seeksPlayingTime({
-    squadRank: 20, age: 28, races: deep.races, teamRaces: deep.teamRaces,
-  }))
+// ── ③④ 世界を1つ作って実際に流す ─────────────────────
+console.log('[3] 走れている選手は2段以上下のクラブへ移らない')
+
+const YEAR = 2030
+const SIZE = RUNNING_SLOTS * 2 + 4
+
+function player(id: string, teamId: string, o: number, specialty = 'long'): Player {
+  return {
+    id, name: id, teamId, age: 24, status: 'active', specialty,
+    // 24歳・normal（ピーク27）なので declining ではない＝関門の対象
+    growthCurve: 'normal',
+    joinedYear: YEAR - 4, nationality: 'JPN',
+    ratings: { speed: o, stamina: o, mountainUp: o, mountainDown: o, pacing: o, mental: o, recovery: o },
+    contract: { annualSalary: 10_000_000, yearsLeft: 1 },
+    morale: 50, fatigue: 0, potential: o,
+    career: { races: 40, wins: 5, championships: 0, mvpAwards: 0, segmentAwards: 0 },
+  } as unknown as Player
+}
+/** 格は `tierOf` が `team.tier` を先に見るので、ここで直に置く（実在クラブに依らせない） */
+const HI = 'hi'
+const LO = 'lo'
+const team = (id: string, division: number, tier: number): Team =>
+  ({ id, name: id, shortName: id, division, tier, finance: { budget: 5_000_000_000 }, draftPicks: [] } as unknown as Team)
+// 格差はちょうど関門の線（MAX_TIER_DROP_FOR_STARTER = 2段）に置く。
+// 15段も離すと、控えでも点数が届かなくなって④が成立しません（＝何も試せない世界）
+const teams = [team(HI, 1, 5), team(LO, 2, 5 + MAX_TIER_DROP_FOR_STARTER), team('my', 3, 20)]
+
+/** そのクラブの日程。`results` を入れた本数がそのまま「消化レース数」になる */
+function racesFor(clubId: string, runnerIds: string[], n: number): Race[] {
+  return Array.from({ length: n }, (_, i) => ({
+    id: `r${i}`, name: `r${i}`, date: `${YEAR}-0${(i % 9) + 1}-01`,
+    segments: [{ distanceKm: 10, uphillPct: 0, downhillPct: 0 }],
+    results: {
+      teamResults: [{ teamId: clubId, totalTime: 1000, rank: 1 }],
+      segmentResults: [{ segment: 1, runners: runnerIds.map(id => ({ playerId: id, teamId: clubId, time: 1000, rank: 1 })) }],
+    },
+  })) as unknown as Race[]
 }
 
-console.log('')
-console.log('[4] 分からないときは0ではなく中立（0.5 / 0戦）')
-{
-  const unknown = playRateOf('x', 'no-such-club', season, teams)
-  check('知らないクラブは 0.5 / 0戦', unknown.fraction === 0.5 && unknown.teamRaces === 0)
-  check('  0戦なら「干されている」は付かない', !seeksPlayingTime({
-    squadRank: 30, age: 30, races: unknown.races, teamRaces: unknown.teamRaces,
-  }))
-  const noClub = playRateOf('x', undefined, season, teams)
-  check('無所属も 0.5 / 0戦', noClub.fraction === 0.5 && noClub.teamRaces === 0)
+/**
+ * hi＝格上のクラブ。ここで**走れている**エース級を1人だけ「粘り型」にする。
+ * lo＝格下のクラブ。粘り型が1人もいない（＝穴）ので、その1人を欲しがる。
+ * 名簿は SIZE 人ずつ（CPU_SELL_FLOOR を超えないと1人も出せない）。
+ */
+const STAR = 'hi-star'
+function world(): Player[] {
+  return [
+    // ★STAR を1番手にしないこと。**エース（1番手）は市場に出ません**（sellCandidatesOf の slice(1)）。
+    //   ここを 88 で置いた最初の版は、④も③も「移籍が起こせない世界」で緑でした
+    player('hi-top', HI, 90),
+    player(STAR, HI, 88, 'mountain_up'),
+    ...Array.from({ length: SIZE - 2 }, (_, i) => player(`hi${i}`, HI, 86)),
+    ...Array.from({ length: SIZE }, (_, i) => player(`lo${i}`, LO, 62)),
+    ...Array.from({ length: SIZE }, (_, i) => player(`my${i}`, 'my', 60)),
+  ]
+}
+const destinationOf = (clubId: string, p: Player): Destination => {
+  const roster = current.filter(x => x.teamId === clubId && x.status === 'active' && x.id !== p.id)
+  return {
+    clubId, tier: clubId === HI ? 5 : 5 + MAX_TIER_DROP_FOR_STARTER,
+    squadRank: squadRankOf(roster, p), squadSize: roster.length + 1,
+  } as Destination
+}
+let current: Player[] = []
+
+function run(appearances: number): { moved: boolean; to: string } {
+  current = world()
+  // hi のクラブは10戦こなしていて、STAR はそのうち `appearances` 戦に出ている
+  const ran = racesFor(HI, [STAR], appearances)
+  const idle = racesFor(HI, ['hi0'], 10 - appearances)
+  const season = { year: YEAR, races: [], divisionRaces: { 1: [...ran, ...idle], 2: racesFor(LO, ['lo0'], 8) } }
+  const out = runTransferMarket(
+    { players: current, teams, foreignLeagues: [] as ForeignLeague[] },
+    { playerTeamId: 'my', year: YEAR, season, pastSeasons: [] as ArchivedSeason[],
+      rosterCapFor: () => 30, destinationOf, excludeIds: new Set<string>(), date: `${YEAR}-02-01` })
+  const after = out.players.find(p => p.id === STAR)!
+  return { moved: after.teamId !== HI, to: after.teamId }
 }
 
-console.log('')
-if (problems.length > 0) {
-  console.log(`✗ 出場率が部によって狂います（${problems.length}件）`)
-  process.exit(1)
-}
-console.log('✓ どの部・どのリーグのクラブでも、出場率はそのクラブの走った数で出る')
+// ④ **先に空振りでないことを確かめる。** 出場記録が無ければ（＝控え）この移籍は起きる
+const benched = run(0)
+check('④ 出場0なら格下へ動く（この世界でその移籍が起こせる）', benched.moved,
+  'ここが false なら、下の③は「起きない」のではなく「起こせない」＝何も守っていません')
+
+// ③ 本命。10戦中10戦に出ている＝走れている選手は、格5→格20（15段下）へは動かない
+const starter = run(10)
+check(`③ 10戦フル出場なら ${MAX_TIER_DROP_FOR_STARTER}段以上下へは動かない`, !starter.moved,
+  `${STAR} が ${starter.to} へ動きました`)
+
+process.exit(failed > 0 ? 1 : 0)

@@ -20,6 +20,7 @@ import { type NewsItem, clubLabel, transferHeadline } from '../utils/newsItems'
 import { ovr } from '../utils/playerUtils'
 import { appraiseMove, type Destination } from '../utils/transferDecision'
 import { canBePoached } from '../utils/transferEligibility'
+import { playRateOf, prevSeasonOf, type PlayRateSeason } from '../utils/playRate'
 
 export type CpuTx = { playerId: string; fromTeamId: string; toTeamId: string; playerName: string; playerOvr: number; fromShort: string; toShort: string; fee: number }
 
@@ -28,6 +29,8 @@ export function settleCpuTransfers(params: {
   teams: Team[]
   foreignLeagues: ForeignLeague[]
   currentSeason: Season
+  /** 前シーズン。出場率が浅いうちはこちらを見る（utils/playRate） */
+  pastSeasons?: readonly ({ year: number } & PlayRateSeason)[]
   playerTeamId: string
   raceDate: string
   /** 引退の話がついている選手（移籍の話は持ちかけない） */
@@ -36,7 +39,7 @@ export function settleCpuTransfers(params: {
   destinationOf: (clubId: string, player: Player) => Destination
   rng?: () => number
 }): { txList: CpuTx[]; settledListingIds: Set<string>; news: NewsItem[] } {
-  const { players, teams, foreignLeagues, currentSeason, playerTeamId, raceDate, retiringWishIds, destinationOf, rng = Math.random } = params
+  const { players, teams, foreignLeagues, currentSeason, pastSeasons, playerTeamId, raceDate, retiringWishIds, destinationOf, rng = Math.random } = params
     type CpuTx = { playerId: string; fromTeamId: string; toTeamId: string; playerName: string; playerOvr: number; fromShort: string; toShort: string; fee: number }
   const cpuTxList: CpuTx[] = []
   const cpuTxListingIds = new Set<string>()
@@ -68,9 +71,14 @@ export function settleCpuTransfers(params: {
       if ((rosterCount.get(buyerTeamId) ?? 0) >= ROSTER_MAX || buyer.finance.budget < listing.askingPrice) continue
       // 出品していても、行き先に納得しなければ本人は行かない（承諾・逆提示・買う側と同じゲート）。
       // ここは自動成立なので断られても札は消さず、別のクラブ・別のレースで話が来るのを待つ
+      // ★出場率は `utils/playRate` 1本。ベタ書きの 0.5 / 0戦 に戻さないこと——
+      //   teamRaces が 0 だと `appraiseMove` の関門（走れている選手は格下へ行かない・
+      //   1戦も走っていない選手は格上へ行かない）が**一度も発火しません**
+      const { fraction, teamRaces } = playRateOf(p.id, listing.fromTeamId, currentSeason,
+        teams, foreignLeagues, prevSeasonOf(pastSeasons, currentSeason.year))
       if (!appraiseMove(p, destinationOf(buyerTeamId, p), {
         srcTier: tierOfPlayerClub(listing.fromTeamId, allTieredClubs(teams, foreignLeagues)),
-        playFraction: 0.5, teamRaces: 0, clubBlessed: true }).ok) continue
+        playFraction: fraction, teamRaces, clubBlessed: true }).ok) continue
       movedThisRace.add(p.id)
       rosterCount.set(buyerTeamId, (rosterCount.get(buyerTeamId) ?? 0) + 1)
       rosterCount.set(listing.fromTeamId, Math.max(0, (rosterCount.get(listing.fromTeamId) ?? 1) - 1))

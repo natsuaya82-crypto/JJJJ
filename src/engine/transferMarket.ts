@@ -39,6 +39,7 @@
 //   `movePlayer` には `money: false` を渡します（国内側だけ二重に動くのを防ぐため）。
 // ============================================================================
 import { comparePlayers } from '../utils/playerSort'
+import { clubSeasonRaces, playRateOf, type PlayRateSeason } from '../utils/playRate'
 import { buildCareerCounts } from '../utils/careerStats'
 import { allForeignClubs } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
@@ -47,7 +48,7 @@ import { needsPlayer } from '../utils/squadNeeds'
 import { isOwnedBy, isTransferLocked } from '../utils/transferEligibility'
 import { isSurplus, seeksPlayingTime, willRelease, type Destination } from '../utils/transferDecision'
 import {
-  acquisitionDesiredSalary, faMarketSalary, newContractYears, ovr, perfOf, playerConsentToMove,
+  acquisitionDesiredSalary, faMarketSalary, newContractYears, ovr, seasonPerfProfile, playerConsentToMove,
   transferFeeFor,
 } from '../utils/playerUtils'
 import {
@@ -96,7 +97,7 @@ export function runTransferMarket(
      *   それを渡すと全員が「出場0」になり、移籍金も年俸も一律 ×0.6 に潰れます
      *   （実測でオフ1回の移籍金が 1189億 → 712億）。
      */
-    season: Parameters<typeof perfOf>[0] & Pick<Season, 'year'>
+    season: PlayRateSeason & Pick<Season, 'year'>
     pastSeasons: ArchivedSeason[]
     /** そのクラブの在籍上限。ドラフトで入る人数ぶんを空けてある（海外は ROSTER_MAX） */
     rosterCapFor: (clubId: string) => number
@@ -187,8 +188,35 @@ export function runTransferMarket(
   const lastSeason = ctx.pastSeasons[ctx.pastSeasons.length - 1]
   const thisCounts = buildCareerCounts([ctx.season])
   const prevCounts = buildCareerCounts([lastSeason])
-  const thisRaces = ctx.season.races.filter(r => r.results).length
+  const thisRaces = (ctx.season.races ?? []).filter(r => r.results).length
   const prevRaces = (lastSeason?.races ?? []).filter(r => r.results).length
+
+  // ── **今季どれだけ走っているか。** 移籍の判断に渡す出場率は `utils/playRate` 1本
+  //    （CLAUDE.md「移籍の判断に出場率を渡すところは必ずここを通すこと」）。
+  //
+  //    ★以前ここが `playerConsentToMove(..., 0.5, 0, ...)` のベタ書きでした。
+  //      `teamRaces` が 0 なので `appraiseMove` の
+  //        starterNow = races >= 3 && frac >= 0.5
+  //      が**常に false** になり、オーナー指示（2026-08-14「格下げてまでエースに
+  //      なりたいやついないだろ。海外でやってる久保がいきなりJ3に移籍するか？」）で
+  //      入れた関門 `tooFarDown` が**世界中で一度も発火していませんでした**。
+  //      同じ理由で「主力として起用されており移籍を望んでいない」（`isDataKeyPlayer`）も
+  //      死んでいました。実測（232クラブ5800人・1年）：格下へ動いた561件のうち
+  //      **131件（23.4%）が本来は止まる**（OVR85+が58件、78-84が72件）。
+  //
+  //    ★`ctx.season.races` を直に数えないこと。自分の部の日程しか入っていないので、
+  //      他の部と海外の212クラブが全員「出場0」になります。`playRateOf` が
+  //      裏の部（divisionRaces）と海外リーグ（foreignRaces）まで見る唯一の入口です。
+  //    ★選手ごとに1回だけ引く。1回の市場で数千回呼ばれるので、毎回レース結果を
+  //      走査すると市場が終わらなくなります（動いた選手は excludeIds で二度と来ない）。
+  const playRateCache = new Map<string, { fraction: number; teamRaces: number }>()
+  const playRateFor = (p: Player) => {
+    const hit = playRateCache.get(p.id)
+    if (hit) return hit
+    const v = playRateOf(p.id, p.teamId, ctx.season, world.teams, world.foreignLeagues, lastSeason)
+    playRateCache.set(p.id, v)
+    return v
+  }
 
   // ── 出せる選手の一覧は**出す側だけで決まる**（買う側が誰かに関係しない）。
   //    232クラブぶんを買うたびに組み直していたので、1回の市場で数百万個の
@@ -262,14 +290,21 @@ export function runTransferMarket(
       //     以前は同じ関数の中で年俸にだけ渡していて、移籍金は出場0の選手も
       //     フル出場の選手も同じ額でした（式にはあるのに誰も渡していなかった）。
       //     実測で OVR85 の移籍金が 1.85億〜3.72億 の幅を持つところ、全部 3.08億に潰れていた
-      const tgtPerf = perfOf(ctx.season, target.id, thisRaces)
+      // ★**出場は「そのクラブが走っている日程」で数える**（utils/playRate 1本）。
+      //   `perfOf(ctx.season, ...)` は `season.races`＝**自分の部の日程しか見ない**ので、
+      //   他の部と海外の212クラブは全員「今季0戦」として値段が付いていました。
+      const { fraction: tgtFrac, teamRaces: tgtRaces } = playRateFor(target)
+      const tgtPerf = seasonPerfProfile(target.id,
+        clubSeasonRaces(ctx.season, target.teamId, world.teams, world.foreignLeagues), tgtRaces)
       const fee = transferFeeFor(target, surplus, tgtPerf)
-      const newSalary = surplus ? faMarketSalary(target, tgtPerf) : acquisitionDesiredSalary(target, 'scout', 0.5, 0, tgtPerf)
+      const newSalary = surplus ? faMarketSalary(target, tgtPerf)
+        : acquisitionDesiredSalary(target, 'scout', tgtFrac, tgtRaces, tgtPerf)
       if (budget[buyClub.id] < fee + newSalary) continue
       // ④本人が行くか。**余剰でも聞く**（出番が無いから必ず頷く、とは限らない）。
       //   主力の引き抜きだけクラブが割増で合意済み＝clubBlessed で「主力だから残りたい」を外す
       const srcTier = tierOfPlayerClub(target.teamId, tieredClubs)
-      if (!playerConsentToMove(target, ctx.destinationOf(buyClub.id, target), srcTier, 0.5, 0, 0, !surplus).ok) continue
+      if (!playerConsentToMove(target, ctx.destinationOf(buyClub.id, target), srcTier,
+        tgtFrac, tgtRaces, 0, !surplus).ok) continue
 
       // 所属・加入年・移籍履歴・移籍リストの札はがしは movePlayer 1本。
       // お金だけは上の帳簿で見ているので money: false（国内側だけ二重に動くのを防ぐ）

@@ -18,6 +18,7 @@ import { type NewsItem, transferHeadline } from '../utils/newsItems'
 import { ovr } from '../utils/playerUtils'
 import { appraiseMove, type Destination } from '../utils/transferDecision'
 import type { CpuTx } from './cpuTransfers'
+import { playRateOf, prevSeasonOf, type PlayRateSeason } from '../utils/playRate'
 
 export function applySettledTransfers(params: {
   players: Player[]
@@ -26,6 +27,8 @@ export function applySettledTransfers(params: {
   /** ニュースのOVR表示に使う「動く前」の名簿 */
   origPlayers: Player[]
   currentSeason: Season
+  /** 出場率の材料（utils/playRate）。今季が浅いときは前シーズンを見る */
+  pastSeasons?: readonly ({ year: number } & PlayRateSeason)[]
   listings: TransferListing[]
   txList: CpuTx[]
   outbidMoves: { playerId: string; toTeamId: string; fee: number; playerName: string; clubName: string }[]
@@ -45,7 +48,7 @@ export function applySettledTransfers(params: {
   /** 競り勝ったクラブを本人が断って残ったぶんの通知 */
   stayNegs: ExpiredNegotiation[]
 } {
-  const { origPlayers, teams, foreignLeagues, currentSeason, listings, txList: cpuTxList, outbidMoves, playerTeamId, raceDate, raceClock, destinationOf } = params
+  const { origPlayers, teams, foreignLeagues, currentSeason, pastSeasons, listings, txList: cpuTxList, outbidMoves, playerTeamId, raceDate, raceClock, destinationOf } = params
   const players = params.players
   const stayNegs: ExpiredNegotiation[] = []
   // CPUトレード反映 ＋ 移籍リスト入りフラグの同期（他チーム選手にも「移籍希望」が立つ）
@@ -104,7 +107,10 @@ export function applySettledTransfers(params: {
     if (before) {
       const dest = destinationOf(mv.toTeamId, before)
       const srcTier = tierOfPlayerClub(before.teamId, allTieredClubs(teams, foreignLeagues))
-      if (!appraiseMove(before, dest, { srcTier }).ok) {
+      // ★出場率は utils/playRate 1本。ベタ書きも省略もしないこと（関門が黙って死ぬ）
+      const { fraction, teamRaces } = playRateOf(before.id, before.teamId, currentSeason,
+        teams, foreignLeagues, prevSeasonOf(pastSeasons, currentSeason.year))
+      if (!appraiseMove(before, dest, { srcTier, playFraction: fraction, teamRaces }).ok) {
         // 本人が断った＝残留。誰の手にも渡らないので、理由を通知に残す
         stayNegs.push({
           id: `stay_${mv.playerId}_${raceClock}`, playerId: mv.playerId, playerName: mv.playerName,

@@ -115,6 +115,9 @@ const rosterOf = new Map<string, typeof st0.players>()
 for (const p of st0.players) { if (!p.teamId) continue; const a = rosterOf.get(p.teamId) ?? []; a.push(p); rosterOf.set(p.teamId, a) }
 
 useGameStore.getState().endSeason(); all.push(...collect())
+// ★格は endSeason で動く（国内は前年順位から引き直す）。**市場が見るのは動いたあとの格**なので、
+//   ここで控えないと方向（格上／格下）が市場の判断とズれる（実測で611件中43件）
+const tiersAfterEnd = { teams: useGameStore.getState().teams, foreignLeagues: useGameStore.getState().foreignLeagues }
 useGameStore.getState().beginSeasonDraft(); all.push(...collect())
 
 useGameStore.setState({ currentSeason: { ...useGameStore.getState().currentSeason, phase: 'regular', currentRaceIndex: 0 } } as never)
@@ -133,7 +136,7 @@ import { ovr } from '../src/utils/playerUtils'
 import { tierOfPlayerClub, allTieredClubs } from '../src/utils/clubTier'
 import { needsPlayer, squadRankOf } from '../src/utils/squadNeeds'
 
-const clubsAll = allTieredClubs(st0.teams, st0.foreignLeagues)
+const clubsAll = allTieredClubs(tiersAfterEnd.teams, tiersAfterEnd.foreignLeagues)
 const tierOf = (teamId: string) => tierOfPlayerClub(teamId, clubsAll)
 const band = (o: number) => o >= 85 ? '85+' : o >= 78 ? '78-84' : o >= 71 ? '71-77' : '〜70'
 const aband = (a: number) => a <= 23 ? '〜23' : a <= 28 ? '24-28' : a <= 32 ? '29-32' : '33〜'
@@ -220,6 +223,7 @@ import { MAX_TIER_DROP_FOR_STARTER } from '../src/utils/transferDecision'
 const season0 = { races: ranRaces, divisionRaces, foreignRaces }
 let starters = 0, wouldBlock = 0, decl = 0
 const blockedBand = new Map<string, number>()
+const blockedKind = new Map<string, number>()
 for (const r of rows) {
   if (dirOf(r) !== '格下') continue
   const p = pmap.get(r.playerId)!
@@ -231,6 +235,7 @@ for (const r of rows) {
   if (!declining && starterNow && tierOf(r.to) - tierOf(r.from) >= MAX_TIER_DROP_FOR_STARTER) {
     wouldBlock++
     blockedBand.set(band(ovr(p)), (blockedBand.get(band(ovr(p))) ?? 0) + 1)
+    blockedKind.set(r.kind, (blockedKind.get(r.kind) ?? 0) + 1)
   }
 }
 const downRows = rows.filter(r => dirOf(r) === '格下')
@@ -240,6 +245,7 @@ console.log(`    いま走れている（3戦以上＋出場率50%以上）   ${
 console.log(`    ピークを過ぎている（declining＝関門の対象外） ${decl}件（${(decl / downRows.length * 100).toFixed(1)}%）`)
 console.log(`    → 関門で止まるはず                          ${wouldBlock}件（${(wouldBlock / downRows.length * 100).toFixed(1)}%）`)
 for (const b of BANDS) console.log(`        OVR ${b.padEnd(6)} ${blockedBand.get(b) ?? 0}件`)
+console.log(`      残っているものの経路：` + [...blockedKind].map(([k, n]) => `${k}=${n}`).join(' '))
 
 // declining（ピーク越え）で関門を外れている選手の年齢
 const declAges = new Map<string, number>()
@@ -259,3 +265,37 @@ console.log(`\n  ピーク越えで関門を免れている ${[...declAges.value
 for (const b of ABANDS) console.log(`    ${b.padEnd(6)} ${declAges.get(b) ?? 0}件`)
 console.log(`  そのうち「いま走れていて2段以上下へ」＝免除が無ければ止まるもの ${declStarterDeep}件`)
 for (const b of ABANDS) console.log(`    ${b.padEnd(6)} ${declStarterDeepAges.get(b) ?? 0}件`)
+
+// ── (7) 33歳以上はなぜ動かないのか ──────────────────────
+import { isTransferLocked } from '../src/utils/transferEligibility'
+import { willRelease, isSurplus } from '../src/utils/transferDecision'
+import { CPU_SELL_FLOOR } from '../src/data/rosterRules'
+import { comparePlayers } from '../src/utils/playerSort'
+
+console.log(`\n【(7) 年齢ごとの「そもそも市場に出られるか」】`)
+const stage = new Map<string, number[]>(ABANDS.map(b => [b, [0, 0, 0, 0, 0]]))
+// [在籍, エース以外, ロックされていない, 出す側が手放す気になる, 誰かが必要とする]
+for (const c of clubsAll) {
+  const roster = (rosterOf.get(c.id) ?? []).filter(p => p.status === 'active').sort(comparePlayers('ovr'))
+  if (roster.length <= CPU_SELL_FLOOR) continue
+  roster.forEach((p, i) => {
+    const s = stage.get(aband(p.age))!
+    s[0]++
+    if (i === 0) return
+    s[1]++
+    if (isTransferLocked(p, YEAR + 1)) return
+    s[2]++
+    if (!willRelease(p, `${YEAR + 1}-06-01`)) return
+    s[3]++
+    if (!clubsAll.some(b => b.id !== c.id && needsPlayer(rosterOf.get(b.id) ?? [], p))) return
+    s[4]++
+  })
+}
+console.log('  年齢    在籍  →エース以外 →ロック外 →手放す気 →欲しがるクラブ有り')
+for (const b of ABANDS) {
+  const s = stage.get(b)!
+  console.log(`  ${b.padEnd(6)}${s.map(n => String(n).padStart(9)).join('')}`)
+}
+const ages = new Map<number, number>()
+for (const p of active) ages.set(p.age, (ages.get(p.age) ?? 0) + 1)
+console.log(`  年齢の分布：` + [...ages.keys()].sort((a, b) => a - b).map(a => `${a}:${ages.get(a)}`).join(' '))

@@ -1,6 +1,7 @@
 // draft ドメインのアクション（gameStore から分割）。
 
 import type { DraftState, GameStore, SetGame } from '../gameStore'
+import { playRateOf, prevSeasonOf } from '../../utils/playRate'
 import { tradeValueCtxOf } from '../marketOps'
 import { draftPickValue } from '../../data/economy'
 import { SEASON_2027_RACES, generateIndividualEvents } from '../../data/races'
@@ -193,9 +194,13 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
           // ④本人が行くか。**ここだけ聞いていなかった**（ドラフト後の拾い直し）。
           // 同じFAでも、ドラフト前の一括処理では聞いていて、ここでは聞いていない
           // ＝経路で判断が割れている状態だった（A-9）
-          consents: (fa, clubId) => playerConsentToMove(
-            fa, get().destinationOf(clubId, fa),
-            tierOfPlayerClub(fa.teamId, allTieredClubs(state.teams, state.foreignLeagues)), 0.5, 0, 0, true).ok })
+          consents: (fa, clubId) => {
+            const { fraction, teamRaces } = playRateOf(fa.id, fa.teamId, state.currentSeason,
+              state.teams, state.foreignLeagues, prevSeasonOf(state.pastSeasons, state.currentSeason.year))
+            return playerConsentToMove(fa, get().destinationOf(clubId, fa),
+              tierOfPlayerClub(fa.teamId, allTieredClubs(state.teams, state.foreignLeagues)),
+              fraction, teamRaces, 0, true).ok
+          } })
         for (const sg of postSignings) {
           const m = movePlayer({ players: updatedPlayers, teams: [] }, sg.playerId, sg.clubId, {
             year: state.currentSeason.year, kind: 'free', history: false })
@@ -565,7 +570,8 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
         { playerTeamId: state.playerTeamId, year: state.currentSeason.year,
           tradeValueCtx: tradeValueCtxOf(state), excludeIds: cpuTransferIds,
           // ④本人の同意（現金の移籍と同じ入口）
-          destinationOf: get().destinationOf, allTeams: state.teams, foreignLeagues: state.foreignLeagues })
+          destinationOf: get().destinationOf, allTeams: state.teams, foreignLeagues: state.foreignLeagues,
+          season: state.currentSeason, pastSeasons: state.pastSeasons })
       playersAfterCpuTransfer = traded.players
       teamsAfterCpuTransfer = traded.teams
       offseasonTxRecords.push(...traded.records)
@@ -599,9 +605,13 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       // ④本人が行くか（現金の移籍・トレードと同じ入口）。
       // 無所属は「クラブが無い」状態と較べるので基本は断らないが、
       // 憧れの地域と出番の良し悪しはここで効く
-      consents: (fa, clubId) => playerConsentToMove(
-        fa, get().destinationOf(clubId, fa),
-        tierOfPlayerClub(fa.teamId, allTieredClubs(state.teams, state.foreignLeagues)), 0.5, 0, 0, true).ok })
+      consents: (fa, clubId) => {
+        const { fraction, teamRaces } = playRateOf(fa.id, fa.teamId, state.currentSeason,
+          state.teams, state.foreignLeagues, prevSeasonOf(state.pastSeasons, state.currentSeason.year))
+        return playerConsentToMove(fa, get().destinationOf(clubId, fa),
+          tierOfPlayerClub(fa.teamId, allTieredClubs(state.teams, state.foreignLeagues)),
+          fraction, teamRaces, 0, true).ok
+      } })
     const newYear = state.currentSeason.year
     // CPUのFA契約も movePlayer に通す（所属・名簿・加入年をまとめて。名簿に入れるので契約種別も本契約に揃える）
     let playersWithCpuSigns: Player[] = playersAfterCpuTransfer

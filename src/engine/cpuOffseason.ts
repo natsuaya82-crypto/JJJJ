@@ -15,6 +15,7 @@
 //   `scripts/check-cpu-trade.ts` で成立側に網を張った。
 //   残り（解雇・レンタル）は golden が効いているので、切り出して差分ゼロを見れば足りる。
 import { tradeBalance, type TradeValueCtx } from '../utils/tradeValue'
+import { playRateOf, prevSeasonOf, type PlayRateSeason } from '../utils/playRate'
 import { appraiseMove, hasNoPlayingTime, type Destination } from '../utils/transferDecision'
 import { isOwnedBy, isTransferLocked } from '../utils/transferEligibility'
 import { comparePlayers } from '../utils/playerSort'
@@ -169,6 +170,9 @@ export function runCpuLoans(
     destinationOf?: (clubId: string, player: Player) => Destination
     allTeams?: Team[]
     foreignLeagues?: ForeignLeague[]
+    /** 出場率を出す材料（utils/playRate）。**省略＝分からない**（0.5 / 0戦） */
+    season?: PlayRateSeason
+    pastSeasons?: readonly ({ year: number } & PlayRateSeason)[]
   },
 ): { players: Player[]; teams: Team[]; news: NewsItem[] } {
   let players = world.players
@@ -209,8 +213,14 @@ export function runCpuLoans(
     // ④本人が行くか。**このまま控えでいるか、1年よそで走るか**の選択なので、
     //   格下への減点は効かせない（loan: true）
     if (ctx.destinationOf) {
+      // 出場率は utils/playRate 1本（レンタルでも省略しない）
+      const lr = ctx.season
+        ? playRateOf(candidate.id, senderId, ctx.season, ctx.allTeams ?? world.teams, ctx.foreignLeagues,
+            prevSeasonOf(ctx.pastSeasons, ctx.year))
+        : { fraction: 0.5, teamRaces: 0 }
       const a = appraiseMove(candidate, ctx.destinationOf(receiver, candidate),
-        { srcTier: tierOfPlayerClub(senderId, tieredClubs), loan: true })
+        { srcTier: tierOfPlayerClub(senderId, tieredClubs), loan: true,
+          playFraction: lr.fraction, teamRaces: lr.teamRaces })
       if (!a.ok) continue
     }
     lent++
@@ -258,6 +268,9 @@ export function runCpuTrades(
     destinationOf?: (clubId: string, player: Player) => Destination
     allTeams?: Team[]
     foreignLeagues?: ForeignLeague[]
+    /** 出場率を出す材料（utils/playRate）。**省略＝分からない**（0.5 / 0戦） */
+    season?: PlayRateSeason
+    pastSeasons?: readonly ({ year: number } & PlayRateSeason)[]
   },
 ): { players: Player[]; teams: Team[]; records: TransferRecord[] } {
   let players = world.players
@@ -317,8 +330,16 @@ export function runCpuTrades(
       //   クラブ同士は釣り合いで合意済みなので clubBlessed = true
       if (ctx.destinationOf) {
         const asks: [Player, string][] = [[target, buyerId], [offered, sellerId]]
-        if (asks.some(([pl, to]) =>
-          !playerConsentToMove(pl, ctx.destinationOf!(to, pl), tierOfPlayerClub(pl.teamId, tradeTieredClubs), 0.5, 0, 0, true).ok)) continue
+        // ★出場率は `utils/playRate` 1本。ベタ書きの 0.5 / 0戦 に戻さないこと
+        //   （teamRaces が 0 だと appraiseMove の関門が一度も発火しない）
+        if (asks.some(([pl, to]) => {
+          const { fraction, teamRaces } = ctx.season
+            ? playRateOf(pl.id, pl.teamId, ctx.season, ctx.allTeams ?? world.teams, ctx.foreignLeagues,
+                prevSeasonOf(ctx.pastSeasons, ctx.year))
+            : { fraction: 0.5, teamRaces: 0 }
+          return !playerConsentToMove(pl, ctx.destinationOf!(to, pl),
+            tierOfPlayerClub(pl.teamId, tradeTieredClubs), fraction, teamRaces, 0, true).ok
+        })) continue
       }
       done++
       tradedIds.add(offered.id); tradedIds.add(target.id)
@@ -451,10 +472,12 @@ export function runCpuMarketTick(
   const bought = runTransferMarket(world, { ...ctx, excludeIds, maxMoves: CPU_TICK_TRANSFERS })
   const traded = runCpuTrades({ players: bought.players, teams: bought.teams },
     { playerTeamId: ctx.playerTeamId, year: ctx.year, tradeValueCtx: ctx.tradeValueCtx, excludeIds, maxTrades: CPU_TICK_TRADES, date: ctx.date,
-      destinationOf: ctx.destinationOf, allTeams: ctx.allTeams, foreignLeagues: ctx.foreignLeagues })
+      destinationOf: ctx.destinationOf, allTeams: ctx.allTeams, foreignLeagues: ctx.foreignLeagues,
+      season: ctx.season, pastSeasons: ctx.pastSeasons })
   const lent = runCpuLoans({ players: traded.players, teams: traded.teams },
     { playerTeamId: ctx.playerTeamId, year: ctx.year, excludeIds, maxLoans: CPU_TICK_LOANS, date: ctx.date,
-      destinationOf: ctx.destinationOf, allTeams: ctx.allTeams, foreignLeagues: ctx.foreignLeagues })
+      destinationOf: ctx.destinationOf, allTeams: ctx.allTeams, foreignLeagues: ctx.foreignLeagues,
+      season: ctx.season, pastSeasons: ctx.pastSeasons })
   return {
     players: lent.players,
     teams: lent.teams,

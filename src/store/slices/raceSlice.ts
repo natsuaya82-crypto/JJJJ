@@ -1,6 +1,7 @@
 // race ドメインのアクション（gameStore から分割）。
 
 import type { GameStore, SetGame } from '../gameStore'
+import { playRateOf, prevSeasonOf } from '../../utils/playRate'
 import { recoverInjuredPlayers, rollRaceInjuries } from '../../engine/raceInjury'
 import { applySegmentPBs } from '../../engine/segmentPB'
 import { generateAiTradeOffers } from '../../engine/aiTradeOffer'
@@ -254,7 +255,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       // CPU同士の移籍の成立は engine/cpuTransfers 1本
       const cpuSettle = settleCpuTransfers({
         players: finalPlayers, teams: state.teams, foreignLeagues: state.foreignLeagues,
-        currentSeason: state.currentSeason, playerTeamId, raceDate: race.date,
+        currentSeason: state.currentSeason, pastSeasons: state.pastSeasons, playerTeamId, raceDate: race.date,
         retiringWishIds, destinationOf: (clubId, p) => get().destinationOf(clubId, p) })
       const cpuTxList = cpuSettle.txList
       const cpuTxListingIds = cpuSettle.settledListingIds
@@ -433,9 +434,15 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
         currentSeason: state.currentSeason, races: updatedRaces,
         playerTeamId, raceDate: race.date, nextClock,
         // ④本人が行くか（オフの一括処理・現金の移籍・トレードと同じ入口）
-        consents: (fa, clubId) => playerConsentToMove(
-          fa, get().destinationOf(clubId, fa),
-          tierOfPlayerClub(fa.teamId, allTieredClubs(state.teams, state.foreignLeagues)), 0.5, 0, 0, true).ok })
+        // 出場率は utils/playRate 1本。**無所属なら関数が 0.5 / 0戦 を返す**ので、
+        // ここで 0.5 / 0 を手書きしないこと（元クラブが残っている選手も同じ道を通る）
+        consents: (fa, clubId) => {
+          const { fraction, teamRaces } = playRateOf(fa.id, fa.teamId, state.currentSeason,
+            state.teams, state.foreignLeagues, prevSeasonOf(state.pastSeasons, state.currentSeason.year))
+          return playerConsentToMove(fa, get().destinationOf(clubId, fa),
+            tierOfPlayerClub(fa.teamId, allTieredClubs(state.teams, state.foreignLeagues)),
+            fraction, teamRaces, 0, true).ok
+        } })
       playersAfterFreeMoves = faResult.players
       teamsAfterFreeMoves = faResult.teams
       freeMoveRecords.push(...faResult.records)
