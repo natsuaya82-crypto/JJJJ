@@ -20,8 +20,15 @@ import type { GmTenure } from '../types'
 
 /** 1チーム分の成績。セーブには持たず、過去シーズンの順位表から数え直す */
 export type TeamHistory = {
-  /** 古い年から順に並んだ、その年の順位と勝ち点 */
-  seasonResults: { year: number; rank: number; points: number }[]
+  /**
+   * 古い年から順に並んだ、その年の**部内順位**と勝ち点、そして**どの部にいたか**。
+   *
+   * ★`rank` は部内順位です。**部をまたいで比べるときは必ず `division` と一緒に使うこと**
+   *   （`domesticThroughRank`）。ドラフト順がこれを取り違えていて、前年2部1位で
+   *   昇格したクラブが「いちばん成績が良かったクラブ」として全体最後の指名になっていました
+   *   （オーナー・2026-08-20）。
+   */
+  seasonResults: { year: number; rank: number; points: number; division: Division }[]
   /**
    * 優勝（1位）した回数の**合計**。
    * ★**画面に「優勝◯回」とだけ出さないこと**（オーナー・2026-08-12「部ごとです」）。
@@ -71,7 +78,7 @@ export function buildTeamHistories(seasons: SeasonStandingsLike[]): TeamHistoryM
         const rank = i + 1
         let h = out[st.teamId]
         if (!h) { h = { seasonResults: [], championships: 0, titles: {}, currentStreak: 0, bestStreak: 0 }; out[st.teamId] = h }
-        h.seasonResults.push({ year: s.year, rank, points: st.totalPoints })
+        h.seasonResults.push({ year: s.year, rank, points: st.totalPoints, division })
         // ★優勝は**その年いた部**に積む。合計だけだと部が混ざる
         if (rank === 1) { h.championships += 1; h.titles[division] = (h.titles[division] ?? 0) + 1 }
         h.currentStreak = rank <= 3 ? h.currentStreak + 1 : 0

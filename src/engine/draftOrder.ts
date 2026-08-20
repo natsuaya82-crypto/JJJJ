@@ -2,22 +2,32 @@
 // 順位からの基準番号（standingsPickNumbers）とロッタリー（draftLotteryOrder）。
 
 import { type Division, type SeasonStanding, type Team } from '../types'
+import { domesticThroughRank } from '../utils/league'
 import { EMPTY_TEAM_HISTORY, type TeamHistoryMap, teamHistoriesOf } from '../utils/teamHistory'
 
 export function pickExistsAnywhere(teams: Team[], ownerId: string, year: number, round: number): boolean {
   return teams.some(t => (t.draftPicks ?? []).some(pk => pk.year === year && pk.round === round && pk.originallyOwnedBy === ownerId))
 }
 
-// 指名権番号を「前年順位の逆順」で振るためのマップ。最下位=1（全体1位指名）〜優勝=N。
-// 各チームの直近シーズン順位（過去シーズンの順位表から数え直した最新年）を使い、成績の悪い順に 1,2,3... を割り当てる。
+// 指名権番号を「前年成績の逆順」で振るためのマップ。最下位=1（全体1位指名）〜優勝=N。
 // 履歴なし（開幕年など）は最下位扱いとし、配列順を維持（＝従来と同じ挙動でフォールバック）。
-// そのチームの直近シーズンの順位（履歴が無ければ最下位扱い）。
+//
 // ★ドラフト順の基準はこれ1本。standingsPickNumbers と draftLotteryOrder が
 //   同じ中身を別々に持っていて、片方だけ直すと基準がズレる形だった
+//
+// ★★**部内順位ではなく通し順位で見ること。**（オーナー・2026-08-20
+//   「昇格組が前年の19位20位と入れ替わるってだけじゃないの？」）
+//   部内順位のまま比べていたので、前年2部1位で昇格したクラブが
+//   「いちばん成績が良かったクラブ」になり、**優勝クラブより後ろの全体最後**に
+//   指名していた（実測：昇格組が20位指名と18位指名）。
+//   通し順位（部→部内順位で数える）にすると、昇格組は21位・22位＝**1部の最下位2つより下**
+//   になり、そのまま「19位・20位の枠に入る」形になる。格を決めるのと同じ物差しなので、
+//   ここに新しい基準を作らないこと。
 function latestRank(t: Team, histories: TeamHistoryMap): number {
   const past = histories[t.id]?.seasonResults ?? []
   if (past.length === 0) return Number.POSITIVE_INFINITY
-  return past.reduce((best, r) => (r.year > best.year ? r : best)).rank
+  const last = past.reduce((best, r) => (r.year > best.year ? r : best))
+  return domesticThroughRank(last.division, last.rank)
 }
 
 /** 成績が悪い順（順位の数字が大きい順）に並べる。ドラフト順の入口2つが同じ並びを使う */

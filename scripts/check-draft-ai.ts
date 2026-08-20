@@ -25,6 +25,7 @@
  */
 import { readFileSync } from 'node:fs'
 import { draftBuzz, draftSalaryFloor, draftTeamNeeds } from '../src/engine/draft'
+import { standingsPickNumbers } from '../src/engine/draftOrder'
 import { SALARY_DIAL_MIN, SALARY_DIAL_STEP } from '../src/data/economy'
 import { faMarketSalary } from '../src/utils/playerUtils'
 import { SPECIALTIES, needsPlayer } from '../src/utils/squadNeeds'
@@ -172,6 +173,33 @@ console.log('[6] 「走れる7人」の関門を緩めてよいのはドラフ�
   check('関門を外すと必要とされる（同じ世界で答えが変わる）',
     needsPlayer(packed, farOff, { requireLineup: false }) === true,
     `${needsPlayer(packed, farOff, { requireLineup: false })}`)
+}
+
+console.log('\n[指名順] 昇格組は「19位・20位の枠」に入る（部内順位で比べない）')
+{
+  // ★オーナー・2026-08-20「昇格組が前年の19位20位と入れ替わるってだけじゃないの？」
+  //   部内順位のまま比べていたので、前年2部1位で昇格したクラブが「いちばん成績が
+  //   良かったクラブ」になり、**優勝クラブより後ろの全体最後**に指名していた。
+  //   ★ここは**実際に並べて確かめる**こと。字面（domesticThroughRank を呼んでいるか）
+  //     だけだと、呼んだ結果を捨てても緑になる。
+  const teams: { id: string }[] = []
+  const histories: Record<string, { seasonResults: { year: number; rank: number; points: number; division: 1 | 2 | 3 }[] }> = {}
+  for (let i = 1; i <= 18; i++) {
+    teams.push({ id: `d1_${i}` })
+    histories[`d1_${i}`] = { seasonResults: [{ year: 2030, rank: i, points: 0, division: 1 }] }
+  }
+  for (const [id, r] of [['up_a', 1], ['up_b', 2]] as [string, number][]) {
+    teams.push({ id })
+    histories[id] = { seasonResults: [{ year: 2030, rank: r, points: 0, division: 2 }] }
+  }
+  const order = standingsPickNumbers(teams as never, histories as never)
+  check('昇格組が全体1位・2位の指名',
+    (order.get('up_b') ?? 0) === 1 && (order.get('up_a') ?? 0) === 2,
+    `2部2位=${order.get('up_b')} / 2部1位=${order.get('up_a')}`)
+  check('前年1部の優勝クラブが最後', (order.get('d1_1') ?? 0) === teams.length, `${order.get('d1_1')}`)
+  check('1部の下位ほど早い指名',
+    (order.get('d1_18') ?? 0) < (order.get('d1_10') ?? 0) &&
+    (order.get('d1_10') ?? 0) < (order.get('d1_2') ?? 0))
 }
 
 console.log('')
