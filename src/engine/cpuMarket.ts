@@ -17,7 +17,8 @@ import { calcTransferValue, faMarketSalary, ovr, perfOf } from '../utils/playerU
 import { roundRobin } from '../utils/roundRobin'
 import { saleAnsweredIds } from '../utils/saleAnswer'
 import { needsPlayer, squadRankOf, thinSpecialties, wouldMakeLineup } from '../utils/squadNeeds'
-import { MAX_OFFERS_PER_PLAYER, MAX_TIER_DROP_FOR_STARTER, hasNoPlayingTime, isStarterNow, regionOfLeague } from '../utils/transferDecision'
+import { MAX_OFFERS_PER_PLAYER, hasNoPlayingTime, regionOfLeague } from '../utils/transferDecision'
+import { inTierBand, playerTierOf, tierLines } from '../utils/playerTier'
 import { canBePoached, canClubApproachAgain, canGoOverseasDream, canLoanOut, canReceiveFreeContact, isOwnedBy } from '../utils/transferEligibility'
 
 export function cpuStrategy(lastRank: number, totalTeams: number, avgAge: number): 'contend' | 'rebuild' | 'balanced' {
@@ -460,25 +461,18 @@ export function generateTransferActivity(
   const offerClubs: (Team | ForeignClub)[] = raceIndex < OFFER_START_RACE ? []
     : [...aiTeams, ...foreignClubs].sort(() => Math.random() - 0.5)
 
-  // ★**強い選手には格上のクラブから声が掛かる**（オーナー・2026-08-15
-  //   「強い選手は上から声かけれる仕様にして」）。
+  // ★**声が掛かるのは、選手の格から `TIER_FALL_LIMIT` より下へ落ちないクラブだけ**（utils/playerTier 1本）。
+  //   本人が受ける範囲（`appraiseMove` の `outOfBand`）とまったく同じ線なので、
+  //   **最初から断られると分かっている往復**が起きません（1レース1件の枠が潰れる）。
   //
-  //   線は**移籍の同意と同じ `MAX_TIER_DROP_FOR_STARTER`（2）1本**で、ここで別の数字を
-  //   作らないこと。`appraiseMove` は「いま走れている選手は2段以上下のクラブへは行かない」で
-  //   関門にしていますが、**打診を作るこちら側はその線を見ていませんでした。**
-  //   その結果、格下のクラブが主力に声を掛け→GMが承諾→本人が断る、という
-  //   最初から決まっている往復で1レース1件の枠を使い切っていました
-  //   （実測・格5のクラブ：OVR85+への打診の23%、OVR80-84への打診の46%が2段以上下から）。
-  //
-  //   ★「走れているか」は `utils/transferDecision` の `isStarterNow` 1本。
-  //     今季3戦以上こなしていれば出場率、まだなら序列（走れる7人）で代わりに見ます。
-  //     ここに判定を手書きしないこと——**同じ問いが本人の関門（`tooFarDown`）にもある**ので、
-  //     食い違うと「声は掛かるが本人は必ず断る」往復が生まれます。
-  //   ★止めるのは**主力への打診だけ**。控えに格下から声が掛かるのは現実にあるので止めない。
-  //     **干されている主力もここでは控え扱い**（序列は上でも走っていないなら、出番を求めて
-  //     格下へ行く話は成立する。オーナー・2026-08-20「出れないから移籍するならわかる」）。
+  //   ここには以前「2段以上格下のクラブは主力（走れる7人）に声を掛けない」という
+  //   別の線がありました。物差しが本人側（出場率）と違っていたうえ、
+  //   「どこまで動いていいか」を決めずに片側だけ蓋をした形でした。
   const myTier = tierOf(teams.find(t => t.id === playerTeamId) ?? { tier: 20 } as Team)
   const myRoster = players.filter(p => p.teamId === playerTeamId && p.status === 'active').sort(comparePlayers('ovr'))
+  // 選手の格の線は世界全体から1回だけ組む（utils/playerTier）
+  const myTierLines = tierLines(players, id =>
+    tierOf(teams.find(t => t.id === id) ?? foreignClubs.find(c => c.id === id)))
 
 
   for (const club of offerClubs) {
@@ -533,12 +527,7 @@ export function generateTransferActivity(
     // 本人が今季そのクラブを断っていたら、もう来ない（canClubApproachAgain）
     targets = targets.filter(p => canClubApproachAgain(p, club.id, currentYear))
     // ★2段以上格下のクラブは、主力（走れる7人）には声を掛けない（上の myTier のコメント）
-    if (tier - myTier >= MAX_TIER_DROP_FOR_STARTER) {
-      targets = targets.filter(p => {
-        const { fraction, teamRaces } = playRate(p.id)
-        return !isStarterNow({ playFraction: fraction, teamRaces, squadRank: squadRankOf(myRoster, p) })
-      })
-    }
+    targets = targets.filter(p => inTierBand(playerTierOf(p, myTierLines), tier))
     if (targets.length === 0) continue
     targets = [...targets].sort((a, b) => effectiveOvr(b) - effectiveOvr(a))
     const target = targets[0]

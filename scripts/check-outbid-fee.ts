@@ -66,6 +66,8 @@ function runOutbid(toClubId: string, leagues: ForeignLeague[]) {
     playerTeamId: 'me', raceDate: `${YEAR}-05-01`, raceClock: 3,
     // 本人はどこへでも行く（ここで見たいのはお金の動きだけ）
     destinationOf: () => ({ tier: 1, squadRank: 1, isForeign: true, region: 'africa' } as never),
+    // 行き先は格1で固定なので、選手の格も1（＝落ちる話ではない）を返す
+    playerTierOf: () => 1 as never,
   } as never)
 }
 

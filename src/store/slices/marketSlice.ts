@@ -13,6 +13,7 @@ import { ROSTER_MAX, canReleaseFromRoster, canSignContract } from '../../data/ro
 import { nationalityToForeignCategory } from '../../engine/playerGenerator'
 import { type AcquisitionOffer, type ContractRequest, type ExpiredNegKind, type ForeignCategory, type IncomingOffer, type Player, type TradeNegotiation, type TransferListing } from '../../types'
 import { MAJOR_NEWS_OVR, allTieredClubs, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
+import { tierLines, playerTierOf as playerTierFromLines } from '../../utils/playerTier'
 import { bigClub, findClub, leagueOfClub } from '../../utils/clubs'
 import { withMorale } from '../../utils/condition'
 import { canOfferRenewal, canReNegotiate, contractTalkCtx, liveContractOf } from '../../utils/contractTalk'
@@ -35,15 +36,19 @@ import { bidBlockReason, loanBlockReason, LOAN_SLOTS } from '../../utils/bidGate
 import { facilitiesOf } from '../../utils/facilities'
 
 type Slice = Pick<GameStore,
-  'releasePlayer' | 'extendContract' | 'renewContractOffer' | 'sendScoutMission' | 'startFAVisit' | 'acceptTradeOffer' | 'rejectTradeOffer' | 'executeTransferPurchase' | 'destinationOf' | 'resolveStayOrLeave' | 'rankIncomingOffers' | 'consentToLeave' | 'acceptIncomingOffer' | 'declineIncomingOffer' | 'acceptIncomingLoanOffer' | 'declineIncomingLoanOffer' | 'initiateContractRenewal' | 'generateContractRequests' | 'submitContractRenewalOffer' | 'acceptContractCounter' | 'reNegotiateContract' | 'abandonContractRenewal' | 'startAcquisitionOffer' | 'submitAcquisitionOffer' | 'acceptAcquisitionCounter' | 'reNegotiateAcquisition' | 'abandonAcquisitionOffer' | 'releasePlayerWithBuyout' | 'counterAllIncomingOffers' | 'counterIncomingOffer' | 'dismissRetirementRequest' | 'acceptRetirement' | 'approveOverseasChallenge' | 'denyOverseasChallenge' | 'dismissTransferRequest' | 'allowPlayerTransfer' | 'toggleNoSale' | 'toggleLoanListed' | 'cancelSellListing' | 'loanInPlayer' | 'loanOutPlayer' | 'submitLoanRequest' | 'cancelLoanRequest' | 'dismissLoanResponse' | 'submitTransferBid' | 'acceptFeeCounter' | 'rejectTransferBid' | 'finalizeTransfer' | 'listMyPlayerForSale' | 'delistMyPlayer' | 'scoutOpponentPlayer' | 'toggleStarOpponent' | 'toggleStarProspect' | 'tradePlayer' | 'proposeTrade' | 'acceptTradeCounter' | 'dismissTradeNegotiation' | 'setChatLog' | 'signForeignPlayer' | 'getTransferWindow' | 'getRosterWindow' | 'refuseFreeContactRetention'>
+  'releasePlayer' | 'extendContract' | 'renewContractOffer' | 'sendScoutMission' | 'startFAVisit' | 'acceptTradeOffer' | 'rejectTradeOffer' | 'executeTransferPurchase' | 'destinationOf' | 'playerTierOf' | 'resolveStayOrLeave' | 'rankIncomingOffers' | 'consentToLeave' | 'acceptIncomingOffer' | 'declineIncomingOffer' | 'acceptIncomingLoanOffer' | 'declineIncomingLoanOffer' | 'initiateContractRenewal' | 'generateContractRequests' | 'submitContractRenewalOffer' | 'acceptContractCounter' | 'reNegotiateContract' | 'abandonContractRenewal' | 'startAcquisitionOffer' | 'submitAcquisitionOffer' | 'acceptAcquisitionCounter' | 'reNegotiateAcquisition' | 'abandonAcquisitionOffer' | 'releasePlayerWithBuyout' | 'counterAllIncomingOffers' | 'counterIncomingOffer' | 'dismissRetirementRequest' | 'acceptRetirement' | 'approveOverseasChallenge' | 'denyOverseasChallenge' | 'dismissTransferRequest' | 'allowPlayerTransfer' | 'toggleNoSale' | 'toggleLoanListed' | 'cancelSellListing' | 'loanInPlayer' | 'loanOutPlayer' | 'submitLoanRequest' | 'cancelLoanRequest' | 'dismissLoanResponse' | 'submitTransferBid' | 'acceptFeeCounter' | 'rejectTransferBid' | 'finalizeTransfer' | 'listMyPlayerForSale' | 'delistMyPlayer' | 'scoutOpponentPlayer' | 'toggleStarOpponent' | 'toggleStarProspect' | 'tradePlayer' | 'proposeTrade' | 'acceptTradeCounter' | 'dismissTradeNegotiation' | 'setChatLog' | 'signForeignPlayer' | 'getTransferWindow' | 'getRosterWindow' | 'refuseFreeContactRetention'>
 
 // トレードの同意判定に渡す材料（engine/tradeConsent）。成立させる側とチャットの打診側で
 // **同じものを渡す**ためにここ1本から作る（手書きすると片方だけ古い state を見る事故が起きる）
 const consentCtxOf = (get: () => GameStore) => () => {
   const st = get()
   return { myTeamId: st.playerTeamId, teams: st.teams, foreignLeagues: st.foreignLeagues, destinationOf: st.destinationOf,
+    playerTierOf: st.playerTierOf,
     currentSeason: st.currentSeason, pastSeasons: st.pastSeasons, year: st.currentSeason.year }
 }
+
+/** 選手の格の線は名簿が変わるまで使い回す（`playerTierOf` のコメント） */
+const tierLineCache: { players: unknown; teams: unknown; lines: number[] } = { players: null, teams: null, lines: [] }
 
 export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => {
   const consentCtx = consentCtxOf(get)
@@ -280,6 +285,24 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
   // 瞬間に選手が動いていた（本人の意思が入るのは買うときだけ、という非対称）。
   // 断られたら今季はこの選手への打診が来なくなる（saleRefusedYear）。
   // 自チームが買いに行って断られたときの transferLockedUntilYear と同じ扱い。
+  // **選手の格**（utils/playerTier）。クラブの格と同じ1〜20で、「その選手はどの格の
+  // クラブで走れるか」。落ちていい幅（選手の格 + TIER_FALL_LIMIT）の関門がこれを見る。
+  //
+  // ★線（各格の走れる7人）は**世界全体から引く**ので、選手ごとに引き直すと
+  //   232クラブ6000人を毎回並べ替えることになる。**名簿が変わるまで使い回す**
+  //   （`destinationOf` と同じで、store から出す口はここ1本）。
+  playerTierOf: (player) => {
+    const state = get()
+    if (tierLineCache.players !== state.players || tierLineCache.teams !== state.teams) {
+      const clubs = allTieredClubs(state.teams, state.foreignLeagues)
+      const byId = new Map(clubs.map(c => [c.id, tierOf(c)]))
+      tierLineCache.players = state.players
+      tierLineCache.teams = state.teams
+      tierLineCache.lines = tierLines(state.players, (id: string) => byId.get(id) ?? tierOfClubId(id))
+    }
+    return playerTierFromLines(player, tierLineCache.lines)
+  },
+
   // 行き先クラブの姿（格・そこで何番手か・ECL出場・順位）を作る。
   // 国内チームでも海外クラブでも同じ入口。判断そのものは utils/transferDecision.ts
   destinationOf: (clubId, player) => {
@@ -345,7 +368,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       prevSeasonOf(state.pastSeasons, state.currentSeason.year))
     const ctx = {
       srcTier: tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)),
-      playFraction: frac, teamRaces: races, clubBlessed: true }
+      playFraction: frac, teamRaces: races, clubBlessed: true, playerTier: get().playerTierOf(player) }
     const ranked = rankOffers(player, offers.map(o => get().destinationOf(o.fromTeamId, player)), ctx)
     // 並べ替えたあとに、どのオファーの話かを取り戻す
     return ranked
@@ -370,7 +393,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     // 本人は行き先の姿だけで決める（買う側の finalizeTransfer と同じ渡し方）
     return appraiseMove(player, get().destinationOf(toTeamId, player), {
       srcTier: tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)),
-      playFraction: frac, teamRaces: races, clubBlessed: true }).ok
+      playFraction: frac, teamRaces: races, clubBlessed: true, playerTier: get().playerTierOf(player) }).ok
   },
 
 
@@ -495,7 +518,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       if (freeContact) {
         const fc = playRateOf(player.id, player.teamId, state.currentSeason, state.teams, state.foreignLeagues, prevSeasonOf(state.pastSeasons, state.currentSeason.year))
         const fcRaces = fc.teamRaces, fcFrac = fc.fraction
-        if (freeContactConsent(player, get().destinationOf(freeContact.fromTeamId, player), tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)), fcFrac, fcRaces)) {
+        if (freeContactConsent(player, get().destinationOf(freeContact.fromTeamId, player), tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)), fcFrac, fcRaces, get().playerTierOf(player))) {
           // 一度断られたらこの接触は「対応済み」：通知・要対応から消し、以後は本人の決断を待つだけ
           return {
             currentSeason: {
@@ -706,7 +729,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
           player, get().destinationOf(state.playerTeamId, player), srcTierAcq,
           playFraction, teamRaces,
           scoutNegoBonus + salaryAppealBonus(salary, marketAcq),
-          offer.source === 'fa',
+          offer.source === 'fa', get().playerTierOf(player),
         )
         if (!consentAcq.ok) return rejectWith('not_convinced')
         const moved = movePlayer(state, player.id, state.playerTeamId, {
@@ -1221,7 +1244,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     // 出場率は utils/playRate 1本（BidSheet が見せている数字と同じ）
     const { fraction: cFrac, teamRaces: cRaces } = playRateOf(player.id, player.teamId,
       state.currentSeason, state.teams, state.foreignLeagues, prevSeasonOf(state.pastSeasons, state.currentSeason.year))
-    const consent = playerConsentToMove(player, get().destinationOf(myTeam.id, player), tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)), cFrac, cRaces, scoutLvT * 0.02 + salaryBonus, true)
+    const consent = playerConsentToMove(player, get().destinationOf(myTeam.id, player), tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)), cFrac, cRaces, scoutLvT * 0.02 + salaryBonus, true, get().playerTierOf(player))
     if (!consent.ok) {
       // 交渉決裂: 入札を破談にし、来季までこの選手への移籍金オファーを不可にする
       set(s => ({

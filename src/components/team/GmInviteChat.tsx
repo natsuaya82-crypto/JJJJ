@@ -39,6 +39,7 @@ export default function GmInviteChat({ player, dest, onAgreed, onClose }: {
     players: store.players, teams: store.teams, foreignLeagues: store.foreignLeagues,
     currentSeason: store.currentSeason, fromTeamId: store.playerTeamId,
     destinationOf: store.destinationOf,
+    playerTierOf: store.playerTierOf,
   }, player.id, dest.id), [player.id, dest.id])
 
   const answer = !verdict ? null

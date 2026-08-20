@@ -19,7 +19,7 @@ import { SpecChip } from '../../player/PlayerChips'
 // --- 他チーム（所属選手を表示し、選手を選ぶと契約オファー＝交渉を開始） ---
 
 export function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: () => void; initialGetId?: string; initialMode?: 'fee' | 'trade'; onNegotiateContract?: (playerId: string) => void }) {
-  const { players, teams, playerTeamId, currentSeason, pastSeasons, proposeTrade, acceptTradeCounter, dismissTradeNegotiation, destinationOf } = useGameStore()
+  const { players, teams, playerTeamId, currentSeason, pastSeasons, proposeTrade, acceptTradeCounter, dismissTradeNegotiation, destinationOf, playerTierOf } = useGameStore()
   const foreignLeagues = useGameStore(s => s.foreignLeagues)
   // 選べる＝動かせる、になるように候補は成立判定と同じものを使う（utils/transferEligibility.ts）。
   // 以前は相手側を素通しにしていたので、相手が他クラブから借りている選手が「もらう」候補に並び、
@@ -54,7 +54,7 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: Team; onC
     const hasKey = getPlayers.some(p => keyPlayerStatus(p, tvCtx.currentSeason, tvCtx.pastSeasons) !== 'open')
     // 本人が断るかは engine/tradeConsent 1本（成立させる tradePlayer・打診の proposeTrade と同じ）。
     // 行き先も store の destinationOf 1本（トレード成立時に使われるものと同じ）
-    const refuser = tradeRefuser(getPlayers, { myTeamId: playerTeamId, teams, foreignLeagues, destinationOf,
+    const refuser = tradeRefuser(getPlayers, { myTeamId: playerTeamId, teams, foreignLeagues, destinationOf, playerTierOf,
       currentSeason, pastSeasons, year: currentSeason.year }, tradeConsentBonus(ratio))
     const blockMsg = refuser?.reason ?? ''
     const nextRound = (neg?.round ?? 0) + 1

@@ -112,6 +112,7 @@ function applyGmMove(state: GameStore, offer: GmOffer, inviteId?: string): Parti
       players, teams: state.teams, foreignLeagues: state.foreignLeagues,
       currentSeason: state.currentSeason, fromTeamId: oldTeamId,
       destinationOf: state.destinationOf,
+      playerTierOf: state.playerTierOf,
     }, invited.id)
     if (fee != null) {
       const m = movePlayer({ players, teams }, invited.id, offer.teamId, {
@@ -829,6 +830,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         players: state.players, teams: state.teams, foreignLeagues: state.foreignLeagues,
         currentSeason: state.currentSeason, fromTeamId: state.playerTeamId,
         destinationOf: state.destinationOf,
+        playerTierOf: state.playerTierOf,
       }, inviteId, offer.teamId)?.ok ? inviteId : undefined
       // ★**就任するのは来季**（オーナー判断★13・2026-08-12「次シーズンの開始になるからね」）。
       //   分岐の材料は「そのオファーが何年のものか」1つだけ。

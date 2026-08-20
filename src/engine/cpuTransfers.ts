@@ -13,6 +13,7 @@
 // ★乱数は引数で受ける（既定は Math.random）。1件につき「成立させるか」1回、
 //   成立させるなら「どのクラブが買うか」1回。順序は切り出し前と同じ。
 import type { ForeignLeague, Player, Season, Team } from '../types'
+import type { ClubTier } from '../utils/clubTier'
 import { ROSTER_MAX } from '../data/rosterRules'
 import { MAJOR_NEWS_OVR, allTieredClubs, tierOfPlayerClub } from '../utils/clubTier'
 import { bigClub } from '../utils/clubs'
@@ -37,9 +38,11 @@ export function settleCpuTransfers(params: {
   retiringWishIds: Set<string>
   /** 行き先の情報を作る（store の destinationOf をそのまま渡す） */
   destinationOf: (clubId: string, player: Player) => Destination
+  /** 選手の格（utils/playerTier）。store の playerTierOf をそのまま渡すこと */
+  playerTierOf: (player: Player) => ClubTier
   rng?: () => number
 }): { txList: CpuTx[]; settledListingIds: Set<string>; news: NewsItem[] } {
-  const { players, teams, foreignLeagues, currentSeason, pastSeasons, playerTeamId, raceDate, retiringWishIds, destinationOf, rng = Math.random } = params
+  const { players, teams, foreignLeagues, currentSeason, pastSeasons, playerTeamId, raceDate, retiringWishIds, destinationOf, playerTierOf, rng = Math.random } = params
     type CpuTx = { playerId: string; fromTeamId: string; toTeamId: string; playerName: string; playerOvr: number; fromShort: string; toShort: string; fee: number }
   const cpuTxList: CpuTx[] = []
   const cpuTxListingIds = new Set<string>()
@@ -78,7 +81,7 @@ export function settleCpuTransfers(params: {
         teams, foreignLeagues, prevSeasonOf(pastSeasons, currentSeason.year))
       if (!appraiseMove(p, destinationOf(buyerTeamId, p), {
         srcTier: tierOfPlayerClub(listing.fromTeamId, allTieredClubs(teams, foreignLeagues)),
-        playFraction: fraction, teamRaces, clubBlessed: true }).ok) continue
+        playFraction: fraction, teamRaces, clubBlessed: true, playerTier: playerTierOf(p) }).ok) continue
       movedThisRace.add(p.id)
       rosterCount.set(buyerTeamId, (rosterCount.get(buyerTeamId) ?? 0) + 1)
       rosterCount.set(listing.fromTeamId, Math.max(0, (rosterCount.get(listing.fromTeamId) ?? 1) - 1))

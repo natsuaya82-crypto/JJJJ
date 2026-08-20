@@ -46,7 +46,7 @@ import { tierBudget, tierOf } from '../src/utils/clubTier'
 import { calcTransferValue } from '../src/utils/playerUtils'
 import { comparePlayers } from '../src/utils/playerSort'
 import { wouldMakeLineup } from '../src/utils/squadNeeds'
-import { MAX_TIER_DROP_FOR_STARTER } from '../src/utils/transferDecision'
+import { TIER_FALL_LIMIT, playerTierOf, tierLines } from '../src/utils/playerTier'
 import type { ForeignClub, IncomingOffer, Player, Team } from '../src/types'
 
 let failed = 0
@@ -82,10 +82,11 @@ const rounds: Run[] = []
 //   （run 0 の名簿で run 5 の打診を割ると、別人の相場で割って6倍などになる）
 const players0 = [...generateCpuRosters(teams, YEAR).cpuPlayers, ...foreignPlayers]
 /** 世界ごとの名簿。[6] は序列を見るので、その打診が出た世界の名簿で引く */
-const worldOf: { byId: Map<string, Player>; myRoster: Player[] }[] = []
+const worldOf: { byId: Map<string, Player>; myRoster: Player[]; players: Player[] }[] = []
 for (let run = 0; run < RUNS; run++) {
   const players = run === 0 ? players0 : [...generateCpuRosters(teams, YEAR - run).cpuPlayers, ...foreignPlayers]
   worldOf[run] = {
+    players,
     byId: new Map(players.map(p => [p.id, p])),
     myRoster: players.filter(p => p.teamId === MY && p.status === 'active').sort(comparePlayers('ovr')),
   }
@@ -199,42 +200,44 @@ console.log('[5] 生成する場所は1か所（貸出の関数に買い取り�
 }
 
 console.log('')
-console.log('[6] 強い選手には格上から声が掛かる（2段以上格下は主力に声を掛けない）')
+console.log('[6] 声が掛かるのは、選手の格から離れすぎないクラブだけ')
 {
-  // オーナー・2026-08-15「強い選手は上から声かけれる仕様にして」。
-  // 線は移籍の同意（appraiseMove）と**同じ `MAX_TIER_DROP_FOR_STARTER` 1本**。
-  // 打診を作る側がこれを見ていなかったので、格下が主力に声を掛け→GMが承諾→本人が断る、
-  // という最初から決まっている往復で1レース1件の枠が潰れていた。
+  // オーナー・2026-08-15「強い選手は上から声かけれる仕様にして」／
+  // 2026-08-20「どこでもエース級がわざわざ格下に行くの？」。
+  // 線は移籍の同意（appraiseMove）と**同じ `utils/playerTier` 1本**。打診を作る側が
+  // 別の線を持っていたころ、格下が主力に声を掛け→GMが承諾→本人が断る、という
+  // 最初から決まっている往復で1レース1件の枠が潰れていた。
   const tierById = new Map<string, number>()
   for (const t of teams) tierById.set(t.id, tierOf(t))
   for (const c of foreignClubs) tierById.set(c.id, tierOf(c as never))
   const myTier = tierById.get(MY)!
-  // ★**世界ごとに名簿が違う**ので、序列は「その打診が出た世界」の名簿で引く。
-  //   run 0 の名簿で run 5 の打診を割ると、同じIDの別人の序列を見ることになる
+  // ★**世界ごとに名簿が違う**ので、序列も選手の格も「その打診が出た世界」で引く
   const all = buys.flatMap(r => r.fresh.map(o => ({ o, run: r.run })))
     .map(x => ({
       p: worldOf[x.run].byId.get(x.o.playerId),
       roster: worldOf[x.run].myRoster,
+      run: x.run,
       tier: tierById.get(x.o.fromTeamId) ?? 20,
     }))
-    .filter((x): x is { p: Player; roster: Player[]; tier: number } => !!x.p)
+    .filter((x): x is { p: Player; roster: Player[]; run: number; tier: number } => !!x.p)
+  const linesOf = new Map<number, number[]>()
+  const ptOf = (x: { p: Player; run: number }) => {
+    let l = linesOf.get(x.run)
+    if (!l) { l = tierLines(worldOf[x.run].players, (id: string) => tierById.get(id) as never); linesOf.set(x.run, l) }
+    return playerTierOf(x.p, l)
+  }
   const starters = all.filter(x => wouldMakeLineup(x.roster, x.p))
-  const farBelow = all.filter(x => x.tier - myTier >= MAX_TIER_DROP_FOR_STARTER)
-  console.log(`      自チーム格${myTier} / 打診 ${all.length}件（うち主力 ${starters.length}件・2段以上格下から ${farBelow.length}件）`)
-  // ★空振り除け。主力への打診が1件も無い世界だと「格下から来ない」は当たり前
+  const farBelow = all.filter(x => x.tier - ptOf(x) >= TIER_FALL_LIMIT)
+  console.log(`      自チーム格${myTier} / 打診 ${all.length}件（うち主力 ${starters.length}件・選手の格から${TIER_FALL_LIMIT}段以上下から ${farBelow.length}件）`)
+  // ★空振り除け。打診が1件も無い世界だと何を見ても当たり前に緑になる
   check('主力への打診が来ている（空振りの緑ではない）', starters.length > 0, `${starters.length}件`)
-  // ★空振り除け その2。格下のクラブが1件も声を掛けていない世界でも当たり前に緑になる
-  check('2段以上格下のクラブからも打診は来ている（控えには来る）', farBelow.length > 0, `${farBelow.length}件`)
-  const bad = starters.filter(x => x.tier - myTier >= MAX_TIER_DROP_FOR_STARTER)
-  check(`主力（走れる7人）に${MAX_TIER_DROP_FOR_STARTER}段以上格下から声が掛かっていない`,
+  const bad = all.filter(x => x.tier - ptOf(x) > TIER_FALL_LIMIT)
+  check(`選手の格から${TIER_FALL_LIMIT}段より下のクラブから声が掛かっていない`,
     bad.length === 0, `${bad.length}件`)
-  // 控えへの打診は止めない（格下が控えを狙うのは現実にある）
-  check('控えには2段以上格下からも声が掛かる',
-    farBelow.some(x => !wouldMakeLineup(x.roster, x.p)))
   // 線を別に作っていないか
   const src = readFileSync('src/engine/cpuMarket.ts', 'utf-8')
-  check('線は MAX_TIER_DROP_FOR_STARTER 1本（数字を手書きしていない）',
-    /MAX_TIER_DROP_FOR_STARTER/.test(src) && !/tier - myTier >= [0-9]/.test(src))
+  check('線は utils/playerTier 1本（数字を手書きしていない）',
+    /inTierBand\(/.test(src) && !/tier - myTier >= [0-9]/.test(src))
 }
 
 console.log('')

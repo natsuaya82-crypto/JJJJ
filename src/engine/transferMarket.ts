@@ -39,6 +39,7 @@
 //   `movePlayer` には `money: false` を渡します（国内側だけ二重に動くのを防ぐため）。
 // ============================================================================
 import { comparePlayers } from '../utils/playerSort'
+import { playerTierOf, tierLines } from '../utils/playerTier'
 import { clubSeasonRaces, playRateOf, type PlayRateSeason } from '../utils/playRate'
 import { buildCareerCounts } from '../utils/careerStats'
 import { allForeignClubs } from '../utils/clubs'
@@ -52,7 +53,7 @@ import {
   transferFeeFor,
 } from '../utils/playerUtils'
 import {
-  MAJOR_NEWS_OVR, allTieredClubs, isBigClub, isStepUp, tierBudget, tierOf, tierOfPlayerClub, tierStrength,
+  DOMESTIC_BOTTOM_TIER, MAJOR_NEWS_OVR, allTieredClubs, isBigClub, isStepUp, tierBudget, tierOf, tierOfPlayerClub, tierStrength,
   type ClubTier,
 } from '../utils/clubTier'
 import { CPU_SELL_FLOOR } from '../data/rosterRules'
@@ -209,6 +210,10 @@ export function runTransferMarket(
   //      裏の部（divisionRaces）と海外リーグ（foreignRaces）まで見る唯一の入口です。
   //    ★選手ごとに1回だけ引く。1回の市場で数千回呼ばれるので、毎回レース結果を
   //      走査すると市場が終わらなくなります（動いた選手は excludeIds で二度と来ない）。
+  // ── **選手の格**（utils/playerTier）。線は世界全体から引くので、市場を回すたびに1回だけ組む
+  const tierByClub = new Map(tieredClubs.map(c => [c.id, tierOf(c)]))
+  const lines = tierLines(players, id => tierByClub.get(id) ?? DOMESTIC_BOTTOM_TIER)
+
   const playRateCache = new Map<string, { fraction: number; teamRaces: number }>()
   const playRateFor = (p: Player) => {
     const hit = playRateCache.get(p.id)
@@ -303,11 +308,10 @@ export function runTransferMarket(
       // ④本人が行くか。**余剰でも聞く**（出番が無いから必ず頷く、とは限らない）。
       //   主力の引き抜きだけクラブが割増で合意済み＝clubBlessed で「主力だから残りたい」を外す
       const srcTier = tierOfPlayerClub(target.teamId, tieredClubs)
-      // ★**出す側での序列も渡すこと。** 出場記録がまだ無いとき（シーズンの頭・旧セーブ）に
-      //   「走れているか」を序列で代わりに見る（`isStarterNow`）。渡さないと、開幕直後は
-      //   全員が出場0＝控え扱いになり、2段以上下への関門が素通りします
+      // ★**選手の格も渡すこと。** 落ちていい幅（選手の格 + TIER_FALL_LIMIT）の関門がこれを見ます
+      //   （`utils/playerTier`）。線は上で1回だけ組んである
       if (!playerConsentToMove(target, ctx.destinationOf(buyClub.id, target), srcTier,
-        tgtFrac, tgtRaces, 0, !surplus, rank).ok) continue
+        tgtFrac, tgtRaces, 0, !surplus, playerTierOf(target, lines)).ok) continue
 
       // 所属・加入年・移籍履歴・移籍リストの札はがしは movePlayer 1本。
       // お金だけは上の帳簿で見ているので money: false（国内側だけ二重に動くのを防ぐ）

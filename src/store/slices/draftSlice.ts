@@ -199,7 +199,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
               state.teams, state.foreignLeagues, prevSeasonOf(state.pastSeasons, state.currentSeason.year))
             return playerConsentToMove(fa, get().destinationOf(clubId, fa),
               tierOfPlayerClub(fa.teamId, allTieredClubs(state.teams, state.foreignLeagues)),
-              fraction, teamRaces, 0, true).ok
+              fraction, teamRaces, 0, true, get().playerTierOf(fa)).ok
           } })
         for (const sg of postSignings) {
           const m = movePlayer({ players: updatedPlayers, teams: [] }, sg.playerId, sg.clubId, {
@@ -610,7 +610,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
           state.teams, state.foreignLeagues, prevSeasonOf(state.pastSeasons, state.currentSeason.year))
         return playerConsentToMove(fa, get().destinationOf(clubId, fa),
           tierOfPlayerClub(fa.teamId, allTieredClubs(state.teams, state.foreignLeagues)),
-          fraction, teamRaces, 0, true).ok
+          fraction, teamRaces, 0, true, get().playerTierOf(fa)).ok
       } })
     const newYear = state.currentSeason.year
     // CPUのFA契約も movePlayer に通す（所属・名簿・加入年をまとめて。名簿に入れるので契約種別も本契約に揃える）

@@ -164,11 +164,10 @@ export function gmInviteNoLine(lead: Appraisal['lead'], player: Player): ChatMes
     no_playing_time: `出場機会が見込めない${stay}`,
     tier_down: `格下への移籍に前向きでない${stay}`,
     loyalty: `今のチームへの愛着が強い${stay}`,
-    // ★`unproven`（今のクラブで1戦も走っていない）に専用の文は置かない。
-    //   「1戦も走っていないので残らせてください」は筋が通らないうえ、
-    //   移籍した選手は1年動けないので、この理由で断る場面がまず出ない
-    //   （オーナー・2026-08-14「1戦もなら残らないからいらんやろ」）
-    unproven: `乗り気ではない${stay}`,
+    // ★`out_of_band`（選手の格から離れたクラブ）に専用の文は置かない。
+    //   「格が離れているので残らせてください」は本人の言い分にならない
+    //   （オーナー・2026-08-14「1戦もなら残らないからいらんやろ」と同じ理由）
+    out_of_band: `乗り気ではない${stay}`,
     dream: `乗り気ではない${stay}`,
     playing_time: `乗り気ではない${stay}`,
     capped: `乗り気ではない${stay}`,

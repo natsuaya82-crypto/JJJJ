@@ -10,6 +10,7 @@
 //   ここだけ「競り勝ったクラブがいる＝確定」で、本人が断って残る道が無かった。
 // ★自チームから出て行った選手とは1年間交渉不可（lockUntilYear）。
 import type { ForeignLeague, Player, Season, Team, TransferListing, TransferRecord, ExpiredNegotiation } from '../types'
+import type { ClubTier } from '../utils/clubTier'
 import { MAJOR_NEWS_OVR, allTieredClubs, tierOfPlayerClub } from '../utils/clubTier'
 import { bigClub, findClub } from '../utils/clubs'
 import { movePlayer, type DepartureNotice } from '../utils/movePlayer'
@@ -36,6 +37,8 @@ export function applySettledTransfers(params: {
   raceDate: string
   raceClock: number
   destinationOf: (clubId: string, player: Player) => Destination
+  /** 選手の格（utils/playerTier）。store の playerTierOf をそのまま渡すこと */
+  playerTierOf: (player: Player) => ClubTier
 }): {
   players: Player[]
   teams: Team[]
@@ -48,7 +51,7 @@ export function applySettledTransfers(params: {
   /** 競り勝ったクラブを本人が断って残ったぶんの通知 */
   stayNegs: ExpiredNegotiation[]
 } {
-  const { origPlayers, teams, foreignLeagues, currentSeason, pastSeasons, listings, txList: cpuTxList, outbidMoves, playerTeamId, raceDate, raceClock, destinationOf } = params
+  const { origPlayers, teams, foreignLeagues, currentSeason, pastSeasons, listings, playerTierOf, txList: cpuTxList, outbidMoves, playerTeamId, raceDate, raceClock, destinationOf } = params
   const players = params.players
   const stayNegs: ExpiredNegotiation[] = []
   // CPUトレード反映 ＋ 移籍リスト入りフラグの同期（他チーム選手にも「移籍希望」が立つ）
@@ -110,7 +113,8 @@ export function applySettledTransfers(params: {
       // ★出場率は utils/playRate 1本。ベタ書きも省略もしないこと（関門が黙って死ぬ）
       const { fraction, teamRaces } = playRateOf(before.id, before.teamId, currentSeason,
         teams, foreignLeagues, prevSeasonOf(pastSeasons, currentSeason.year))
-      if (!appraiseMove(before, dest, { srcTier, playFraction: fraction, teamRaces }).ok) {
+      if (!appraiseMove(before, dest, { srcTier, playFraction: fraction, teamRaces,
+        playerTier: playerTierOf(before) }).ok) {
         // 本人が断った＝残留。誰の手にも渡らないので、理由を通知に残す
         stayNegs.push({
           id: `stay_${mv.playerId}_${raceClock}`, playerId: mv.playerId, playerName: mv.playerName,

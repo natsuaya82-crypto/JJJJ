@@ -27,6 +27,7 @@
 //   性格は「同格・格下のときだけ」効かせる。格上の話を愛着で蹴るのは、移籍の絵として不自然。
 
 import type { OverseasRegion, Player } from '../types'
+import { inTierBand } from './playerTier'
 import { ovr } from './playerUtils'
 import { clubIndexOf } from './rosterSync'
 import { strHash } from './hash'
@@ -246,41 +247,6 @@ export function seeksPlayingTime(a: {
 export const CONSENT_LINE = 0.5
 
 /**
- * **いま走れている選手が、いくつ格の下のクラブまでなら行くか。**
- * これ以上下は関門で止める（点数では止まらない。上の appraiseMove のコメント）。
- * 2＝1段下までは有り、2段下からは行かない（オーナー判断・2026-08-14）。
- */
-export const MAX_TIER_DROP_FOR_STARTER = 2
-
-/**
- * **その選手はいま走れているか。** 移籍の関門（2段以上下へ行かない・格下のクラブが
- * 主力に声を掛けない）が使う唯一の判定。
- *
- * 順番に意味があります。
- *   ① 今季3戦以上こなしているなら、**出場率が正**（実際に走ったかどうかが分かる）
- *   ② まだ分からないなら、**序列**（走れる7人に入るか）で代わりに見る
- *
- * ★②が要るのは、シーズンの頭は全員が出場0で**主力も控えも区別が付かない**ため。
- *   ここが無かったころ、開幕直後の市場では関門が素通りしていました。
- * ★①を先に見るのは、②だけだと**干されている主力**（序列は上だが1戦も走っていない）が
- *   出番を求めて格下へ移れなくなるため。オーナー・2026-08-20
- *   「出れないから移籍するならわかるけど、わざわざ3部とかに行くのはなぜ？」。
- * ★序列が分からない呼び出し口（渡していない）は、①だけで判断します。
- */
-export function isStarterNow(a: {
-  playFraction: number
-  teamRaces: number
-  /** 出す側の名簿での序列。**省略＝分からない**（出場率だけで見る） */
-  squadRank?: number
-}): boolean {
-  if (a.teamRaces >= SETTLED_APPEARANCE_RACES) return a.playFraction >= 0.5
-  return a.squadRank != null && a.squadRank <= RUNNING_SLOTS
-}
-
-/** 出場率を「その選手の姿」として信用しはじめるレース数（`appraiseMove` の関門と同じ線） */
-const SETTLED_APPEARANCE_RACES = 3
-
-/**
  * 無所属を「格いくつ」として数えるか。**格は1〜20なので、その外側**。
  * クラブが無い状態はどのクラブよりも下、という意味しか持たせていない。
  */
@@ -375,11 +341,13 @@ export type MoveContext = {
   playFraction: number
   teamRaces: number
   /**
-   * **出す側の名簿での序列**（1番手＝そのクラブで一番強い）。
-   * 出場記録がまだ無いときに「走れているか」を代わりに見る（`isStarterNow`）。
-   * 省略しても関門は働きますが、**シーズンの頭だけ素通りします。**
+   * **選手の格**（`utils/playerTier` の `playerTierOf`）。クラブの格と同じ1〜20。
+   * **省略できません**——落ちていい幅（選手の格 + TIER_FALL_LIMIT）の関門がこれを見ます。
+   *
+   * ★線（各格の走れる7人）は世界全体から引くので、**市場を回すたびに1回だけ
+   *   `tierLines` を組んで、そこから引いた値を渡すこと**（選手ごとに引き直さない）。
    */
-  srcSquadRank?: number
+  playerTier: ClubTier
   /** 交渉ボーナス（スカウト施設・年俸の上積みなど） */
   bonus?: number
   /**
@@ -419,7 +387,7 @@ export type Appraisal = {
   score: number
   ok: boolean
   /** 一番効いた要素。断った理由・選んだ理由の文言はこれで決める */
-  lead: 'tier_up' | 'tier_down' | 'playing_time' | 'no_playing_time' | 'title' | 'ecl' | 'dream' | 'wrong_region' | 'capped' | 'loyalty' | 'even' | 'unproven'
+  lead: 'tier_up' | 'tier_down' | 'playing_time' | 'no_playing_time' | 'title' | 'ecl' | 'dream' | 'wrong_region' | 'capped' | 'loyalty' | 'even' | 'out_of_band'
   reason: string
   /** 一覧で1行ずつ並べるときの短い理由（選手名を繰り返さない） */
   shortReason: string
@@ -551,37 +519,34 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext): Appra
   const morale = (p.morale ?? MORALE_DEFAULT) < 40 ? 0.1 : (p.morale ?? MORALE_DEFAULT) >= 75 ? -0.05 : 0
   const bonus = ctx.bonus ?? 0
 
-  // ★今の水準で1戦も走っていない選手は、格上のクラブへは移らない。
-  //   サッカーで「3部で試合に出ていない選手を1部が獲る」は起きない。走れることを
-  //   示していない選手は、上のクラブが動く材料そのものが無い。
-  //   点数で表さず関門にするのは、格上の加点(+0.65〜0.90)が大きすぎて必ず押し切られるため。
+  // ★★**移籍で落ちていい格の幅は「選手の格 + TIER_FALL_LIMIT」まで**（`utils/playerTier` 1本）。
+  //   選手の格はクラブの格とまったく同じ1〜20の目盛りで、世界中の在籍枠と選手を
+  //   順位で突き合わせて出す。**上へは制限を置きません**——買う側の `needsPlayer` が
+  //   「そのクラブで14番手以内に入れるか」を見ているので、際限なく上へは行けません。
   //
-  //   ・格上へ行くときだけ（同格・格下へ落ちて出番を取りに行くのは現実にある）
-  //   ・そのクラブが3戦以上こなしているときだけ（開幕直後の「まだ分からない」を
-  //     「走っていない」と読まない。出場率は utils/playRate の1本で出す）
-  // ★無所属には当てない。「今のクラブで1戦も走っていない」という話なので、
-  //   そもそも今のクラブが無い選手には当てはまらない
-  const unproven = !freeAgent && gap > 0 && races >= 3 && frac <= 0
-
-  // ★**いま走れている選手は、格が大きく下のクラブへは行かない**（上の unproven と対の関門）。
-  //   オーナー判断（2026-08-14）「格下げてまでエースになりたいやついないだろ。
-  //   海外でやってる久保がいきなりJ3に移籍するか？」
+  //   ここは点数の綱引きではなく関門です。格上の加点(+0.65〜0.90)も、行き先で
+  //   エースになれる加点(+0.22)も、格差の減点(1段 -0.04)を軽く押し切ってしまうため。
   //
-  //   点数の綱引きにしないのは、行き先でエースになれる加点(+0.22)に対して
-  //   格差の減点が1段 -0.04 しかなく、**5段下でも押し切れて**しまうため
-  //   （実測：1部の主力が2部の話を受ける割合48%、格差は4〜5段下が最多）。
-  //   格上側で同じ理由（+0.65〜0.90が大きすぎる）から関門にしてあるのと揃えた形。
+  //   ★**この1本が、以前あった蓋3枚を置き換えています。戻さないこと。**
+  //       `unproven`                  … 1戦も走っていない選手は格上へ行かない
+  //       `tooFarDown`                … 走れている選手は2段以上下へ行かない
+  //       `cpuMarket` の格差フィルタ    … 2段以上格下のクラブは主力に打診しない
+  //     どれも「どこまで動いていいか」を誰も決めていない状態への後付けで、
+  //     物差しが3つとも違っていました（出場率／出場率／序列）。
   //
-  //   ★**ピークを過ぎた選手には当てない。** 衰えて上で出られなくなった選手が
-  //     下のクラブへ移れないと、行き場が無くて引退するだけになる
-  //     （オーナー「85の36歳とかは全然2部でも欲しいでしょ」）。
-  //   ★止めるのは**いま走れている選手だけ**。控えが出番を求めて格下へ落ちるのは止めない。
-  // 「いま走れているか」は `isStarterNow` 1本（出場記録が無いときは序列で代わりに見る）
-  const starterNow = isStarterNow({ playFraction: frac, teamRaces: races, squadRank: ctx.srcSquadRank })
-  const tooFarDown = !freeAgent && !declining && starterNow && -gap >= MAX_TIER_DROP_FOR_STARTER
+  //   ★**レンタルには当てません**（`loan`）。保有元は変わらないので、
+  //     若手が格下のクラブへ1年出て走るのは、格のズレを埋める話ではない。
+  //   ★**監督について行く話にも当てません**（`followGm`）。これは市場が選手を動かす話
+  //     ではなく、**人について行く**話で、決めるのは本人の愛着です。当てると
+  //     「格1の選手が、監督の移った格8のクラブへは行けない」となり、
+  //     **1人だけ連れて行くという遊びが丸ごと成立しなくなります**（実測：12人全員が断る）。
+  //     ★オーナーに確認すること（2026-08-20 の時点では私の判断で外してあります）。
+  //   ★**無所属にも当てます。** 17クラブが欲しがるOVR83のFAが3部へ即加入する、
+  //     という以前の形はこれで止まります。
+  const outOfBand = !ctx.loan && !ctx.followGm && !inTierBand(ctx.playerTier, d.tier)
 
   const score = tier + playingTime + benched + title + ecl + dreamFit + capped + personality + morale + bonus
-  const ok = score >= CONSENT_LINE && !unproven && !tooFarDown
+  const ok = score >= CONSENT_LINE && !outOfBand
   const parts = { tier, playingTime, benched, title, ecl, dreamFit, capped, personality, morale, bonus }
   // 見出しにする理由は「一番効いた要素」。行くときは一番の後押し、断るときは一番の足かせ。
   //
@@ -606,11 +571,13 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext): Appra
   const best = weights.reduce((a, b) => (ok ? b.v > a.v : b.v < a.v) ? b : a)
   // どれも効いていない（横並び）なら「条件は悪くない」で締める。
   // 関門で止めたときは、その理由をそのまま見出しにする（点数の内訳から選ばない）
-  const lead: Appraisal['lead'] = unproven ? 'unproven'
+  const lead: Appraisal['lead'] = outOfBand ? 'out_of_band'
     : (ok ? best.v <= 0 : best.v >= 0) ? 'even' : best.lead
 
   const REASON_NO: Record<Appraisal['lead'], string> = {
-    unproven: `${p.name}は今のクラブで1戦も走っておらず、格上のクラブが動く段階にない`,
+    out_of_band: d.tier < ctx.playerTier
+      ? `${p.name}は${d.tier < ctx.playerTier ? '' : ''}このクラブで走れる力にまだ届いていない`
+      : `${p.name}は格の離れたクラブへ移る段階にない`,
     no_playing_time: `${p.name}は「${d.squadRank}番手では出番がない」と考えている`,
     dream: `${p.name}は移籍に納得していない`,
     wrong_region: `${p.name}が挑戦したいのは${DREAM_LABEL[dreamRegionOf(p.specialty)]}で、この地域ではない`,
@@ -627,7 +594,7 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext): Appra
   // 「→ 佐藤 健司は「23番手では出番がない」と考えている」だと、その1クラブの話なのか
   // その選手の全体の話なのかが読み取れなかった
   const SHORT_NO: Record<Appraisal['lead'], string> = {
-    unproven: '今のクラブで1戦も走っていない',
+    out_of_band: d.tier < ctx.playerTier ? 'このクラブで走れる力にまだ届いていない' : '格が離れすぎている',
     no_playing_time: `${d.squadRank}番手で出番がない`,
     wrong_region: `行きたいのは${DREAM_LABEL[dreamRegionOf(p.specialty)]}。この地域ではない`,
     tier_down: '格下への移籍に前向きでない',
@@ -641,7 +608,7 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext): Appra
     even: '乗り気ではない',
   }
   const REASON_YES: Record<Appraisal['lead'], string> = {
-    unproven: '条件は悪くない',
+    out_of_band: '条件は悪くない',
     dream: `憧れの${DREAM_LABEL[dreamRegionOf(p.specialty)]}で走りたい`,
     wrong_region: '行きたい地域ではない',
     tier_up: '格上のクラブで挑戦したい',

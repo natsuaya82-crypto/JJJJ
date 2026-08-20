@@ -1,4 +1,5 @@
 import type { ForeignLeague, Player, Team } from '../types'
+import type { ClubTier } from './clubTier'
 import { needsPlayer } from './squadNeeds'
 import { appraiseMove, RUNNING_SLOTS, type Destination } from './transferDecision'
 import { allTieredClubs, tierBudget, tierOfPlayerClub } from './clubTier'
@@ -39,6 +40,8 @@ export function rivalClubsFor(
     /** その選手の今季の出場（utils/playRate の playRateOf で引いて渡すこと） */
     playFraction: number
     teamRaces: number
+    /** 選手の格（utils/playerTier） */
+    playerTier: ClubTier
   },
 ): RivalClub[] {
   const activeRosterByTeam = new Map<string, Player[]>()
@@ -60,7 +63,8 @@ export function rivalClubsFor(
     .filter(t => needsPlayer(activeRosterByTeam.get(t.id) ?? [], target))
     .map(t => ({ t, dest: ctx.destinationOf(t.id, target) }))
     .filter(x => x.dest.squadRank <= RUNNING_SLOTS)
-    .filter(x => appraiseMove(target, x.dest, { srcTier, playFraction: ctx.playFraction, teamRaces: ctx.teamRaces }).ok)
+    .filter(x => appraiseMove(target, x.dest, { srcTier, playFraction: ctx.playFraction, teamRaces: ctx.teamRaces,
+      playerTier: ctx.playerTier }).ok)
     .map(x => ({
       clubId: x.t.id,
       name: x.t.shortName,

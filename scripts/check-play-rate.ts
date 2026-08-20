@@ -1,5 +1,6 @@
 /**
  * **出場率が移籍の判断に本当に届いているか**の網（`utils/playRate` の `playRateOf`）。
+ * 格の関門そのものは `check-player-tier` が見る（世界を1つ作って流す）。
  *
  * ■なぜ要るのか
  *   `appraiseMove` にはオーナー指示（2026-08-14「格下げてまでエースになりたいやつ
@@ -19,20 +20,13 @@
  * ■この点検が見るもの
  *   ① 型が必須のままか（`MoveContext` の2つに `?` が付いていない）
  *   ② 呼び出し口に 0.5 / 0 の手書きが無いか（**否定**なので安全側）
- *   ③ **世界を1つ作って実際に流し**、走れている選手が2段下へ移らないこと
- *   ④ ③が空振りでないこと＝**同じ世界で出場記録だけ消すと、その移籍が起きる**
- *      （「起きない」だけを見ると、そもそも移籍が起こせない世界でも緑になります）
+ *   ③ 今季走っている選手を「1戦も走っていない」にしないこと
  */
-import { runTransferMarket } from '../src/engine/transferMarket'
-import { MAX_TIER_DROP_FOR_STARTER } from '../src/utils/transferDecision'
-import { RUNNING_SLOTS } from '../src/data/rosterRules'
-import { squadRankOf } from '../src/utils/squadNeeds'
 import { playRateOf } from '../src/utils/playRate'
 import { logicSource } from './storeSource'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import type { Destination } from '../src/utils/transferDecision'
-import type { ArchivedSeason, ForeignLeague, Player, Race, Team } from '../src/types'
+import type { Race, Team } from '../src/types'
 
 let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
@@ -79,126 +73,14 @@ console.log('[2] 0.5 / 0 を手書きしていない')
     '自分の部の日程しか入っていないので、他の部と海外の212クラブが全員「0戦」になります')
 }
 
-// ── ③④ 世界を1つ作って実際に流す ─────────────────────
-console.log('[3] 走れている選手は2段以上下のクラブへ移らない')
-
-const YEAR = 2030
-const SIZE = RUNNING_SLOTS * 2 + 4
-
-function player(id: string, teamId: string, o: number, specialty = 'long'): Player {
-  return {
-    id, name: id, teamId, age: 24, status: 'active', specialty,
-    // 24歳・normal（ピーク27）なので declining ではない＝関門の対象
-    growthCurve: 'normal',
-    joinedYear: YEAR - 4, nationality: 'JPN',
-    ratings: { speed: o, stamina: o, mountainUp: o, mountainDown: o, pacing: o, mental: o, recovery: o },
-    contract: { annualSalary: 10_000_000, yearsLeft: 1 },
-    morale: 50, fatigue: 0, potential: o,
-    career: { races: 40, wins: 5, championships: 0, mvpAwards: 0, segmentAwards: 0 },
-  } as unknown as Player
-}
-/** 格は `tierOf` が `team.tier` を先に見るので、ここで直に置く（実在クラブに依らせない） */
-const HI = 'hi'
-const LO = 'lo'
-const team = (id: string, division: number, tier: number): Team =>
-  ({ id, name: id, shortName: id, division, tier, finance: { budget: 5_000_000_000 }, draftPicks: [] } as unknown as Team)
-// 格差はちょうど関門の線（MAX_TIER_DROP_FOR_STARTER = 2段）に置く。
-// 15段も離すと、控えでも点数が届かなくなって④が成立しません（＝何も試せない世界）
-const teams = [team(HI, 1, 5), team(LO, 2, 5 + MAX_TIER_DROP_FOR_STARTER), team('my', 3, 20)]
-
-/** そのクラブの日程。`results` を入れた本数がそのまま「消化レース数」になる */
-function racesFor(clubId: string, runnerIds: string[], n: number): Race[] {
-  return Array.from({ length: n }, (_, i) => ({
-    id: `r${i}`, name: `r${i}`, date: `${YEAR}-0${(i % 9) + 1}-01`,
-    segments: [{ distanceKm: 10, uphillPct: 0, downhillPct: 0 }],
-    results: {
-      teamResults: [{ teamId: clubId, totalTime: 1000, rank: 1 }],
-      segmentResults: [{ segment: 1, runners: runnerIds.map(id => ({ playerId: id, teamId: clubId, time: 1000, rank: 1 })) }],
-    },
-  })) as unknown as Race[]
-}
-
-/**
- * hi＝格上のクラブ。ここで**走れている**エース級を1人だけ「粘り型」にする。
- * lo＝格下のクラブ。粘り型が1人もいない（＝穴）ので、その1人を欲しがる。
- * 名簿は SIZE 人ずつ（CPU_SELL_FLOOR を超えないと1人も出せない）。
- */
-const STAR = 'hi-star'
-const BENCH = 'hi-bench'
-function world(): Player[] {
-  return [
-    // ★STAR を1番手にしないこと。**エース（1番手）は市場に出ません**（sellCandidatesOf の slice(1)）。
-    //   ここを 88 で置いた最初の版は、④も③も「移籍が起こせない世界」で緑でした
-    player('hi-top', HI, 90),
-    player(STAR, HI, 88, 'mountain_up'),
-    // ⑤の対照用：**同じ穴を埋められる控え**（15番手以降）。これが居ないと、
-    //   lo が欲しがるのは STAR だけ＝止めた瞬間に「誰も動かない世界」になり、
-    //   ⑤が「守っている」のか「起こせない」のか区別できません
-    player(BENCH, HI, 80, 'mountain_up'),
-    ...Array.from({ length: SIZE - 3 }, (_, i) => player(`hi${i}`, HI, 86)),
-    ...Array.from({ length: SIZE }, (_, i) => player(`lo${i}`, LO, 62)),
-    ...Array.from({ length: SIZE }, (_, i) => player(`my${i}`, 'my', 60)),
-  ]
-}
-const destinationOf = (clubId: string, p: Player): Destination => {
-  const roster = current.filter(x => x.teamId === clubId && x.status === 'active' && x.id !== p.id)
-  return {
-    clubId, tier: clubId === HI ? 5 : 5 + MAX_TIER_DROP_FOR_STARTER,
-    squadRank: squadRankOf(roster, p), squadSize: roster.length + 1,
-  } as Destination
-}
-let current: Player[] = []
-
-function run(appearances: number): { moved: boolean; to: string } {
-  current = world()
-  // hi のクラブは10戦こなしていて、STAR はそのうち `appearances` 戦に出ている
-  const ran = racesFor(HI, [STAR], appearances)
-  const idle = racesFor(HI, ['hi0'], 10 - appearances)
-  const season = { year: YEAR, races: [], divisionRaces: { 1: [...ran, ...idle], 2: racesFor(LO, ['lo0'], 8) } }
-  const out = runTransferMarket(
-    { players: current, teams, foreignLeagues: [] as ForeignLeague[] },
-    { playerTeamId: 'my', year: YEAR, season, pastSeasons: [] as ArchivedSeason[],
-      rosterCapFor: () => 30, destinationOf, excludeIds: new Set<string>(), date: `${YEAR}-02-01` })
-  const after = out.players.find(p => p.id === STAR)!
-  return { moved: after.teamId !== HI, to: after.teamId }
-}
-
-// ④ **先に空振りでないことを確かめる。** 出場記録が無ければ（＝控え）この移籍は起きる
-const benched = run(0)
-check('④ 出場0なら格下へ動く（この世界でその移籍が起こせる）', benched.moved,
-  'ここが false なら、下の③は「起きない」のではなく「起こせない」＝何も守っていません')
-
-// ③ 本命。10戦中10戦に出ている＝走れている選手は、格5→格20（15段下）へは動かない
-const starter = run(10)
-check(`③ 10戦フル出場なら ${MAX_TIER_DROP_FOR_STARTER}段以上下へは動かない`, !starter.moved,
-  `${STAR} が ${starter.to} へ動きました`)
-
-// ── ⑤ 出場記録が1本も無いとき（シーズンの頭・旧セーブ）でも、
-//    **序列で見る2本目の関門**が主力を守る（`transferMarket` の買う側）。
-//    `tooFarDown` は出場率で見るので、ここが無いと開幕直後は素通りします。
-console.log('[4] 出場記録が無くても、2段以上格下のクラブは主力を買えない')
-{
-  current = world()
-  const noData = { year: YEAR, races: [], divisionRaces: {}, foreignRaces: {} }
-  const out = runTransferMarket(
-    { players: current, teams, foreignLeagues: [] as ForeignLeague[] },
-    { playerTeamId: 'my', year: YEAR, season: noData, pastSeasons: [] as ArchivedSeason[],
-      rosterCapFor: () => 30, destinationOf, excludeIds: new Set<string>(), date: `${YEAR}-02-01` })
-  const star = out.players.find(p => p.id === STAR)!
-  // STAR は HI で2番手＝走れる7人。lo は2段下なので買いに来られない
-  check('⑤ 出場データ無しでも、走れる7人は2段下へ売られない', star.teamId === HI,
-    `${STAR} が ${star.teamId} へ動きました`)
-  // 空振りでないこと：同じ世界で**控え**（15番手以降）なら動く
-  const benchMoved = out.players.find(p => p.id === BENCH)!.teamId !== HI
-  check('⑤ 空振りでない（同じ世界で控えは動く）', benchMoved,
-    'この世界では誰も動かない＝⑤は何も守っていません')
-}
-
 // ── ⑥ 今季走っている選手を「1戦も走っていない」にしないこと ────────────
 //    前シーズンの日程は「**いまのクラブ**が去年走ったぶん」なので、今年そこへ移ってきた
 //    選手は1本も載っていません。今季もう走っているのにそちらを見ると 0/10 になり、
 //    `appraiseMove` の `unproven`（今のクラブで1戦も走っていない）に当たります。
-console.log('[5] 今季走っている選手は、前シーズンで上書きされない')
+const YEAR = 2030
+const HI = 'hi'
+const teams = [{ id: HI, name: HI, shortName: HI, division: 1, tier: 5 }] as unknown as Team[]
+console.log('[3] 今季走っている選手は、前シーズンで上書きされない')
 {
   const mk = (id: string, runners: string[]): Race => ({
     id, name: id, date: `${YEAR}-01-01`, segments: [{ distanceKm: 10, uphillPct: 0, downhillPct: 0 }],

@@ -8,6 +8,7 @@
 //   クラブは「強いから」ではなく「必要だから」動く（needsPlayer / wouldMakeLineup）。
 //   誰が参加するかは需要、誰が勝つかは格（出せる額は格の年間予算から）。
 // ★競り負けは金額の問題なので、来季まで交渉不可のロックはかけない。
+import type { ClubTier } from '../utils/clubTier'
 import type { ArchivedSeason, ExpiredNegKind, ExpiredNegotiation, ForeignLeague, Player, Race, Season, Team, TransferBid, TransferListing } from '../types'
 import { playRateOf, prevSeasonOf } from '../utils/playRate'
 import { resolveBid, type BidContext } from '../utils/transferBid'
@@ -65,13 +66,15 @@ export function resolveTransferBids(params: {
   raceClock: number
   playerTeamId: string
   destinationOf: (clubId: string, player: Player) => Destination
+  /** 選手の格（utils/playerTier）。store の playerTierOf をそのまま渡すこと */
+  playerTierOf: (player: Player) => ClubTier
 }): {
   bids: TransferBid[]
   expiredNegs: ExpiredNegotiation[]
   expiredPlayerIds: string[]
   outbidMoves: { playerId: string; toTeamId: string; fee: number; playerName: string; clubName: string }[]
 } {
-  const { bids, players, teams, foreignLeagues, listings, currentSeason, pastSeasons, races, raceClock, playerTeamId, destinationOf } = params
+  const { bids, players, teams, foreignLeagues, listings, currentSeason, pastSeasons, races, raceClock, playerTeamId, destinationOf, playerTierOf } = params
   // 入札(移籍金オファー)の応答。判定は utils/transferBid の resolveBid 1本。
   // サブの1戦を進めたときも同じ関数を呼ぶので、進め方で結果が変わらない
   const bidExpiredNegs: ExpiredNegotiation[] = []
@@ -96,7 +99,7 @@ export function resolveTransferBids(params: {
     return rivalClubsFor(target, {
       teams: teams, players: players, playerTeamId,
       foreignLeagues: foreignLeagues ?? [],
-      playFraction: fraction, teamRaces,
+      playFraction: fraction, teamRaces, playerTier: playerTierOf(target),
       destinationOf: (clubId, p) => destinationOf(clubId, p) })
   }
   // 競り負けた選手（相手クラブへ実際に移す）

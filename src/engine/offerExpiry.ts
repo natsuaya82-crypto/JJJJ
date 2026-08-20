@@ -8,6 +8,7 @@
 // ★本人が行くかの判定は utils/playerUtils の freeContactConsent 1本
 //   （中身は playerConsentToMove ＝ 移籍の同意と同じ式。ここで別の理屈を書かない）。
 import type { ExpiredNegotiation, ForeignLeague, Player, Race, Season, Team } from '../types'
+import type { ClubTier } from '../utils/clubTier'
 import { allTieredClubs, tierOfPlayerClub } from '../utils/clubTier'
 import { type NewsItem, freeTransferHeadline } from '../utils/newsItems'
 import { freeContactConsent, seasonAppearances } from '../utils/playerUtils'
@@ -27,6 +28,8 @@ export function resolveExpiredOffers(params: {
   ranRaces: Race[]
   raceDate: string
   destinationOf: (clubId: string, player: Player) => Destination
+  /** 選手の格（utils/playerTier）。store の playerTierOf をそのまま渡すこと */
+  playerTierOf: (player: Player) => ClubTier
 }): {
   expiredNegs: ExpiredNegotiation[]
   expiredPlayerIds: string[]
@@ -34,7 +37,7 @@ export function resolveExpiredOffers(params: {
   freeMoves: { playerId: string; toTeamId: string }[]
   freeMoveNews: NewsItem[]
 } {
-  const { players, teams, foreignLeagues, currentSeason, playerTeamId, nextClock, nextRaceIndex, ranRaces, raceDate, destinationOf } = params
+  const { players, teams, foreignLeagues, currentSeason, playerTeamId, nextClock, nextRaceIndex, ranRaces, raceDate, destinationOf, playerTierOf } = params
   // incomingOffer期限切れ（5試合）→ 失効通知＋1年交渉ロック
   // ※フリー移籍の接触（offeredPrice=0）は対象外：下の「本人決断」で処理する
   const offerExpiredNegs: ExpiredNegotiation[] = []
@@ -69,7 +72,7 @@ export function resolveExpiredOffers(params: {
     const isRetiringFl = (currentSeason.retirementRequests ?? []).some(r => r.playerId === pl.id)
     const leaves = suitorSize >= 30 || isRetiringFl ? false
       : pl.contract.yearsLeft > 1 ? false
-      : freeContactConsent(pl, destinationOf(suitor.id, pl), tierOfPlayerClub(pl.teamId, allTieredClubs(teams, foreignLeagues)), flFrac, nextRaceIndex)
+      : freeContactConsent(pl, destinationOf(suitor.id, pl), tierOfPlayerClub(pl.teamId, allTieredClubs(teams, foreignLeagues)), flFrac, nextRaceIndex, playerTierOf(pl))
     freeDecisionNotices.push({ id: o.id, playerId: pl.id, playerName: pl.name, toTeamName: suitor.shortName, left: leaves })
     if (leaves) freeMoves.push({ playerId: pl.id, toTeamId: suitor.id })
   })

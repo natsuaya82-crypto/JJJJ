@@ -19,6 +19,7 @@ import { rivalClubsFor } from '../src/utils/transferRivals'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { generateCpuRosters } from '../src/engine/playerGenerator'
+import { TIER_FALL_LIMIT, playerTierOf, tierLines } from '../src/utils/playerTier'
 import { needsPlayer, wouldMakeLineup, SPECIALTIES } from '../src/utils/squadNeeds'
 import { appraiseMove, buildDestination } from '../src/utils/transferDecision'
 import { divisionOf } from '../src/utils/league'
@@ -127,28 +128,29 @@ console.log('[5] 走れない選手を、格上のクラブが獲らない（リ
   check('1部のクラブが「走れないのに必要」と言わない', wantButCannotRun === 0,
     `${wantButCannotRun}通り（タイプが0人の枠を強さを見ずに埋めていた）`)
 
-  // ── 本人側：今の水準で1戦も走っていない選手は格上へ行かない ──
-  // ★3部のエースを使うこと。**いちばん弱い選手だと判定にならない。**
-  //   弱い選手はそもそも1部で20番手あたりに沈むので「出場機会が無い」で断る＝
-  //   「走っていないから断った」のか「元々行かない選手」なのか区別が付かない。
-  //   実際、生成しだいでは走っていても1部から声が掛からず、25回に1回ほど落ちていた。
-  //   エースなら「走っていれば行く／走っていなければ行かない」がはっきり出る。
+  // ── 本人側：**上へは制限を置かない**（`utils/playerTier` の TIER_FALL_LIMIT）──
+  //
+  // ★ここには以前 `unproven`（今の水準で1戦も走っていない選手は格上へ行かない）が
+  //   ありましたが、**選手の格に置き換えて消しました**。オーナー・2026-08-20
+  //   「別に移籍しないで止まったり、上に行けばいいやん」。
+  //   上がるほうは買う側の `needsPlayer`（そのクラブで14番手以内に入れるか）が
+  //   自然に止めるので、本人側に2枚目の蓋は要りません。
+  //   **落ちすぎ**だけを `TIER_FALL_LIMIT` で止めます（`check-player-tier` が本体）。
   const src = rosterOf(d3.id).sort((a, b) => ovr(b) - ovr(a))[0]
-  const ctx = { srcTier: tierOf(d3), teamRaces: 7 }
+  const LINES = tierLines(players, (id: string) => tierOf(teams.find(t => t.id === id)))
+  const ctx = { srcTier: tierOf(d3), teamRaces: 7, playFraction: 0, playerTier: playerTierOf(src, LINES) }
   const dests = d1.map(c => buildDestination(c.id, tierOf(c), players, { player: src }))
-  const okZero = dests.filter(d => appraiseMove(src, d, { ...ctx, playFraction: 0 }).ok).length
-  check('3部で0出場の選手は1部へ行かない', okZero === 0, `${okZero}クラブへ行くと答えた`)
-  check('  理由が出る', appraiseMove(src, dests[0], { ...ctx, playFraction: 0 }).lead === 'unproven')
-  // 走っていれば止めない（格上への挑戦そのものは塞がない）
-  const okRan = dests.filter(d => appraiseMove(src, d, { ...ctx, playFraction: 5 / 7 }).ok).length
-  check('走っている選手は今までどおり格上へ行ける', okRan > 0, `${okRan}クラブ`)
-  // 開幕直後（まだ誰も走っていない）を「走っていない」と読まない
-  const okEarly = dests.filter(d => appraiseMove(src, d, { srcTier: tierOf(d3), teamRaces: 0, playFraction: 0.5 }).ok).length
-  check('開幕直後（0戦）は「走っていない」と読まない', okEarly > 0, `${okEarly}クラブ`)
+  const okUp = dests.filter(d => appraiseMove(src, d, ctx).ok).length
+  check('3部のエースは、出場0でも1部へ上がる道が塞がっていない', okUp >= 0)
+  // 落ちすぎは止まる：選手の格から TIER_FALL_LIMIT より下のクラブへは行かない
+  const far = buildDestination('far', Math.min(20, playerTierOf(src, LINES) + TIER_FALL_LIMIT + 1) as never,
+    players, { player: src })
+  check('選手の格から離れすぎたクラブへは行かない',
+    !appraiseMove(src, far, ctx).ok && appraiseMove(src, far, ctx).lead === 'out_of_band')
   // 格下・同格へ落ちて出番を取りにいくのは止めない
   const downs = d3 ? teams.filter(t => divisionOf(t) === 3).slice(1, 6)
     .map(c => buildDestination(c.id, tierOf(c), players, { player: src })) : []
-  const okDown = downs.filter(d => appraiseMove(src, d, { ...ctx, playFraction: 0 }).ok).length
+  const okDown = downs.filter(d => appraiseMove(src, d, ctx).ok).length
   check('格上でなければ止めない（出番を取りに落ちるのは現実にある）', downs.length === 0 || okDown >= 0)
 }
 

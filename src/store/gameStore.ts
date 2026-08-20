@@ -51,6 +51,7 @@ import { reconcileTalks } from '../utils/talkSync'
 // 選手がクラブを移るときの後始末は movePlayer.ts に集約（所属・名簿・移籍金・履歴・レンタル）
 import { movePlayer } from '../utils/movePlayer'
 import { type Destination, type Appraisal } from '../utils/transferDecision'
+import type { ClubTier } from '../utils/clubTier'
 // トレードの釣り合いの判断（下限・上限・主力割増・OVR差）は tradeValue.ts の1箇所
 // 殿堂入りチーム（登録時の数値で固定）
 // 監督の在任履歴と、他チームからの監督オファー
@@ -192,6 +193,8 @@ export type GameStore = GameState & {
   executeTransferPurchase: (listingId: string, price: number) => boolean
   // 行き先クラブの姿（格・そこで何番手か・ECL・順位）を作る
   destinationOf: (clubId: string, player: Player) => Destination
+  /** 選手の格（utils/playerTier）。落ちていい幅（選手の格 + TIER_FALL_LIMIT）の関門が見る */
+  playerTierOf: (player: Player) => ClubTier
   // 行き先が決まらなかった退団予定の選手を、FAで出すか残留させるか
   resolveStayOrLeave: (playerId: string, choice: 'stay' | 'release') => void
   // 同時に来ている打診を本人の希望順に並べる（1位が本命）

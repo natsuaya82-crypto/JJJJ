@@ -105,6 +105,7 @@ function runInvite(pickPlayer: (roster: Player[]) => Player | undefined) {
   const verdict = target ? appraiseGmInvite({
     players: st.players, teams: st.teams, foreignLeagues: st.foreignLeagues,
     currentSeason: st.currentSeason, fromTeamId: MY, destinationOf: st.destinationOf,
+    playerTierOf: st.playerTierOf,
   }, target.id, destId) : null
   S().acceptGmOffer(destId, target?.id)
   S().endSeason()

@@ -25,6 +25,7 @@ import { generateCpuRosters } from '../src/engine/playerGenerator'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { tierOf } from '../src/utils/clubTier'
+import { playerTierOf, tierLines } from '../src/utils/playerTier'
 import type { ClubTier } from '../src/utils/clubTier'
 import type { Player, Team } from '../src/types'
 
@@ -43,6 +44,11 @@ for (const p of players) {
   const l = byTeam.get(p.teamId); if (l) l.push(p); else byTeam.set(p.teamId, [p])
 }
 
+// 選手の格の線は世界から1回だけ組む（utils/playerTier）
+const tierById = new Map(teams.map(t => [t.id, tierOf(t)]))
+const LINES = tierLines(players, (id: string) => tierById.get(id))
+const PT = (p: Player) => playerTierOf(p, LINES)
+
 // 同じ行き先を渡したとき、窓口（playerConsentToMove）と本体（appraiseMove）の答えが一致するか。
 // 「主力だから残りたい」で落ちたぶんだけは食い違ってよい（別軸なので）。
 let same = 0, keyOnly = 0, bad = 0
@@ -54,8 +60,8 @@ for (const p of players) {
     const destTier = tierOf(dest) as ClubTier
     const srcTier = tierOf(teams.find(t => t.id === p.teamId))
     const d = buildDestination(dest.id, destTier, byTeam.get(dest.id) ?? [], { player: p })
-    const real = appraiseMove(p, d, { srcTier })
-    const shown = playerConsentToMove(p, d, srcTier)
+    const real = appraiseMove(p, d, { srcTier, playFraction: 0.5, teamRaces: 0, playerTier: PT(p) })
+    const shown = playerConsentToMove(p, d, srcTier, 0.5, 0, 0, false, PT(p))
     if (real.ok === shown.ok) { same++; continue }
     // 食い違うのは「主力だから残りたい」で落ちたときだけのはず
     const key = isDataKeyPlayer(p, 0.5, 0)
@@ -86,7 +92,8 @@ console.log('[抜け道が塞がっているか]')
     const srcTier = tierOf(teams.find(t => t.id === p.teamId))
     const fake = buildDestination(String(destTier), destTier, [], {})
     const realD = buildDestination(dest.id, destTier, byTeam.get(dest.id) ?? [], { player: p })
-    if (playerConsentToMove(p, fake, srcTier).ok !== playerConsentToMove(p, realD, srcTier).ok) differ++
+    if (playerConsentToMove(p, fake, srcTier, 0.5, 0, 0, false, PT(p)).ok
+      !== playerConsentToMove(p, realD, srcTier, 0.5, 0, 0, false, PT(p)).ok) differ++
   }
   console.log(`  空のロスターで作った行き先と本物とでは、300人中 ${differ}人で答えが変わる`)
   check('空の行き先と本物とで答えが変わる（＝行き先を渡す意味がある）', differ > 0, '変わらないなら判定が行き先を見ていない')

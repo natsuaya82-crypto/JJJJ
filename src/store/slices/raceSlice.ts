@@ -256,7 +256,8 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const cpuSettle = settleCpuTransfers({
         players: finalPlayers, teams: state.teams, foreignLeagues: state.foreignLeagues,
         currentSeason: state.currentSeason, pastSeasons: state.pastSeasons, playerTeamId, raceDate: race.date,
-        retiringWishIds, destinationOf: (clubId, p) => get().destinationOf(clubId, p) })
+        retiringWishIds, destinationOf: (clubId, p) => get().destinationOf(clubId, p),
+        playerTierOf: (p) => get().playerTierOf(p) })
       const cpuTxList = cpuSettle.txList
       const cpuTxListingIds = cpuSettle.settledListingIds
       const cpuTxNewsItems = cpuSettle.news
@@ -268,7 +269,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const expiry = resolveExpiredOffers({
         players: finalPlayers, teams: state.teams, foreignLeagues: state.foreignLeagues,
         currentSeason: state.currentSeason, playerTeamId, nextClock, nextRaceIndex,
-        ranRaces: updatedRaces, raceDate: race.date,
+        ranRaces: updatedRaces, raceDate: race.date, playerTierOf: (p) => get().playerTierOf(p),
         destinationOf: (clubId, p) => get().destinationOf(clubId, p) })
       const offerExpiredNegs = expiry.expiredNegs
       const offerExpiredPlayerIds = expiry.expiredPlayerIds
@@ -296,7 +297,8 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
         players: finalPlayers, teams: state.teams, foreignLeagues: state.foreignLeagues ?? [],
         listings: transferData.listings, currentSeason: state.currentSeason,
         pastSeasons: state.pastSeasons, races: updatedRaces, raceClock: nextClock, playerTeamId,
-        destinationOf: (clubId, p) => get().destinationOf(clubId, p) })
+        destinationOf: (clubId, p) => get().destinationOf(clubId, p),
+        playerTierOf: (p) => get().playerTierOf(p) })
       const processedBids = bidResult.bids
       const bidExpiredNegs = bidResult.expiredNegs
       const bidExpiredPlayerIds = bidResult.expiredPlayerIds
@@ -338,6 +340,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
         origPlayers: state.players, currentSeason: state.currentSeason,
         listings: transferData.listings, txList: cpuTxList, outbidMoves,
         playerTeamId, raceDate: race.date, raceClock: nextClock,
+        playerTierOf: (p) => get().playerTierOf(p),
         destinationOf: (clubId, p) => get().destinationOf(clubId, p) })
       const playersWithCpuTx = applied.players
       const teamsWithCpuTx = applied.teams
@@ -444,7 +447,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
             state.teams, state.foreignLeagues, prevSeasonOf(state.pastSeasons, state.currentSeason.year))
           return playerConsentToMove(fa, get().destinationOf(clubId, fa),
             tierOfPlayerClub(fa.teamId, allTieredClubs(state.teams, state.foreignLeagues)),
-            fraction, teamRaces, 0, true).ok
+            fraction, teamRaces, 0, true, get().playerTierOf(fa)).ok
         } })
       playersAfterFreeMoves = faResult.players
       teamsAfterFreeMoves = faResult.teams

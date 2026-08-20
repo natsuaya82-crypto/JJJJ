@@ -39,7 +39,7 @@ const CHECKS = [
   'layers',
   // チャット・交渉
   'chat-dup', 'chat-lines', 'chat-log', 'contract-talk', 'demand-gates', 'sale-answer',
-  'consent-single', 'move-reason', 'tier-drop', 'release-gate', 'offer-result', 'gm-offer',
+  'consent-single', 'move-reason', 'release-gate', 'offer-result', 'gm-offer',
   // 移籍・市場
   'fa-market', 'transfer-eligibility', 'market-sorting', 'transfer-lock',
   // transfer-bid は片付いた（12件 → 8件 → 0件）。最後の8件は**仕様が変わったのに
@@ -91,8 +91,11 @@ const CHECKS = [
   'race-points', 'race-record', 'background-race', 'round-robin', 'division-rank',
   'division-sync', 'away-records', 'domestic-records', 'segment-recommend',
   // 出場率が移籍の判断に届いているか。**関門は書いてあるのに材料が渡っていない**という
-  // 形（2026-08-20）を見張る。世界を1つ作って実際に流す＋その世界で移籍が起こせることも見る
+  // 形（2026-08-20）を見張る
   'play-rate',
+  // 選手の格（どの格のクラブで走れるか）。移籍で落ちていい幅はここ1本で、
+  // 以前の蓋3枚（unproven / tooFarDown / 打診の格差フィルタ）を置き換えている
+  'player-tier',
   // 世界大会・コース
   'national-pool', 'wa-races', 'course-names', 'world-courses',
   // continental は**分布の検査**。以前は種を固定しておらず、走らせるたびに別の世界を

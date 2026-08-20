@@ -288,61 +288,33 @@ const corr = () => {
 }
 console.log(`\n【(5) OVRと格の相関】1年動かしたあと ${corr().toFixed(3)}（-1に近いほど「強い選手ほど格上」）`)
 
-// ── (6) 関門は生きているか ─────────────────────────────
-// `appraiseMove` の `tooFarDown`（いま走れている選手は2段以上下へ行かない）は
-// `ctx.teamRaces` / `ctx.playFraction` を**呼ぶ側から渡されて初めて**働く。
-// 渡していなければ races=0 / frac=0.5 の既定値になり、関門は一度も発火しない。
-import { playRateOf } from '../src/utils/playRate'
-import { isDeclining } from '../src/engine/ageCurve'
-import { MAX_TIER_DROP_FOR_STARTER } from '../src/utils/transferDecision'
+// ── (6) 選手の格（utils/playerTier）が効いているか ──────────
+import { tierLines, playerTierOf, TIER_FALL_LIMIT } from '../src/utils/playerTier'
+import { tierOf as tierOfClub } from '../src/utils/clubTier'
 
-// ★出場率は**測る年のもの**を見る。1年目の season を使い回すと、
-//   助走のあいだに動いた選手が全員「そのクラブで0戦」になります
-const season0 = seasonAtMeasure
-let starters = 0, wouldBlock = 0, decl = 0
-const blockedBand = new Map<string, number>()
-const blockedKind = new Map<string, number>()
-for (const r of rows) {
-  if (dirOf(r) !== '格下') continue
-  const p = pmap.get(r.playerId)!
-  const { fraction, teamRaces: tr } = playRateOf(p.id, r.from, season0, st0.teams, st0.foreignLeagues)
-  const declining = isDeclining(p.growthCurve ?? 'normal', p.age)
-  const starterNow = tr >= 3 && fraction >= 0.5
-  if (starterNow) starters++
-  if (declining) decl++
-  if (!declining && starterNow && tierOf(r.to) - tierOf(r.from) >= MAX_TIER_DROP_FOR_STARTER) {
-    wouldBlock++
-    blockedBand.set(band(ovr(p)), (blockedBand.get(band(ovr(p))) ?? 0) + 1)
-    blockedKind.set(r.kind, (blockedKind.get(r.kind) ?? 0) + 1)
-  }
-}
-const downRows = rows.filter(r => dirOf(r) === '格下')
-console.log(`\n【(6) 関門 tooFarDown を本当の出場率で当てたら】`)
-console.log(`  格下へ動いた ${downRows.length}件のうち`)
-console.log(`    いま走れている（3戦以上＋出場率50%以上）   ${starters}件（${(starters / downRows.length * 100).toFixed(1)}%）`)
-console.log(`    ピークを過ぎている（declining＝関門の対象外） ${decl}件（${(decl / downRows.length * 100).toFixed(1)}%）`)
-console.log(`    → 関門で止まるはず                          ${wouldBlock}件（${(wouldBlock / downRows.length * 100).toFixed(1)}%）`)
-for (const b of BANDS) console.log(`        OVR ${b.padEnd(6)} ${blockedBand.get(b) ?? 0}件`)
-console.log(`      残っているものの経路：` + [...blockedKind].map(([k, n]) => `${k}=${n}`).join(' '))
+const byId = new Map(clubsAll.map(c => [c.id, tierOfClub(c)]))
+const lines0 = tierLines(st0.players, (id: string) => byId.get(id) ?? 20)
+const pt = (p: typeof st0.players[0]) => playerTierOf(p, lines0)
 
-// declining（ピーク越え）で関門を外れている選手の年齢
-const declAges = new Map<string, number>()
-let declStarterDeep = 0
-const declStarterDeepAges = new Map<string, number>()
-for (const r of downRows) {
-  const p = pmap.get(r.playerId)!
-  if (!isDeclining(p.growthCurve ?? 'normal', p.age)) continue
-  declAges.set(aband(p.age), (declAges.get(aband(p.age)) ?? 0) + 1)
-  const { fraction, teamRaces: tr } = playRateOf(p.id, r.from, season0, st0.teams, st0.foreignLeagues)
-  if (tr >= 3 && fraction >= 0.5 && tierOf(r.to) - tierOf(r.from) >= MAX_TIER_DROP_FOR_STARTER) {
-    declStarterDeep++
-    declStarterDeepAges.set(aband(p.age), (declStarterDeepAges.get(aband(p.age)) ?? 0) + 1)
+console.log(`\n【(6) 選手の格 と クラブの格】`)
+{
+  const act = st0.players.filter(p => p.status === 'active' && p.teamId)
+  const diff = new Map<number, number>()
+  for (const p of act) {
+    const d = (byId.get(p.teamId!) ?? 20) - pt(p)
+    diff.set(d, (diff.get(d) ?? 0) + 1)
   }
+  const inBand = act.filter(p => (byId.get(p.teamId!) ?? 20) - pt(p) <= TIER_FALL_LIMIT).length
+  console.log(`  クラブの格が「選手の格 + ${TIER_FALL_LIMIT}」以内の選手：${inBand} / ${act.length}人（${(inBand / act.length * 100).toFixed(1)}%）`)
+  console.log('  ズレの分布（＋＝クラブの格のほうが下＝本人のほうが強い）')
+  for (const d of [...diff.keys()].sort((a, b) => a - b)) {
+    if (Math.abs(d) > 6) continue
+    console.log(`    ${String(d).padStart(3)} … ${diff.get(d)}人`)
+  }
+  const dist = new Map<number, number>()
+  for (const p of act) dist.set(pt(p), (dist.get(pt(p)) ?? 0) + 1)
+  console.log('  選手の格の分布：' + [...dist.keys()].sort((a, b) => a - b).map(t => `${t}:${dist.get(t)}`).join(' '))
 }
-console.log(`\n  ピーク越えで関門を免れている ${[...declAges.values()].reduce((a, b) => a + b, 0)}件の年齢`)
-for (const b of ABANDS) console.log(`    ${b.padEnd(6)} ${declAges.get(b) ?? 0}件`)
-console.log(`  そのうち「いま走れていて2段以上下へ」＝免除が無ければ止まるもの ${declStarterDeep}件`)
-for (const b of ABANDS) console.log(`    ${b.padEnd(6)} ${declStarterDeepAges.get(b) ?? 0}件`)
 
 // ── (7) 33歳以上はなぜ動かないのか ──────────────────────
 import { isTransferLocked } from '../src/utils/transferEligibility'
@@ -378,35 +350,33 @@ const ages = new Map<number, number>()
 for (const p of active) ages.set(p.age, (ages.get(p.age) ?? 0) + 1)
 console.log(`  年齢の分布：` + [...ages.keys()].sort((a, b) => a - b).map(a => `${a}:${ages.get(a)}`).join(' '))
 
-// ── (8) OVR85+ が格下へ行った理由 ───────────────────────
-// 「どこでもエース級がわざわざ格下に行く」（オーナー・2026-08-20）の中身を1件ずつ見る。
-import { appraiseMove, hasNoPlayingTime } from '../src/utils/transferDecision'
-import { squadRankOf as sqRank } from '../src/utils/squadNeeds'
 
-console.log(`\n【(8) OVR85+ が格下へ行った ${rows.filter(r => dirOf(r) === '格下' && ovr(pmap.get(r.playerId)!) >= 85).length}件の中身】`)
-const leadC = new Map<string, number>()
-const profC = new Map<string, number>()
-const dropC = new Map<number, number>()
-for (const r of rows) {
-  if (dirOf(r) !== '格下') continue
-  const p = pmap.get(r.playerId)!
-  if (ovr(p) < 85) continue
-  const srcRoster = (rosterOf.get(r.from) ?? []).filter(x => x.status === 'active')
-  const dstRoster = (rosterOf.get(r.to) ?? []).filter(x => x.status === 'active' && x.id !== p.id)
-  const { fraction, teamRaces: tr } = playRateOf(p.id, r.from, season0, st0.teams, st0.foreignLeagues)
-  const a = appraiseMove(p, {
-    clubId: r.to, tier: tierOf(r.to), squadRank: sqRank(dstRoster, p), squadSize: dstRoster.length + 1,
-  } as never, { srcTier: tierOf(r.from), playFraction: fraction, teamRaces: tr, clubBlessed: true })
-  leadC.set(a.lead, (leadC.get(a.lead) ?? 0) + 1)
-  const srcRank = sqRank(srcRoster, p)
-  const starter = tr >= 3 && fraction >= 0.5
-  const decl = isDeclining(p.growthCurve ?? 'normal', p.age)
-  const prof = `${srcRank <= RUNNING_SLOTS ? '出す側で走れる7人' : hasNoPlayingTime(srcRank) ? '出す側で15番手以降' : '出す側で8-14番手'}／${starter ? '実際に走っている' : '走っていない'}／${decl ? 'ピーク越え' : 'ピーク前'}`
-  profC.set(prof, (profC.get(prof) ?? 0) + 1)
-  dropC.set(tierOf(r.to) - tierOf(r.from), (dropC.get(tierOf(r.to) - tierOf(r.from)) ?? 0) + 1)
+// ── (8) 移籍の落差は TIER_FALL_LIMIT に収まっているか ────────
+console.log(`\n【(8) 動いた ${rows.length}件の落差（行き先の格 − 選手の格 ≤ ${TIER_FALL_LIMIT} のはず）】`)
+{
+  const band = new Map<number, number>()
+  let over = 0
+  for (const r of rows) {
+    const p = pmap.get(r.playerId)!
+    const d = tierOf(r.to) - pt(p)
+    if (!Number.isFinite(d)) continue
+    band.set(d, (band.get(d) ?? 0) + 1)
+    if (d > TIER_FALL_LIMIT) over++
+  }
+  console.log('  行き先のクラブの格 − 選手の格')
+  for (const d of [...band.keys()].sort((a, b) => a - b)) console.log(`    ${String(d).padStart(3)} … ${band.get(d)}件`)
+  console.log(`  範囲の外へ出た移籍：${over}件`)
 }
-console.log('  本人が「行く」と言った一番の理由')
-for (const [k, n] of [...leadC].sort((a, b) => b[1] - a[1])) console.log(`    ${k.padEnd(14)} ${n}件`)
-console.log('  どういう選手か')
-for (const [k, n] of [...profC].sort((a, b) => b[1] - a[1])) console.log(`    ${k} … ${n}件`)
-console.log('  落差 ' + [...dropC].sort((a, b) => a[0] - b[0]).map(([d, n]) => `${d}段=${n}`).join(' '))
+
+
+// ── (9) 1つのクラブの名簿は、どれだけ強さがバラけているか ──────
+console.log(`\n【(9) 同じクラブの中の「選手の格」のバラつき】`)
+for (const t of [1, 5, 10, 15, 20]) {
+  const cs = clubsAll.filter(c => (byId.get(c.id) ?? 20) === t)
+  if (cs.length === 0) { console.log(`  格${t}: クラブなし`); continue }
+  const c = cs[0]
+  const roster = (rosterOf.get(c.id) ?? []).filter(p => p.status === 'active')
+    .map(p => pt(p)).sort((a, b) => a - b)
+  console.log(`  格${String(t).padStart(2)}のクラブ1つ（${roster.length}人）… 選手の格 ${roster[0]}〜${roster[roster.length - 1]}`
+    + `　中央${roster[roster.length >> 1]}　[${roster.join(',')}]`)
+}

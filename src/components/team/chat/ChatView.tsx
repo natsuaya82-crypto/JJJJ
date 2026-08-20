@@ -44,7 +44,7 @@ export function ChatView({
 }) {
   const clubIndex = useClubIndex()
   const {
-    currentSeason, teams, players, playerTeamId, pastSeasons,
+    currentSeason, teams, players, playerTeamId, pastSeasons, playerTierOf,
     initiateContractRenewal, submitContractRenewalOffer,
     acceptContractCounter, reNegotiateContract,
     acceptRetirement, dismissRetirementRequest,
@@ -161,7 +161,7 @@ export function ChatView({
     ? rivalClubsFor(player, {
         teams, players, playerTeamId, foreignLeagues: foreignLeagues ?? [],
         // 出場率は utils/playRate 1本（store 側の数え方と揃える）
-        playFraction: myFrac, teamRaces: myRaces,
+        playFraction: myFrac, teamRaces: myRaces, playerTier: playerTierOf(player),
         destinationOf: (clubId, p) => destinationOf(clubId, p),
       }).length
     : 0
@@ -680,7 +680,7 @@ export function ChatView({
       // 出場率は「そのクラブが走っている日程」で数える1本（utils/playRate）。
       // 決断のときと同じ数字でないと、画面の予告と結果が食い違う
       // 行き先は store の destinationOf 1本（決断のときに使われるものと同じ）
-      return freeContactConsent(player, destinationOf(freeContact.fromTeamId, player), tierOfPlayerClub(player.teamId, allTieredClubs(teams, foreignLeagues)), myFrac, myRaces)
+      return freeContactConsent(player, destinationOf(freeContact.fromTeamId, player), tierOfPlayerClub(player.teamId, allTieredClubs(teams, foreignLeagues)), myFrac, myRaces, playerTierOf(player))
     })()
 
     const buildContractButtons = (): ReplyBtns | null => {

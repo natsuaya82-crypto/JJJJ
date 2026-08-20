@@ -1,4 +1,5 @@
 import type { ForeignLeague, Player, Season, Team } from '../types'
+import type { ClubTier } from './clubTier'
 import { appraiseMove, isSurplus, type Appraisal, type Destination } from './transferDecision'
 import { allTieredClubs, tierOfPlayerClub } from './clubTier'
 import { comparePlayers } from './playerSort'
@@ -41,6 +42,8 @@ export type GmInviteCtx = {
   fromTeamId: string
   /** 行き先を組み立てる（store の destinationOf をそのまま渡す） */
   destinationOf: (teamId: string, player: Player) => Destination
+  /** 選手の格（store の playerTierOf をそのまま渡す） */
+  playerTierOf: (player: Player) => ClubTier
 }
 
 /**
@@ -79,7 +82,7 @@ export function appraiseGmInvite(ctx: GmInviteCtx, playerId: string, destTeamId:
     p.id, ctx.fromTeamId, ctx.currentSeason, ctx.teams, ctx.foreignLeagues)
   const a = appraiseMove(p, ctx.destinationOf(destTeamId, p), {
     srcTier: tierOfPlayerClub(ctx.fromTeamId, tieredClubs),
-    playFraction: fraction, teamRaces: ranRaces,
+    playFraction: fraction, teamRaces: ranRaces, playerTier: ctx.playerTierOf(p),
     followGm: true })
 
   const fee = gmInviteFeeFor(ctx, playerId) ?? 0

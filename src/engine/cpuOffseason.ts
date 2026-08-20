@@ -17,6 +17,7 @@
 import { tradeBalance, type TradeValueCtx } from '../utils/tradeValue'
 import { playRateOf, prevSeasonOf, type PlayRateSeason } from '../utils/playRate'
 import { appraiseMove, hasNoPlayingTime, type Destination } from '../utils/transferDecision'
+import { playerTierOf, tierLines } from '../utils/playerTier'
 import { isOwnedBy, isTransferLocked } from '../utils/transferEligibility'
 import { comparePlayers } from '../utils/playerSort'
 import { clubIndexOf } from '../utils/rosterSync'
@@ -25,7 +26,7 @@ import { movePlayer } from '../utils/movePlayer'
 import { calcTransferValue, ovr, playerConsentToMove } from '../utils/playerUtils'
 import { clubLabel, loanHeadline, type NewsItem } from '../utils/newsItems'
 import { needsPlayer } from '../utils/squadNeeds'
-import { allTieredClubs, tierOfPlayerClub } from '../utils/clubTier'
+import { DOMESTIC_BOTTOM_TIER, allTieredClubs, tierOf, tierOfPlayerClub } from '../utils/clubTier'
 import { runTransferMarket } from './transferMarket'
 import { ROSTER_MAX } from '../data/rosterRules'
 import type { ArchivedSeason, ForeignLeague, Player, Season, Team, TransferRecord } from '../types'
@@ -188,6 +189,9 @@ export function runCpuLoans(
   // クラブの名簿は索引から引く（クラブの数だけ全選手を走査しない・utils/rosterSync）
   // 格を引く材料は1回だけ組む（232クラブの配列を1人ごとに作り直さない）
   const tieredClubs = allTieredClubs(ctx.allTeams ?? teams, ctx.foreignLeagues ?? [])
+  // 選手の格の線は世界全体から1回だけ組む（utils/playerTier）
+  const loanTierBy = new Map(tieredClubs.map(c => [c.id, tierOf(c)]))
+  const loanLines = tierLines(players, id => loanTierBy.get(id) ?? DOMESTIC_BOTTOM_TIER)
   const rosterOf = (teamId: string) => (clubIndexOf(players).get(teamId) ?? [])
     .filter(p => p.status === 'active' && !p.loan)
     .sort(comparePlayers('ovr'))
@@ -220,7 +224,7 @@ export function runCpuLoans(
         : { fraction: 0.5, teamRaces: 0 }
       const a = appraiseMove(candidate, ctx.destinationOf(receiver, candidate),
         { srcTier: tierOfPlayerClub(senderId, tieredClubs), loan: true,
-          playFraction: lr.fraction, teamRaces: lr.teamRaces })
+          playFraction: lr.fraction, teamRaces: lr.teamRaces, playerTier: playerTierOf(candidate, loanLines) })
       if (!a.ok) continue
     }
     lent++
@@ -281,6 +285,8 @@ export function runCpuTrades(
   const cpuIds = marketClubIds(players, world.teams, ctx.playerTeamId, ctx.foreignLeagues)
   // 格を引く材料は1回だけ組む（232クラブの配列を1組ごとに作り直さない）
   const tradeTieredClubs = allTieredClubs(ctx.allTeams ?? teams, ctx.foreignLeagues ?? [])
+  const tradeTierBy = new Map(tradeTieredClubs.map(c => [c.id, tierOf(c)]))
+  const tradeLines = tierLines(players, id => tradeTierBy.get(id) ?? DOMESTIC_BOTTOM_TIER)
 
   let done = 0
   for (const buyerId of cpuIds) {
@@ -338,7 +344,8 @@ export function runCpuTrades(
                 prevSeasonOf(ctx.pastSeasons, ctx.year))
             : { fraction: 0.5, teamRaces: 0 }
           return !playerConsentToMove(pl, ctx.destinationOf!(to, pl),
-            tierOfPlayerClub(pl.teamId, tradeTieredClubs), fraction, teamRaces, 0, true).ok
+            tierOfPlayerClub(pl.teamId, tradeTieredClubs), fraction, teamRaces, 0, true,
+            playerTierOf(pl, tradeLines)).ok
         })) continue
       }
       done++
