@@ -17,6 +17,7 @@ import ScreenCover from './ScreenCover'
  */
 export default function IntroModal({
   icon, lead, title, body, actionLabel, onAction, closeLabel = 'あとで', onClose, accent = C.gold,
+  extra, hero, extraTop,
 }: {
   /** 見出しの上に置く絵。大きさは渡す側が決める（1枚でも横並びでもよい） */
   icon: ReactNode
@@ -31,6 +32,15 @@ export default function IntroModal({
   closeLabel?: string
   onClose: () => void
   accent?: string
+  /** 閉じるボタンの下に置くもの（「もう表示しない」のチェックなど）。無くてよい */
+  extra?: ReactNode
+  /**
+   * **箱の横いっぱいに置く絵**（キービジュアル）。渡すと `icon` は出しません。
+   * 記念のお知らせなど、絵で見せたいときだけ。
+   */
+  hero?: ReactNode
+  /** 見出しの下・ボタンの上に置くもの（もらえるものの一覧など）。無くてよい */
+  extraTop?: ReactNode
 }) {
   return (
     <ScreenCover level="blocking" backdrop="opaque"
@@ -39,18 +49,23 @@ export default function IntroModal({
         width: '100%', maxWidth: '360px',
         background: C.surface,
         border: `1px solid ${C.border2}`,
-        padding: '32px 26px',
         textAlign: 'center',
+        overflow: 'hidden',
       }}>
-        <div style={{
-          margin: '0 auto 18px',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>{icon}</div>
+        {hero}
+      <div style={{ padding: hero ? '20px 26px 32px' : '32px 26px' }}>
+        {!hero && (
+          <div style={{
+            margin: '0 auto 18px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>{icon}</div>
+        )}
         {lead}
         <div style={{ fontSize: F.titleLg, fontWeight: 800, color: C.text, marginBottom: '10px' }}>
           {title}
         </div>
-        {!body && <div style={{ height: 20 }} />}
+        {extraTop}
+        {!body && !extraTop && <div style={{ height: 20 }} />}
         {body && (
           <div style={{ fontSize: F.bodyLg, color: C.textDim, lineHeight: 1.7, marginBottom: '26px', whiteSpace: 'pre-line' }}>
             {body}
@@ -84,6 +99,8 @@ export default function IntroModal({
         >
           {closeLabel}
         </button>
+        {extra}
+      </div>
       </div>
     </ScreenCover>
   )

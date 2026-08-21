@@ -67,10 +67,12 @@ console.log('\n[2] 文面は data に置く（画面に直書きしない）')
 
 console.log('\n[3] 選ぶ判定は nextNewsPopup 1本')
 {
-  const first = NEWS_POPUPS[0]
   // ★「今日」は呼ぶ側から渡す（`data/` は `utils/` を import できない＝`check-layers`）。
   //   ここでは期限内の日付を渡して、選ぶ側だけを見る
   const TODAY = '2026-08-18'
+  // ★**`from` が来ている先頭は数に入れない。** 期間前のものは出ないのが正しい
+  //   （2026-08-21 に1000DL記念を先頭へ置いた。8/22 より前は次のものが出る）
+  const first = NEWS_POPUPS.find(n => (!n.from || n.from <= TODAY) && (!n.until || n.until >= TODAY))!
   check('まだ見ていなければ出る', nextNewsPopup([], TODAY)?.id === first.id, String(nextNewsPopup([], TODAY)?.id))
   check('一度見たら出ない', nextNewsPopup(NEWS_POPUPS.map(n => n.id), TODAY) === null)
   // ★空振り除け。期限切れの1件だけの世界を作って、確かに出ないことを見る
@@ -96,6 +98,39 @@ console.log('\n[5] 公式Xの案内と重ならない')
   check('Xの案内を閉じてから出す', /!twitterIntroSeen\) return/.test(app))
   check('同時に出さない', /news && !showTwitter/.test(app))
   check('強制アップデート中は出さない', /news && !showTwitter && !forceUpdate/.test(app))
+}
+
+console.log('\n[4] 期間中は毎回出す（「もう表示しない」を押したときだけ止まる）')
+{
+  const rep = NEWS_POPUPS.find(n => n.repeat)
+  if (!rep) {
+    check('repeat のお知らせがある（この節が空振りしていない）', false, '1件も無い')
+  } else {
+    const shift = (d: string, n: number) => {
+      const t = new Date(`${d}T00:00:00Z`); t.setUTCDate(t.getUTCDate() + n)
+      return t.toISOString().slice(0, 10)
+    }
+    // ★**`repeat` は必ず期間を持つこと。** 持たないと毎回・永久に出ます
+    //   （閉じても記録しないので、チェックを押すまで一生出続ける）
+    check('repeat のお知らせには from がある', !!rep.from, String(rep.from))
+    check('repeat のお知らせには until がある', !!rep.until, String(rep.until))
+    const inside = rep.from ?? '2026-08-22'
+    if (rep.from) {
+      const before = shift(rep.from, -1)
+      check(`${before}（始まる前）は出ない`, nextNewsPopup([], before)?.id !== rep.id, String(nextNewsPopup([], before)?.id))
+    }
+    check('期間中は出る', nextNewsPopup([], inside)?.id === rep.id, String(nextNewsPopup([], inside)?.id))
+    if (rep.until) {
+      const after = shift(rep.until, 1)
+      check(`${after}（終わったあと）は出ない`, nextNewsPopup([], after)?.id !== rep.id, String(nextNewsPopup([], after)?.id))
+    }
+    // ★**閉じただけでは記録しない。** ここが「毎回出す」の実体
+    const app = readFileSync('src/App.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+    check('閉じただけでは「見た」に記録しない', /if \(!news\.repeat \|\| stop\) markDeviceNewsSeen/.test(app))
+    check('「もう表示しない」を押せる口がある',
+      /もう表示しない/.test(readFileSync('src/components/ui/NewsModal.tsx', 'utf8')))
+    check('記録されたら出ない', nextNewsPopup([rep.id], inside)?.id !== rep.id)
+  }
 }
 
 console.log('')

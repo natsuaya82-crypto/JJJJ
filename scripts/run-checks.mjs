@@ -313,7 +313,12 @@ const FAKE_ARGS = [
   `--alias:@capacitor/core=${join(ROOT, 'scripts/fakes/capacitor-core.ts')}`,
   `--alias:@capacitor/filesystem=${join(ROOT, 'scripts/fakes/capacitor-filesystem.ts')}`,
 ]
-const BUILD_ARGS = ['--bundle', '--platform=node', '--format=cjs', '--out-extension:.js=.cjs', `--outdir=${OUT}`, '--log-level=error']
+// ★画像を import しているファイル（`data/newsPopups` のキービジュアル）を通せるように
+//   `.png` の loader を指定する。無いと「No loader is configured for .png」で
+//   **点検が組めず落ちる**（中身が壊れているわけではないのに赤くなる）
+const BUILD_ARGS = ['--bundle', '--platform=node', '--format=cjs', '--out-extension:.js=.cjs',
+  '--loader:.png=dataurl', '--loader:.jpg=dataurl', '--loader:.svg=dataurl',
+  `--outdir=${OUT}`, '--log-level=error']
 
 const verbose = process.argv.includes('--verbose')
 const t0 = Date.now()

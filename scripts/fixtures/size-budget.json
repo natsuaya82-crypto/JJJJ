@@ -26,7 +26,7 @@
  "src/store/slices/marketSlice.ts::submitAcquisitionOffer": 112,
  "src/store/slices/marketSlice.ts::submitContractRenewalOffer": 64,
  "src/store/slices/marketSlice.ts::tradePlayer": 111,
- "src/store/slices/metaSlice.ts": 300,
+ "src/store/slices/metaSlice.ts": 303,
  "src/store/slices/metaSlice.ts::createMyPlayer": 62,
  "src/store/slices/raceSlice.ts": 754,
  "src/store/slices/raceSlice.ts::ensureIndividualEvents": 91,

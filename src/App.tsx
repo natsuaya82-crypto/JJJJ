@@ -19,7 +19,7 @@ import ForceUpdateModal from './components/ui/ForceUpdateModal'
 import TwitterModal from './components/ui/TwitterModal'
 import NewsModal from './components/ui/NewsModal'
 import { nextNewsPopup, type NewsPopup } from './data/newsPopups'
-import { jstTodayISO } from './utils/jstDate'
+import { jstGameDayISO } from './utils/jstDate'
 import { deviceSeenNewsIds, markDeviceNewsSeen } from './store/deviceFlags'
 import { useLoadingStore } from './store/loadingStore'
 import { useFriendSync } from './lib/useFriendSync'
@@ -577,7 +577,9 @@ export default function App() {
   // 見たかどうかは端末に持つので、スロットを変えても出直さない
   useEffect(() => {
     if (!titleShown || !isInitialized || !twitterIntroSeen) return
-    setNews(nextNewsPopup(deviceSeenNewsIds(), jstTodayISO()))
+    // ★日付は**イベントと同じ朝10時区切り**（`jstGameDayISO`）で見る。
+    //   大成功2倍が 8/22 10:00 開始なので、真夜中区切りだと10時間early に出る
+    setNews(nextNewsPopup(deviceSeenNewsIds(), jstGameDayISO()))
   }, [titleShown, isInitialized, twitterIntroSeen])
   // 端末ローカル通知（毎日10時・18時の再訪リマインド）。native のみ、初回に許可を取得。
   useEffect(() => { initLocalNotifications() }, [])
@@ -682,7 +684,12 @@ export default function App() {
       )}
       {showTwitter && !forceUpdate && <TwitterModal onClose={() => { markTwitterIntroSeen(); setShowTwitter(false) }} />}
       {news && !showTwitter && !forceUpdate && (
-        <NewsModal news={news} onClose={() => { markDeviceNewsSeen(news.id); setNews(null) }} />
+        <NewsModal news={news} onClose={(stop) => {
+          // ★`repeat` のお知らせは「もう表示しない」を押したときだけ記録する。
+          //   記録しなければ次の起動でまた出る（期間中は毎回出す、の実体）
+          if (!news.repeat || stop) markDeviceNewsSeen(news.id)
+          setNews(null)
+        }} />
       )}
       {forceUpdate && <ForceUpdateModal />}
     </BrowserRouter>

@@ -97,7 +97,10 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
       //   `gift_` で始まる、のような形で見ると、他から入れたギフトまで消えます。
       const mine = new Set((state.giftGivenVersions ?? []).map(v => `gift_${v}`))
       const withdrawn = pruned.filter(g => !mine.has(g.id))
-      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()  // 配布から1か月
+      // 受け取りの期限（オーナー・2026-08-21「プレゼントの受け取りは8/31まで」）。
+      // 日本時間の 8/31 いっぱい＝UTC で 8/31 14:59:59。**配布からの日数にしないこと**
+      // （いつ入れたかで期限が変わり、告知の日付と合わなくなる）
+      const expiresAt = '2026-08-31T14:59:59.999Z'
       const gift: Gift = {
         id: `gift_${GIFT_VERSION}`,
         title: '1000ダウンロード突破記念',

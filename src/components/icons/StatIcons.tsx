@@ -122,3 +122,14 @@ export function TrophyIcon({ size = 16, color = C.gold }: { size?: number; color
     </svg>
   )
 }
+
+/** 選手（人）。プレゼントの中身を並べるときに使う */
+export function RunnerIcon({ size = 16, color = C.gold }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0, display: 'block' }}>
+      <circle cx="14" cy="4.5" r="2.2" stroke={color} strokeWidth="1.8"/>
+      <path d="M15.5 9L11 11l1.5 4 3 5M11 11L7 13.5M12.5 15L8 17l-2 4" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M15.5 9l3.5 2.5" stroke={color} strokeWidth="1.8" strokeLinecap="round"/>
+    </svg>
+  )
+}
