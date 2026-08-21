@@ -36,7 +36,7 @@ const base = (season: Season, players: Player[] = [], teams: Team[] = [T('a')]) 
   currentSeason: season, players, teams, playerTeamId: 'a',
   lastLoginDate: loginTodayKey(),
   seenJoinIds: [] as string[], seenInjuryIds: [] as string[],
-  myPlayerCreated: true, pendingGiftsCount: 0, clubGiftsCount: 0, friendRequestsCount: 0,
+  myPlayerCreated: true, pendingGiftsCount: 0, playerCreateCount: 0, clubGiftsCount: 0, friendRequestsCount: 0,
 })
 
 console.log('\n[1] 何も無ければ0件')
@@ -273,8 +273,10 @@ const headCounts = [...page.matchAll(/<SectionHead[^>]*count=\{([^}]+)\}/g)].map
 const expected = [
   // まとめて1枚のカードにしている節（ログインボーナス・補強禁止・ロスター超過・
   // スポンサー）は必ず 1。
-  // ★アップデート記念（マイプレイヤー未作成）は廃止済みなので、ここは5つではなく4つ。
-  //   配布枠560が終了し、GameState.myPlayerCreated は古いセーブに残るだけになった
+  // ★**アップデート記念（選手を1人つくる）は先頭。** 一度廃止しましたが、1000DL記念で
+  //   配ることになったので戻しました（オーナー・2026-08-21「前は通知に入ってただろ」）。
+  //   数えるのは残り回数（`playerCreateGrants` の長さ）。
+  'playerCreateLeft',
   '1', '1', '1', '1',
   'pendingGifts.length', 'clubGifts.length', 'friendReqs.length', 'joinNotices.length', 'tradeOffers.length',
   'renewalNeeded', 'injuredPlayers.length', 'retirementRequests.length', 'transferReqs.length',

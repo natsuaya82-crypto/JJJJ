@@ -14,6 +14,7 @@ export function useNotifCount(): number {
   const friendReqs = useFriendRequests()
   // ※セレクタで `?? []` すると毎回新しい配列になり無限レンダリングするので、フィールドをそのまま取る
   const pendingGifts = useGameStore(s => s.pendingGifts)
+  const playerCreateGrants = useGameStore(s => s.playerCreateGrants)
   const seenJoinIds = useGameStore(s => s.seenJoinIds)
   const seenInjuryIds = useGameStore(s => s.seenInjuryIds)
 
@@ -22,6 +23,7 @@ export function useNotifCount(): number {
     seenJoinIds: seenJoinIds ?? EMPTY_IDS,
     seenInjuryIds: seenInjuryIds ?? EMPTY_IDS,
     pendingGiftsCount: (pendingGifts ?? []).length,
+    playerCreateCount: (playerCreateGrants ?? []).length,
     clubGiftsCount: clubGifts.length,
     friendRequestsCount: friendReqs.length,
   }).total

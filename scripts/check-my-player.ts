@@ -70,6 +70,25 @@ console.log('\n[2] 画面と store が同じ関門を通る')
   check('画面に上限の数字を書いていない', !/const STAT_MAX = \d+/.test(page))
 }
 
+console.log('\n[2b] 入口は通知の「アップデート記念」の枠')
+{
+  const strip2 = (f: string) => readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+  const notif = strip2('src/components/notifications/NotificationsPage.tsx')
+  const dash = strip2('src/components/dashboard/Dashboard.tsx')
+  // ★**入口は通知**（オーナー・2026-08-21「前は通知に入ってただろ」）。
+  //   ダッシュボードの行はプレシーズンのときしか描かれないので、記念で配ったぶん
+  //   （いつでも使える）はシーズン中に出せません。
+  check('通知に入口がある', notif.includes('/create-player'))
+  check('残り回数で出し分けている', /playerCreateLeft > 0/.test(notif))
+  // ★**数えるほうにも足すこと。** 足さないと、他に通知が1件も無いときに
+  //   `total === 0` で「通知なし」になり、枠ごと描かれません
+  const items = strip2('src/utils/notifItems.ts')
+  check('通知の件数に入っている', /\+ playerCreateCount/.test(items))
+  check('ベルの数字にも入っている', /playerCreateCount:/.test(strip2('src/components/notifications/useNotifCount.ts')))
+  // 初年度のプレシーズンの行は残す（オーナー「初年度は絶対だけど」）
+  check('プレシーズンの準備の行も残っている', dash.includes('/create-player'))
+}
+
 console.log('\n[3] 振り分けポイントは出どころで違う（500と560）')
 {
   check('新規作成の記念は500', MY_PLAYER_POINTS_INITIAL === 500, String(MY_PLAYER_POINTS_INITIAL))

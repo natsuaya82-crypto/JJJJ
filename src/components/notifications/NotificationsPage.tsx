@@ -142,6 +142,7 @@ export default function NotificationsPage() {
   const dismissJoinNotice = useGameStore(s => s.dismissJoinNotice)
   const longPress = usePlayerLongPress()
   const pendingGifts = useGameStore(s => s.pendingGifts) ?? []
+  const playerCreateLeft = useGameStore(s => (s.playerCreateGrants ?? []).length)
   const claimGift = useGameStore(s => s.claimGift)
 
   const [claimedGift, setClaimedGift] = useState<(typeof pendingGifts)[number] | null>(null)
@@ -184,6 +185,7 @@ export default function NotificationsPage() {
     seenJoinIds,
     seenInjuryIds: seenInjuryIdsRaw ?? EMPTY_IDS,
     pendingGiftsCount: pendingGifts.length,
+    playerCreateCount: playerCreateLeft,
     clubGiftsCount: clubGifts.length,
     friendRequestsCount: friendReqs.length,
   })
@@ -225,6 +227,23 @@ export default function NotificationsPage() {
         <div style={{ padding: '80px 20px', textAlign: 'center', color: C.textDim, fontFamily: SAIRA, fontSize: F.sub }}>通知なし</div>
       ) : (
         <div style={{ paddingBottom: '24px' }}>
+
+          {/* アップデート記念：選手を1人つくる。
+              ★**ここが入口です。** 以前もこの枠にあり、記念枠を終了したときに消えました
+              （オーナー・2026-08-21「前は通知に入ってただろ」）。プレシーズンの準備の行
+              （Dashboard）は初年度ぶん。記念で配ったぶんはいつでも使えるので、
+              シーズン中でも出るこちらから入ります */}
+          {playerCreateLeft > 0 && (
+            <section>
+              <SectionHead label="アップデート記念" color={C.purple} count={playerCreateLeft}/>
+              <div style={{ padding: '0 16px', marginBottom: 8 }}>
+                <button onClick={() => navigate('/create-player')} style={{ width: '100%', textAlign: 'left', cursor: 'pointer', position: 'relative', background: `linear-gradient(135deg, ${alpha(C.purple, 0.22)}, ${C.surface2})`, border: `2px solid ${C.purple}`, padding: '14px 16px', fontFamily: 'inherit' }}>
+                  <div style={{ fontSize: F.subLg, fontWeight: 900, color: C.text }}>好きな選手を1人つくれます</div>
+                  <div style={{ marginTop: 8, fontSize: F.body, fontWeight: 900, color: C.purple }}>作成する →</div>
+                </button>
+              </div>
+            </section>
+          )}
 
           {/* アップデート記念プレゼント */}
           {pendingGifts.length > 0 && (

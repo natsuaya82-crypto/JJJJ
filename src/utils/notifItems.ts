@@ -100,6 +100,8 @@ export type NotifInput = {
   seenInjuryIds: string[]
   /** 運営から届いたプレゼントの数 */
   pendingGiftsCount: number
+  /** 「選手を1人つくる」が何人ぶん残っているか（通知の「アップデート記念」の枠） */
+  playerCreateCount: number
   /** 走友会のなかまから届いたカードの数 */
   clubGiftsCount: number
   /**
@@ -117,7 +119,7 @@ export type NotifInput = {
  * ★呼ぶ側で `as never` を付けて `NotifInput` を騙らせないこと。**足りない口はこの型に足す。**
  */
 export type ChatTopicInput = Omit<NotifInput,
-  'seenJoinIds' | 'seenInjuryIds' | 'pendingGiftsCount' | 'clubGiftsCount' | 'friendRequestsCount'>
+  'seenJoinIds' | 'seenInjuryIds' | 'pendingGiftsCount' | 'playerCreateCount' | 'clubGiftsCount' | 'friendRequestsCount'>
 
 /**
  * 通知の中身を全部数える。
@@ -188,7 +190,7 @@ export function chatTopicIds(input: ChatTopicInput): string[] {
   const n = collectNotifications({
     ...input,
     seenJoinIds: [], seenInjuryIds: [],
-    pendingGiftsCount: 0, clubGiftsCount: 0, friendRequestsCount: 0,
+    pendingGiftsCount: 0, playerCreateCount: 0, clubGiftsCount: 0, friendRequestsCount: 0,
   })
   return [
     // 相手から来た買い取り打診（選手ごとに1件）
@@ -222,7 +224,7 @@ export function chatUnseenCount(input: ChatTopicInput, seenIds: readonly string[
 }
 
 export function collectNotifications(input: NotifInput) {
-  const { currentSeason, players, teams, playerTeamId, lastLoginDate, seenJoinIds, seenInjuryIds, pendingGiftsCount, clubGiftsCount, friendRequestsCount } = input
+  const { currentSeason, players, teams, playerTeamId, lastLoginDate, seenJoinIds, seenInjuryIds, pendingGiftsCount, playerCreateCount, clubGiftsCount, friendRequestsCount } = input
 
   // 自チームの現役選手か。退団・引退した選手あての通知（幽霊通知）を数から外すのに使う。
   // ケガ中(status === 'injured')も現役。ここを 'active' だけで見ていたので、
@@ -373,6 +375,7 @@ export function collectNotifications(input: NotifInput) {
     + (loginUnclaimed ? 1 : 0)
     + asCardCount(sponsorOffers)
     + pendingGiftsCount
+    + playerCreateCount
     + clubGiftsCount
     + friendRequestsCount
     + joinNotices.length
