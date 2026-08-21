@@ -2035,7 +2035,7 @@ language sql stable security definer set search_path = public as $$
   select coalesce((select jsonb_array_length(hof) from public.rosters where user_id = u), 0)
 $$;
 
-/* 参加する。殿堂入り30人が埋まっていること（`utils/hofRoster` の HOF_MAX と同じ線） */
+/* 参加する。殿堂入り15人が埋まっていること（`utils/hofRoster` の HOF_MAX と同じ線） */
 /*
  * **いま関わっている大会**（＝まだ終わっていない大会。**開催前も含む**）。
  *
@@ -2076,7 +2076,7 @@ language plpgsql security definer set search_path = public as $$
 declare ev uuid; me uuid := auth.uid();
 begin
   if me is null then return 'auth'; end if;
-  if public.rated_hof_count(me) < 30 then return 'hof'; end if;
+  if public.rated_hof_count(me) < 15 then return 'hof'; end if;
   ev := public.rated_current_event();
   if ev is null then return 'closed'; end if;
   -- ★レートは人に1本で、**大会をまたいで続く**。はじめて参加する人だけ0から。

@@ -31,7 +31,7 @@
  */
 import { readFileSync } from 'node:fs'
 import { runRatedRound, type RatedEntrant } from '../src/lib/ratedTick'
-import { ratedMatchCourse, ratedDateOf, ratedDayOf } from '../src/engine/ratedCourse'
+import { ratedMatchCourse, ratedDateOf, ratedDayOf, SEG_MAX } from '../src/engine/ratedCourse'
 import { RANK_BANDS, GROUP_MAX, GROUP_MIN, rankOf } from '../src/engine/rating'
 import { buildRatingsForRank } from '../src/engine/playerGenerator'
 import { HOF_MAX } from '../src/utils/hofRoster'
@@ -44,8 +44,29 @@ const check = (name: string, ok: boolean, detail = '') => {
   if (!ok) failed++
 }
 
+console.log('[1] 参加資格の人数は1本（画面とサーバーで食い違わない）')
+{
+  // ★この数は**2か所にある**。TS の `HOF_MAX`（ボタンが押せるか）と、
+  //   `all.sql` の `rated_join`（サーバーが受けるか）。片方だけ動かすと
+  //   「押せるのに弾かれる」「押せないのに資格はある」になる。
+  //   SQL 側は関数の中の即値なので TS を import できない＝**ここで突き合わせる**。
+  const sql = readFileSync('supabase/all.sql', 'utf8')
+  const m = /rated_hof_count\(me\)\s*<\s*(\d+)/.exec(sql)
+  check('all.sql に参加資格の判定がある', !!m, m ? '' : '見つからない')
+  check(`サーバーの線が HOF_MAX と同じ（${HOF_MAX}）`,
+    !!m && Number(m[1]) === HOF_MAX, m ? `all.sql は ${m[1]}` : '')
+
+  // ★**下限は「その日の区間数の上限」**。同じ選手を2区間に置けないので、
+  //   HOF_MAX < SEG_MAX にすると区間数の多い日に**提出そのものができない**
+  //   （`RatedLineupPage` の allSegsFilled が永久に false）。コースは日付から
+  //   引くので、その日が来るまで誰も気づけない。
+  // ★この判定は**世界を組む前**に置くこと。あとに置くと、区間を埋められずに
+  //   点検そのものが例外で落ちて、ここまで到達しない（実際にそうなった）。
+  check(`HOF_MAX(${HOF_MAX}) が区間数の上限(${SEG_MAX})を下回っていない`, HOF_MAX >= SEG_MAX)
+}
+
 // ── 種を固定した世界 ────────────────────────────────────
-// 実機の殿堂入りに近づける：登録した時点で凍っている30人。
+// 実機の殿堂入りに近づける：登録した時点で凍っている HOF_MAX 人。
 // 人によって強さに差がある（レートが散らばらないと⑤が見られない）
 function rng(seed: number) {
   let s = seed >>> 0
@@ -101,7 +122,7 @@ function pickLineup(e: RatedEntrant, segCount: number): Record<number, string> {
 const START = '2026-09-01'
 const DAYS = 30
 
-console.log('[1] 提出したとおりに走る／出さなかった人も走る')
+console.log('\n[2] 提出したとおりに走る／出さなかった人も走る')
 {
   const entrants = makeEntrants(20)
   const course = ratedMatchCourse(START)
@@ -180,7 +201,7 @@ console.log('[1] 提出したとおりに走る／出さなかった人も走る
     out.rows.filter(x => x.ratingAfter < 0).map(x => `${x.userId}:${x.ratingAfter}`).join(' '))
 }
 
-console.log('\n[1-b] 大会全体の順位と、前日からの上下（順位表の矢印）')
+console.log('\n[2-b] 大会全体の順位と、前日からの上下（順位表の矢印）')
 {
   // 20人・全員提出。**レートに差を付けてから**走らせて、順位が動くことを見る
   // ★**下限（0）から離したところで見ること。** 以前は 200〜10 という下限のすぐ上に
@@ -230,7 +251,7 @@ console.log('\n[1-b] 大会全体の順位と、前日からの上下（順位�
     bad.map(r => `${r.userId} overall${r.overall}(=${after.get(r.userId)}) move${r.move}`).join(' '))
 }
 
-console.log('\n[2] 誰も落ちない・レートの合計は動かない')
+console.log('\n[3] 誰も落ちない・レートの合計は動かない')
 {
   for (const n of [10, 20, 21, 43, 100]) {
     const entrants = makeEntrants(n, n)
@@ -258,7 +279,7 @@ console.log('\n[2] 誰も落ちない・レートの合計は動かない')
   }
 }
 
-console.log('\n[3] 10人に満たなければ流会。レートは1も動かない')
+console.log('\n[4] 10人に満たなければ流会。レートは1も動かない')
 {
   const entrants = makeEntrants(9)
   const out = runRatedRound({ dateISO: START, day: 1, entrants, lineups: {} })
@@ -266,7 +287,7 @@ console.log('\n[3] 10人に満たなければ流会。レートは1も動かな�
   check('行も結果も出ない', out.rows.length === 0 && out.races.length === 0)
 }
 
-console.log('\n[4] 1か月まるごと回す（30回戦）')
+console.log('\n[5] 1か月まるごと回す（30回戦）')
 {
   const entrants = makeEntrants(60, 99)
   const rating = new Map(entrants.map(e => [e.userId, 0]))
@@ -309,7 +330,7 @@ console.log('\n[4] 1か月まるごと回す（30回戦）')
   check(`通算の合計は0以上（${total}）`, total >= 0)
 }
 
-console.log('\n[5] 同じ入力なら「誰がどこで何を走るか」は同じ（変わるのは当日のブレだけ）')
+console.log('\n[6] 同じ入力なら「誰がどこで何を走るか」は同じ（変わるのは当日のブレだけ）')
 {
   // ★タイムは毎回変わります（`simulateRace` は当日のブレを引く＝本編とまったく同じ）。
   //   だから**締めた回をもう一度締めてはいけない**。二度目は別のタイムが出て、
@@ -329,7 +350,7 @@ console.log('\n[5] 同じ入力なら「誰がどこで何を走るか」は同�
     JSON.stringify(a.races) !== JSON.stringify(b.races))
 }
 
-console.log('\n[6] 締めた回は二度と締めない（Edge Function の歯止め）')
+console.log('\n[7] 締めた回は二度と締めない（Edge Function の歯止め）')
 {
   const fn = readFileSync('supabase/functions/rated-tick/index.ts', 'utf8')
   // 締める対象は「open で、今日より前」だけ。ここが緩むと同じ日を二度走らせてしまう
