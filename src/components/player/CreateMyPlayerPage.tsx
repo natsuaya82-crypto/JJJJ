@@ -6,7 +6,8 @@ import PlayerFace from './PlayerFace'
 import BottomSheet from '../ui/BottomSheet'
 import { useAdHeight } from '../layout/Layout'
 import Flag from '../ui/Flag'
-import { useGameStore, MY_PLAYER_POINTS } from '../../store/gameStore'
+import { useGameStore } from '../../store/gameStore'
+import { MY_PLAYER_STAT_MIN, MY_PLAYER_STAT_MAX, evenSpread, myPlayerBlockReason } from '../../utils/myPlayer'
 import { SPECIALTY_LABELS } from '../../types'
 import type { Specialty, Ratings, Nationality } from '../../types'
 import { NATIONALITY_META, GEO_REGION_ORDER, natLabel } from '../../data/nationalities'
@@ -32,14 +33,15 @@ const NATS_BY_REGION = GEO_REGION_ORDER.map(geo => ({
 })).filter(g => g.list.length > 0)
 const HAIRS = ['black_light', 'black_dark', 'brown_light', 'blond_light'] as const
 const HAIR_LABEL: Record<string, string> = { black_light: '黒', black_dark: '黒(濃)', brown_light: '茶', blond_light: '金' }
-const STAT_MAX = 99
 
 export default function CreateMyPlayerPage() {
   const navigate = useNavigate()
   const createMyPlayer = useGameStore(s => s.createMyPlayer)
-  // 作れるのは新規データの初年度に1人だけ（ドラフトに参加しない代わり）
-  const TOTAL = MY_PLAYER_POINTS
-  const alreadyCreated = useGameStore(s => (s.playerCreateLeft ?? 0) <= 0)
+  // ★振り分けポイントは**そのぶんに付いてきた額**（新規作成の記念＝500／記念の
+  //   配布ぶん＝560）。先頭から使う。`utils/myPlayer` が持っている
+  const grants = useGameStore(s => s.playerCreateGrants ?? [])
+  const TOTAL = grants[0] ?? 0
+  const alreadyCreated = grants.length === 0
 
   const adH = useAdHeight()
   const [name, setName] = useState('')
@@ -47,13 +49,9 @@ export default function CreateMyPlayerPage() {
   const [specialty, setSpecialty] = useState<Specialty>('ace')
   const [nationality, setNationality] = useState<Nationality>('JPN')
   const [natSheet, setNatSheet] = useState(false)
-  const [ratings, setRatings] = useState<Ratings>(() => {
-    // 初期値は「均等割り＋端数を速力へ」。合計がちょうど TOTAL になるので、
-    // 開いた時点で残り0＝そのまま確定できる（500と560で初期値が変わる）
-    const base = Math.floor(MY_PLAYER_POINTS / 7)
-    const rest = MY_PLAYER_POINTS - base * 7
-    return { speed: base + rest, stamina: base, mountainUp: base, mountainDown: base, pacing: base, mental: base, recovery: base }
-  })
+  // 初期値は「均等割り＋端数を速力へ」。合計がちょうど TOTAL になるので、
+  // 開いた時点で残り0＝そのまま確定できる（500と560で初期値が変わる）
+  const [ratings, setRatings] = useState<Ratings>(() => evenSpread(TOTAL))
   const [face, setFace] = useState({ style: 3, eye: 5, hair: 'black_light' as typeof HAIRS[number], flip: false })
   const [done, setDone] = useState(false)
 
@@ -61,7 +59,9 @@ export default function CreateMyPlayerPage() {
   const remaining = TOTAL - used
 
   const setStat = (key: keyof Ratings, v: number) => {
-    const clamped = Math.max(1, Math.min(STAT_MAX, v))
+    // ★**下限は `utils/myPlayer` 1本**（オーナー・2026-08-21「下限は60にしよう」）。
+    //   ここに数字を書かないこと——store 側の関門と食い違います
+    const clamped = Math.max(MY_PLAYER_STAT_MIN, Math.min(MY_PLAYER_STAT_MAX, v))
     // 合計560を超えないよう、増やす分は残りポイントまで
     const delta = clamped - ratings[key]
     if (delta > 0 && delta > remaining) return
@@ -83,7 +83,9 @@ export default function CreateMyPlayerPage() {
     return caps
   })()
 
-  const canConfirm = name.trim().length > 0 && remaining === 0 && !alreadyCreated
+  // 押せるか／押せない理由は store と同じ関門から出す（utils/bidGate と同じ形）
+  const blockReason = myPlayerBlockReason(ratings, TOTAL, name, !alreadyCreated)
+  const canConfirm = blockReason === null
 
   const confirm = () => {
     if (!canConfirm) return
@@ -182,12 +184,12 @@ export default function CreateMyPlayerPage() {
             return (
               <div key={st.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: F.label, color: C.textSub, width: 36, flexShrink: 0 }}>{st.label}</span>
-                <button onClick={() => setStat(st.key, v - 1)} style={{ width: 26, height: 26,border: `1px solid ${C.border2}`, background: C.surface, color: C.text, fontSize: F.title, cursor: 'pointer', flexShrink: 0 }}>−</button>
+                <button onClick={() => setStat(st.key, v - 1)} disabled={v <= MY_PLAYER_STAT_MIN} style={{ width: 26, height: 26,border: `1px solid ${C.border2}`, background: v <= MY_PLAYER_STAT_MIN ? C.surface2 : C.surface, color: v <= MY_PLAYER_STAT_MIN ? C.textGhost : C.text, fontSize: F.title, cursor: v <= MY_PLAYER_STAT_MIN ? 'default' : 'pointer', flexShrink: 0 }}>−</button>
                 <div style={{ flex: 1, position: 'relative', height: 8,background: C.border2, overflow: 'hidden' }}>
                   <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${cap}%`, background: alpha(C.green, 0.35) }} />
                   <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${v}%`, background: C.gold }} />
                 </div>
-                <button onClick={() => setStat(st.key, v + 1)} disabled={remaining <= 0} style={{ width: 26, height: 26,border: `1px solid ${C.border2}`, background: remaining <= 0 ? C.surface2 : C.surface, color: remaining <= 0 ? C.textGhost : C.text, fontSize: F.title, cursor: remaining <= 0 ? 'default' : 'pointer', flexShrink: 0 }}>＋</button>
+                <button onClick={() => setStat(st.key, v + 1)} disabled={remaining <= 0 || v >= MY_PLAYER_STAT_MAX} style={{ width: 26, height: 26,border: `1px solid ${C.border2}`, background: remaining <= 0 ? C.surface2 : C.surface, color: remaining <= 0 ? C.textGhost : C.text, fontSize: F.title, cursor: remaining <= 0 ? 'default' : 'pointer', flexShrink: 0 }}>＋</button>
                 <span style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: C.text, width: 46, textAlign: 'right', flexShrink: 0 }}>{v}<span style={{ fontSize: F.tiny, color: C.green }}>→{cap}</span></span>
               </div>
             )
@@ -244,7 +246,7 @@ export default function CreateMyPlayerPage() {
         {/* 確定バー（下部固定） */}
         <div style={{ position: 'fixed', left: 0, right: 0, bottom: bottomStack(adH, { aboveNav: true }), maxWidth: 480, margin: '0 auto', padding: '12px 14px 10px', background: `linear-gradient(180deg, transparent, ${C.bg} 40%)`, zIndex: 50 }}>
           <button onClick={confirm} disabled={!canConfirm} className={`btn-game ${canConfirm ? 'btn-game--gold' : ''}`} style={{ width: '100%', opacity: canConfirm ? 1 : 0.5 }}>
-            <span className="btn-game__inner">{remaining !== 0 ? `残り ${remaining} を振り分けてください` : !name.trim() ? '名前を入力してください' : 'この選手で確定'}</span>
+            <span className="btn-game__inner">{blockReason ?? 'この選手で確定'}</span>
           </button>
         </div>
       </ScreenPortal>

@@ -5,6 +5,7 @@ import { type Gift } from '../../types'
 import { ADS_PER_DAY, getAdDay } from '../../utils/ads'
 import { findClub } from '../../utils/clubs'
 import { canRegisterHof, isHofEligible, registerHof, removeHof } from '../../utils/hofRoster'
+import { MY_PLAYER_POINTS_GRANT, myPlayerBlockReason } from '../../utils/myPlayer'
 import { movePlayer } from '../../utils/movePlayer'
 import { faMarketSalary } from '../../utils/playerUtils'
 import { setDeviceAdsRemoved, setDeviceTwitterIntroSeen } from '../deviceFlags'
@@ -126,7 +127,9 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
         trainingCards: [...(state.trainingCards ?? []), ...gift.cards],
         jewels: (state.jewels ?? 0) + (gift.jewels ?? 0),
         trophies: (state.trophies ?? 0) + (gift.trophies ?? 0),
-        playerCreateLeft: (state.playerCreateLeft ?? 0) + (gift.playerCreates ?? 0),
+        // 配布ぶんは記念の額（`MY_PLAYER_POINTS_GRANT`）。新規作成記念の500とは別
+        playerCreateGrants: [...(state.playerCreateGrants ?? []),
+          ...Array.from({ length: gift.playerCreates ?? 0 }, () => MY_PLAYER_POINTS_GRANT)],
         pendingGifts: (state.pendingGifts ?? []).filter(g => g.id !== id) }
     })
   },
@@ -238,7 +241,11 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
     customFace: NonNullable<import('../../types').Player['customFace']>
   }) => {
     const state = get()
-    if ((state.playerCreateLeft ?? 0) <= 0) return false
+    const grants = state.playerCreateGrants ?? []
+    if (grants.length === 0) return false
+    // ★**振り分けの決まりは `utils/myPlayer` 1本**（画面と同じ関門を通す）。
+    //   ここを素通しにすると、画面の下限を外しただけで極端な選手が作れます
+    if (myPlayerBlockReason(params.ratings, grants[0], params.name, true) !== null) return false
     const myTeam = state.teams.find(t => t.id === state.playerTeamId)
     if (!myTeam) return false
     const STAT_KEYS: (keyof import('../../types').Ratings)[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
@@ -286,7 +293,7 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
     set({
       players: moved.players,
       teams: moved.teams,
-      playerCreateLeft: Math.max(0, (state.playerCreateLeft ?? 0) - 1) })
+      playerCreateGrants: grants.slice(1) })
     return true
   },
 })

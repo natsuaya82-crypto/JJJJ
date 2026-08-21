@@ -1,4 +1,5 @@
 ﻿import { create } from 'zustand'
+import { MY_PLAYER_POINTS_INITIAL } from '../utils/myPlayer'
 import { persist } from 'zustand/middleware'
 import { jsonSaveStorage, flushSaveNow, deleteSaveForRecovery, setSaveFormatVersion } from './saveStorage'
 import { SAVE_VERSION } from './persistence/saveVersion'
@@ -30,7 +31,8 @@ const ALL_TEAMS = ALL_DOMESTIC_TEAMS
 // 初年度はドラフトに参加しない代わりに、自分で1人つくって加入させる。
 // （アップデート記念の配布枠560は終了。GameState.myPlayerCreated は古いセーブに残るだけで使わない）
 /** マイ選手に振り分けられる能力の合計 */
-export const MY_PLAYER_POINTS = 500
+// ★振り分けポイントは `utils/myPlayer` へ移しました（出どころで額が違うため）。
+//   新規作成の記念＝500 ／ 記念の配布ぶん＝560
 import { BASE_PLAYERS } from '../data/players'
 import { drawSeasonSchedules } from '../data/races'
 import type { OfferOutcome } from '../utils/offerResult'
@@ -377,14 +379,15 @@ export type GameStore = GameState & {
   createMyPlayer: (params: { name: string; age: number; specialty: Specialty; nationality: Nationality; ratings: Ratings; customFace: NonNullable<Player['customFace']> }) => boolean
   /** 初年度に作る1人を作成済みか（記念の myPlayerCreated とは別に持つ） */
   /**
-   * **「選手を1人つくる」があと何回できるか。**
+   * **これから作れる選手ぶんの振り分けポイント。1件＝1人ぶん**（先頭から使う）。
    *
-   * ★以前は `inauguralPlayerCreated`（作ったか否かの真偽値）でした。1000DL記念で
-   *   もう一度配ることになったので**数**にしています（オーナー・2026-08-20
-   *   「1000dl記念で選手作成とトロフィー配布」）。記念のたびに +1 するだけで済み、
-   *   記念ごとに真偽値が増えていきません。
+   * ★**数（何回作れるか）ではなく、ポイントの列で持ちます。** 出どころで額が違うため
+   *   （オーナー・2026-08-21「500は新規作成記念でしょ？560は配布でしょ？
+   *   ちゃんと違いがあるんだけど」）。回数だけ持つと、どちらの額で作るのかを
+   *   別の分岐で当てることになり、記念を足すたびにその分岐が増えます。
+   *   額を配るときに決めてここへ入れれば、使う側は先頭を取るだけで済みます。
    */
-  playerCreateLeft: number
+  playerCreateGrants: number[]
 }
 
 function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
@@ -486,7 +489,7 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     adsRemoved: false,
     twitterIntroSeen: false,
     myPlayerCreated: false,
-    playerCreateLeft: 1 } as unknown as Omit<GameStore, keyof ReturnType<typeof create>>
+    playerCreateGrants: [MY_PLAYER_POINTS_INITIAL] } as unknown as Omit<GameStore, keyof ReturnType<typeof create>>
 }
 
 export type SetGame = (partial: GameStore | Partial<GameStore> | ((s: GameStore) => GameStore | Partial<GameStore>)) => void

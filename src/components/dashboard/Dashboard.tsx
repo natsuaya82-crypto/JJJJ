@@ -73,7 +73,7 @@ function PreseasonHub({
 }) {
   const campDone    = !!campBonus?.applied
   const draftDone   = isFirstSeason || (!!draftState && draftState.isComplete)
-  const canCreatePlayer = useGameStore(s => (s.playerCreateLeft ?? 0) > 0)
+  const canCreatePlayer = useGameStore(s => (s.playerCreateGrants ?? []).length > 0)
   // 開幕してよいかは utils/seasonStart の1本。**ここで条件を組み直さないこと。**
   // ★以前ここに `allReady`（カード・ドラフト・人数）があったのに、**ボタンは
   //   `rosterShort` しか見ていません**でした（allReady が効くのは文字が「開幕！」に

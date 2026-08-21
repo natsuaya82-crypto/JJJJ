@@ -17,6 +17,7 @@ import { backfillRetiredTeamIds } from '../../utils/retiredTeamBackfill'
 import { markDataUpdateNeeded } from '../dataUpdate'
 import { EPHEMERAL_KEYS } from '../ephemeralState'
 import { SAVE_VERSION } from './saveVersion'
+import { MY_PLAYER_POINTS_INITIAL } from '../../utils/myPlayer'
 import { setSaveHealth } from '../saveHealth'
 
 export const migrateSave = (persistedState: unknown, version: number) => {
@@ -602,13 +603,18 @@ export const migrateSave = (persistedState: unknown, version: number) => {
         return { ...p, contract: { ...c, signedOnJoin: true } }
       })
     }
-    // v44: 「選手を1人つくる」を真偽値（inauguralPlayerCreated）から
-    //   残り回数（playerCreateLeft）へ。1000DL記念でもう1回配るため。
+    // v45: 「選手を1人つくる」を真偽値（inauguralPlayerCreated）／残り回数から、
+    //   **1人ぶんずつの振り分けポイントの列**（playerCreateGrants）へ。
+    //   額が出どころで違うため（新規作成の記念＝500／記念の配布ぶん＝560）。
     //   **移さないと全員が「まだ作っていない」に見えて、作った人がもう1人作れます。**
-    if (version < 44) {
+    if (version < 45) {
       const made = (s as { inauguralPlayerCreated?: boolean }).inauguralPlayerCreated
-      s.playerCreateLeft = made ? 0 : 1
+      const left = (s as { playerCreateLeft?: number }).playerCreateLeft
+      // v44 を経ている場合は残り回数、それ以前は真偽値から。どちらも無ければ新規＝1人ぶん
+      const n = left != null ? left : made ? 0 : 1
+      s.playerCreateGrants = Array.from({ length: n }, () => MY_PLAYER_POINTS_INITIAL)
       delete (s as { inauguralPlayerCreated?: boolean }).inauguralPlayerCreated
+      delete (s as { playerCreateLeft?: number }).playerCreateLeft
     }
     return s
   } catch (e) {
