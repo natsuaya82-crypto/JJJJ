@@ -401,7 +401,7 @@ export function runTransferMarket(
           date, category: 'trade' as const, relatedIds,
           major: ovr(p) >= MAJOR_NEWS_OVR || big || isBigClub(from.domestic ? teamById.get(from.id) : foreignById.get(from.id)),
           headline: benched
-            ? seekPlayingTimeHeadline({ playerName: p.name, age: p.age, squadRank: rank, fromLabel: from.label, toLabel: to.label })
+            ? seekPlayingTimeHeadline({ playerName: p.name, age: p.age, fromLabel: from.label, toLabel: to.label })
             : transferHeadline({ playerName: p.name, playerOvr: ovr(p), fee, fromLabel: from.label, toLabel: to.label }),
         }
       })

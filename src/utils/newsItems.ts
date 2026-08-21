@@ -60,15 +60,20 @@ export function transferHeadline(a: {
   return `${a.toLabel}が${a.fromLabel}から${a.playerName}（OVR${a.playerOvr}）を獲得 移籍金${fmtYen(a.fee)}`
 }
 
-/** 出場機会を求めた移籍。何番手だったかを出すと、市場が効いているかが見出しで分かる */
+/**
+ * 出場機会を求めた移籍。
+ *
+ * ★**序列（何番手か）を出さないこと**（オーナー・2026-08-21「見えるところで⚪︎番手はなし」）。
+ *   物差しとしての序列（`squadRankOf`）は今までどおり使うが、画面に数字は出さない。
+ *   移籍を断る理由（`transferDecision` の `moveDeclineText`）と同じ決まり。
+ */
 export function seekPlayingTimeHeadline(a: {
   playerName: string
   age: number
-  squadRank: number
   fromLabel: string
   toLabel: string
 }): string {
-  return `${a.playerName}（${a.age}歳・${a.fromLabel}で${a.squadRank}番手）が出場機会を求め${a.toLabel}へ`
+  return `${a.playerName}（${a.age}歳・${a.fromLabel}）が出場機会を求め${a.toLabel}へ`
 }
 
 /** 若手のレンタル。育てる側と走らせる側の関係を出す */

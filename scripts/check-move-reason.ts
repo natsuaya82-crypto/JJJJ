@@ -21,7 +21,7 @@
  *
  * ★以前ここは**印字するだけで判定が1つも無く**、番手が出ていても必ず緑だった。
  */
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { appraiseMove, moveAcceptText, moveDeclineText, type Appraisal, type MoveReason } from '../src/utils/transferDecision'
 import { gmInviteNoLine } from '../src/utils/chatLines'
 import { buildIncomingOfferMessages } from '../src/utils/chatTalk'
@@ -126,6 +126,52 @@ console.log('\n[5] 長い形・短い形の2本立てが復活していない')
     { srcTier: 8, playFraction: 0.9, teamRaces: 10, playerTier: 8 } as never)
   check('返すのは reason 1つ', Object.keys(a).sort().join(',') === 'lead,ok,parts,reason,score',
     Object.keys(a).join(','))
+}
+
+console.log('\n[6] 画面に出る文字のどこにも序列（番手）が無い')
+{
+  // ★オーナー・2026-08-21「見えるところで⚪︎番手はなし」。
+  //   理由の文面だけ直しても、ニュースの見出し・遊び方の説明に残っていた。
+  //   **文字列そのものを数える**（どの経路で出るかを追わない）。
+  //
+  //   物差しとしての序列（squadRankOf・SQUAD_DEPTH_SLOTS）は今までどおり使う。
+  //   ここが見るのは「画面に出す字」だけなので、コメントは外してから数える。
+  //
+  // 配信し終えたお知らせだけは例外（何を出したかの記録なので書き換えない）。
+  //   ★**1行ずつ名指しで許す。** ファイルごと外すと、新しく書いたお知らせに
+  //     番手が入っても素通りする。
+  const SHIPPED_NOTES = [
+    '世界最高峰のクラブからの誘いでも、そこで20番手なら断ります。',
+    '「その行き先では23番手」なのに',
+    '表示のときだけ「そのクラブで何番手になるか」',
+    'そのクラブでの序列15番手以降に統一しました。',
+  ]
+  const files: string[] = []
+  const walk = (dir: string) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const q = `${dir}/${e.name}`
+      if (e.isDirectory()) walk(q)
+      else if (/\.tsx?$/.test(e.name)) files.push(q)
+    }
+  }
+  walk('src')
+  const hits: string[] = []
+  const usedNotes = new Set<string>()
+  for (const f of files) {
+    const lines = readFileSync(f, 'utf8').split('\n')
+    lines.forEach((l, i) => {
+      if (!l.includes('番手')) return
+      if (/^\s*(\/\/|\*|\/\*)/.test(l)) return               // 説明文（経緯の記録）
+      const note = SHIPPED_NOTES.find(n => l.includes(n))
+      if (note) { usedNotes.add(note); return }
+      hits.push(`${f}:${i + 1} ${l.trim().slice(0, 70)}`)
+    })
+  }
+  check('画面に出す字に番手が無い', hits.length === 0, `\n      ${hits.join('\n      ')}`)
+  // 例外の名簿が腐っていないか（消えたお知らせの言い訳が残ると、次の1件が黙って通る）
+  check('配信済みお知らせの例外が全部いまも当たっている',
+    usedNotes.size === SHIPPED_NOTES.length,
+    `${usedNotes.size}/${SHIPPED_NOTES.length}`)
 }
 
 console.log('\n[参考] 一番効いた要素が見出しになっているか')
