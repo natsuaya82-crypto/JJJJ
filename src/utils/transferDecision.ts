@@ -382,15 +382,92 @@ export type MoveContext = {
   loan?: boolean
 }
 
+/**
+ * ============================================================================
+ * **移籍の理由の文字は、この2つの表だけ。** 他所に書かないこと。
+ * ============================================================================
+ *
+ * ■なぜ1本にするのか（実際に起きていたこと）
+ *   同じ `lead` に対する断り文句が**3つの表**に分かれていて、文字が割れていました。
+ *
+ *     transferDecision の REASON_NO  … 「◯◯は「23番手では出番がない」と考えている」
+ *     transferDecision の SHORT_NO   … 「23番手で出番がない」
+ *     chatLines の gmInviteNoLine    … 「出場機会が見込めない」
+ *
+ *   決まりは**「出場機会がない」に統一**（オーナー・2026-08-14「19番手かどうかって
+ *   わからんくね？」）だったのに、直したのは3つ目だけでした。残る2つがチャットの
+ *   代理人のセリフ・通知・入札シートに出ていて、**番手が画面に出続けていました**
+ *   （オーナー・2026-08-21「何番手ってもう無くしたはずだよね？」）。
+ *   同じファイルの中でも割れていて、REASON_YES だけは同じ `no_playing_time` を
+ *   「出場機会が見込めない」と書いていました。
+ *
+ * ■決まり
+ *   ★**序列（何番手か）を文面に入れないこと。** 本人にも代理人にも分からない数字で、
+ *     セリフにすると嘘になる。物差しとしての序列（`squadRankOf`）は今までどおり使う。
+ *   ★**長い形・短い形を作らないこと。** 選手名を足すかどうかは呼ぶ側の文の作り方で、
+ *     理由の文字は1つ（「◯◯とのことです」「◯◯クラブ 1.2億 ◯◯」のどちらにも入る）。
+ *   ★`Record<MoveReason, string>` なので、**理由を足したら埋めないと型で落ちます。**
+ */
+export type MoveReason =
+  | Appraisal['lead']
+  /** 主力として起用されている（`playerConsentToMove` の別軸。lead には出ない） */
+  | 'key_player'
+  /** 移籍金が用意できない（`appraiseGmInvite`。本人の意思ではない） */
+  | 'fee'
+
+/** 断るときの理由。`belowTier` は「行き先の格が選手の格より下か」 */
+export function moveDeclineText(lead: MoveReason, o: { dream: string; belowTier?: boolean }): string {
+  const T: Record<MoveReason, string> = {
+    out_of_band: o.belowTier ? 'このクラブで走れる力にまだ届いていない' : '格の離れたクラブへ移る段階にない',
+    no_playing_time: '出場機会が見込めない',
+    wrong_region: `挑戦したいのは${o.dream}で、この地域ではない`,
+    tier_down: '格下への移籍に前向きでない',
+    loyalty: '今のチームへの愛着が強い',
+    key_player: '主力として起用されており、移籍を望んでいない',
+    fee: '移籍金が用意できない',
+    dream: '乗り気ではない',
+    playing_time: '乗り気ではない',
+    capped: '乗り気ではない',
+    ecl: '乗り気ではない',
+    title: '乗り気ではない',
+    tier_up: '乗り気ではない',
+    even: '乗り気ではない',
+  }
+  return T[lead]
+}
+
+/** 行くときの理由 */
+export function moveAcceptText(lead: MoveReason, o: { dream: string }): string {
+  const T: Record<MoveReason, string> = {
+    dream: `憧れの${o.dream}で走りたい`,
+    wrong_region: '行きたい地域ではない',
+    tier_up: '格上のクラブで挑戦したい',
+    playing_time: '出場機会が見込める',
+    no_playing_time: '出場機会が見込めない',
+    tier_down: '格下だが受け入れる',
+    loyalty: '今のチームに愛着がある',
+    capped: 'このクラブではもう伸びしろがない',
+    ecl: 'ECLで走りたい',
+    title: '優勝を争えるクラブで走りたい',
+    out_of_band: '条件は悪くない',
+    even: '条件は悪くない',
+    key_player: '条件は悪くない',
+    fee: '条件は悪くない',
+  }
+  return T[lead]
+}
+
 /** 判定の内訳。画面と会話でそのまま使う */
 export type Appraisal = {
   score: number
   ok: boolean
   /** 一番効いた要素。断った理由・選んだ理由の文言はこれで決める */
   lead: 'tier_up' | 'tier_down' | 'playing_time' | 'no_playing_time' | 'title' | 'ecl' | 'dream' | 'wrong_region' | 'capped' | 'loyalty' | 'even' | 'out_of_band'
+  /**
+   * その理由の文字。**`moveDeclineText` / `moveAcceptText` 1本から出る**ので、
+   * 会話・通知・入札シートで同じ字になる（長い形・短い形の2本立ては廃止）。
+   */
   reason: string
-  /** 一覧で1行ずつ並べるときの短い理由（選手名を繰り返さない） */
-  shortReason: string
   parts: {
     tier: number
     playingTime: number
@@ -574,54 +651,13 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext): Appra
   const lead: Appraisal['lead'] = outOfBand ? 'out_of_band'
     : (ok ? best.v <= 0 : best.v >= 0) ? 'even' : best.lead
 
-  const REASON_NO: Record<Appraisal['lead'], string> = {
-    out_of_band: d.tier < ctx.playerTier
-      ? `${p.name}は${d.tier < ctx.playerTier ? '' : ''}このクラブで走れる力にまだ届いていない`
-      : `${p.name}は格の離れたクラブへ移る段階にない`,
-    no_playing_time: `${p.name}は「${d.squadRank}番手では出番がない」と考えている`,
-    dream: `${p.name}は移籍に納得していない`,
-    wrong_region: `${p.name}が挑戦したいのは${DREAM_LABEL[dreamRegionOf(p.specialty)]}で、この地域ではない`,
-    tier_down: `${p.name}は格下への移籍に前向きでない`,
-    loyalty: `${p.name}は今のチームへの愛着が強く移籍を望んでいない`,
-    playing_time: `${p.name}は移籍に納得していない`,
-    capped: `${p.name}は移籍に納得していない`,
-    ecl: `${p.name}は移籍に納得していない`,
-    title: `${p.name}は移籍に納得していない`,
-    tier_up: `${p.name}は移籍に納得していない`,
-    even: `${p.name}は移籍に納得していない`,
-  }
-  // 取り合いのときは1行ずつクラブの下に並べるので、選手名を繰り返さない短い形も持つ。
-  // 「→ 佐藤 健司は「23番手では出番がない」と考えている」だと、その1クラブの話なのか
-  // その選手の全体の話なのかが読み取れなかった
-  const SHORT_NO: Record<Appraisal['lead'], string> = {
-    out_of_band: d.tier < ctx.playerTier ? 'このクラブで走れる力にまだ届いていない' : '格が離れすぎている',
-    no_playing_time: `${d.squadRank}番手で出番がない`,
-    wrong_region: `行きたいのは${DREAM_LABEL[dreamRegionOf(p.specialty)]}。この地域ではない`,
-    tier_down: '格下への移籍に前向きでない',
-    loyalty: '今のチームへの愛着が強い',
-    dream: '乗り気ではない',
-    playing_time: '乗り気ではない',
-    capped: '乗り気ではない',
-    ecl: '乗り気ではない',
-    title: '乗り気ではない',
-    tier_up: '乗り気ではない',
-    even: '乗り気ではない',
-  }
-  const REASON_YES: Record<Appraisal['lead'], string> = {
-    out_of_band: '条件は悪くない',
-    dream: `憧れの${DREAM_LABEL[dreamRegionOf(p.specialty)]}で走りたい`,
-    wrong_region: '行きたい地域ではない',
-    tier_up: '格上のクラブで挑戦したい',
-    playing_time: '出場機会が見込める',
-    no_playing_time: '出場機会が見込めない',
-    tier_down: '格下だが受け入れる',
-    loyalty: '今のチームに愛着がある',
-    capped: 'このクラブではもう伸びしろがない',
-    ecl: 'ECLで走りたい',
-    title: '優勝を争えるクラブで走りたい',
-    even: '条件は悪くない',
-  }
-  return { score, ok, lead, reason: ok ? REASON_YES[lead] : REASON_NO[lead], shortReason: ok ? REASON_YES[lead] : SHORT_NO[lead], parts }
+  // 理由の文字は moveDeclineText / moveAcceptText 1本（この関数の外・上の表）。
+  // ★ここに表を書き戻さないこと。3つに割れて番手が画面に出ていたのがそれ。
+  const dreamLabel = DREAM_LABEL[dreamRegionOf(p.specialty)]
+  const reason = ok ? moveAcceptText(lead, { dream: dreamLabel })
+    : moveDeclineText(lead, { dream: dreamLabel, belowTier: d.tier < ctx.playerTier })
+
+  return { score, ok, lead, reason, parts }
 }
 
 /**

@@ -143,6 +143,26 @@ console.log('\n[4] パスに埋め込む形へ戻っていない')
   check('順位表がタブでパスを書き換えていない', !/navigate\(`\/standings\/d\$\{/.test(stand))
 }
 
+console.log('\n[5] 開いている会話も URL 1本（チャット）')
+{
+  // ★タブと同じ話。**誰との会話を開いているか**を `useState` に持っていたので、
+  //   会話の中から相手クラブのページへ飛んで戻ると `/team/chat` が作り直され、
+  //   会話ではなく**チャット一覧**が出ていた（オーナー・2026-08-21
+  //   「ここからチーム見たら戻るとチャット画面まで戻るのは何故？」）。
+  //   戻るボタン（navigate(-1)）は1つ前へ戻っていて、**1つ前が会話でなかった**。
+  const src = readFileSync('src/components/team/ChatPage.tsx', 'utf8')
+    .split('\n').filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n')  // 経緯の説明文に当てない
+  check('会話の相手は URL から読む', /const chatPlayerId = searchParams\.get\('player'\)/.test(src))
+  check('トレードの相手も URL から読む', /const tradeTeamId = searchParams\.get\('trade'\)/.test(src))
+  check('会話の相手を useState に戻していない',
+    !/\[(chatPlayerId|tradeTeamId)(,\s*set\w+)?\] = useState/.test(src))  // setter 無しの形も見る
+  // ★ここが本体。入った直後に消していたので、`?player=` で来ても履歴に残らなかった
+  check('**URLのパラメータを消す replace を書いていない**',
+    !/navigate\('\/team\/chat[^']*',\s*\{\s*replace: true/.test(src))
+  check('location.state で会話の相手を渡す道が無い', !/location\.state as \{ tradeTeamId/.test(src))
+  check('閉じるのは navigate(-1) 1本', /const closeConversation = \(\) => navigate\(-1\)/.test(src))
+}
+
 console.log('')
 if (failed > 0) { console.log(`✗ タブが戻ったときに先頭へ戻ります（${failed}件）`); process.exit(1) }
 console.log('✓ タブはURLに覚えている。詳細から戻っても見ていたところのまま')

@@ -157,7 +157,7 @@ console.log('\n[②③] 声をかけると、選手が自分で決める')
     }
     else if (r.verdict) {
       declined++; declineReason = r.verdict.reason
-      if (declined <= 3) console.log(`      断った例： ${r.target.name} — ${r.verdict.shortReason}`)
+      if (declined <= 3) console.log(`      断った例： ${r.target.name} — ${r.verdict.reason}`)
       if (r.moved) check('断ったのに移っている', false, r.target.name)
       // 断り文句はそのままチャットの吹き出しになる。
       // ★引くのは判断（lead）で、一覧向けの説明文を流用しないこと

@@ -2,7 +2,7 @@ import type { ChatMessage, Player } from '../types'
 import type { Appraisal } from './transferDecision'
 import { settledPath } from './talkSync'
 // 憧れの地域の呼び名は transferDecision の DREAM_LABEL 1本（ここに表を持たない）
-import { dreamLabelOf, dreamRegionOf } from './transferDecision'
+import { dreamLabelOf, dreamRegionOf, moveDeclineText } from './transferDecision'
 
 // 進路が決まった選手の「本人の返事」を書く唯一の場所。
 //
@@ -116,6 +116,21 @@ export function clubDeclinedAckLine(clubName: string): ChatMessage {
 }
 
 /**
+ * **本人がそのクラブへ行くかどうか**の一言。買い取り打診の返事に出す。
+ *
+ * ★1クラブのときと取り合いのときで、**同じ文字を同じここから**出すこと。
+ *   以前は取り合いの一覧だけが `→ ◯◯へは行きたい（理由）` と結論を書き、
+ *   **1クラブのときは理由しか出していなかった**（`本人に確認しました。出場機会が
+ *   見込めるとのことです。`）。理由の文字列は `appraiseMove` の REASON_YES と
+ *   SHORT_NO を並べただけなので、「見込める」と「見込めない」の2文字を読み落とすと
+ *   意味が逆になり、**行くのか行かないのかが画面から読み取れませんでした**
+ *   （オーナー・2026-08-21「出場機会が見込めるからなに？」）。
+ */
+export function moveVerdictText(clubName: string, ok: boolean, reason?: string): string {
+  return `${clubName}へは${ok ? '行きたい' : '行かない'}${reason ? `（${reason}）` : ''}`
+}
+
+/**
  * 進路が決まっている選手の返事（決まっていなければ null）。
  * 判定は talkSync の settledPath 1本を通す。
  */
@@ -147,36 +162,25 @@ export function gmInviteYesLine(): ChatMessage {
 /**
  * **断りの返事。**
  *
- * ★引くのは**判断そのもの**（`lead`＝一番効いた要素）で、一覧に出す第三者の説明文
- *   （`shortReason`）を流用しない。あちらは「19番手で出番がない」のように
- *   **本人には分からない数字**が入っていて、本人のセリフにすると嘘になる
+ * ★文面は `transferDecision` の `moveDeclineText` 1本。**ここに表を持たないこと。**
+ *   以前はここだけが「出場機会が見込めない」と正しく書いていて、`transferDecision` の
+ *   2つの表が「23番手で出番がない」のまま残っていました（＝直したのが1か所だけ）。
+ *   本人にも代理人にも分からない数字なので、セリフにすると嘘になる
  *   （オーナー・2026-08-14「19番手かどうかってわからんくね？」）。
- *   判断は `transferDecision` の1本のままなので、物差しは増えていない。
  *
- * ★`Record<Appraisal['lead'], …>` にしてあるので、**新しい理由を足したら
- *   ここが埋まっていないと型で落ちる**（片方だけ増える事故が起きない）。
+ * ★`out_of_band`（選手の格から離れたクラブ）だけは**本人のセリフでは「乗り気ではない」に
+ *   寄せる**。「格が離れているので残らせてください」は本人の言い分にならないため
+ *   （オーナー・2026-08-14「1戦もなら残らないからいらんやろ」と同じ理由）。
+ *   表を分けるのではなく、**どの理由として言うか**をここで1行決める。
  */
 export function gmInviteNoLine(lead: Appraisal['lead'], player: Player): ChatMessage {
-  const stay = 'ので、このチームに残らせてください。'
-  const LINE: Record<Appraisal['lead'], string> = {
-    // 憧れの地域が違う。ここだけ言い切り（「〜ので」を付けない）
-    wrong_region: `行きたいのは${dreamLabelOf(dreamRegionOf(player.specialty))}です。`,
-    no_playing_time: `出場機会が見込めない${stay}`,
-    tier_down: `格下への移籍に前向きでない${stay}`,
-    loyalty: `今のチームへの愛着が強い${stay}`,
-    // ★`out_of_band`（選手の格から離れたクラブ）に専用の文は置かない。
-    //   「格が離れているので残らせてください」は本人の言い分にならない
-    //   （オーナー・2026-08-14「1戦もなら残らないからいらんやろ」と同じ理由）
-    out_of_band: `乗り気ではない${stay}`,
-    dream: `乗り気ではない${stay}`,
-    playing_time: `乗り気ではない${stay}`,
-    capped: `乗り気ではない${stay}`,
-    ecl: `乗り気ではない${stay}`,
-    title: `乗り気ではない${stay}`,
-    tier_up: `乗り気ではない${stay}`,
-    even: `乗り気ではない${stay}`,
+  const dream = dreamLabelOf(dreamRegionOf(player.specialty))
+  // 憧れの地域が違うときだけ言い切り（「〜ので」を付けない）
+  if (lead === 'wrong_region') {
+    return { from: 'player', kind: 'gm_invite_no', text: `行きたいのは${dream}です。` }
   }
-  return { from: 'player', kind: 'gm_invite_no', text: LINE[lead] }
+  const text = moveDeclineText(lead === 'out_of_band' ? 'even' : lead, { dream })
+  return { from: 'player', kind: 'gm_invite_no', text: `${text}ので、このチームに残らせてください。` }
 }
 
 export function gmInviteFeeLine(clubName: string): ChatMessage {

@@ -2,7 +2,7 @@ import type { Player, Specialty, Ratings, CardStatKey, Nationality } from '../ty
 import { calcBaseAbility, calcAffinity, calcConditionModifier, safeRatings } from '../engine/raceEngine'
 import { peakAgeOfCurve } from '../engine/ageCurve'
 import { type ClubTier } from './clubTier'
-import { appraiseMove, CONSENT_LINE, type Destination } from './transferDecision'
+import { appraiseMove, CONSENT_LINE, moveDeclineText, type Destination } from './transferDecision'
 import { strHash } from './hash'
 import { POACH_PREMIUM } from '../data/economy'
 import { type Race } from '../types'
@@ -467,7 +467,8 @@ export function playerConsentToMove(
   // 「主力だから残りたい」は行き先の情報とは別軸。ここだけ従来どおり残す
   const key = isDataKeyPlayer(p, playFraction, teamRaces) && !clubBlessed
   if (key && a.score - 0.3 < CONSENT_LINE) {
-    return { ok: false, reason: `${p.name}は主力として起用されており、移籍を望んでいない` }
+    // 文面は transferDecision の moveDeclineText 1本（ここで書かない）
+    return { ok: false, reason: moveDeclineText('key_player', { dream: '' }) }
   }
   return { ok: a.ok, reason: a.ok ? '' : a.reason }
 }

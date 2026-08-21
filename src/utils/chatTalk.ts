@@ -1,5 +1,5 @@
 import type { ChatMessage, Player, ContractRequest, AcquisitionOffer, TransferBid, IncomingLoanOffer } from '../types'
-import { settledLineOf, offerTermsLine, contractAcceptLine, contractCounterLine } from './chatLines'
+import { settledLineOf, offerTermsLine, contractAcceptLine, contractCounterLine, moveVerdictText } from './chatLines'
 import { rivalCountLine } from './newsItems'
 import { fmtYen } from './money'
 
@@ -184,9 +184,12 @@ export function buildIncomingOfferMessages(
       //   ときだけ本人の声が無く**、画面からは「まだ聞いていない」のか「乗り気」なのかが
       //   区別できませんでした。2クラブ以上のときは乗り気でも「→ 行きたい」が出るので、
       //   **件数によって本人の声の有無が変わっている**状態でした。
-      //   文面は `appraiseMove` の `shortReason` 1本（行くときは REASON_YES、断るときは SHORT_NO）。
+      //   文面は `appraiseMove` の `reason` 1本（`moveAcceptText` / `moveDeclineText`）。
+      // ★**結論（行く／行かない）は `moveVerdictText` 1本**。ここで理由だけを出さないこと
+      //   （下の取り合いの一覧と同じ文字になる）。
       ...(o.reason
-        ? [{ from: 'player' as const, kind: `incoming_wish:${o.id}`, text: `（代理人）本人に確認しました。${o.reason}とのことです。` }]
+        ? [{ from: 'player' as const, kind: `incoming_wish:${o.id}`,
+            text: `（代理人）本人に確認しました。${moveVerdictText(o.name, !!o.ok, o.reason)}とのことです。` }]
         : []),
     ]
   }
@@ -197,7 +200,7 @@ export function buildIncomingOfferMessages(
   //   「23番手なのはアムステルダムなのか札幌なのか」が読み取れなかった。
   const list = offers.map(o =>
     `・${o.name}（移籍金${fmtYen(o.price)}）`
-    + `\n\u3000→ ${o.name}へは${o.ok ? '行きたい' : '行かない'}${o.reason ? `（${o.reason}）` : ''}`,
+    + `\n\u3000→ ${moveVerdictText(o.name, !!o.ok, o.reason)}`,
   ).join('\n')
   return [
     { from: 'player', kind: key,

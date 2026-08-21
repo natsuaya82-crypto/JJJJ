@@ -14,6 +14,8 @@
  * 取れば、ボタン側にも同じ kind が付くので並ばない。
  */
 import { overseasApprovedLine, retireApprovedLine, settledLineOf } from '../src/utils/chatLines'
+import { buildIncomingOfferMessages } from '../src/utils/chatTalk'
+import { readFileSync } from 'node:fs'
 import { mergeChatMessages } from '../src/utils/chatLog'
 import type { ChatMessage, Player } from '../src/types'
 
@@ -69,6 +71,39 @@ console.log('[何度開いても増えない]')
   const before = log.length
   for (let i = 0; i < 5; i++) log = mergeChatMessages(log, [settledLineOf(player)!])
   check('5回開いても件数が変わらない', log.length === before, `${log.length}件（${before}件のはず）`)
+}
+
+console.log('')
+console.log('[買い取り打診の返事は、行くか行かないかを必ず言う]')
+{
+  // ★1クラブのときだけ**理由しか出していなかった**（オーナー・2026-08-21
+  //   「出場機会が見込めるからなに？」）。理由の文字列は appraiseMove の
+  //   REASON_YES / SHORT_NO を並べただけなので、「見込める」と「見込めない」の
+  //   2文字を読み落とすと意味が逆になる。結論は moveVerdictText 1本から出す。
+  const p = { name: 'イム・ハヌル' } as unknown as Player
+  const one = (ok: boolean, reason: string) => buildIncomingOfferMessages(
+    p, [{ id: 'o1', name: 'ポートランド', price: 219_000_000, ok, reason }])
+    .map(m => m.text ?? '').join('\n')
+
+  const yes = one(true, '出場機会が見込める')
+  check('1クラブ・乗り気 … 「行きたい」と言う', yes.includes('ポートランドへは行きたい'), yes)
+  const no = one(false, '出場機会が見込めない')
+  check('1クラブ・断り … 「行かない」と言う', no.includes('ポートランドへは行かない'), no)
+  check('1クラブでも理由は残る', yes.includes('（出場機会が見込める）') && no.includes('（出場機会が見込めない）'))
+
+  // 取り合いのときと**同じ文字**であること（片方だけ書き換わっていたら落ちる）
+  const many = buildIncomingOfferMessages(p, [
+    { id: 'o1', name: 'ポートランド', price: 219_000_000, ok: true, reason: '出場機会が見込める' },
+    { id: 'o2', name: '札幌', price: 180_000_000, ok: false, reason: '出場機会が見込めない' },
+  ]).map(m => m.text ?? '').join('\n')
+  check('取り合いでも同じ文字', many.includes('ポートランドへは行きたい（出場機会が見込める）')
+    && many.includes('札幌へは行かない（出場機会が見込めない）'), many)
+
+  // ★否定：結論の文字を chatTalk 側に書き戻したら落とす（2か所目ができる）
+  const talk = readFileSync('src/utils/chatTalk.ts', 'utf8')
+  check('結論の文字を chatTalk に手書きしていない', !/へは\$\{|行きたい' : '行かない/.test(talk))
+  check('通っているのは moveVerdictText 1本（入口は2つ）',
+    (talk.match(/moveVerdictText\(/g) ?? []).length === 2)
 }
 
 console.log('')

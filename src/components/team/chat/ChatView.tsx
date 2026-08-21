@@ -145,11 +145,11 @@ export function ChatView({
         name: clubIndex.byId(r.offer.fromTeamId)?.shortName ?? '他クラブ',
         price: r.offer.offeredPrice,
         // 一覧に1行ずつ並べるので短い形（選手名を繰り返さない）
-        ok: r.appraisal.ok, reason: r.appraisal.shortReason,
+        ok: r.appraisal.ok, reason: r.appraisal.reason,
       })),
       // 行ってもいい先が2つ以上あるときだけ本命を聞く（1つなら一覧で言い切っている）
       rankedOffers.filter(r => r.appraisal.ok).length > 1
-        ? { name: clubIndex.byId(rankedOffers[0].offer.fromTeamId)?.shortName ?? '他クラブ', reason: rankedOffers[0].appraisal.shortReason }
+        ? { name: clubIndex.byId(rankedOffers[0].offer.fromTeamId)?.shortName ?? '他クラブ', reason: rankedOffers[0].appraisal.reason }
         : undefined,
     ),
     ...(incomingLoan ? buildIncomingLoanMessages(player, incomingLoan, incomingLoanFrom) : []),

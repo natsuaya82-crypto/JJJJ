@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { useStickyTab } from '../../lib/useStickyTab'
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
@@ -73,7 +73,6 @@ function getPlayerStatus(
 
 export default function ChatPage() {
   const navigate = useNavigate()
-  const location = useLocation()
   const [searchParams] = useSearchParams()
   // 買い取り・レンタルの打診への返事は ChatView（会話）が持つ。一覧はタップして開くだけ
   const { players, playerTeamId, currentSeason, teams, generateContractRequests,
@@ -88,48 +87,43 @@ export default function ChatPage() {
     onPointerLeave: () => { if (lpTimer.current) clearTimeout(lpTimer.current) },
     onPointerMove: () => { if (lpTimer.current) clearTimeout(lpTimer.current) },
   })
-  // 通知などから ?player=<id> で来た場合は直接その選手のチャットを開く
-  const locState = location.state as { tradeTeamId?: string } | null
-  const [chatPlayerId, setChatPlayerId] = useState<string | null>(() => searchParams.get('player'))
-  const [tradeTeamId, setTradeTeamId] = useState<string | null>(() => searchParams.get('trade') ?? locState?.tradeTeamId ?? null)
-  const cameFromParamRef = useRef<boolean>(!!(searchParams.get('player') || searchParams.get('trade') || locState?.tradeTeamId))
+  // ★**いま誰との会話を開いているかは URL 1本**（`?player=<選手ID>` / `?trade=<クラブID>`）。
+  //
+  //   以前は `useState` に持っていて、`?player=` で来ても**入った直後に replace で
+  //   消していました**。会話の中から相手クラブのページへ飛んで戻ると、`/team/chat` が
+  //   作り直されて state が空になるので、**会話ではなくチャット一覧が出ます**
+  //   （オーナー・2026-08-21「ここからチーム見たら戻るとチャット画面まで戻るのは何故？」）。
+  //   戻るボタン（`navigate(-1)`）は1つ前へ戻っていて、**1つ前が会話になっていなかった**。
+  //
+  //   タブを URL に寄せた `lib/useStickyTab` とまったく同じ形です。開くのは push
+  //   （履歴に積む）、閉じるのは `navigate(-1)` の1本だけ。
+  //   ★`location.state` で渡す道は**作らないこと**（戻ってきたときに復元できない）。
+  const chatPlayerId = searchParams.get('player')
+  const tradeTeamId = searchParams.get('trade')
   const wantParam = searchParams.get('want')
+  // 会話を開く＝URLを1つ積む。いま見ているタブ（?tab=）は残す
+  const openWith = (set: (q: URLSearchParams) => void, replace = false) => {
+    const q = new URLSearchParams(searchParams)
+    q.delete('player'); q.delete('trade'); q.delete('want')
+    set(q)
+    const s = q.toString()
+    navigate(s ? `/team/chat?${s}` : '/team/chat', { replace })
+  }
+  const openChat = (playerId: string, replace = false) => openWith(q => q.set('player', playerId), replace)
+  // 閉じるのは1つ戻るだけ（一覧から開いたなら一覧へ、通知から来たなら通知へ）
+  const closeConversation = () => navigate(-1)
   // チャット履歴は store（currentSeason.chatLogs）に保存。画面を離れても・解決後も年内は見返せる。
   const chatLogs = currentSeason.chatLogs ?? {}
   // ★見ているタブはURLに覚えさせる（`?tab=transfer`。`lib/useStickyTab`）。
   //   トレードの相手から飛んできたときは「移籍・獲得」で開く（既定を切り替える）
   const [activeTab, setActiveTab] = useStickyTab<'own' | 'transfer'>(
-    'tab', ['own', 'transfer'], (searchParams.get('trade') || locState?.tradeTeamId) ? 'transfer' : 'own')
+    'tab', ['own', 'transfer'], searchParams.get('trade') ? 'transfer' : 'own')
   // 買い取り・レンタル打診に対応した結果（オファーはストアから消えるため、ここで結果を見せて確認で消す）。
   // 状態も見た目も transfer/OfferResultList の1本（移籍画面・オファー一覧と同じもの）。
   // ここに残るのはオファー一覧など他画面から飛んできた結果だけで、チャットでの返事の結果は会話に出る
   const { results: offerResults, dismiss: dismissOfferResult } = useOfferResults()
 
   useEffect(() => { generateContractRequests() }, [])
-
-  // 既にチャットを開いた状態で ?player / ?trade 付きで来た場合も反応させる
-  useEffect(() => {
-    const pl = searchParams.get('player')
-    const tr = searchParams.get('trade')
-    if (pl) { setChatPlayerId(pl); setTradeTeamId(null); cameFromParamRef.current = true }
-    else if (tr) { setTradeTeamId(tr); setChatPlayerId(null); setActiveTab('transfer'); cameFromParamRef.current = true }
-    // ★タブは URL に持っているので、ここで消さないこと。トレードから来たら
-    //   「移籍・獲得」を付けたまま書き換える（消すと閉じたあと自チームへ戻る）
-    if (pl || tr) navigate(tr ? '/team/chat?tab=transfer' : '/team/chat', { replace: true })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams])
-
-  // location.state経由で来たtradeTeamId（通知などからstate付きnavigate）
-  useEffect(() => {
-    const ls = location.state as { tradeTeamId?: string } | null
-    if (ls?.tradeTeamId) {
-      setTradeTeamId(ls.tradeTeamId)
-      setChatPlayerId(null)
-      setActiveTab('transfer')
-      cameFromParamRef.current = true
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.key])
 
   const totalRaces = currentSeason.races.length
   const raceIndex = currentSeason.currentRaceIndex ?? 0
@@ -190,12 +184,6 @@ export default function ChatPage() {
   // 他チーム（トレード交渉の相手）
   const tradeTeam = tradeTeamId ? teams.find(t => t.id === tradeTeamId) ?? null : null
 
-  // 無効なパラメータで来た場合（存在しない選手・海外クラブのID等）は一覧表示に落ちる。
-  // その際「戻る」が呼び出し元へ飛ばないようフラグを下ろす
-  useEffect(() => {
-    if (!chatPlayer && !tradeTeam) cameFromParamRef.current = false
-  })
-
   // ★**チャットを開いたら、いま出ている用件を見た扱いにする。**
   //   ホームの「チャット」の数字はこれで消える（オーナー・2026-08-16
   //   「チャット見ないとその数字消えないみたいな。フレンド横にあった3みたいな感じ」）。
@@ -245,15 +233,10 @@ export default function ChatPage() {
   const outgoingLoans = currentSeason.loanRequests ?? []
   const outgoingCount = outgoingBids.length + outgoingLoans.length
 
-  const closeConversation = (clear: () => void) => {
-    if (cameFromParamRef.current) { cameFromParamRef.current = false; navigate(-1) }
-    else clear()
-  }
-
   if (tradeTeam) return (
-    <TradeChatView key={tradeTeam.id} team={tradeTeam} onClose={() => closeConversation(() => setTradeTeamId(null))}
+    <TradeChatView key={tradeTeam.id} team={tradeTeam} onClose={closeConversation}
       initialMode={wantParam ? 'trade' : 'fee'} initialGetId={wantParam ?? undefined}
-      onNegotiateContract={(pid) => { setTradeTeamId(null); setChatPlayerId(pid) }} />
+      onNegotiateContract={(pid) => openChat(pid, true)} />
   )
 
   if (chatPlayer) return (
@@ -262,7 +245,7 @@ export default function ChatPage() {
       player={chatPlayer}
       initialMessages={chatLogs[chatPlayer.id]}
       onMessagesChange={msgs => setChatLog(chatPlayer.id, msgs)}
-      onClose={() => closeConversation(() => setChatPlayerId(null))}
+      onClose={closeConversation}
     />
   )
 
@@ -276,7 +259,7 @@ export default function ChatPage() {
       <button
         key={player.id}
         {...longPress(player.id)}
-        onClick={() => { if (lpFired.current) { lpFired.current = false; return } setChatPlayerId(player.id) }}
+        onClick={() => { if (lpFired.current) { lpFired.current = false; return } openChat(player.id) }}
         style={{ width: '100%',background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${borderColor}`, overflow: 'hidden', cursor: 'pointer', textAlign: 'left', padding: 0, fontFamily: 'inherit' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px' }}>
@@ -324,7 +307,7 @@ export default function ChatPage() {
       <button
         key={player.id}
         {...longPress(player.id)}
-        onClick={() => { if (lpFired.current) { lpFired.current = false; return } setChatPlayerId(player.id) }}
+        onClick={() => { if (lpFired.current) { lpFired.current = false; return } openChat(player.id) }}
         style={{ width: '100%',background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${alpha(statusCol, 0.4)}`, overflow: 'hidden', cursor: 'pointer', textAlign: 'left', padding: 0, fontFamily: 'inherit' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px' }}>
@@ -429,7 +412,7 @@ export default function ChatPage() {
               if (!p) return null
               const decidesIn = Math.max(1, o.expiresAtRace - racesConsumed(currentSeason))
               return (
-                <button key={o.id} onClick={() => setChatPlayerId(p.id)} style={{background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1.5px solid ${alpha(C.orange, 0.4)}`, padding: '10px 12px', marginBottom: 2, width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}>
+                <button key={o.id} onClick={() => openChat(p.id)} style={{background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1.5px solid ${alpha(C.orange, 0.4)}`, padding: '10px 12px', marginBottom: 2, width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div style={{ flexShrink: 0,overflow: 'hidden', border: `1px solid ${alpha(C.orange, 0.4)}` }}>
                       <PlayerFace playerId={p.id} nationality={p.nationality} size={40} />
@@ -458,7 +441,7 @@ export default function ChatPage() {
                 sub={n > 1
                   ? `最高 ${fmtYen(top.offeredPrice)} — タップして返事をする`
                   : `移籍金 ${fmtYen(top.offeredPrice)} — タップして返事をする`}
-                onOpen={() => setChatPlayerId(p.id)} />
+                onOpen={() => openChat(p.id)} />
             })}
             {incomingLoanOffers.map(o => {
               const p = players.find(pl => pl.id === o.playerId)
@@ -466,7 +449,7 @@ export default function ChatPage() {
               return <OfferChatRow key={o.id} player={p} accent={C.purple ?? C.purple} badge="レンタル"
                 title={`${teamName(o.fromTeamId)}が${p.name}のレンタルを打診`}
                 sub={`${o.years}年${o.direction === 'lend_out' ? '貸し出し' : '借り入れ'} — タップして返事をする`}
-                onOpen={() => setChatPlayerId(p.id)} />
+                onOpen={() => openChat(p.id)} />
             })}
           </>
         )}
@@ -490,7 +473,7 @@ export default function ChatPage() {
               const curTeam = clubIndex.byId(p.teamId)
               return (
                 <button key={p.id} {...longPress(p.id)}
-                  onClick={() => { if (lpFired.current) { lpFired.current = false; return } setChatPlayerId(p.id) }}
+                  onClick={() => { if (lpFired.current) { lpFired.current = false; return } openChat(p.id) }}
                   style={{ width: '100%',background: `linear-gradient(180deg, ${C.surface3} 0%, ${C.surface2} 100%)`, border: `1px solid ${alpha(C.green, 0.4)}`, overflow: 'hidden', cursor: 'pointer', textAlign: 'left', padding: 0, fontFamily: 'inherit' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px' }}>
                     <div onClick={(e) => { e.stopPropagation(); openPlayerSheet(p.id) }} style={{ flexShrink: 0,overflow: 'hidden', border: `1.5px solid ${alpha(specCol, 0.4)}`, cursor: 'pointer' }}>
