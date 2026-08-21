@@ -97,7 +97,7 @@ export default function CreateMyPlayerPage() {
     return (
       <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, padding: 16 }}>
         <BackButton onClick={() => navigate('/')} />
-        <div style={{ textAlign: 'center', padding: 40, color: C.textDim }}>マイプレイヤーは作成済みです（1回きり）。</div>
+        <div style={{ textAlign: 'center', padding: 40, color: C.textDim }}>作成できる回数が残っていません</div>
       </div>
     )
   }

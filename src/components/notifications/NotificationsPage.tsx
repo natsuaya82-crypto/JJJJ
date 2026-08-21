@@ -235,7 +235,7 @@ export default function NotificationsPage() {
               シーズン中でも出るこちらから入ります */}
           {playerCreateLeft > 0 && (
             <section>
-              <SectionHead label="選手作成" color={C.purple} count={playerCreateLeft}/>
+              <SectionHead label="マイプレイヤー作成" color={C.purple} count={playerCreateLeft}/>
               <div style={{ padding: '0 16px', marginBottom: 8 }}>
                 <button onClick={() => navigate('/create-player')} style={{ width: '100%', textAlign: 'left', cursor: 'pointer', position: 'relative', background: `linear-gradient(135deg, ${alpha(C.purple, 0.22)}, ${C.surface2})`, border: `2px solid ${C.purple}`, padding: '14px 16px', fontFamily: 'inherit' }}>
                   <div style={{ fontSize: F.subLg, fontWeight: 900, color: C.text }}>好きな選手を1人つくれます</div>
