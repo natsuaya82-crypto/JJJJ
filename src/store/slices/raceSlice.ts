@@ -283,9 +283,11 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       // 受け取る側は格も手元資金も見られず、いくらまで出せるかを初期値の格から作り直していた。
       const foreignClubs = allForeignClubs(state.foreignLeagues)
       const transferData = generateTransferActivity(finalPlayers, teamsWithPrize, playerTeamId, nextClock, existingListingsFiltered, state.currentSeason.incomingOffers ?? [], state.currentSeason.transferRequests ?? [], retiringWishIds, state.currentSeason.year, state.currentSeason.races.length, foreignClubs,
-        // 出場率は utils/playRate 1本（「格下は主力に声を掛けない」がこれを見る）
+        // 出場率は utils/playRate 1本（本人が受けるかの判定がこれを見る）
         (pid) => playRateOf(pid, playerTeamId, state.currentSeason, state.teams, state.foreignLeagues,
-          prevSeasonOf(state.pastSeasons, state.currentSeason.year)))
+          prevSeasonOf(state.pastSeasons, state.currentSeason.year)),
+        // 行き先の姿は store の destinationOf 1本（打診の関門が本人の判定をそのまま呼ぶ）
+        (clubId, player) => get().destinationOf(clubId, player))
 
       // 相手からのレンタル打診（チャットで対応）
       const keptLoanOffers = (state.currentSeason.incomingLoanOffers ?? []).filter(o => o.expiresAtRace > nextClock && finalPlayers.some(p => p.id === o.playerId))

@@ -18,7 +18,8 @@ import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
 import { drawSeasonSchedules } from '../src/data/races'
 import { divisionOf } from '../src/utils/league'
-import { tierBudget } from '../src/utils/clubTier'
+import { tierBudget, tierOf } from '../src/utils/clubTier'
+import { buildDestination, regionOfLeague } from '../src/utils/transferDecision'
 import type { ForeignClub, IncomingOffer, Player, Team } from '../src/types'
 
 const MY = 'tokyo'
@@ -41,6 +42,15 @@ const DIV = Number(process.env.DIV ?? divisionOf(teams.find(t => t.id === MY)))
 const races = drawSeasonSchedules(YEAR)[DIV]
 
 const foreignIds = new Set(foreignClubs.map(c => c.id))
+const teamById = new Map(teams.map(t => [t.id, t]))
+const foreignById = new Map(foreignClubs.map(c => [c.id, c]))
+// 行き先の姿。store の destinationOf と同じ材料（この世界は順位表を持たない）
+const destOf = (all: Player[]) => (clubId: string, player: Player) => {
+  const c = foreignById.get(clubId)
+  const t = c ? tierOf(c as never) : tierOf(teamById.get(clubId)!)
+  return buildDestination(clubId, t, all,
+    { isForeign: !!c, region: c ? regionOfLeague(c.leagueId) : undefined, player })
+}
 
 /** 1年ぶん回す。打診は expiresAtRace = raceIndex + 5 で切れる */
 function runOneYear(players: Player[]) {
@@ -50,7 +60,8 @@ function runOneYear(players: Player[]) {
   const newPerRace: number[] = []
   for (let i = 0; i < races.length; i++) {
     const r = generateTransferActivity(
-      players, teams, MY, i, [], live, [], new Set(), YEAR, races.length, foreignClubs)
+      players, teams, MY, i, [], live, [], new Set(), YEAR, races.length, foreignClubs,
+      () => ({ fraction: 0, teamRaces: 0 }), destOf(players))
     const fresh = r.incomingOffers.filter(o => !live.some(l => l.id === o.id))
     arrived.push(...fresh)
     newPerRace.push(fresh.length)

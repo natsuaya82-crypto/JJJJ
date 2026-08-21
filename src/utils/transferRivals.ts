@@ -2,7 +2,7 @@ import type { ForeignLeague, Player, Team } from '../types'
 import type { ClubTier } from './clubTier'
 import { needsPlayer } from './squadNeeds'
 import { appraiseMove, RUNNING_SLOTS, type Destination } from './transferDecision'
-import { allTieredClubs, tierBudget, tierOfPlayerClub } from './clubTier'
+import { allTieredClubs, tierOfPlayerClub } from './clubTier'
 import { transferCapOf } from '../data/economy'
 import { ROSTER_MAX } from '../data/rosterRules'
 
@@ -68,7 +68,7 @@ export function rivalClubsFor(
     .map(x => ({
       clubId: x.t.id,
       name: x.t.shortName,
-      willing: transferCapOf(tierBudget(x.t), x.t.finance?.budget ?? 0),
+      willing: transferCapOf(x.t.finance?.budget ?? 0),
     }))
     .filter(r => r.willing > 0)
 }

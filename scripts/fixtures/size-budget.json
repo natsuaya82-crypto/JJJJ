@@ -1,5 +1,5 @@
 {
- "src/engine/cpuMarket.ts": 622,
+ "src/engine/cpuMarket.ts": 647,
  "src/engine/cpuOffseason.ts": 496,
  "src/engine/growth.ts": 297,
  "src/engine/interactiveRace.ts": 818,
@@ -28,9 +28,9 @@
  "src/store/slices/marketSlice.ts::tradePlayer": 111,
  "src/store/slices/metaSlice.ts": 303,
  "src/store/slices/metaSlice.ts::createMyPlayer": 62,
- "src/store/slices/raceSlice.ts": 754,
+ "src/store/slices/raceSlice.ts": 756,
  "src/store/slices/raceSlice.ts::ensureIndividualEvents": 91,
- "src/store/slices/raceSlice.ts::runRace": 487,
+ "src/store/slices/raceSlice.ts::runRace": 489,
  "src/store/slices/raceSlice.ts::simulateIndividualEvent": 100,
  "src/store/slices/seasonSlice.ts": 891,
  "src/store/slices/seasonSlice.ts::endSeason": 609,

@@ -47,6 +47,7 @@ import { calcTransferValue } from '../src/utils/playerUtils'
 import { comparePlayers } from '../src/utils/playerSort'
 import { wouldMakeLineup } from '../src/utils/squadNeeds'
 import { TIER_FALL_LIMIT, playerTierOf, tierLines } from '../src/utils/playerTier'
+import { appraiseMove, buildDestination, regionOfLeague } from '../src/utils/transferDecision'
 import type { ForeignClub, IncomingOffer, Player, Team } from '../src/types'
 
 let failed = 0
@@ -82,6 +83,16 @@ const rounds: Run[] = []
 //   （run 0 の名簿で run 5 の打診を割ると、別人の相場で割って6倍などになる）
 const players0 = [...generateCpuRosters(teams, YEAR).cpuPlayers, ...foreignPlayers]
 /** 世界ごとの名簿。[6] は序列を見るので、その打診が出た世界の名簿で引く */
+// 行き先の姿。store の destinationOf と同じ材料（この世界は順位表を持たないので順位は無し）
+const teamById = new Map(teams.map(t => [t.id, t]))
+const foreignById = new Map(foreignClubs.map(c => [c.id, c]))
+const destOf = (all: Player[]) => (clubId: string, player: Player) => {
+  const c = foreignById.get(clubId)
+  const t = c ? tierOf(c as never) : tierOf(teamById.get(clubId)!)
+  return buildDestination(clubId, t, all,
+    { isForeign: !!c, region: c ? regionOfLeague(c.leagueId) : undefined, player })
+}
+
 const worldOf: { byId: Map<string, Player>; myRoster: Player[]; players: Player[] }[] = []
 for (let run = 0; run < RUNS; run++) {
   const players = run === 0 ? players0 : [...generateCpuRosters(teams, YEAR - run).cpuPlayers, ...foreignPlayers]
@@ -95,7 +106,7 @@ for (let run = 0; run < RUNS; run++) {
     const r = generateTransferActivity(
       players, teams, MY, i, [], live, [], new Set(), YEAR, races.length, foreignClubs,
       // この点検の世界はレース結果を持たないので「まだ分からない」を返す＝序列で見る
-      () => ({ fraction: 0, teamRaces: 0 }))
+      () => ({ fraction: 0, teamRaces: 0 }), destOf(players))
     rounds.push({ fresh: r.incomingOffers.filter(o => !live.some(l => l.id === o.id)), raceIndex: i, run })
     live = r.incomingOffers
   }
@@ -130,7 +141,7 @@ console.log('[1.5] **1年に来る件数**（上限だけ見ても「多すぎ�
     for (let i = 0; i < sch.length; i++) {
       const r = generateTransferActivity(
         players0, teams, MY, i, [], live, [], new Set(), YEAR, sch.length, foreignClubs,
-        () => ({ fraction: 0, teamRaces: 0 }))
+        () => ({ fraction: 0, teamRaces: 0 }), destOf(players0))
       got += r.incomingOffers
         .filter(o => !live.some(l => l.id === o.id) && o.offeredPrice > 0 && !o.id.startsWith('inc-lst-')).length
       live = r.incomingOffers
@@ -234,10 +245,48 @@ console.log('[6] 声が掛かるのは、選手の格から離れすぎないク
   const bad = all.filter(x => x.tier - ptOf(x) > TIER_FALL_LIMIT)
   check(`選手の格から${TIER_FALL_LIMIT}段より下のクラブから声が掛かっていない`,
     bad.length === 0, `${bad.length}件`)
-  // 線を別に作っていないか
+}
+
+console.log('')
+console.log('[7] **断られると分かっている相手には声を掛けない**（appraiseMove 1本）')
+{
+  // > 移籍したいかどうかは選手が決めることではあるだろ。
+  // > ふつうに断られるならお前らもオファーするな（オーナー・2026-08-21）
+  //
+  // 打診を作る側が関門の**一部だけ**（格の帯 `inTierBand`）を写していたころ、
+  // 帯には入っているが本人は断る打診が通っていた（実測で打診の51%）。
+  // 1レース1件の枠が、半分はその往復に消えていた。
+  const tierById = new Map<string, number>()
+  for (const t of teams) tierById.set(t.id, tierOf(t))
+  for (const c of foreignClubs) tierById.set(c.id, tierOf(c as never))
+  const foreignByIdC = new Map(foreignClubs.map(c => [c.id, c]))
+  const myTier = tierById.get(MY)!
+  const linesOf = new Map<number, number[]>()
+  const judged = buys.flatMap(r => r.fresh.map(o => ({ o, run: r.run })))
+    .map(x => ({ p: worldOf[x.run].byId.get(x.o.playerId), run: x.run, o: x.o }))
+    .filter((x): x is { p: Player; run: number; o: IncomingOffer } => !!x.p)
+    .map(x => {
+      let l = linesOf.get(x.run)
+      if (!l) { l = tierLines(worldOf[x.run].players, (id: string) => tierById.get(id) as never); linesOf.set(x.run, l) }
+      const c = foreignByIdC.get(x.o.fromTeamId)
+      const dest = buildDestination(x.o.fromTeamId, (tierById.get(x.o.fromTeamId) ?? 20) as never,
+        worldOf[x.run].players, { isForeign: !!c, region: c ? regionOfLeague(c.leagueId) : undefined, player: x.p })
+      // 打診を作るときと**同じ材料**（この世界はレース結果を持たないので fraction 0）
+      return appraiseMove(x.p, dest, { srcTier: myTier as never, playFraction: 0, teamRaces: 0,
+        playerTier: playerTierOf(x.p, l) })
+    })
+  const refused = judged.filter(a => !a.ok)
+  console.log(`      打診 ${judged.length}件 / 本人が断る ${refused.length}件` +
+    (refused.length ? `（${[...new Set(refused.map(a => a.lead))].join(' / ')}）` : ''))
+  check('判定できる打診がある（空振りの緑ではない）', judged.length > 0, `${judged.length}件`)
+  check('**本人が断る打診が1件も無い**', refused.length === 0, `${refused.length}件`)
+  // 関門を写していないか。判定は appraiseMove をそのまま呼ぶ1本で、
+  // `inTierBand` はその中（outOfBand）にあるので、ここで別に呼んではいけない
   const src = readFileSync('src/engine/cpuMarket.ts', 'utf-8')
-  check('線は utils/playerTier 1本（数字を手書きしていない）',
-    /inTierBand\(/.test(src) && !/tier - myTier >= [0-9]/.test(src))
+  const fn = src.slice(src.indexOf('export function generateTransferActivity'))
+  check('打診の関門は appraiseMove を通る', /appraiseMove\(/.test(fn))
+  check('**関門の一部を写していない**（inTierBand を別に呼んでいない）', !/inTierBand\(/.test(src))
+  check('格差の数字を手書きしていない', !/tier - myTier >= [0-9]/.test(src))
 }
 
 console.log('')

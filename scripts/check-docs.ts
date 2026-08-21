@@ -136,7 +136,6 @@ console.log('\n[4] CLAUDE.md に書いた数字が、コードの定数と合っ
   const claude = readFileSync('CLAUDE.md', 'utf8').split('\n')
   const NUMS: { name: string; as?: (v: number) => string[] }[] = [
     { name: 'CARRYOVER_CAP_SHARE', as: v => [`${v * 100}%`, String(v)] },
-    { name: 'TRANSFER_BUDGET_SHARE', as: v => [`${v * 100}%`, String(v)] },
     { name: 'CPU_SELL_FLOOR' },
     { name: 'RETIRE_AGE_MIN' },
     { name: 'RETIRE_AGE_MAX' },
