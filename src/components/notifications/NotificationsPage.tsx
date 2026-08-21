@@ -228,14 +228,14 @@ export default function NotificationsPage() {
       ) : (
         <div style={{ paddingBottom: '24px' }}>
 
-          {/* アップデート記念：選手を1人つくる。
+          {/* 選手を1人つくる。
               ★**ここが入口です。** 以前もこの枠にあり、記念枠を終了したときに消えました
               （オーナー・2026-08-21「前は通知に入ってただろ」）。プレシーズンの準備の行
               （Dashboard）は初年度ぶん。記念で配ったぶんはいつでも使えるので、
               シーズン中でも出るこちらから入ります */}
           {playerCreateLeft > 0 && (
             <section>
-              <SectionHead label="アップデート記念" color={C.purple} count={playerCreateLeft}/>
+              <SectionHead label="選手作成" color={C.purple} count={playerCreateLeft}/>
               <div style={{ padding: '0 16px', marginBottom: 8 }}>
                 <button onClick={() => navigate('/create-player')} style={{ width: '100%', textAlign: 'left', cursor: 'pointer', position: 'relative', background: `linear-gradient(135deg, ${alpha(C.purple, 0.22)}, ${C.surface2})`, border: `2px solid ${C.purple}`, padding: '14px 16px', fontFamily: 'inherit' }}>
                   <div style={{ fontSize: F.subLg, fontWeight: 900, color: C.text }}>好きな選手を1人つくれます</div>
