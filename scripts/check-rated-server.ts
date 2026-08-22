@@ -34,7 +34,7 @@ import { runRatedRound, type RatedEntrant } from '../src/lib/ratedTick'
 import { ratedMatchCourse, ratedDateOf, ratedDayOf, SEG_MAX } from '../src/engine/ratedCourse'
 import { RANK_BANDS, GROUP_MAX, GROUP_MIN, rankOf } from '../src/engine/rating'
 import { buildRatingsForRank } from '../src/engine/playerGenerator'
-import { HOF_MAX } from '../src/utils/hofRoster'
+import { HOF_MAX, HOF_ENTRY_MIN } from '../src/utils/hofRoster'
 import { ovr } from '../src/utils/playerUtils'
 import type { HofPlayer, Player } from '../src/types'
 
@@ -46,23 +46,33 @@ const check = (name: string, ok: boolean, detail = '') => {
 
 console.log('[1] 参加資格の人数は1本（画面とサーバーで食い違わない）')
 {
-  // ★この数は**2か所にある**。TS の `HOF_MAX`（ボタンが押せるか）と、
+  // ★この数は**2か所にある**。TS の `HOF_ENTRY_MIN`（ボタンが押せるか）と、
   //   `all.sql` の `rated_join`（サーバーが受けるか）。片方だけ動かすと
   //   「押せるのに弾かれる」「押せないのに資格はある」になる。
   //   SQL 側は関数の中の即値なので TS を import できない＝**ここで突き合わせる**。
   const sql = readFileSync('supabase/all.sql', 'utf8')
   const m = /rated_hof_count\(me\)\s*<\s*(\d+)/.exec(sql)
   check('all.sql に参加資格の判定がある', !!m, m ? '' : '見つからない')
-  check(`サーバーの線が HOF_MAX と同じ（${HOF_MAX}）`,
-    !!m && Number(m[1]) === HOF_MAX, m ? `all.sql は ${m[1]}` : '')
+  check(`サーバーの線が HOF_ENTRY_MIN と同じ（${HOF_ENTRY_MIN}）`,
+    !!m && Number(m[1]) === HOF_ENTRY_MIN, m ? `all.sql は ${m[1]}` : '')
+
+  // ★**参加の線（門）と登録の上限（器）は別の数**。以前は1つの数を
+  //   `canRegisterHof` が `< HOF_MAX`、`canJoin` が `>= HOF_MAX` と裏表で見ていて、
+  //   門だけ 30 → 15 に下げたつもりが**殿堂入りに16人目を入れられなくなった**
+  //   （オーナー・2026-08-22）。門が器を超えたら誰も参加できないので、そこも見る。
+  check(`参加の線(${HOF_ENTRY_MIN}) が登録の上限(${HOF_MAX}) を超えていない`,
+    HOF_ENTRY_MIN <= HOF_MAX)
+  check('参加資格を見る側が HOF_MAX を使っていない',
+    !/>=\s*HOF_MAX/.test(readFileSync('src/lib/ratedApi.ts', 'utf8')))
 
   // ★**下限は「その日の区間数の上限」**。同じ選手を2区間に置けないので、
-  //   HOF_MAX < SEG_MAX にすると区間数の多い日に**提出そのものができない**
+  //   HOF_ENTRY_MIN < SEG_MAX にすると区間数の多い日に**提出そのものができない**
   //   （`RatedLineupPage` の allSegsFilled が永久に false）。コースは日付から
   //   引くので、その日が来るまで誰も気づけない。
   // ★この判定は**世界を組む前**に置くこと。あとに置くと、区間を埋められずに
   //   点検そのものが例外で落ちて、ここまで到達しない（実際にそうなった）。
-  check(`HOF_MAX(${HOF_MAX}) が区間数の上限(${SEG_MAX})を下回っていない`, HOF_MAX >= SEG_MAX)
+  check(`参加の線(${HOF_ENTRY_MIN}) が区間数の上限(${SEG_MAX})を下回っていない`,
+    HOF_ENTRY_MIN >= SEG_MAX)
 }
 
 // ── 種を固定した世界 ────────────────────────────────────

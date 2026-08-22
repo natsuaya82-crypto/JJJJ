@@ -11,7 +11,7 @@ import {
   canJoin, fetchEvent, fetchMe, fetchResult, fetchToday, joinRated, RESULT_HHMM, SUBMIT_DEADLINE_HHMM,
   type RatedEventInfo, type RatedMe, type RatedResult, type RatedToday,
 } from '../../lib/ratedApi'
-import { HOF_MAX } from '../../utils/hofRoster'
+import { HOF_ENTRY_MIN } from '../../utils/hofRoster'
 import { jstTodayISO } from '../../utils/jstDate'
 import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
 import type { Segment } from '../../types'
@@ -300,7 +300,7 @@ export default function RatedPage() {
                   navigate('/online/rated/lineup'); return
                 }
                 setNotice(
-                  r === 'hof' ? `殿堂入りが${HOF_MAX}人そろっていません`
+                  r === 'hof' ? `殿堂入りが${HOF_ENTRY_MIN}人そろっていません`
                   : r === 'closed' ? 'いまは大会をやっていません'
                   : 'サーバーにつながりませんでした')
               })
@@ -330,7 +330,7 @@ export default function RatedPage() {
               見ているので、そのまま使うと開催前に「殿堂入り 0/7」と嘘が出る */}
           {!canJoin(hof) && (
             <div style={{ fontSize: F.label, color: C.orange, marginTop: 8, textAlign: 'center' }}>
-              殿堂入り {hof?.length ?? 0} / {HOF_MAX}
+              殿堂入り {hof?.length ?? 0} / {HOF_ENTRY_MIN}
             </div>
           )}
           {!!notice && (

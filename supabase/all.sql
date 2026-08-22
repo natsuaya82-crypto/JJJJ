@@ -2035,7 +2035,8 @@ language sql stable security definer set search_path = public as $$
   select coalesce((select jsonb_array_length(hof) from public.rosters where user_id = u), 0)
 $$;
 
-/* 参加する。殿堂入り15人が埋まっていること（`utils/hofRoster` の HOF_MAX と同じ線） */
+/* 参加する。殿堂入りが15人そろっていること（`utils/hofRoster` の HOF_ENTRY_MIN と同じ線。
+   登録の上限 HOF_MAX(30) とは別の数） */
 /*
  * **いま関わっている大会**（＝まだ終わっていない大会。**開催前も含む**）。
  *

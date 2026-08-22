@@ -145,6 +145,7 @@ console.log('\n[4] CLAUDE.md に書いた数字が、コードの定数と合っ
     { name: 'MAJOR_NEWS_OVR' },
     { name: 'RUNNING_SLOTS' },
     { name: 'HOF_MAX' },
+    { name: 'HOF_ENTRY_MIN' },
     { name: 'FACILITY_UPKEEP_PER_LEVEL', as: v => [`${v / 10000}万`, `${v / 10000000}千万`] },
   ]
   const src: string[] = []

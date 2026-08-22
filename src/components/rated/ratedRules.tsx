@@ -1,5 +1,5 @@
 import PageHeader from '../ui/PageHeader'
-import { HOF_MAX } from '../../utils/hofRoster'
+import { HOF_ENTRY_MIN } from '../../utils/hofRoster'
 import { GROUP_MAX, GROUP_MIN, RANK_BANDS } from '../../engine/rating'
 import { SEG_MIN, SEG_MAX } from '../../engine/ratedCourse'
 import { RESULT_HHMM, SUBMIT_DEADLINE_HHMM } from '../../lib/ratedApi'
@@ -12,7 +12,7 @@ import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
 //   クソダサいから」）。イベントの一覧にもトップにも文章を置かず、要る人だけ
 //   ここを開く。文面を足したくなったら**この配列に足す**。
 //
-// ★**数字を文章に書かないこと。** 30人・10〜20人・8〜15区間・10:00・23:59・段位の名前は
+// ★**数字を文章に書かないこと。** 15人・10〜20人・8〜15区間・10:00・23:59・段位の名前は
 //   全部それぞれの唯一の決まりから持ってくる。手で書くと、線を変えたときに
 //   説明だけが古いまま残る（このリポジトリで何度も起きた形）。
 // ============================================================================
@@ -21,7 +21,7 @@ const RULES: { title: string; lines: string[] }[] = [
   {
     title: '参加する',
     lines: [
-      `殿堂入りが${HOF_MAX}人そろえば参加できます。`,
+      `殿堂入りが${HOF_ENTRY_MIN}人そろえば参加できます。`,
       '走るのは殿堂入りの選手。登録した時点の姿で固定されます。',
       '途中参加もできます。',
     ],

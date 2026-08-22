@@ -16,7 +16,7 @@ import { supabase, ensureAuth } from './supabase'
 import { ratedCourse, ratedMatchCourse, ratedCourseOf } from '../engine/ratedCourse'
 import type { MatchRacePayload } from './matchSim'
 import { rankOf, RATING_START, type RankName } from '../engine/rating'
-import { HOF_MAX } from '../utils/hofRoster'
+import { HOF_ENTRY_MIN } from '../utils/hofRoster'
 import type { HofPlayer, Race } from '../types'
 
 /** 提出の締め切り（日本時間）。**端末の時計で判定しないこと**——本判定はサーバー側 */
@@ -309,7 +309,10 @@ export async function ratingsByIds(ids: readonly string[]): Promise<Map<string, 
   return new Map((rows ?? []).map(r => [r.user_id, r.rating]))
 }
 
-/** 参加資格。殿堂入りが埋まっていること（線は `utils/hofRoster` の HOF_MAX 1本） */
+/**
+ * 参加資格。線は `utils/hofRoster` の `HOF_ENTRY_MIN` 1本。
+ * **登録できる上限（`HOF_MAX`）とは別の数**——満員かどうかで参加を決めないこと。
+ */
 export function canJoin(hof: readonly HofPlayer[] | undefined): boolean {
-  return (hof?.length ?? 0) >= HOF_MAX
+  return (hof?.length ?? 0) >= HOF_ENTRY_MIN
 }
