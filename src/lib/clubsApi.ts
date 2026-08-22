@@ -412,7 +412,7 @@ type FeedRow = {
   logo_id: string | null; color_primary: string | null; color_secondary: string | null
 }
 
-/** 掲示板の新しい50件。3日より古い投稿はこの呼び出しの中で消える */
+/** 掲示板の新しい100件。100件からあふれた古い投稿はこの呼び出しの中で消える（`club_feed`） */
 export async function clubFeed(): Promise<ClubPost[]> {
   await uid()
   const { data, error } = await supabase.rpc('club_feed')

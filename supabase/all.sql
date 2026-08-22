@@ -1416,14 +1416,12 @@ begin
      and (t.created_at at time zone 'Asia/Tokyo')::date
        < (now() at time zone 'Asia/Tokyo')::date;
 
-  -- 古い書き込みを落とす。
-  -- ★別名（old）は必須。返り値の列名にも created_at があるので、付けないと
-  --   column reference "created_at" is ambiguous でこの関数ごと落ちる。
-  delete from public.club_posts old
-   where old.club_id = my_club
-     and old.created_at < now() - interval '3 days';
-
-  -- 新しい順に300件だけ残す
+  -- 古い書き込みを落とす。**件数だけで消す**（新しい順に100件、あふれたぶんが古い順に消える）。
+  -- ★**日数で消さないこと**（オーナー・2026-08-22「件数だけ。100件で古い順から消えていく」）。
+  --   以前は「3日より前」と「300件を超えたぶん」の2本があり、先に日数のほうが効くので
+  --   **1件しか無くても3日で消えて**いた＝300件の蓋は一度も発火しない形だった。
+  -- ★ここに返す件数（下の limit 100）と同じ数を使うこと。残す数より表示が多いと、
+  --   出せない行を数えることになる。
   delete from public.club_posts t
    where t.id in (
      select x.id from (
@@ -1431,7 +1429,7 @@ begin
          from public.club_posts p
         where p.club_id = my_club
      ) x
-     where x.rn > 300
+     where x.rn > 100
    );
 
   return query
