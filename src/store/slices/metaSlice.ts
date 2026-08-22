@@ -5,9 +5,9 @@ import { type Gift } from '../../types'
 import { ADS_PER_DAY, getAdDay } from '../../utils/ads'
 import { findClub } from '../../utils/clubs'
 import { canRegisterHof, isHofEligible, registerHof, removeHof } from '../../utils/hofRoster'
-import { MY_PLAYER_POINTS_GRANT, myPlayerBlockReason } from '../../utils/myPlayer'
+import { MY_PLAYER_POINTS_GRANT, myPlayerBlockReason, myPlayerCaps } from '../../utils/myPlayer'
 import { movePlayer } from '../../utils/movePlayer'
-import { STAT_CAP, faMarketSalary } from '../../utils/playerUtils'
+import { faMarketSalary } from '../../utils/playerUtils'
 import { setDeviceAdsRemoved, setDeviceTwitterIntroSeen } from '../deviceFlags'
 
 type Slice = Pick<GameStore,
@@ -251,19 +251,16 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
     if (myPlayerBlockReason(params.ratings, grants[0], params.name, true) !== null) return false
     const myTeam = state.teams.find(t => t.id === state.playerTeamId)
     if (!myTeam) return false
-    const STAT_KEYS: (keyof import('../../types').Ratings)[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
-    // 成長上限は**ふつうの天井（`STAT_CAP`）1本**。どの能力も 99 まで伸ばせる。
+    // 成長上限は**タイプごと**（`utils/myPlayer` の `myPlayerCaps` 1本）。
+    // 平均は92のまま、得意な能力は99・不得意はその下になる。
     //
-    // ★**「育て切ると全能力の平均が92（合計644）」をやめました**（オーナー・2026-08-22
-    //   「その平均92をやめろ」）。合計を644に固定して低い能力から水を張る形だったので、
-    //   **振り分け方を変えても到達点が変わらない**（どう振ってもOVR92）＝作る意味が
-    //   振り分けの見た目だけになっていた。この数字はオーナーに確認せず、実装のときに
-    //   こちらで決めたものです（`2c008b3`・2026-07-23）。
-    // ★**上限の式を2つ持たないこと**——同じ水割りが画面（`CreateMyPlayerPage`）にも
+    // ★**「低い能力から水で埋めて合計644」をやめました**（オーナー・2026-08-22
+    //   「タイプがあるんだからタイプごとに上限数値決めて平均92にすればいいじゃん」）。
+    //   あの形は**7能力とも92で揃った**のっぺりした選手にしかならなかった。
+    // ★**上限の式を2つ持たないこと**——同じ計算が画面（`CreateMyPlayerPage`）にも
     //   写してあり、片方だけ直すと「画面の試算と実際の伸びしろが違う」になります。
-    //   いまは両方とも `STAT_CAP` 1本を見ます。
-    const caps: Record<string, number> = {}
-    for (const k of STAT_KEYS) caps[k] = STAT_CAP
+    //   いまは画面も store も `myPlayerCaps` を呼びます。
+    const caps = myPlayerCaps(params.specialty)
     // ★**同じ年に2人つくれる**ようになったので、年だけの ID だと衝突します
     //   （2人目が1人目を上書きして消える）。既にいるぶんを数えて連番にする
     const seq = state.players.filter(pl => pl.id.startsWith('myplayer-inaugural-')).length + 1
@@ -273,9 +270,8 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
       nationality: params.nationality, origin: 'マイプレイヤー',
       ratings: { ...params.ratings },
       specialty: params.specialty,
-      // ★成長上限を見るのは customCaps（上）。ここは加齢の衰えなど別の場所が見る数で、
-      //   92 のままだと「潜在92の選手」として扱われるので天井に合わせる
-      potential: STAT_CAP,
+      // 成長上限を見るのは customCaps（上）。ここは加齢の衰えなど別の場所が見る数
+      potential: 92,
       growthCurve: 'normal',
       // 所属はこのあと movePlayer で入れる（名簿への追加をまとめて任せるため）
       teamId: '',
@@ -284,7 +280,7 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
       career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
       fatigue: 0, form: 0, morale: 90,
       joinedYear: state.currentSeason.year,
-      customCaps: caps as unknown as import('../../types').Ratings,
+      customCaps: caps,
       customFace: params.customFace,
       isMyPlayer: true,
       yearsPro: 0 } as unknown as import('../../types').Player

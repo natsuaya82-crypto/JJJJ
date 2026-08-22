@@ -19,12 +19,12 @@
 import { readFileSync } from 'node:fs'
 import {
   MY_PLAYER_STAT_MIN, MY_PLAYER_STAT_MAX, MY_PLAYER_POINTS_INITIAL, MY_PLAYER_POINTS_GRANT,
-  MY_PLAYER_STATS, evenSpread, myPlayerBlockReason,
+  MY_PLAYER_STATS, MY_PLAYER_CAP_TOTAL, evenSpread, myPlayerBlockReason, myPlayerCaps,
 } from '../src/utils/myPlayer'
 import { useGameStore } from '../src/store/gameStore'
-import { getStatPotentials } from '../src/utils/playerUtils'
+import { getStatPotentials, STAT_CAP, SPEC_STRONG_STATS } from '../src/utils/playerUtils'
 import { INITIAL_TEAMS } from '../src/data/teams'
-import type { Ratings } from '../src/types'
+import type { Ratings, Specialty } from '../src/types'
 
 let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
@@ -131,36 +131,66 @@ console.log('\n[4] 実際に store を動かす（空振りの緑ではない）
   check('2人とも名簿にいる', useGameStore.getState().players.length === 2)
 }
 
-console.log('\n[5] 育て切ったときの上限は STAT_CAP 1本（平均92は廃止）')
+console.log('\n[5] 育て切ったときの上限はタイプごと（平均92のまま、得意は99）')
 {
   // ★**わざと壊して落ちることを確かめた**
-  //   ・644 の水割りを store に書き戻す              → ①②
-  //   ・caps の1つを 92 にする                       → ③
-  //   ・画面の grownCaps に水割りを戻す              → ②
+  //   ・644 の水割りを store に書き戻す                       → ①②
+  //   ・全部 STAT_CAP にする（タイプで差が出ない）             → ④
+  //   ・myPlayerCaps の端数配りを削る（合計が644にならない）   → ③
+  //   ・画面が myPlayerCaps を呼ばず自分で組む                 → ⑤
   const src = ['src/store/slices/metaSlice.ts', 'src/components/player/CreateMyPlayerPage.tsx']
     .map(f => readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, ''))
-  check('644 の水割りが store にも画面にも無い', src.every(t => !t.includes('644')),
-    '合計を固定する形が残っている')
-  check('92 の直書きが store にも画面にも無い', src.every(t => !/\b92\b/.test(t)))
+  check('水割りの式が store にも画面にも無い', src.every(t => !t.includes('644')))
 
-  // 実際に作って、7能力とも 99 まで伸ばせることを見る（型の話ではなく結果を見る）
+  // ①合計はどのタイプでもちょうど 644（＝平均92）
+  const SPECS: Specialty[] = ['ace', 'sprinter', 'long', 'mountain_up', 'mountain_down',
+    'undulating', 'allrounder', 'kick', 'grinder']
+  const sumOf = (sp: Specialty) => {
+    const c = myPlayerCaps(sp) as unknown as Record<string, number>
+    return MY_PLAYER_STATS.reduce((n, k) => n + c[k as string], 0)
+  }
+  const bad = SPECS.filter(sp => sumOf(sp) !== MY_PLAYER_CAP_TOTAL)
+  check(`9タイプとも合計が ${MY_PLAYER_CAP_TOTAL}（平均92）`, bad.length === 0,
+    bad.map(sp => `${sp}=${sumOf(sp)}`).join(', '))
+
+  // ②得意な能力は天井、③不得意はそれより下（＝のっぺりしていない）
+  for (const sp of SPECS) {
+    const c = myPlayerCaps(sp) as unknown as Record<string, number>
+    const strong = new Set<string>(SPEC_STRONG_STATS[sp] as unknown as string[])
+    const hi = MY_PLAYER_STATS.filter(k => strong.has(k as string)).map(k => c[k as string])
+    const lo = MY_PLAYER_STATS.filter(k => !strong.has(k as string)).map(k => c[k as string])
+    check(`${sp}: 得意が天井で、不得意はその下`,
+      hi.every(v => v === STAT_CAP) && Math.max(...lo) < STAT_CAP,
+      `得意 ${hi.join(',')} / 不得意 ${lo.join(',')}`)
+  }
+
+  // ④**タイプで中身が違う**こと。ここが今回の直しの本体（前は9タイプとも 92×7 だった）
+  const shapes = new Set(SPECS.map(sp => {
+    const c = myPlayerCaps(sp) as unknown as Record<string, number>
+    return MY_PLAYER_STATS.map(k => c[k as string]).join(',')
+  }))
+  check('タイプごとに並びが違う（9タイプで8通り以上）', shapes.size >= 8, `${shapes.size} 通り`)
+
+  // ⑤実際に store を動かして、その並びが選手に入っていること
   const teams = INITIAL_TEAMS.slice(0, 3)
   useGameStore.setState({
     isInitialized: true, playerTeamId: teams[0].id, teams, players: [],
     playerCreateGrants: [MY_PLAYER_POINTS_INITIAL],
     currentSeason: { year: 2030, phase: 'regular', currentRaceIndex: 0, races: [], standings: {}, newsFeed: [], objectives: [], incomingOffers: [], transferListings: [], contractRequests: [] },
   } as never)
-  // ★**尖らせた形で見ること。** 均等に振ると平均92の形でも全部92になるので、
-  //   廃止できているかが区別できない（空振りの緑になる）
-  const spiky = R([99, 99, 61, 60, 60, 60, 61])
   useGameStore.getState().createMyPlayer({
-    name: '尖り', age: 20, specialty: 'ace', nationality: 'JPN', ratings: spiky,
+    name: '短距離', age: 20, specialty: 'sprinter', nationality: 'JPN',
+    ratings: R([99, 99, 61, 60, 60, 60, 61]),
     customFace: { style: 1, eye: 1, hair: 'black_light', flip: false } as never })
   const me = useGameStore.getState().players.find(p => p.isMyPlayer)
+  const want = myPlayerCaps('sprinter') as unknown as Record<string, number>
+  check('作った選手の上限がタイプの並びと同じ',
+    !!me && MY_PLAYER_STATS.every(k =>
+      (me.customCaps as unknown as Record<string, number>)[k as string] === want[k as string]),
+    me ? MY_PLAYER_STATS.map(k => (me.customCaps as unknown as Record<string, number>)[k as string]).join(' ') : 'いない')
+  // ★振ったぶんは残る（`getStatPotentials` は Math.max(現在値, 上限)）
   const caps = me ? (getStatPotentials(me) as unknown as Record<string, number>) : {}
-  const vals = MY_PLAYER_STATS.map(k => caps[k])
-  check('7能力とも上限が99', vals.every(v => v === 99), vals.join(' '))
-  check('尖らせても到達点が下がらない', Math.min(...vals) === 99, `いちばん低い上限 ${Math.min(...vals)}`)
+  check('不得意へ振った99は消えない（スタミナ）', caps.stamina === 99, String(caps.stamina))
 }
 
 console.log(failed === 0 ? '\n  → OK\n' : `\n  → NG ${failed}件\n`)

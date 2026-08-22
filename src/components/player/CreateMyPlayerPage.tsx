@@ -7,9 +7,7 @@ import BottomSheet from '../ui/BottomSheet'
 import { useAdHeight } from '../layout/Layout'
 import Flag from '../ui/Flag'
 import { useGameStore } from '../../store/gameStore'
-import { MY_PLAYER_STAT_MIN, MY_PLAYER_STAT_MAX, evenSpread, myPlayerBlockReason } from '../../utils/myPlayer'
-// 成長の天井は playerUtils の STAT_CAP 1本（store の createMyPlayer と同じものを見る）
-import { STAT_CAP } from '../../utils/playerUtils'
+import { MY_PLAYER_STAT_MIN, MY_PLAYER_STAT_MAX, evenSpread, myPlayerBlockReason, myPlayerCaps } from '../../utils/myPlayer'
 import { SPECIALTY_LABELS } from '../../types'
 import type { Specialty, Ratings, Nationality } from '../../types'
 import { NATIONALITY_META, GEO_REGION_ORDER, natLabel } from '../../data/nationalities'
@@ -70,10 +68,10 @@ export default function CreateMyPlayerPage() {
     setRatings(r => ({ ...r, [key]: clamped }))
   }
 
-  // 育て切ったときの上限。**store の createMyPlayer と同じ 1 本**（`STAT_CAP`）。
-  // 以前はここに「合計644になるまで低い能力から水を張る」を写していて、
-  // store と画面に同じ式が 2 つある状態だった（片方だけ直すと試算が嘘になる）。
-  const grownCaps = Object.fromEntries(STATS.map(st => [st.key, STAT_CAP]))
+  // 育て切ったときの上限。**store の createMyPlayer と同じ 1 本**（`myPlayerCaps`）。
+  // 以前はここに水割りの式を写していて、store と画面に同じ計算が2つある状態だった
+  // （片方だけ直すと試算が嘘になる）。タイプを変えると並びも変わる。
+  const grownCaps = myPlayerCaps(specialty) as unknown as Record<string, number>
 
   // 押せるか／押せない理由は store と同じ関門から出す（utils/bidGate と同じ形）
   const blockReason = myPlayerBlockReason(ratings, TOTAL, name, !alreadyCreated)
