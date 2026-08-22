@@ -4,7 +4,7 @@
 import type { Division, HofPlayer, Player, Team } from '../types'
 import { supabase, ensureAuth } from './supabase'
 import { withoutBlocked } from './moderationApi'
-import { defaultLogoIdFor, hashedLogoIdFor } from '../data/logoPresets'
+import { defaultLogoIdFor, remoteLogoId } from '../data/logoPresets'
 
 export type Friend = {
   id: string
@@ -85,10 +85,8 @@ export function toFriend(r: ProfileRow): Friend {
     teamName: r.team_name || '無名チーム',
     shortName: r.short_name || '—',
     gmName: r.gm_name || '—',
-    // 既にサーバーへ logo_01 で保存されてしまっている人の救済も兼ねる。
-    // ここではチームIDが手に入らないので、user_id からプリセットを散らす
-    // （次にそのユーザーがログインすれば pushMyProfile が 'team:<id>' で上書きする）
-    logoId: r.logo_id && r.logo_id !== 'logo_01' ? r.logo_id : hashedLogoIdFor(r.user_id),
+    // 他の人のロゴをどれにするかは data/logoPresets の remoteLogoId 1本
+    logoId: remoteLogoId(r.logo_id, r.user_id),
     primary: r.color_primary || '#122440',
     secondary: r.color_secondary || '#f5c842',
     champs: r.champs ?? 0,
@@ -105,10 +103,8 @@ function toRequest(r: ProfileRow): FriendRequest {
     teamName: r.team_name || '無名チーム',
     shortName: r.short_name || '—',
     gmName: r.gm_name || '—',
-    // 既にサーバーへ logo_01 で保存されてしまっている人の救済も兼ねる。
-    // ここではチームIDが手に入らないので、user_id からプリセットを散らす
-    // （次にそのユーザーがログインすれば pushMyProfile が 'team:<id>' で上書きする）
-    logoId: r.logo_id && r.logo_id !== 'logo_01' ? r.logo_id : hashedLogoIdFor(r.user_id),
+    // 他の人のロゴをどれにするかは data/logoPresets の remoteLogoId 1本
+    logoId: remoteLogoId(r.logo_id, r.user_id),
     primary: r.color_primary || '#122440',
     secondary: r.color_secondary || '#f5c842',
   }

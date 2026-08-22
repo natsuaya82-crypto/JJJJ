@@ -53,6 +53,24 @@ export function defaultLogoIdFor(teamId: string | undefined): string {
   return `${TEAM_LOGO_PREFIX}${teamId}`
 }
 
+/**
+ * **サーバーから読んだ「他の人」のロゴを、画面に出すIDへ直す唯一の決まり。**
+ *
+ * フレンド一覧・申請/承認・走友会・ランクマッチの順位表と「あなたの部屋」が全部これを通る。
+ * `logo_01` を素通りさせないのは、**まだ一度も新しいアプリでログインしていない人**が
+ * サーバーに `logo_01` のまま保存されていて、そのまま出すと全員が同じ鶴になるため
+ * （次にその人がログインすれば `pushMyProfile` が `team:<id>` で上書きする）。
+ *
+ * ★**呼ぶ側でこの三項を書かないこと。** ランクマッチの行だけがこれを通っておらず、
+ *   さらに `logoId` そのものを渡していなかったので、`TeamLogoSVG` が
+ *   `s.teams.find(t => t.id === ユーザーUUID)` を引いて必ず外し、
+ *   **ハッシュで作った適当な紋章**が出ていました（オーナー・2026-08-22
+ *   「ここなんでアイコン適当なの？」）。同じ人がフレンド一覧と順位表で別の絵になります。
+ */
+export function remoteLogoId(logoId: string | null | undefined, userId: string): string {
+  return logoId && logoId !== LOGO_PRESET_DEFAULT ? logoId : hashedLogoIdFor(userId)
+}
+
 /** 表示側でチームIDが手に入らないときの保険。IDのハッシュでプリセットを1つ選ぶ。 */
 export function hashedLogoIdFor(seed: string | undefined): string {
   if (!seed) return LOGO_PRESET_DEFAULT

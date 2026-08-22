@@ -17,6 +17,9 @@ import { ratedCourse, ratedMatchCourse, ratedCourseOf } from '../engine/ratedCou
 import type { MatchRacePayload } from './matchSim'
 import { rankOf, RATING_START, type RankName } from '../engine/rating'
 import { HOF_ENTRY_MIN } from '../utils/hofRoster'
+// 他の人のロゴをどれにするかは data/logoPresets の remoteLogoId 1本
+// （フレンド一覧・走友会と同じ絵が出るように、ここでも必ず通す）
+import { remoteLogoId } from '../data/logoPresets'
 import type { HofPlayer, Race } from '../types'
 
 /** 提出の締め切り（日本時間）。**端末の時計で判定しないこと**——本判定はサーバー側 */
@@ -247,7 +250,7 @@ export async function fetchMyGroup(): Promise<RatedGroup | null> {
     groupNo: d.groupNo,
     groups: d.groups,
     members: (d.members ?? []).map(m => ({
-      ...m, mine: !!meId && m.userId === meId,
+      ...m, logoId: remoteLogoId(m.logoId, m.userId), mine: !!meId && m.userId === meId,
       place: 0, timeSec: 0, delta: 0, move: 0,
     })),
   }
@@ -272,7 +275,8 @@ type RawRow = Omit<RatedRow, 'mine'>
 export async function fetchStandings(): Promise<RatedStandings> {
   const d = await call<{ top: RawRow[]; me: RawRow | null; meRank: number; entrants: number; started?: boolean }>('rated_standings')
   const meId = d?.me?.userId ?? ''
-  const mark = (r: RawRow): RatedRow => ({ ...r, mine: !!meId && r.userId === meId })
+  const mark = (r: RawRow): RatedRow => ({
+    ...r, logoId: remoteLogoId(r.logoId, r.userId), mine: !!meId && r.userId === meId })
   return {
     top: (d?.top ?? []).map(mark),
     me: d?.me ? mark(d.me) : null,

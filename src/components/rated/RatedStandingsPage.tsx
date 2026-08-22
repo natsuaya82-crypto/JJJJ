@@ -38,7 +38,12 @@ export function Row({ r, rank, started }: { r: RatedRow; rank: number; started: 
       {/* 前日からの上下。数え直さずサーバーが出したものを出す（ratedUi の MoveArrow）。
           ★開催前は順位そのものが無いので出さない（全員「–」が並ぶだけ） */}
       {started && <MoveArrow move={r.move} />}
-      <TeamLogoSVG primary={r.primary} secondary={r.secondary} shortName={r.teamName} teamId={r.userId} size={24} />
+      {/* ★ロゴは必ず logoId を渡すこと。**teamId（＝サーバーのユーザーUUID）を渡さない**——
+          TeamLogoSVG は logoId が無いと `s.teams.find(t => t.id === teamId)` で自分のセーブから
+          探すが、UUID はそこに居ないので必ず外れ、ハッシュで作った適当な紋章が出る
+          （オーナー・2026-08-22「ここなんでアイコン適当なの？」）。中身は remoteLogoId 1本で
+          フレンド一覧・走友会と同じ絵になる */}
+      <TeamLogoSVG primary={r.primary} secondary={r.secondary} shortName={r.teamName} logoId={r.logoId} size={24} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: F.body, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.teamName}</div>
         <div style={{ fontSize: F.tiny, color: C.textDim }}>GM {r.gmName}</div>
