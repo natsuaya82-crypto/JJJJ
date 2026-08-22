@@ -49,33 +49,35 @@ console.log('[1] 「相手のロゴをどれにするか」の式が1か所し�
     lit.length === 0, lit.map(f => f.path).join(', '))
 }
 
-console.log('\n[2] サーバーから読んだ相手の logoId が remoteLogoId を通る')
+console.log('\n[2] 相手の logoId を作る口が全部 remoteLogoId を通る')
 {
-  // ★**入口の数と、1本を通っている数を両方数える**（CLAUDE.md）。
-  //   肯定の includes だけだと、2か所目が別の書き方でも緑になる。
-  //   friendsApi … toFriend / toRequest の2つ
-  //   ratedApi   … fetchStandings の mark / fetchMyGroup の members の2つ
-  const ENTRIES: { file: string; n: number }[] = [
-    { file: 'src/lib/friendsApi.ts', n: 2 },
-    { file: 'src/lib/ratedApi.ts', n: 2 },
-  ]
-  for (const { file, n } of ENTRIES) {
-    const src = readFileSync(file, 'utf8')
-    // プロフィール行 → 画面に出す logoId、を作っている行（型の宣言は数えない）
-    const made = (src.match(/^\s*(\.\.\.[a-z]+, )?logoId: (?!string\b)/gm) ?? []).length
-    const via = (src.match(/remoteLogoId\(/g) ?? []).length
-    check(`${file} は相手の logoId を ${n} か所で作る`, made === n, `${made} か所`)
-    check(`${file} はその ${n} か所とも remoteLogoId を通る`, via === n, `${via} か所`)
-  }
+  // ★**'logo_01' の直書きが、この不具合の共通の形**でした。
+  //   「プロフィールが読めなかったときの逃げ」を各所で `?? 'logo_01'` と書くと、
+  //   **その人たちが全員おなじ鶴**になる。5か所ありました（2026-08-22 に全部通した）。
+  //     src/lib/clubsApi.ts       掲示板の書き込み／メンバーのプロフィールが読めないとき
+  //     src/lib/moderationApi.ts  ブロックした人の一覧
+  //     src/components/online/RoomLobbyPage.tsx  対戦ロビー（2か所）
+  const lit = files.filter(f =>
+    f.path !== 'src/data/logoPresets.ts' &&
+    f.src.split('\n').some(l => /'logo_01'/.test(l) && !/^\s*(\/\/|\*)/.test(l) && !/\/\/.*'logo_01'/.test(l)))
+  check("'logo_01' を他所に直書きしていない", lit.length === 0, lit.map(f => f.path).join(', '))
 
-  // ★まだ通っていないものが2つある（オーナー未判断・2026-08-22 に報告）。
-  //   ・src/lib/clubsApi.ts   掲示板の書き込み（`r.logo_id || 'logo_01'`）
-  //   ・src/lib/moderationApi.ts  ブロックした人の一覧（同じ）
-  //   こちらは「全員同じ鶴になる」で、症状が違うので別に判断してもらう。
-  //   **増えていないことだけ見る**（今日より増えたら落ちる）。
-  const strays = files.filter(f => /logoId: r\.logo_id \|\| 'logo_01'/.test(f.src))
-  check('通っていないものが2つより増えていない', strays.length <= 2,
-    strays.map(f => f.path).join(', '))
+  // ★**入口の数と、1本を通っている数を両方数える**（CLAUDE.md）。
+  //   一覧を手で持たない——`remoteLogoId` を呼んでいるファイルを実際に数えて、
+  //   そのファイルの中に「通っていない logoId の作り方」が残っていないかを見る。
+  //   自分のセーブの中のチームは別の決まり（defaultLogoIdFor）、
+  //   走友会そのもののロゴはさらに別（normalizeClubLogoId）。
+  const OK_CALL = /remoteLogoId\(|defaultLogoIdFor\(|normalizeClubLogoId\(/
+  const users = files.filter(f => f.path !== 'src/data/logoPresets.ts' && /remoteLogoId\(/.test(f.src))
+  check('remoteLogoId を通しているファイルが5つある', users.length === 5,
+    `${users.length}: ${users.map(f => f.path.split('/').pop()).join(', ')}`)
+  for (const f of users) {
+    const made = f.src.split('\n').filter(l =>
+      /logoId[:=]/.test(l) && !/logoId\??: string/.test(l) && !/^\s*(\/\/|\*)/.test(l) && !/^import /.test(l))
+    const bad = made.filter(l => !OK_CALL.test(l))
+    check(`${f.path.split('/').pop()} の logoId が全部きまりを通る（${made.length}か所）`,
+      made.length > 0 && bad.length === 0, bad.map(l => l.trim()).join(' / '))
+  }
 }
 
 console.log('\n[3] TeamLogoSVG にユーザーUUIDを teamId として渡していない')

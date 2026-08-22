@@ -7,6 +7,9 @@ import {
 } from './friendsApi'
 import { blockedIds, withoutBlocked } from './moderationApi'
 import { normalizeClubLogoId } from '../data/clubLogos'
+// ★**走友会のロゴ（clubLogos）と、人のロゴ（logoPresets）は別物**。
+//   前者は走友会が選ぶ絵、後者はその人のチームの絵。混ぜないこと。
+import { remoteLogoId } from '../data/logoPresets'
 import type { CardStatKey, TrainingCard } from '../types'
 
 /** 走友会の人数上限。clubs.sql の 30 とそろえること（DB側の関数も30に更新が必要） */
@@ -171,7 +174,7 @@ export async function myClub(): Promise<MyClub | null> {
       ? toFriend(p)
       : {
           id: r.user_id, code: '', teamName: '（読み込めません）', shortName: '—', gmName: '—',
-          logoId: 'logo_01', primary: '#122440', secondary: '#f5c842', champs: 0, titles: {}, lastLogin: '—',
+          logoId: remoteLogoId(undefined, r.user_id), primary: '#122440', secondary: '#f5c842', champs: 0, titles: {}, lastLogin: '—',
         }
     return { ...base, role: r.role, joinedAt: r.joined_at, blocked: blocked.has(r.user_id) }
   })
@@ -438,7 +441,8 @@ export async function clubFeed(): Promise<ClubPost[]> {
     teamName: r.team_name || '無名チーム',
     shortName: r.short_name || '—',
     gmName: r.gm_name || '—',
-    logoId: r.logo_id || 'logo_01',
+    // 書き込んだ人のロゴ。data/logoPresets の remoteLogoId 1本
+    logoId: remoteLogoId(r.logo_id, r.user_id),
     primary: r.color_primary || '#122440',
     secondary: r.color_secondary || '#f5c842',
   }))

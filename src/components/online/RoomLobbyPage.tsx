@@ -25,7 +25,8 @@ import StampLayer from './StampLayer'
 import StampBar from './StampBar'
 import type { StampPayload } from './stampKinds'
 import { buildRacePayload, seriesPointsBefore, seriesStandings, buildMatchDetail, type MatchRacePayload, type MatchTeamInfo } from '../../lib/matchSim'
-import { defaultLogoIdFor } from '../../data/logoPresets'
+// 相手のロゴは remoteLogoId 1本（自分のセーブの中のチームは defaultLogoIdFor）
+import { defaultLogoIdFor, remoteLogoId } from '../../data/logoPresets'
 import { useRatedRanks } from '../../lib/useRatedRanks'
 import { RankBadge } from '../rated/ratedUi'
 import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
@@ -527,7 +528,7 @@ export default function RoomLobbyPage() {
       gmName: m.profile?.gmName,
       primary: m.profile?.primary ?? '#122440',
       secondary: m.profile?.secondary ?? C.gold,
-      logoId: m.profile?.logoId ?? 'logo_01',
+      logoId: remoteLogoId(m.profile?.logoId, m.userId),
     }))
   }, [members])
 
@@ -694,7 +695,7 @@ export default function RoomLobbyPage() {
                 border: `1px solid ${isMe ? alpha(C.gold, 0.35) : C.border}`,
               }}>
                 <div style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: 900, color: C.textDim, width: 16, textAlign: 'center' }}>{m.seat}</div>
-                <TeamLogoSVG primary={p?.primary ?? '#122440'} secondary={p?.secondary ?? C.gold} shortName={p?.shortName ?? '—'} logoId={p?.logoId ?? 'logo_01'} size={32} />
+                <TeamLogoSVG primary={p?.primary ?? '#122440'} secondary={p?.secondary ?? C.gold} shortName={p?.shortName ?? '—'} logoId={remoteLogoId(p?.logoId, m.userId)} size={32} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: F.bodyLg, fontWeight: 900, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {p?.teamName ?? '読み込み中'}

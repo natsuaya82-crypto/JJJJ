@@ -7,6 +7,8 @@
 // friendsApi / clubsApi からこのファイルを読み込むので、
 // ここから friendsApi を読み込まないこと（読み込みが輪になる）。
 import { supabase, ensureAuth } from './supabase'
+// 相手のロゴをどれにするかは data/logoPresets の remoteLogoId 1本
+import { remoteLogoId } from '../data/logoPresets'
 
 /** 通報の理由。値は moderation.sql の check とそろえること */
 export type ReportReason = 'harass' | 'sexual' | 'impersonate' | 'spam' | 'other'
@@ -50,7 +52,8 @@ function toBlocked(r: BlockedRow): BlockedUser {
     teamName: r.team_name || '無名チーム',
     shortName: r.short_name || '—',
     gmName: r.gm_name || '—',
-    logoId: r.logo_id || 'logo_01',
+    // 相手のロゴは data/logoPresets の remoteLogoId 1本
+    logoId: remoteLogoId(r.logo_id, r.user_id),
     primary: r.color_primary || '#122440',
     secondary: r.color_secondary || '#f5c842',
   }
