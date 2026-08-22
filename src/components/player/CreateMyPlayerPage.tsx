@@ -8,6 +8,8 @@ import { useAdHeight } from '../layout/Layout'
 import Flag from '../ui/Flag'
 import { useGameStore } from '../../store/gameStore'
 import { MY_PLAYER_STAT_MIN, MY_PLAYER_STAT_MAX, evenSpread, myPlayerBlockReason } from '../../utils/myPlayer'
+// 成長の天井は playerUtils の STAT_CAP 1本（store の createMyPlayer と同じものを見る）
+import { STAT_CAP } from '../../utils/playerUtils'
 import { SPECIALTY_LABELS } from '../../types'
 import type { Specialty, Ratings, Nationality } from '../../types'
 import { NATIONALITY_META, GEO_REGION_ORDER, natLabel } from '../../data/nationalities'
@@ -68,20 +70,10 @@ export default function CreateMyPlayerPage() {
     setRatings(r => ({ ...r, [key]: clamped }))
   }
 
-  // 育て切った時の平均92（合計644）を試算表示：低い能力から水割り
-  const grownCaps = (() => {
-    const caps: Record<string, number> = {}
-    for (const st of STATS) caps[st.key] = ratings[st.key]
-    let budget = 644 - used
-    let guard = 0
-    while (budget > 0 && guard++ < 1000) {
-      let low: string | null = null
-      for (const st of STATS) { if (caps[st.key] < 92 && (low === null || caps[st.key] < caps[low])) low = st.key }
-      if (!low) break
-      caps[low] += 1; budget -= 1
-    }
-    return caps
-  })()
+  // 育て切ったときの上限。**store の createMyPlayer と同じ 1 本**（`STAT_CAP`）。
+  // 以前はここに「合計644になるまで低い能力から水を張る」を写していて、
+  // store と画面に同じ式が 2 つある状態だった（片方だけ直すと試算が嘘になる）。
+  const grownCaps = Object.fromEntries(STATS.map(st => [st.key, STAT_CAP]))
 
   // 押せるか／押せない理由は store と同じ関門から出す（utils/bidGate と同じ形）
   const blockReason = myPlayerBlockReason(ratings, TOTAL, name, !alreadyCreated)
@@ -177,7 +169,6 @@ export default function CreateMyPlayerPage() {
 
       {card(`能力を振り分け（残り ${remaining}）`, (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-          <div style={{ fontSize: F.tiny, color: C.textGhost, marginBottom: 2 }}>合計{TOTAL}を振り分け。育て切ると全体平均が92（合計644）になるよう、低い能力から自動で伸びます。尖らせるほど残りの伸びしろが減ります。</div>
           {STATS.map(st => {
             const v = ratings[st.key]
             const cap = grownCaps[st.key]

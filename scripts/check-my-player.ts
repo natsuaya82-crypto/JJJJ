@@ -4,14 +4,13 @@
  * ■なぜ要るのか（オーナー・2026-08-21）
  *   「99 99 1 99 99 99 とかやられるとカードで合成でバケモンが完成してしまう」
  *
- *   `createMyPlayer` は振り分けたあと、**合計が育成上限の合計になるまで低い能力から
- *   自動で埋めます**。捨てた能力はタダで戻ってくるので、尖らせるほど得をします。
+ *   捨てた能力はカードで育て直せるので、下限が無いと「5本を99で始める」形が通ります。
  *
- *     均等に振る   72 71 71 71 71 72 72 → 育て切ると 92 92 92 92 92 92 92
- *     1つ捨てる    99 99 99 99 99  4  1 → 育て切ると 99 99 99 99 99 75 74
- *
- *   **OVRはどちらも92**（合計が同じ）。違うのは99が5本あるかどうかで、区間の重みは
- *   能力ごとに掛かるのでそこがタイム差になります。画面のOVRでは気づけません。
+ * ■成長上限（オーナー・2026-08-22「その平均92をやめろ」）
+ *   以前は「育て切ると全能力の平均が92（合計644）」で、**どう振っても到達点が同じ**
+ *   でした（合計を644に固定して低い能力から水を張る形）。この92は実装のときに
+ *   確認せずこちらで決めた数字（`2c008b3`）。**廃止して `STAT_CAP` 1本にしました。**
+ *   同じ水割りが store と画面の2か所に写してあったので、両方消えていることも見ます。
  *
  * ■もう1つ（オーナー・2026-08-21「500は新規作成記念でしょ？560は配布でしょ？」）
  *   振り分けポイントは出どころで違います。**回数だけ持つと額を別の分岐で当てる**
@@ -23,6 +22,7 @@ import {
   MY_PLAYER_STATS, evenSpread, myPlayerBlockReason,
 } from '../src/utils/myPlayer'
 import { useGameStore } from '../src/store/gameStore'
+import { getStatPotentials } from '../src/utils/playerUtils'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import type { Ratings } from '../src/types'
 
@@ -129,6 +129,38 @@ console.log('\n[4] 実際に store を動かす（空振りの緑ではない）
   const ids = useGameStore.getState().players.map(p => p.id)
   check('2人ぶんのIDが別', new Set(ids).size === ids.length, ids.join(' / '))
   check('2人とも名簿にいる', useGameStore.getState().players.length === 2)
+}
+
+console.log('\n[5] 育て切ったときの上限は STAT_CAP 1本（平均92は廃止）')
+{
+  // ★**わざと壊して落ちることを確かめた**
+  //   ・644 の水割りを store に書き戻す              → ①②
+  //   ・caps の1つを 92 にする                       → ③
+  //   ・画面の grownCaps に水割りを戻す              → ②
+  const src = ['src/store/slices/metaSlice.ts', 'src/components/player/CreateMyPlayerPage.tsx']
+    .map(f => readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, ''))
+  check('644 の水割りが store にも画面にも無い', src.every(t => !t.includes('644')),
+    '合計を固定する形が残っている')
+  check('92 の直書きが store にも画面にも無い', src.every(t => !/\b92\b/.test(t)))
+
+  // 実際に作って、7能力とも 99 まで伸ばせることを見る（型の話ではなく結果を見る）
+  const teams = INITIAL_TEAMS.slice(0, 3)
+  useGameStore.setState({
+    isInitialized: true, playerTeamId: teams[0].id, teams, players: [],
+    playerCreateGrants: [MY_PLAYER_POINTS_INITIAL],
+    currentSeason: { year: 2030, phase: 'regular', currentRaceIndex: 0, races: [], standings: {}, newsFeed: [], objectives: [], incomingOffers: [], transferListings: [], contractRequests: [] },
+  } as never)
+  // ★**尖らせた形で見ること。** 均等に振ると平均92の形でも全部92になるので、
+  //   廃止できているかが区別できない（空振りの緑になる）
+  const spiky = R([99, 99, 61, 60, 60, 60, 61])
+  useGameStore.getState().createMyPlayer({
+    name: '尖り', age: 20, specialty: 'ace', nationality: 'JPN', ratings: spiky,
+    customFace: { style: 1, eye: 1, hair: 'black_light', flip: false } as never })
+  const me = useGameStore.getState().players.find(p => p.isMyPlayer)
+  const caps = me ? (getStatPotentials(me) as unknown as Record<string, number>) : {}
+  const vals = MY_PLAYER_STATS.map(k => caps[k])
+  check('7能力とも上限が99', vals.every(v => v === 99), vals.join(' '))
+  check('尖らせても到達点が下がらない', Math.min(...vals) === 99, `いちばん低い上限 ${Math.min(...vals)}`)
 }
 
 console.log(failed === 0 ? '\n  → OK\n' : `\n  → NG ${failed}件\n`)

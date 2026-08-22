@@ -7,7 +7,7 @@ import { findClub } from '../../utils/clubs'
 import { canRegisterHof, isHofEligible, registerHof, removeHof } from '../../utils/hofRoster'
 import { MY_PLAYER_POINTS_GRANT, myPlayerBlockReason } from '../../utils/myPlayer'
 import { movePlayer } from '../../utils/movePlayer'
-import { faMarketSalary } from '../../utils/playerUtils'
+import { STAT_CAP, faMarketSalary } from '../../utils/playerUtils'
 import { setDeviceAdsRemoved, setDeviceTwitterIntroSeen } from '../deviceFlags'
 
 type Slice = Pick<GameStore,
@@ -252,19 +252,18 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
     const myTeam = state.teams.find(t => t.id === state.playerTeamId)
     if (!myTeam) return false
     const STAT_KEYS: (keyof import('../../types').Ratings)[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
-    // 能力別成長上限：現在値スタートで、合計が644(平均92)になるまで低い能力から+1ずつ水割り（各92天井）
+    // 成長上限は**ふつうの天井（`STAT_CAP`）1本**。どの能力も 99 まで伸ばせる。
+    //
+    // ★**「育て切ると全能力の平均が92（合計644）」をやめました**（オーナー・2026-08-22
+    //   「その平均92をやめろ」）。合計を644に固定して低い能力から水を張る形だったので、
+    //   **振り分け方を変えても到達点が変わらない**（どう振ってもOVR92）＝作る意味が
+    //   振り分けの見た目だけになっていた。この数字はオーナーに確認せず、実装のときに
+    //   こちらで決めたものです（`2c008b3`・2026-07-23）。
+    // ★**上限の式を2つ持たないこと**——同じ水割りが画面（`CreateMyPlayerPage`）にも
+    //   写してあり、片方だけ直すと「画面の試算と実際の伸びしろが違う」になります。
+    //   いまは両方とも `STAT_CAP` 1本を見ます。
     const caps: Record<string, number> = {}
-    for (const k of STAT_KEYS) caps[k] = Math.round((params.ratings as Record<string, number>)[k] ?? 0)
-    let budget = 644 - STAT_KEYS.reduce((s, k) => s + caps[k], 0)
-    // budget<0（振り分け超過）はあり得ないが念のため0でクランプ
-    let guard = 0
-    while (budget > 0 && guard++ < 1000) {
-      // 92未満で最も低い能力を+1
-      let lowKey: string | null = null
-      for (const k of STAT_KEYS) { if (caps[k] < 92 && (lowKey === null || caps[k] < caps[lowKey])) lowKey = k }
-      if (!lowKey) break
-      caps[lowKey] += 1; budget -= 1
-    }
+    for (const k of STAT_KEYS) caps[k] = STAT_CAP
     // ★**同じ年に2人つくれる**ようになったので、年だけの ID だと衝突します
     //   （2人目が1人目を上書きして消える）。既にいるぶんを数えて連番にする
     const seq = state.players.filter(pl => pl.id.startsWith('myplayer-inaugural-')).length + 1
@@ -274,7 +273,9 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
       nationality: params.nationality, origin: 'マイプレイヤー',
       ratings: { ...params.ratings },
       specialty: params.specialty,
-      potential: 92,
+      // ★成長上限を見るのは customCaps（上）。ここは加齢の衰えなど別の場所が見る数で、
+      //   92 のままだと「潜在92の選手」として扱われるので天井に合わせる
+      potential: STAT_CAP,
       growthCurve: 'normal',
       // 所属はこのあと movePlayer で入れる（名簿への追加をまとめて任せるため）
       teamId: '',
