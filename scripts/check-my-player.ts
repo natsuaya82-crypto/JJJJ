@@ -191,6 +191,21 @@ console.log('\n[5] 育て切ったときの上限はタイプごと（平均92�
   // ★振ったぶんは残る（`getStatPotentials` は Math.max(現在値, 上限)）
   const caps = me ? (getStatPotentials(me) as unknown as Record<string, number>) : {}
   check('不得意へ振った99は消えない（スタミナ）', caps.stamina === 99, String(caps.stamina))
+
+  // ★**型の上限でクランプしないこと**（オーナー・2026-08-22「2で」）。
+  //   エースが速力89（型の上限87）へ振れて、そのまま89で止まるのが正。
+  //   **そのぶん平均は92を超えます。承知のうえの仕様。**
+  //   ここを「型の上限で切る」に変えると、この2件が落ちます。
+  const ace = {
+    id: 'ace1', specialty: 'ace' as Specialty,
+    ratings: R([89, 99, 60, 60, 72, 60, 60]),
+    customCaps: myPlayerCaps('ace'), potential: 92,
+  } as unknown as Parameters<typeof getStatPotentials>[0]
+  const aceCaps = getStatPotentials(ace) as unknown as Record<string, number>
+  check('エースが速力89に振ったら上限も89（型の87で切らない）', aceCaps.speed === 89, String(aceCaps.speed))
+  const aceSum = MY_PLAYER_STATS.reduce((n, k) => n + aceCaps[k as string], 0)
+  check(`そのぶん合計は ${MY_PLAYER_CAP_TOTAL} を超える（クランプしていない証拠）`,
+    aceSum > MY_PLAYER_CAP_TOTAL, `合計 ${aceSum}`)
 }
 
 console.log(failed === 0 ? '\n  → OK\n' : `\n  → NG ${failed}件\n`)
