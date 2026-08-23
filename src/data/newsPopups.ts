@@ -40,7 +40,7 @@ export type NewsPopup = {
   logo?: 'title'
   /** もらえるものを絵つきで横に並べる。文字だけで並べない */
   rewards?: { icon: 'trophy' | 'runner'; label: string }[]
-  /** 期間つきの催し（大成功2倍など）。`label` と `期間` を帯で出す */
+  /** 期間つきの催し（大成功確定など）。`label` と `期間` を帯で出す */
   event?: { label: string; period: string }
   /** どうしても要るときだけ。`\n` で改行できる */
   body?: string
@@ -74,12 +74,12 @@ export const NEWS_POPUPS: NewsPopup[] = [
       { icon: 'trophy', label: '優勝トロフィー ×5' },
       { icon: 'runner', label: '選手作成 ×1' },
     ],
-    event: { label: 'カード合成の大成功2倍', period: '8/23 10:00 〜 8/26 9:59' },
+    event: { label: 'カード合成の大成功が確定', period: '8/24 10:00 〜 8/27 9:59' },
     body: '受け取りは8/31まで',
     actionLabel: '受け取る',
     to: '/notifications',
-    from: '2026-08-23',
-    until: '2026-08-25',
+    from: '2026-08-24',
+    until: '2026-08-26',
     repeat: true,
   },
   {

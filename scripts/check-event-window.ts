@@ -14,9 +14,9 @@
  *     ★カード合成には**年齢・ポテンシャル・施設の倍率が掛からない**（`SOURCE_RULES`）。
  *       これを勘違いすると必要枚数を3倍近く見誤る（実際に誤った）ので、枚数で数える。
  */
-import { greatSuccessChance, activeEvents, EVENTS, GREAT_SUCCESS_CHANCE, GREAT_SUCCESS_EVENT_MULT } from '../src/data/events'
+import { greatSuccessChance, activeEvents, EVENTS, GREAT_SUCCESS_CHANCE, GREAT_SUCCESS_EVENT_CHANCE } from '../src/data/events'
 import { NEWS_POPUPS } from '../src/data/newsPopups'
-import { CHANGELOG } from '../src/data/appMeta'
+import { CHANGELOG, APP_VERSION } from '../src/data/appMeta'
 import { jstGameDayISO } from '../src/utils/jstDate'
 import { requiredExpForLevel } from '../src/engine/growth'
 import { RARITY_EXP } from '../src/utils/cardCombo'
@@ -77,9 +77,13 @@ console.log('\n[2-b] ポップとお知らせの日付が、イベントの期�
     // お知らせの本文（`8月23日10:00から8月26日9:59まで`）
     const jp = (d: string) => `${Number(d.slice(5, 7))}月${Number(d.slice(8, 10))}日`
     const line = `${jp(ev.from)}10:00から${jp(endDay)}9:59まで`
-    const v205 = CHANGELOG.find(c => c.version === 'v2.0.5')
-    check('v2.0.5 のお知らせがある', !!v205)
-    check(`お知らせの本文が期間と同じ（${line}）`, !!v205 && v205.body.includes(line))
+    // ★**配信し終えたエントリは書き換えないこと**（CLAUDE.md）。期間を動かしたら、
+    //   古いほうはそのままにして**いまのバージョンのエントリ**に新しい期間を書く。
+    //   だからここは `APP_VERSION` のエントリを見る（版を固定で書かない）。
+    const cur = CHANGELOG.find(c => c.version === APP_VERSION)
+    check(`${APP_VERSION} のお知らせがある`, !!cur)
+    check(`お知らせの本文が期間と同じ（${line}）`, !!cur && cur.body.includes(line),
+      `${APP_VERSION} の本文に無い`)
   }
 }
 
@@ -91,7 +95,7 @@ console.log('\n[3] 大成功の確率（イベント中だけ倍率が掛かる�
   //   「終わったら戻る」の 8/25 だけが**イベント中に変わって**落ちた。
   //   ずれた日を1つずつ直すことになるので、動かす場所を1つにする。
   const ev = EVENTS.find(e => e.id === 'dl1000-great')
-  check('大成功2倍のイベントが入っている', !!ev, 'data/events の EVENTS')
+  check('1000DL記念のイベントが入っている', !!ev, 'data/events の EVENTS')
   if (ev) {
     const shift = (d: string, days: number) =>
       new Date(new Date(`${d}T00:00:00+09:00`).getTime() + days * 86400_000 + 9 * 3600_000)
@@ -99,12 +103,13 @@ console.log('\n[3] 大成功の確率（イベント中だけ倍率が掛かる�
     const before = shift(ev.from, -1), during = ev.from, after = shift(ev.to, 1)
     console.log(`      前日 ${before} ／ 期間 ${ev.from}〜${ev.to} ／ 翌日 ${after}`)
     check(`ふだんは5%（${before}）`, greatSuccessChance(before) === GREAT_SUCCESS_CHANCE)
-    // ★倍率は data/events の GREAT_SUCCESS_EVENT_MULT 1本（オーナー・2026-08-20「3日間大成功2倍」。
-    //   はじめ100%で組んでいたのを2倍に変えた）。ここに数字を書かないこと
-    check(`イベント中は${GREAT_SUCCESS_EVENT_MULT}倍（${during}）`,
-      greatSuccessChance(during) === Math.min(1, GREAT_SUCCESS_CHANCE * GREAT_SUCCESS_EVENT_MULT),
+    // ★イベント中の確率は data/events の GREAT_SUCCESS_EVENT_CHANCE 1本
+    //   （オーナー・2026-08-22「確定って話してただろ」＝ 1.0）。倍率で持たないこと。
+    check(`イベント中は確定（${during}）`,
+      greatSuccessChance(during) === GREAT_SUCCESS_EVENT_CHANCE,
       String(greatSuccessChance(during)))
-    // ★1 を超えないこと（超えると「確約」と見分けが付かず、広告のボタンが消える）
+    // ★1 を超えないこと。イベント中が確定なら**広告の「大成功を確約」は消えるのが正しい**
+    //   （確約するものが既に確約されているため）。1 を超えると `< 1` の判定が壊れる
     check('1 を超えない', greatSuccessChance(during) <= 1)
     check(`終わったら戻る（${after}）`, greatSuccessChance(after) === GREAT_SUCCESS_CHANCE)
   }

@@ -32,20 +32,26 @@ export const GREAT_SUCCESS_CHANCE = 0.05
  * ★`to` は**その日を含む**（`from <= 今日 <= to`）。8/23〜8/25 で3日間。
  */
 export const EVENTS: GameEvent[] = [
-  // 1000DL突破記念（オーナー・2026-08-20「3日間大成功2倍」）。
-  // ★はじめ「大成功100%」で組みましたが、**2倍**に変わりました。
-  // ★「3日だけ」なので 8/23〜8/25。日付の区切りは日本時間の朝10時（`jstGameDayISO`）
-  // ★**8/22〜8/24 からずらしました**（オーナー・2026-08-21「23〜26」＝ 8/23 10:00 〜 8/26 9:59）。
-  //   審査に出したものをいったん取り下げたため、開始が1日ずれた。
+  // 1000DL突破記念。★**大成功は「確定」**（オーナー・2026-08-22「確定って話してただろ」）。
+  // 8/20 にいったん 100% → 2倍 にしましたが、確定に戻しました。
+  // ★「3日だけ」なので 8/24〜8/26。日付の区切りは日本時間の朝10時（`jstGameDayISO`）
+  // ★**8/23〜8/25 から、もう1日ずらしました**（オーナー・2026-08-22「1日ずれて明日から開催に変更」
+  //   ＝ 8/24 10:00 〜 8/27 9:59）。ビルドが実機に届く時間ぶん、開始を後ろへ動かした。
   //   **期間を動かしたら、次の3つも一緒に直すこと**（日付が3か所に文字で出ます）
   //     ・`data/newsPopups` の `event.period`（ポップに出る文字）と `from` / `until`
   //     ・`data/appMeta` の v2.0.5 のお知らせの本文
   //     ・`scripts/check-event-window.ts` の[3]（前日・当日・翌日をここから引きます）
-  { id: 'dl1000-great', title: '1000DL記念 大成功2倍', from: '2026-08-23', to: '2026-08-25' },
+  { id: 'dl1000-great', title: '1000DL記念 大成功確定', from: '2026-08-24', to: '2026-08-26' },
 ]
 
-/** イベント中の大成功確率の倍率 */
-export const GREAT_SUCCESS_EVENT_MULT = 2
+/**
+ * **イベント中の大成功確率。** いまは 1＝確定（オーナー・2026-08-22）。
+ *
+ * ★**倍率で持たないこと。** 以前は `GREAT_SUCCESS_EVENT_MULT = 2` という倍率で、
+ *   確定にするには「20倍にして 1 でクランプ」という読めない形になっていました。
+ *   イベント中の確率そのものを置きます。
+ */
+export const GREAT_SUCCESS_EVENT_CHANCE = 1
 
 /**
  * その日に開催中のイベント。
@@ -73,6 +79,6 @@ export function isEventActive(id: string, today: string): boolean {
  *   「確定」との区別が付かなくなります（画面は `< 1` で広告のボタンを出す）。
  */
 export function greatSuccessChance(today: string): number {
-  const mult = isEventActive('dl1000-great', today) ? GREAT_SUCCESS_EVENT_MULT : 1
-  return Math.min(1, GREAT_SUCCESS_CHANCE * mult)
+  const c = isEventActive('dl1000-great', today) ? GREAT_SUCCESS_EVENT_CHANCE : GREAT_SUCCESS_CHANCE
+  return Math.min(1, c)
 }

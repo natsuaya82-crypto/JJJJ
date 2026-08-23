@@ -578,7 +578,7 @@ export default function App() {
   useEffect(() => {
     if (!titleShown || !isInitialized || !twitterIntroSeen) return
     // ★日付は**イベントと同じ朝10時区切り**（`jstGameDayISO`）で見る。
-    //   大成功2倍が 8/23 10:00 開始なので、真夜中区切りだと10時間early に出る
+    //   イベントが朝10時開始なので、真夜中区切りだと10時間early に出る（日付は data/events が持つ）
     setNews(nextNewsPopup(deviceSeenNewsIds(), jstGameDayISO()))
   }, [titleShown, isInitialized, twitterIntroSeen])
   // 端末ローカル通知（毎日10時・18時の再訪リマインド）。native のみ、初回に許可を取得。
