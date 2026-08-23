@@ -24,7 +24,7 @@ export type ChangelogEntry = { version: string; date: string; title: string; bod
 export const CHANGELOG: ChangelogEntry[] = [
   {
     version: 'v2.0.6',
-    date: '2026.08.22',
+    date: '2026.08.23',
     title: '殿堂入りの登録／相手のアイコン／選手をつくるの上限',
     body: '【ランクマッチ】'
       + '\n・殿堂入りに16人目を登録できなくなっていたのを直しました。登録は30人まで、参加は15人からです。'
