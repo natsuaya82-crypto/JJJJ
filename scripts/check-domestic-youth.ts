@@ -117,8 +117,15 @@ console.log('\n[5] 入れ方は1本（海外の新加入とまったく同じ口
 {
   const season = readFileSync('src/store/slices/seasonSlice.ts', 'utf8')
   check('endSeason が refreshDomesticYouth を呼ぶ', /refreshDomesticYouth\(/.test(season))
+  // ★**「入口が1つか」を見ること。並びを丸ごと固定しない。** 以前はこの行が
+  //   `[...foreignRefresh.newPlayers, ...domesticYouth]` という**並びそのもの**を
+  //   当てていたので、同じ配列に3つ目（下限割れの救済 rosterFill）を足しただけで
+  //   落ちた。足したのは2本目の入口ではないので、落ちるのは間違い。
+  const entries = (season.match(/newForeignPlayers:/g) ?? []).length
+  check('newForeignPlayers に渡す口は1つ', entries === 1, `${entries} か所`)
+  const line = /newForeignPlayers:\s*\[([^\]]*)\]/.exec(season)?.[1] ?? ''
   check('海外の新加入と同じ引数に混ぜている（2本目の入口を作っていない）',
-    /newForeignPlayers:\s*\[\s*\.\.\.foreignRefresh\.newPlayers,\s*\.\.\.domesticYouth\s*\]/.test(season))
+    line.includes('...foreignRefresh.newPlayers') && line.includes('...domesticYouth'), line.trim())
 }
 
 console.log('\n[6] 世界を3年回して、2部・3部が痩せない')

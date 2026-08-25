@@ -11,7 +11,7 @@ import { buildNationalityBag } from '../data/nationTalent'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は持たない
 import { clubMembersByClub } from '../utils/rosterSync'
 import { divisionOf } from '../utils/league'
-import { ROSTER_MAX } from '../data/rosterRules'
+import { ROSTER_MAX, ROSTER_MIN } from '../data/rosterRules'
 
 const FAMILY_NAMES = [
   '田中','鈴木','佐藤','高橋','伊藤','渡辺','山本','中村','小林','加藤',
@@ -1321,6 +1321,58 @@ export function refreshDomesticYouth(
       out.push(fresh)
     })
   }
+  return out
+}
+
+/**
+ * **在籍が下限（`ROSTER_MIN`）を割ったクラブに、足りないぶんだけ弱い選手を入れる。**
+ *
+ * ■なぜ要るのか（オーナー・2026-08-23
+ *   「開幕できないは防ぎたいからもし15人以下だった場合60くらいの弱い選手が
+ *     足りない分追加されて15人になるのは？」）
+ *
+ *   下限を割ると `utils/seasonStart` が開幕を止めますが、**そこから抜ける道が
+ *   画面にありませんでした**。ドラフトで獲れるのは1部だけ（`joinsDraft`）で、
+ *   2部・3部はFAと移籍しか無く、FAが尽きると詰みます（オーナー・2026-08-16
+ *   「fa全部とっても13人にしかならないからロスター埋められない」は実際に起きた）。
+ *
+ * ■線
+ *   ・**足りないぶんだけ**（15人ちょうどにする。それ以上は入れない）
+ *   ・いちばん下の帯（ランクD）だけ。実測でOVR60前後
+ *   ・中身は `refreshDomesticYouth` と同じ幹（`generateCpuRosters` →
+ *     `buildRatingsForRank` → `faMarketSalary`）。**ここで選手を手組みしないこと**
+ *   ・年齢は若手の帯（19〜22）。救済で入る選手なので伸びしろは持たせる
+ */
+const ROSTER_FILL_RANK: Rank = 'D'
+
+export function fillRosterToMin(
+  team: Team,
+  year: number,
+  players: readonly Player[],
+): Player[] {
+  const have = (clubMembersByClub(players as Player[]).get(team.id) ?? []).length
+  const need = ROSTER_MIN - have
+  if (need <= 0) return []
+  // 1回の呼び出しで25人ぶん作られるので、先頭から need 人だけ使う
+  const made = generateCpuRosters([{ id: team.id, tier: tierOf(team) }], year).cpuPlayers.slice(0, need)
+  const out: Player[] = []
+  made.forEach((p, i) => {
+    const age = 19 + (i % 4)
+    const { ratings, potential } = buildRatingsForRank({
+      id: p.id, rank: ROSTER_FILL_RANK, specialty: p.specialty, growthCurve: p.growthCurve, age,
+      potentialCap: TIER_POTENTIAL_CAP[tierOf(team)],
+    })
+    const fresh: Player = {
+      ...p,
+      id: `fill-${year}-${team.id}-${i}`,
+      age, yearsPro: 0, draftYear: year, joinedYear: year,
+      ratings, potential,
+      teamId: team.id,
+      contract: { ...p.contract, yearsLeft: 3 },
+    }
+    fresh.contract.annualSalary = faMarketSalary(fresh)
+    out.push(fresh)
+  })
   return out
 }
 

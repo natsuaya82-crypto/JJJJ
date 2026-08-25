@@ -8,7 +8,7 @@ import { ACHIEVEMENT_JEWELS, checkSeasonAchievements, podiumJewels, selectSeason
 import { buildEclParticipants, buildEclRaces } from '../../engine/eclSeries'
 import { initForeignStandings } from '../../engine/foreignLeague'
 import { growPlayer } from '../../engine/growth'
-import { generateDraftPool, generateForeignLeaguePlayers, refreshForeignLeagues, refreshDomesticYouth } from '../../engine/playerGenerator'
+import { generateDraftPool, generateForeignLeaguePlayers, refreshForeignLeagues, refreshDomesticYouth, fillRosterToMin } from '../../engine/playerGenerator'
 import { type Division, type GmOffer, type Player, SPECIALTY_LABELS, type SeasonAward, type TransferRecord } from '../../types'
 import { archiveSeason } from '../../utils/archiveSeason'
 import { computeSeasonAwards } from '../../utils/awards'
@@ -362,6 +362,17 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       //   1300→729人まで痩せて FA も尽きていた。1部はドラフトで獲るので入れない。
       const domesticYouth = refreshDomesticYouth(state.teams, state.currentSeason.year + 1, grownPlayers)
 
+      // ★**自チームが下限（15人）を割ったら、足りないぶんだけ弱い選手を入れて15人にする**
+      //   （オーナー・2026-08-23「開幕できないは防ぎたいから…60くらいの弱い選手が
+      //     足りない分追加されて15人になるのは？」）。
+      //   下限を割ると開幕が止まるのに、そこから抜ける道が画面に無く、
+      //   ドラフトで獲れるのは1部だけ・FAが尽きると詰む形だった。
+      //   中身は engine/playerGenerator の fillRosterToMin 1本（若手の補充と同じ幹）。
+      const myTeamForFill = state.teams.find(t => t.id === state.playerTeamId)
+      const rosterFill = myTeamForFill
+        ? fillRosterToMin(myTeamForFill, state.currentSeason.year + 1, [...grownPlayers, ...domesticYouth])
+        : []
+
       // Morale streak system: apply morale bonus/penalty to player team based on season finish
       const myFinalRank = rankOfTeam(seasonDivisionStandings(state.currentSeason, state.playerTeamId), state.playerTeamId)
       const myDivRows = seasonDivisionStandings(state.currentSeason, state.playerTeamId)
@@ -597,7 +608,8 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         // 国内2・3部の若手も、海外の新加入とまったく同じ口から世界へ入れる
         // （入れ方を2本に増やさない）
         refreshedLeagues: foreignRefresh.updatedLeagues,
-        newForeignPlayers: [...foreignRefresh.newPlayers, ...domesticYouth],
+        // ★入れ口は1本（CLAUDE.md「2本目の入口を作らないこと」）。自チームの救済ぶんもここへ混ぜる
+        newForeignPlayers: [...foreignRefresh.newPlayers, ...domesticYouth, ...rosterFill],
         removedForeignPlayerIds, teams: teamsWithCleanedPicks,
         playerTeamId: state.playerTeamId, newYear })
       // ★移籍はここでは起きません（`engine/transferMarket.ts` の1本を `beginSeasonDraft` で回す）。
