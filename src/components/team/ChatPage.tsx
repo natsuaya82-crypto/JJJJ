@@ -8,7 +8,7 @@ import PlayerFace from '../player/PlayerFace'
 import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, racesConsumed } from '../../utils/playerUtils'
 import { useOfferResults } from '../transfer/useOfferResults'
 import { OfferResultList } from '../transfer/OfferResultList'
-import { chatTopicIds, offersByPlayer, offersAwaitingReply, asCardCount } from '../../utils/notifItems'
+import { chatTopicIds, offersByPlayer, offersAwaitingReply, asCardCount, expiredNegText } from '../../utils/notifItems'
 import { settledPath } from '../../utils/talkSync'
 import { contractTalkCtx, contractMonthsLeft, liveContractOf, needsRenewalAttention } from '../../utils/contractTalk'
 import type { ContractTalkCtx } from '../../utils/contractTalk'
@@ -231,7 +231,12 @@ export default function ChatPage() {
   const outgoingBids = (currentSeason.transferBids ?? [])
     .filter((b): b is typeof b & { status: keyof typeof OUTGOING_BID } => b.status in OUTGOING_BID)
   const outgoingLoans = currentSeason.loanRequests ?? []
-  const outgoingCount = outgoingBids.length + outgoingLoans.length
+  // ★**終わった交渉もここに出す。** 入札が断られる・競り負ける・相手が他所へ移ると、
+  //   上の OUTGOING_BID から外れて**行が黙って消える**だけで、結末はベルにしか
+  //   出ていなかった（オーナー・2026-08-23「入札して断られた時にチャットが来ない」）。
+  //   文面は utils/notifItems の expiredNegText 1本（通知ページと同じ字）。
+  const endedNegs = currentSeason.expiredNegotiations ?? []
+  const outgoingCount = outgoingBids.length + outgoingLoans.length + endedNegs.length
 
   if (tradeTeam) return (
     <TradeChatView key={tradeTeam.id} team={tradeTeam} onClose={closeConversation}
@@ -515,6 +520,15 @@ export default function ChatPage() {
                 title={`${teamName(r.targetTeamId)}に${p.name}をレンタル申請中`}
                 sub={`${r.years}年 — 相手クラブの返事を待っています`}
                 onOpen={() => openPlayerSheet(p.id)} />
+            })}
+            {endedNegs.map(neg => {
+              const p = players.find(pl => pl.id === neg.playerId)
+              if (!p) return null
+              const t = expiredNegText(neg.kind)
+              return <OfferChatRow key={neg.id} player={p} accent={C.red} badge="終了"
+                title={t.title(neg.playerName)}
+                sub={neg.detail ?? t.note}
+                onOpen={() => navigate('/notifications')} />
             })}
           </>
         )}

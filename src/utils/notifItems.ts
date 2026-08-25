@@ -210,6 +210,11 @@ export function chatTopicIds(input: ChatTopicInput): string[] {
     ...n.feeAcceptedBids.map(b => `fee:${b.id}`),
     // フリー移籍の接触（引き留めの相談）
     ...n.freeContacts.map(o => `free:${o.id}`),
+    // ★**終わった交渉も用件に入れる。** 入札が断られる・競り負ける・相手が他所へ移ると、
+    //   チャットの「出したオファー」の行は**status が変わって黙って消える**だけで、
+    //   結末はベルにしか出ていなかった（オーナー・2026-08-23「入札して断られた時に
+    //   チャットが来ない」）。ベルとチャットは同じものを数える決まりなので、ここにも入れる。
+    ...n.expiredNegotiations.map(x => `negend:${x.id}`),
   ]
 }
 
