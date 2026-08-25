@@ -34,6 +34,20 @@ export function setDeviceTwitterIntroSeen(v: boolean): void { writeFlag(TWITTER_
  * 見たお知らせポップの id。**セーブではなく端末**に持つ（公式Xの案内と同じ扱い）。
  * スロットを変えるたびに同じお知らせが出ると、遊ぶ側には壊れて見えるため。
  */
+/**
+ * **走友会の掲示板を最後に見た時刻**（ISO文字列）。
+ *
+ * 端末に持つ（セーブではない）。お知らせポップの既読と同じ考え方で、
+ * 「どの端末で見たか」が正しく、セーブを移しても未読が復活しないほうが自然なため。
+ */
+const CLUB_FEED_SEEN_KEY = 'jpel.clubFeedSeenAt'
+export function clubFeedSeenAt(): string {
+  try { return localStorage.getItem(CLUB_FEED_SEEN_KEY) ?? '' } catch { return '' }
+}
+export function markClubFeedSeen(atISO: string): void {
+  try { localStorage.setItem(CLUB_FEED_SEEN_KEY, atISO) } catch { /* 使えない環境では諦める */ }
+}
+
 export function deviceSeenNewsIds(): string[] {
   try { return JSON.parse(localStorage.getItem(NEWS_SEEN_KEY) ?? '[]') as string[] } catch { return [] }
 }

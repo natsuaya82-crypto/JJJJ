@@ -10,11 +10,14 @@
 //   （`useClubGifts` / `useFriendRequests` が読み込みと間引きを持っている）。
 import { useClubGifts } from '../../lib/useClubGifts'
 import { useFriendRequests } from '../../lib/useFriendRequests'
+import { useClubFeedUnread } from '../../lib/useClubFeedUnread'
 
 export function useOnlineBadge(): number {
   // 走友会からのカードの差し入れ
   const clubGifts = useClubGifts()
   // フレンド申請
   const friendReqs = useFriendRequests()
-  return clubGifts.length + friendReqs.length
+  // 走友会の掲示板の未読（オーナー・2026-08-23「オンラインの文字と掲示板にもつけて」）
+  const feedUnread = useClubFeedUnread()
+  return clubGifts.length + friendReqs.length + feedUnread
 }

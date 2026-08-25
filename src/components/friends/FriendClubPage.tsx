@@ -34,6 +34,8 @@ import { CLUB_CHAT_ENABLED } from '../../data/featureFlags'
 import { useFriendsQuery, invalidateFriendsCache, LoadingBox, ErrorBox, EmptyBox } from './friendsUi'
 import { useLongPress } from '../../lib/useLongPress'
 import { useStickyTab } from '../../lib/useStickyTab'
+import { useClubFeedUnread, markClubFeedRead } from '../../lib/useClubFeedUnread'
+import CountBadge from '../ui/CountBadge'
 import { useRatedRank, useRatedRanks } from '../../lib/useRatedRanks'
 import { RankBadge } from '../rated/ratedUi'
 import { C, alpha, SAIRA, contentHeight, F } from '../../styles/tokens'
@@ -763,6 +765,13 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
   // 「集まりました」だけが並んで流れが埋まり、いま出ているお願いが見えなくなるため。
   // サーバー側でも club_feed が消すが、SQLを流すまでのあいだも手元で伏せておく。
   const posts = allPosts.filter(p => !(p.kind === 'req' && p.filled >= p.cap))
+  // ★**いま出したぶんまでを既読にする。** タブを開いた時点の既読（親の useEffect）は
+  //   前回引いた中でいちばん新しいものまでなので、開いたあとに読み込めた新着が
+  //   未読のまま残る。ここで実際に画面へ出した最新の時刻を渡して締める
+  useEffect(() => {
+    if (tab !== 'board' || allPosts.length === 0) return
+    markClubFeedRead(allPosts.reduce((mx, p) => (p.createdAt > mx ? p.createdAt : mx), ''))
+  }, [tab, allPosts])
   // 書き込みの名前の横に出す段位。**まとめて1回**（投稿1件ずつ引かない）
   const postRanks = useRatedRanks(posts.map(p => p.userId))
 
@@ -941,8 +950,9 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
             {p.kind === 'msg' ? (
               /* ★本文は必ず maskText を通す。保存は書かれたまま、伏せるのは表示のときだけ。
                  書いた本人の画面でも伏せる（自分だけ素で見えると通っていると誤解する）。
-                 定型文しか無い古い投稿は body が空なので、そのときだけ番号から引く */
-              <div style={{ fontSize: F.bodyLg, color: C.text, marginTop: 1, lineHeight: 1.5, wordBreak: 'break-word' }}>
+                 定型文しか無い古い投稿は body が空なので、そのときだけ番号から引く。
+                 打った改行はそのまま出す（whiteSpace: pre-wrap。無いと1行に潰れる） */
+              <div style={{ fontSize: F.bodyLg, color: C.text, marginTop: 1, lineHeight: 1.5, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
                 {p.body ? maskText(p.body) : (CLUB_PHRASES[p.phrase] ?? '')}
               </div>
             ) : p.kind === 'join' ? (
@@ -1079,15 +1089,20 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
               padding: '6px 6px 6px 14px',
               border: `1px solid ${C.border3}`, background: C.surface2,
             }}>
-              <input
+              {/* ★**Enter は改行。送るのはボタンだけ**（オーナー・2026-08-23
+                  「文字100文字打てるのに改行すると勝手に送られるのうざい」）。
+                  1行の <input> だったので改行が打てず、Enter が送信に割り当たっていた。
+                  行数は中身に合わせて 1〜4 行（100文字なので4行で足りる） */}
+              <textarea
                 value={draft}
                 onChange={e => setDraft(e.target.value.slice(0, CLUB_TEXT_MAX))}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void onSend() } }}
                 placeholder="ひとこと書く…"
                 maxLength={CLUB_TEXT_MAX}
+                rows={Math.min(4, draft.split('\n').length)}
                 style={{
                   flex: 1, minWidth: 0, background: 'none', border: 'none', outline: 'none',
                   color: C.text, fontSize: F.bodyLg, fontFamily: 'inherit', padding: 0,
+                  resize: 'none', lineHeight: 1.4,
                 }}
               />
               {draft.length > 0 && (
@@ -1240,6 +1255,9 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
   //   「カードタブを見てる → 誰かをタップ → 戻ると『メンバー』に戻ってる」）
   const [tab, setTab] = useStickyTab<'members' | 'board' | 'cards'>(
     'tab', CLUB_TABS, CLUB_CHAT_ENABLED ? 'board' : 'cards')
+  // 掲示板の未読。開いたら既読にする（数え方は lib/useClubFeedUnread 1本）
+  const feedUnread = useClubFeedUnread()
+  useEffect(() => { if (tab === 'board') markClubFeedRead() }, [tab])
   const [menuMember, setMenuMember] = useState<ClubMember | null>(null)
   const [menuClub, setMenuClub] = useState(false)
   const [reporting, setReporting] = useState<ReportTarget | null>(null)
@@ -1383,7 +1401,15 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
               color: tab === k ? C.gold : C.textDim,
               fontWeight: tab === k ? 800 : 400,
               border: tab === k ? `2px solid ${C.goldDark}` : `1px solid ${C.border}`,
-            }}>{label}</button>
+              position: 'relative',
+            }}>
+              {label}
+              {/* ★掲示板の未読（オーナー・2026-08-23「オンラインの文字と掲示板にもつけて」）。
+                  数え方は lib/useClubFeedUnread 1本、見た目は ui/CountBadge 1本
+                  （下タブの「オンライン」・ベル・ホームのチャットと同じ赤い丸）。
+                  ここで色や 99+ の出し方を書き写さないこと */}
+              {k === 'board' && <CountBadge count={feedUnread} />}
+            </button>
           ))}
         </div>
 
