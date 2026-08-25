@@ -49,10 +49,67 @@ export function autoOrder(roster: Player[], course: MatchCourse, raceNo = 1): Or
   return { lineup: assignLineupByTerrain(pool, courseToRace(course, raceNo)) }
 }
 
-/** 全区間そろっているか */
-export function isOrderComplete(o: Order | undefined, course: MatchCourse): boolean {
+/**
+ * 全区間そろっているか。**「埋まっているか」だけでなく「その選手が本当に居るか」も見る。**
+ *
+ * ★以前は `!!o.lineup[s.index]` だけを見ていたので、**もう名簿に居ない選手のIDが
+ *   入った札**（提出後に相手がその選手を放出・引退させた／相手のロスターが読めていない）が
+ *   「完成している」と判断され、おまかせ補完を素通りしていました。そのまま
+ *   `matchSim` の `buildRacePayload` まで届き、あちらは走者が引けない区間を
+ *   `if (!p) continue` で**黙って飛ばす**ので、
+ *     ・その区間の走者の名前が出ない
+ *     ・その区間ぶんのタイムが総合に足されず、**総合タイムが15〜25分短く出る**
+ *   になっていました（オーナー・2026-08-23「名前でなかったりたまに20分差になったり」）。
+ */
+export function isOrderComplete(
+  o: Order | undefined, course: MatchCourse, roster: readonly Player[],
+): boolean {
   if (!o?.lineup) return false
-  return course.segments.every(s => !!o.lineup[s.index])
+  const alive = new Set(usableRoster([...roster]).map(p => p.id))
+  return course.segments.every(s => {
+    const pid = o.lineup[s.index]
+    return !!pid && alive.has(pid)
+  })
+}
+
+/**
+ * 欠けている区間・居ない選手の区間だけを、おまかせで埋め直す。
+ * **出した本人の選択は残す**（丸ごと差し替えると、1区間だけ古かった人の編成が全部消える）。
+ */
+function repairLineup(
+  lineup: Record<number, string> | undefined, course: MatchCourse,
+  roster: readonly Player[], raceNo: number,
+): Record<number, string> {
+  // そのまま使えるならそのまま（判定は isOrderComplete 1本。ここで条件を書き直さない）
+  if (lineup && isOrderComplete({ lineup }, course, roster)) return { ...lineup }
+  const alive = new Set(usableRoster([...roster]).map(p => p.id))
+  const out: Record<number, string> = {}
+  const used = new Set<string>()
+  for (const s of course.segments) {
+    const pid = lineup?.[s.index]
+    // 同じ選手を2区間に置かない（古い札には重複が入っていることがある）
+    if (pid && alive.has(pid) && !used.has(pid)) { out[s.index] = pid; used.add(pid) }
+  }
+  const holes = course.segments.filter(s => !out[s.index])
+  if (holes.length === 0) return out
+  // 残っている選手だけでおまかせを組み、空いている区間ぶんだけ貰う
+  const rest = roster.filter(p => !used.has(p.id))
+  const auto = autoOrder(rest, course, raceNo).lineup
+  for (const s of holes) {
+    const pid = auto[s.index]
+    if (pid && !used.has(pid)) { out[s.index] = pid; used.add(pid) }
+  }
+  // ★**最後に必ず埋め切ること。** おまかせは残った人数ぶんしか置かないので、
+  //   1区間だけ差し替えたようなときに**その区間が空のまま残る**（実際に残った）。
+  //   空区間を先へ渡すとタイムが1区間ぶん足りなくなるので、余っている人から順に入れる。
+  const spare = usableRoster([...roster]).filter(p => !used.has(p.id))
+  for (const s of course.segments) {
+    if (out[s.index]) continue
+    const p = spare.shift()
+    if (!p) break            // 人が足りない（走者0）。ここは埋めようがない
+    out[s.index] = p.id; used.add(p.id)
+  }
+  return out
 }
 
 /**
@@ -86,11 +143,10 @@ export function resolveOrders(args: {
   const forfeits: string[] = []
   for (const id of activeIds) {
     const got = entries[id]
-    if (isOrderComplete(got, course)) {
-      orders[id] = got!.lineup
-      continue
-    }
-    orders[id] = autoOrder(rosters[id] ?? [], course, raceNo).lineup
+    const roster = rosters[id] ?? []
+    // ★**必ず全区間そろった形にして返すこと。** 空区間のまま先へ渡すと、
+    //   `matchSim` が黙って飛ばして総合タイムが1区間ぶん短くなります（上の isOrderComplete）。
+    orders[id] = repairLineup(got?.lineup, course, roster, raceNo)
     // ★**何も出さなかった人だけ**が不戦敗。中身が欠けているのは「出す意思はあった」扱い
     if (!got) forfeits.push(id)
   }

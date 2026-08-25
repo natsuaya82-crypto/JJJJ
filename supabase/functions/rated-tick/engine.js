@@ -1211,9 +1211,46 @@ function autoOrder(roster, course, raceNo = 1) {
   const pool = healthy.length >= segCount ? healthy : list;
   return { lineup: assignLineupByTerrain(pool, courseToRace(course, raceNo)) };
 }
-function isOrderComplete(o, course) {
+function isOrderComplete(o, course, roster) {
   if (!o?.lineup) return false;
-  return course.segments.every((s) => !!o.lineup[s.index]);
+  const alive = new Set(usableRoster([...roster]).map((p) => p.id));
+  return course.segments.every((s) => {
+    const pid = o.lineup[s.index];
+    return !!pid && alive.has(pid);
+  });
+}
+function repairLineup(lineup, course, roster, raceNo) {
+  if (lineup && isOrderComplete({ lineup }, course, roster)) return { ...lineup };
+  const alive = new Set(usableRoster([...roster]).map((p) => p.id));
+  const out = {};
+  const used = /* @__PURE__ */ new Set();
+  for (const s of course.segments) {
+    const pid = lineup?.[s.index];
+    if (pid && alive.has(pid) && !used.has(pid)) {
+      out[s.index] = pid;
+      used.add(pid);
+    }
+  }
+  const holes = course.segments.filter((s) => !out[s.index]);
+  if (holes.length === 0) return out;
+  const rest = roster.filter((p) => !used.has(p.id));
+  const auto = autoOrder(rest, course, raceNo).lineup;
+  for (const s of holes) {
+    const pid = auto[s.index];
+    if (pid && !used.has(pid)) {
+      out[s.index] = pid;
+      used.add(pid);
+    }
+  }
+  const spare = usableRoster([...roster]).filter((p) => !used.has(p.id));
+  for (const s of course.segments) {
+    if (out[s.index]) continue;
+    const p = spare.shift();
+    if (!p) break;
+    out[s.index] = p.id;
+    used.add(p.id);
+  }
+  return out;
 }
 function resolveOrders(args) {
   const { activeIds, entries, course, rosters, raceNo } = args;
@@ -1221,11 +1258,8 @@ function resolveOrders(args) {
   const forfeits = [];
   for (const id of activeIds) {
     const got = entries[id];
-    if (isOrderComplete(got, course)) {
-      orders[id] = got.lineup;
-      continue;
-    }
-    orders[id] = autoOrder(rosters[id] ?? [], course, raceNo).lineup;
+    const roster = rosters[id] ?? [];
+    orders[id] = repairLineup(got?.lineup, course, roster, raceNo);
     if (!got) forfeits.push(id);
   }
   return { orders, forfeits };

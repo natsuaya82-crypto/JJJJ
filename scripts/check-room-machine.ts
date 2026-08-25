@@ -107,11 +107,36 @@ console.log('[3] おまかせ編成')
 }
 
 console.log('')
-console.log('[4] そろっているかの判定')
+console.log('[4] そろっているかの判定（**その選手が本当に居るかまで見る**）')
 {
-  check('全区間あれば true', isOrderComplete(full(), course))
-  check('1区間でも欠ければ false', !isOrderComplete(partial(), course))
-  check('未提出は false', !isOrderComplete(undefined, course))
+  const R = roster(12)
+  check('全区間あれば true', isOrderComplete(full(), course, R))
+  check('1区間でも欠ければ false', !isOrderComplete(partial(), course, R))
+  check('未提出は false', !isOrderComplete(undefined, course, R))
+
+  // ★**居ない選手のIDが入った札**。提出後に相手がその選手を放出・引退させた、
+  //   相手のロスターが読めていない、のどちらでも起きる。
+  //   以前は「埋まっている」だけを見ていたので**完成扱いで素通り**し、
+  //   matchSim が走者を引けずにその区間を飛ばして
+  //   「名前が出ない」「総合タイムが15〜25分短い」になっていた
+  //   （オーナー・2026-08-23）。
+  const stale = { lineup: { ...full().lineup, [SEGS[0]]: 'gone-999' } }
+  check('居ない選手が入っていたら false', !isOrderComplete(stale, course, R))
+  const retired = [...R, P('zz', 'retired')]
+  const withRetired = { lineup: { ...full().lineup, [SEGS[0]]: 'zz' } }
+  check('引退した選手が入っていたら false', !isOrderComplete(withRetired, course, retired))
+
+  // ★**直したあとは必ず全区間そろう**（空区間を先へ渡さない）
+  const fixed = resolveOrders({
+    activeIds: ['x'], entries: { x: stale }, course, rosters: { x: R }, raceNo: 1 })
+  check('居ない選手の区間は埋め直される',
+    course.segments.every(s => !!fixed.orders.x[s.index]),
+    JSON.stringify(fixed.orders.x))
+  check('埋め直しても本人の選んだ区間は残る',
+    course.segments.slice(1).every(s => fixed.orders.x[s.index] === full().lineup[s.index]))
+  check('同じ選手が2区間に入らない',
+    new Set(Object.values(fixed.orders.x)).size === course.segments.length)
+  check('出しているので不戦敗にはしない', fixed.forfeits.length === 0)
 }
 
 console.log('')
