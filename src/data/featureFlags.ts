@@ -23,3 +23,19 @@ export const CLUB_CHAT_ENABLED = true
 export function onlineAvailable(): boolean {
   return ONLINE_ENABLED
 }
+
+// ランクマッチの「準備中」。**この日から、参加のボタンを押せなくして「準備中」に出す。**
+//
+// 第一回（9/1）は参加者が10人に届かず中止にした（オーナー・2026-08-23
+// 「参加者不足により、ランクマッチを見送ります！」「9/1になったらランクマッチの
+// ボタンが準備中でグレーアウトで」）。開催日が来たのに何も起きない、を避けるため。
+//
+// ★**日付は必ずここ1本**（画面に書かないこと）。`data/` は `utils/` を import
+//   できないので、今日は呼ぶ側から渡す（`data/events` の activeEvents と同じ形）。
+// ★次の回をやるときは、この日付を次の開催日の**後ろ**へ動かすか、'' にして止める。
+export const RATED_PREP_FROM = '2026-09-01'
+
+/** その日、ランクマッチは「準備中」か（`utils/jstDate` の jstTodayISO() を渡す） */
+export function ratedPreparing(today: string): boolean {
+  return !!RATED_PREP_FROM && today >= RATED_PREP_FROM
+}

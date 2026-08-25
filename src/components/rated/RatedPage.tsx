@@ -13,6 +13,8 @@ import {
 } from '../../lib/ratedApi'
 import { HOF_ENTRY_MIN } from '../../utils/hofRoster'
 import { jstTodayISO } from '../../utils/jstDate'
+// 「準備中」の線は data/featureFlags 1本（画面に日付を書かない）
+import { ratedPreparing } from '../../data/featureFlags'
 import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
 import type { Segment } from '../../types'
 
@@ -107,8 +109,11 @@ export default function RatedPage() {
   //   そしたら参加者一覧出る」「9/1にロスター提出するんだよ？」）。
   //   申し込みと**メンバーの提出は別**で、提出は当日の受付が開いてから。
   const joined = !!me?.joined
+  // ★**準備中**（第一回は中止）。日付は data/featureFlags 1本で、ここに書かない。
+  //   これが true のあいだは押せない＝サーバーへ参加を送らない
+  const preparing = ratedPreparing(jstTodayISO())
   const canEnter = canJoin(hof) && startsLater && !joined
-  const eligible = canJoin(hof) && (openable || canEnter)
+  const eligible = !preparing && canJoin(hof) && (openable || canEnter)
   const segs = today?.course.segments ?? []
   const submitted = Object.keys(me?.lineup ?? {}).length >= segs.length && segs.length > 0
   const prog = rankProgressOf(me?.rating ?? RATING_START)
@@ -314,7 +319,8 @@ export default function RatedPage() {
             }}
           >
             <div style={{ fontSize: F.titleLg, fontWeight: 900, color: eligible ? '#04202e' : C.textDim, letterSpacing: '8px' }}>
-              {openable
+              {preparing ? '準備中'
+                : openable
                 ? (submitted ? '組み直す' : '参加する')
                 : canEnter ? '参加する'
                 : joined ? 'エントリー済み'
