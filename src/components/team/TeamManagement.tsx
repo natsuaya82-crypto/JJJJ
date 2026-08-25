@@ -1,5 +1,4 @@
 import { useState, useRef } from 'react'
-import { squadPlayersOf } from '../../utils/rosterSync'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useStickyTab } from '../../lib/useStickyTab'
 import PageHeader from '../ui/PageHeader'
@@ -16,7 +15,7 @@ import PlayerFace from '../player/PlayerFace'
 import NewBadge from '../ui/NewBadge'
 import ActionSheet from '../ui/ActionSheet'
 import PlayerRow, { type RowHandlers } from '../player/PlayerRow'
-import { ROSTER_MAX, ROSTER_MIN } from '../../data/rosterRules'
+import { ROSTER_MAX, ROSTER_MIN, teamRosterSize } from '../../data/rosterRules'
 import SortSelect from '../ui/SortSelect'
 import { comparePlayers, PLAYER_SORT_LABEL, type PlayerSortKey } from '../../utils/playerSort'
 import PlayerList from '../player/PlayerList'
@@ -120,8 +119,14 @@ export default function TeamManagement() {
   // レンタルで借りている選手（teamId=自チーム・loan付きで所有者が他チーム）。roster配列外の別枠。
   const loanedIn = allPlayers.filter(p => p.teamId === playerTeamId && p.loan && p.loan.ownerTeamId !== playerTeamId && p.status !== 'retired')
   const rosterSalary = allPlayers.filter(p => p.teamId === playerTeamId && p.status !== 'retired').reduce((s, p) => s + p.contract.annualSalary, 0)
-  // ロスター人数は一覧と同じ数え方（rosterSync）。roster配列の長さだとズレたとき表示だけ食い違う
-  const rosterCount = squadPlayersOf(allPlayers, playerTeamId).length
+  // ★**人数は枠を判定する数え方と同じ1本**（`data/rosterRules` の `teamRosterSize`）。
+  //   ここは `squadPlayersOf`（名簿＝レンタルで**借りている選手を除く**）で数えていたが、
+  //   上限を見る `canSignContract` は `teamRosterSize`（借りている選手も入る）なので、
+  //   **画面が29人と出しているのに「上限30人です」で弾かれる**状態だった
+  //   （オーナー・2026-08-23「29人なのに移籍声かけたら30人が上限で入れませんとも言われる」）。
+  //   所属の決まり（`utils/rosterSync` の頭）どおり、**人数は belongsToClub 側**が正。
+  //   借りている選手は「レンタル」タブに別で並ぶが、枠は使っている。
+  const rosterCount = teamRosterSize(allPlayers, playerTeamId)
   const rawPlayers = activeTab === 'loan' ? loanedIn : getTeamPlayers(playerTeamId)
   const players = [...rawPlayers]
     .filter(p => searchQuery === '' || p.name.includes(searchQuery) || p.nameKana.includes(searchQuery))
