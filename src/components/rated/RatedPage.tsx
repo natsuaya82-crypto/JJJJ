@@ -12,8 +12,6 @@ import {
   type RatedEventInfo, type RatedMe, type RatedResult, type RatedToday,
 } from '../../lib/ratedApi'
 import { HOF_ENTRY_MIN } from '../../utils/hofRoster'
-// 開催に要る人数は engine/rating の GROUP_MIN 1本（画面に数字を書かない）
-import { GROUP_MIN } from '../../engine/rating'
 import { jstTodayISO } from '../../utils/jstDate'
 import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
 import type { Segment } from '../../types'
@@ -339,13 +337,15 @@ export default function RatedPage() {
             <div style={{ fontSize: F.label, color: C.orange, marginTop: 8, textAlign: 'center' }}>{notice}</div>
           )}
           {/* ★**エントリーした人にだけ出す通達**（オーナー・2026-08-23
-              「8/31に10人未満だったら開催見送りますって参加者だけに通達したい」）。
-              開催前で、自分がエントリーしている間だけ。全員に出すポップとは別。
-              人数の線は engine/rating の GROUP_MIN 1本（ここに数字を書かない）。
-              これを割ると splitGroups が空を返して流会になる＝走らない */}
+              「参加者不足により、ランクマッチを見送ります！」「中止決定でいいよ」）。
+              開催前で、自分がエントリーしている間だけ。**全員に出すポップとは別**で、
+              あちらは起動時に1回、こちらは開くたびに見える。
+              ★以前ここに「8/31に10人未満だったら見送ります」という**条件つき**の
+                言い方を出していたが、ポップが「中止」と言い切っているので、
+                エントリーした人には2つの言い方が同時に見えていた。中止で寄せる */}
           {joined && startsLater && (
             <div style={{ fontSize: F.label, color: C.orange, marginTop: 8, textAlign: 'center', lineHeight: 1.5 }}>
-              {`8/31に参加者が${GROUP_MIN}人未満だった場合、開催を見送ります`}
+              参加者不足のため、9/1の開催を見送ります
             </div>
           )}
         </div>
