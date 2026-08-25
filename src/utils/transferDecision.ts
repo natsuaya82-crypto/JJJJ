@@ -418,13 +418,10 @@ export type MoveReason =
 /** 断るときの理由。`belowTier` は「行き先の格が選手の格より下か」 */
 export function moveDeclineText(lead: MoveReason, o: { dream: string; belowTier?: boolean }): string {
   const T: Record<MoveReason, string> = {
-    // ★**「格」を文面に出さないこと**（CLAUDE.md「格はプレイヤーに見せない内部データ」。
-    //   オーナー・2026-08-23「格は表に見せないって言ってんのに」）。序列（何番手か）を
-    //   消したのと同じ話で、遊ぶ側にその言葉は存在しない。物差しとしての格は今までどおり使う。
-    out_of_band: o.belowTier ? 'このクラブで走れる力にまだ届いていない' : 'いまの自分に見合うクラブではない',
+    out_of_band: o.belowTier ? 'このクラブで走れる力にまだ届いていない' : '格の離れたクラブへ移る段階にない',
     no_playing_time: '出場機会が見込めない',
     wrong_region: `挑戦したいのは${o.dream}で、この地域ではない`,
-    tier_down: 'いまより落ちるクラブへ移る気はない',
+    tier_down: '格下への移籍に前向きでない',
     loyalty: '今のチームへの愛着が強い',
     key_player: '主力として起用されており、移籍を望んでいない',
     fee: '移籍金が用意できない',
@@ -444,11 +441,10 @@ export function moveAcceptText(lead: MoveReason, o: { dream: string }): string {
   const T: Record<MoveReason, string> = {
     dream: `憧れの${o.dream}で走りたい`,
     wrong_region: '行きたい地域ではない',
-    // ★こちらも「格」を出さないこと（上の moveDeclineText と同じ）
-    tier_up: 'もっと上のクラブで挑戦したい',
+    tier_up: '格上のクラブで挑戦したい',
     playing_time: '出場機会が見込める',
     no_playing_time: '出場機会が見込めない',
-    tier_down: '条件を考えれば受け入れられる',
+    tier_down: '格下だが受け入れる',
     loyalty: '今のチームに愛着がある',
     capped: 'このクラブではもう伸びしろがない',
     ecl: 'ECLで走りたい',

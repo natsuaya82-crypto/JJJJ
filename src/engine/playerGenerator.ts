@@ -1284,6 +1284,46 @@ export function buildDraftOrder(
 export const DOMESTIC_YOUTH_PER_CLUB = 2
 const DOMESTIC_YOUTH_RANKS: Rank[] = ['C', 'D']
 
+/**
+ * **クラブに新しい選手を n 人つくる、唯一の幹。**
+ *
+ * 若手の補充（`refreshDomesticYouth`）も、下限割れの救済（`fillRosterToMin`）も
+ * ここから分岐します。**呼ぶ側で選手を手組みしないこと。**
+ *
+ * 中身は `generateCpuRosters` →（帯を当て直す）`buildRatingsForRank` →
+ * 年俸は `faMarketSalary`。**1回の呼び出しで25人ぶん作られる**ので、
+ * クラブの数だけ呼ばずに先頭から n 人だけ使います。
+ *
+ * 分岐で変わるのは3つだけ。
+ *   ranks  … 当てる帯（若手は C・D、救済はいちばん下の D）
+ *   prefix … IDの頭（`yth-` / `fill-`。混ざらないように分ける）
+ *   n      … 何人つくるか（呼ぶ側が決める）
+ */
+function makeNewPlayersFor(
+  team: Team, year: number, n: number, ranks: readonly Rank[], prefix: string,
+): Player[] {
+  if (n <= 0) return []
+  const made = generateCpuRosters([{ id: team.id, tier: tierOf(team) }], year).cpuPlayers.slice(0, n)
+  return made.map((p, i) => {
+    // 年齢は若手の帯（19〜22）。伸びしろを持たせるのは補充も救済も同じ
+    const age = 19 + (i % 4)
+    const { ratings, potential } = buildRatingsForRank({
+      id: p.id, rank: ranks[i % ranks.length], specialty: p.specialty,
+      growthCurve: p.growthCurve, age, potentialCap: TIER_POTENTIAL_CAP[tierOf(team)],
+    })
+    const fresh: Player = {
+      ...p,
+      id: `${prefix}-${year}-${team.id}-${i}`,
+      age, yearsPro: 0, draftYear: year, joinedYear: year,
+      ratings, potential,
+      teamId: team.id,
+      contract: { ...p.contract, yearsLeft: 3 },
+    }
+    fresh.contract.annualSalary = faMarketSalary(fresh)
+    return fresh
+  })
+}
+
 export function refreshDomesticYouth(
   teams: readonly Team[],
   year: number,
@@ -1297,29 +1337,8 @@ export function refreshDomesticYouth(
   for (const t of targets) {
     const have = (membersByClub.get(t.id) ?? []).length
     const room = Math.max(0, ROSTER_MAX - have)
-    const n = Math.min(DOMESTIC_YOUTH_PER_CLUB, room)
-    if (n === 0) continue
-    // 中身は generateCpuRosters と同じ幹。**1クラブぶん作って先頭から n 人だけ使う**
-    // （クラブの数だけ呼ばないこと。1回の呼び出しで25人ぶん作られる）
-    const made = generateCpuRosters([{ id: t.id, tier: tierOf(t) }], year).cpuPlayers.slice(0, n)
-    made.forEach((p, i) => {
-      const rank = DOMESTIC_YOUTH_RANKS[i % DOMESTIC_YOUTH_RANKS.length]
-      const age = 19 + (i % 4)
-      const { ratings, potential } = buildRatingsForRank({
-        id: p.id, rank, specialty: p.specialty, growthCurve: p.growthCurve, age,
-        potentialCap: TIER_POTENTIAL_CAP[tierOf(t)],
-      })
-      const fresh: Player = {
-        ...p,
-        id: `yth-${year}-${t.id}-${i}`,
-        age, yearsPro: 0, draftYear: year, joinedYear: year,
-        ratings, potential,
-        teamId: t.id,
-        contract: { ...p.contract, yearsLeft: 3 },
-      }
-      fresh.contract.annualSalary = faMarketSalary(fresh)
-      out.push(fresh)
-    })
+    // 中身は makeNewPlayersFor 1本（下の fillRosterToMin と同じ幹）
+    out.push(...makeNewPlayersFor(t, year, Math.min(DOMESTIC_YOUTH_PER_CLUB, room), DOMESTIC_YOUTH_RANKS, 'yth'))
   }
   return out
 }
@@ -1351,29 +1370,8 @@ export function fillRosterToMin(
   players: readonly Player[],
 ): Player[] {
   const have = (clubMembersByClub(players as Player[]).get(team.id) ?? []).length
-  const need = ROSTER_MIN - have
-  if (need <= 0) return []
-  // 1回の呼び出しで25人ぶん作られるので、先頭から need 人だけ使う
-  const made = generateCpuRosters([{ id: team.id, tier: tierOf(team) }], year).cpuPlayers.slice(0, need)
-  const out: Player[] = []
-  made.forEach((p, i) => {
-    const age = 19 + (i % 4)
-    const { ratings, potential } = buildRatingsForRank({
-      id: p.id, rank: ROSTER_FILL_RANK, specialty: p.specialty, growthCurve: p.growthCurve, age,
-      potentialCap: TIER_POTENTIAL_CAP[tierOf(team)],
-    })
-    const fresh: Player = {
-      ...p,
-      id: `fill-${year}-${team.id}-${i}`,
-      age, yearsPro: 0, draftYear: year, joinedYear: year,
-      ratings, potential,
-      teamId: team.id,
-      contract: { ...p.contract, yearsLeft: 3 },
-    }
-    fresh.contract.annualSalary = faMarketSalary(fresh)
-    out.push(fresh)
-  })
-  return out
+  // 足りないぶんだけ（15人ちょうどにする）。中身は makeNewPlayersFor 1本
+  return makeNewPlayersFor(team, year, ROSTER_MIN - have, [ROSTER_FILL_RANK], 'fill')
 }
 
 // 海外選手のID採番。カウンタはメモリ上の値なのでアプリ再起動でリセットされる。

@@ -196,7 +196,7 @@ export function segmentPrizeHeadline(a: { raceName: string; prize: number; myRan
  */
 export function overseasMoveHeadline(a: { playerName: string; playerOvr: number; clubName: string; fee: number; big: boolean; stepUp: boolean }): string {
   if (a.big) return `【世界へ挑戦】${a.playerName}（OVR${a.playerOvr}）が世界最高峰・${a.clubName}へ移籍！自クラブ育ちの選手が世界の舞台へ（移籍金${fmtYen(a.fee)}）`
-  if (a.stepUp) return `【ステップアップ】${a.playerName}（OVR${a.playerOvr}）が上位の${a.clubName}へ移籍。より高いレベルへ挑む（移籍金${fmtYen(a.fee)}）`
+  if (a.stepUp) return `【ステップアップ】${a.playerName}（OVR${a.playerOvr}）が格上の${a.clubName}へ移籍。より高いレベルへ挑む（移籍金${fmtYen(a.fee)}）`
   return `${a.playerName}が海外クラブ${a.clubName}へ移籍（移籍金${fmtYen(a.fee)}）`
 }
 
@@ -220,7 +220,7 @@ export function crossBorderHeadline(a: {
   stepUp: boolean
 }): string {
   if (a.dir === 'in') return `【海外→日本】${a.playerName}（OVR${a.playerOvr}）が${a.fromName}から${a.toName}へ移籍（移籍金${fmtYen(a.fee)}）`
-  if (a.stepUp) return `【日本→海外】${a.playerName}（OVR${a.playerOvr}）が上位の${a.toName}へ移籍。世界の舞台で腕試し（移籍金${fmtYen(a.fee)}）`
+  if (a.stepUp) return `【日本→海外】${a.playerName}（OVR${a.playerOvr}）が格上の${a.toName}へ移籍。世界の舞台で腕試し（移籍金${fmtYen(a.fee)}）`
   return `【日本→海外】${a.playerName}（OVR${a.playerOvr}）が${a.fromName}から${a.toName}へ移籍（移籍金${fmtYen(a.fee)}）`
 }
 

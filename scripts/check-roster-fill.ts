@@ -15,6 +15,7 @@
  *   ・ランクを 'A' にする（弱い選手にならない）              → ③
  *   ・15人ちょうどでも入れる（`need <= 0` を外す）           → ④
  */
+import { readFileSync } from 'node:fs'
 import { fillRosterToMin } from '../src/engine/playerGenerator'
 import { generateCpuRosters } from '../src/engine/playerGenerator'
 import { INITIAL_TEAMS } from '../src/data/teams'
@@ -36,7 +37,7 @@ const worldOf = (n: number): Player[] => madeAll.slice(0, n).map(p => ({ ...p, t
 
 console.log(`[1] 足りないぶんだけ入れて、ちょうど ${ROSTER_MIN} 人にする`)
 {
-  for (const have of [0, 3, 9, 13, 14]) {
+  for (const have of [0, 3, 5, 10, 13, 14]) {
     const add = fillRosterToMin(team, 2030, worldOf(have))
     check(`${have}人 → ${add.length}人足して ${have + add.length}人`,
       have + add.length === ROSTER_MIN, `${have + add.length}人`)
@@ -46,6 +47,19 @@ console.log(`[1] 足りないぶんだけ入れて、ちょうど ${ROSTER_MIN} 
     const add = fillRosterToMin(team, 2030, worldOf(have))
     check(`${have}人なら1人も足さない`, add.length === 0, `${add.length}人足した`)
   }
+}
+
+console.log('\n[1-b] 選手の作り方は1本（ベタ書きしていない）')
+{
+  const src = readFileSync('src/engine/playerGenerator.ts', 'utf8')
+  // ★**若手の補充と救済が同じ幹から分岐しているか。** 片方だけ手組みに戻すと落ちる
+  check('幹（makeNewPlayersFor）がある', /function makeNewPlayersFor\(/.test(src))
+  const uses = (src.match(/makeNewPlayersFor\(/g) ?? []).length
+  check('幹を使っているのは2か所（若手の補充・下限の救済）＋定義', uses === 3, `${uses} か所`)
+  // ★`buildRatingsForRank` は初期ロスター・ドラフト・海外も通る**世界共通の幹**なので、
+  //   ここで数を縛らない（縛ると関係ない生成を足しただけで落ちる）。
+  //   見るのは「補充と救済が同じ幹から出ているか」だけ。
+  check('年俸は faMarketSalary（手で決めていない）', /fresh\.contract\.annualSalary = faMarketSalary\(fresh\)/.test(src))
 }
 
 console.log(`\n[2] 入るのは弱い選手（OVR60くらい）`)

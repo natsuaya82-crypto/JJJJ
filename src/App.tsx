@@ -173,8 +173,7 @@ const MODAL_BOX: React.CSSProperties = {
 
 // オファーの種類ごとの見出しと本文（判定は utils/gmOffer.ts）
 const OFFER_KIND_LABEL: Record<string, string> = {
-  // ★「格」は内部の数なので画面に出さない（CLAUDE.md）
-  promotion: '上位クラブからの招聘',
+  promotion: '格上からの招聘',
   rebuild: '名門再建の要請',
   comeback: '再起の誘い',
 }
