@@ -110,6 +110,9 @@ const CHECKS = [
   { name: 'save-snapshot', shim: true },
   { name: 'boot-gate', shim: true },
   { name: 'save-backups', shim: true, nativeFakes: true },
+  // 書き込みの途中で**実際に落として**、完全なセーブが1本以上残るかを見る。
+  // 受け皿を増やす（世代・退避）のではなく、失われない形になっているかの点検
+  { name: 'save-crash', shim: true, nativeFakes: true },
   // ★実機から取り出した本物のセーブを読む点検。リポジトリには入っていないので、
   //   ファイルが無い環境では走らせずに「見送り」にする（落とさない・`?` も付けない）。
   //   **セーブ形式（persist の version）を上げるときは必ず手で走らせること。**

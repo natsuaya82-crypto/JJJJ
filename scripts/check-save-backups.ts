@@ -72,7 +72,18 @@ async function main() {
   for (const k of [...files.keys()]) if (k !== snap) files.delete(k)
   const onlySnap = await st2.saveStorage.getItem(KEY)
   check('アップデート前の退避しか無くても読み戻せる', typeof onlySnap === 'string' && onlySnap.includes('"isInitialized":true'))
-  check('読み戻したものが本体に復元される', files.has(FILE))
+  // ★**本体は「a か b のうち札が指している方」です**（2026-09-08 に交互書き込みへ変更）。
+  //   以前はここで `jpel-manager-save.json` が出来ることを見ていたが、その名前へは
+  //   もう書きません。見るべきは「引き継いだ中身が、札の指す先に入っているか」。
+  {
+    const cur = files.get('jpel-manager-save.cur.json')
+    const use = cur ? (JSON.parse(cur.data) as { use?: string }).use : undefined
+    const live = use ? files.get(`jpel-manager-save.${use}.json`) : undefined
+    check('読み戻したものが本体（札の指すスロット）に復元される',
+      !!live && live.data === onlySnap, use ? `札は ${use}` : '札が無い')
+    check('読めなかった方を消していない（もう片方は残す）',
+      files.has('jpel-manager-save.a.json') || files.has('jpel-manager-save.b.json'))
+  }
 
   // ★スロットの空き判定も同じ一覧を見ること。
   //   以前は本体・書きかけ・旧bak の3つしか見ておらず、世代バックアップだけが残った
