@@ -18,8 +18,22 @@ import { saveSlotSuffix, suffixOfSlot, type SaveSlot } from './saveSlot'
 // 今までのファイル名そのままなので、既存のセーブはスロット1として読める。
 // スロットは起動時に確定していて途中で変わらないので、ここで1回組み立てれば足りる。
 const SUF = saveSlotSuffix()
-const FILE = `jpel-manager-save${SUF}.json`
-const TMP = `jpel-manager-save${SUF}.tmp.json`
+// ── 交互書き込み（a / b と、どちらが本物かを指す 20バイトの札）──
+//
+// **どの瞬間に落ちても、完全なセーブが必ず1本以上ある**ようにするための形。
+// 以前は「tmp へ書く → 検証 → **本体を消す** → tmp を本体へ rename」で、
+// 消してから rename するまでのあいだ**正しいセーブが1つも無い瞬間**がありました。
+// そこで落ちると次の起動で本体が見つからず、世代・版の退避まで落ちていきます
+// （実際に「2038年まで進めたのに2034年に戻った」が起きた。オーナー・2026-09-08）。
+//
+// ★**受け皿（世代バックアップ・版の退避）を増やす方向で埋めないこと。**
+//   あちらは「中身が論理的におかしいものを書いた」用で、クラッシュとは別の病気です。
+const SLOT_A = `jpel-manager-save${SUF}.a.json`
+const SLOT_B = `jpel-manager-save${SUF}.b.json`
+/** どちらのスロットが本物かを指す札。中身は `{"use":"a"}` だけ */
+const CUR = `jpel-manager-save${SUF}.cur.json`
+/** v2.0.7 まで使っていた1本きりの本体。**もう書きません**（読むだけ） */
+const LEGACY_FILE = `jpel-manager-save${SUF}.json`
 // 旧形式の1本だけのバックアップ（`.bak.json`）は過去のセーブに残っているが、
 // 名前を書き出す必要は無い。下の describeSave が名前から拾う。
 const isNative = Capacitor.isNativePlatform()
@@ -73,20 +87,24 @@ function describeSave(name: string, suf: string): { label: string; rank: number 
   if (!name.startsWith(`${base}.`) || !name.endsWith('.json')) return null
   // 'jpel-manager-save.json' → ''、'…bak3.json' → 'bak3'、'…v39.json' → 'v39'
   const mid = name.slice(base.length + 1, -'.json'.length)
-  if (mid === '') return { label: 'いまのセーブ', rank: 0 }
-  if (mid === 'tmp') return { label: '書きかけ（直前の操作）', rank: 1 }
-  if (mid === 'bak') return { label: 'ひとつ前（旧形式）', rank: 2 }
+  // ★**札（cur）はセーブではありません。** 一覧にも復旧にも出さない
+  //   （消すのは removeItem が名指しでやる）。
+  if (mid === 'cur') return null
+  if (mid === 'a' || mid === 'b') return { label: `いまのセーブ（${mid}）`, rank: 0 }
+  if (mid === '') return { label: '以前のセーブ（1本だったころ）', rank: 1 }
+  if (mid === 'tmp') return { label: '書きかけ（旧形式）', rank: 2 }
+  if (mid === 'bak') return { label: 'ひとつ前（旧形式）', rank: 3 }
   const gen = /^bak(\d+)$/.exec(mid)
-  if (gen) return { label: `世代バックアップ ${gen[1]}`, rank: 3 }
+  if (gen) return { label: `世代バックアップ ${gen[1]}`, rank: 4 }
   const ver = /^v(\d+)$/.exec(mid)
-  if (ver) return { label: `アップデート前（形式 v${ver[1]}）`, rank: 4 }
+  if (ver) return { label: `アップデート前（形式 v${ver[1]}）`, rank: 5 }
   return null
 }
 
 /** 決め打ちであたる名前（フォルダが読めないときの道）。判別は describeSave に任せる */
 function knownSaveNames(suf: string): string[] {
   const base = `jpel-manager-save${suf}`
-  const out = [`${base}.json`, `${base}.tmp.json`, `${base}.bak.json`]
+  const out = [`${base}.a.json`, `${base}.b.json`, `${base}.json`, `${base}.tmp.json`, `${base}.bak.json`]
   for (let i = 1; i <= BAK_SLOTS; i++) out.push(`${base}.bak${i}.json`)
   // 版の退避は「今の版まで」あたれば足りる（それより上の版の退避は存在しえない）
   for (let v = 1; v <= SAVE_FORMAT_VERSION; v++) out.push(`${base}.v${v}.json`)
@@ -223,6 +241,40 @@ const parses = (s: string): boolean => {
   try { JSON.parse(s); return true } catch { return false }
 }
 
+// ── どちらのスロットが本物か（札 1本）─────────────────────────
+//
+// **ここだけが「いまのセーブはどのファイルか」を知っています。**
+// 呼ぶ側がファイル名を組み立てないこと（2か所目ができた瞬間に食い違います）。
+
+type Slot = 'a' | 'b'
+const slotPath = (s: Slot) => (s === 'a' ? SLOT_A : SLOT_B)
+const otherSlot = (s: Slot): Slot => (s === 'a' ? 'b' : 'a')
+
+/**
+ * いま本物として扱うスロット。無い・壊れているなら null。
+ * ★**札が壊れていても困りません。** 読み込みは a・b を新しい順に試して、
+ *   採ったものに札を立て直します（`loadFromDisk`）。だからここは札を読むだけ。
+ */
+async function liveSlot(): Promise<Slot | null> {
+  try {
+    const use = (JSON.parse((await readText(CUR)) ?? '{}') as { use?: string }).use
+    return use === 'a' || use === 'b' ? use : null
+  } catch { return null }
+}
+
+/** 札を書き換える。**書き込みの最後にこれだけを呼ぶ**（切り替わりの瞬間はここ） */
+async function writePointer(slot: Slot): Promise<void> {
+  await Filesystem.writeFile({
+    path: CUR, data: JSON.stringify({ use: slot }), directory: Directory.Data, encoding: Encoding.UTF8,
+  })
+}
+
+/** いま本物のセーブのファイル名。まだスロットが無ければ古い1本を指す */
+async function livePath(): Promise<string> {
+  const sl = await liveSlot()
+  return sl ? slotPath(sl) : LEGACY_FILE
+}
+
 /** いちばん古い世代を探して、そこへ本体をコピーする */
 async function rotateBackup(): Promise<void> {
   let oldest = 1
@@ -239,7 +291,7 @@ async function rotateBackup(): Promise<void> {
     }
   }
   await removeIfExists(bakPath(oldest))
-  await Filesystem.copy({ from: FILE, to: bakPath(oldest), directory: Directory.Data, toDirectory: Directory.Data })
+  await Filesystem.copy({ from: await livePath(), to: bakPath(oldest), directory: Directory.Data, toDirectory: Directory.Data })
 }
 
 /** JSON を丸ごと読まずに版だけ取り出す（数MBのパースを避ける） */
@@ -272,18 +324,36 @@ export async function listRecoverables(): Promise<Recoverable[]> {
   return [...all].sort((a, b) => b.mtime - a.mtime)
 }
 
-/** 選んだ候補を本体に戻す。**戻す前に、いまの本体も世代へ逃がす** */
+/**
+ * **セーブを1本、本物にする唯一の手順。** 空いているスロットへ入れて、札を回す。
+ * 普段の書き込み・復旧画面からの復元・古いセーブからの引き継ぎが全部ここを通る。
+ *
+ * ★**「いまのセーブを消してから書く」を絶対に足さないこと。** 消した瞬間に
+ *   「正しいセーブが1つも無い時間」が生まれます（それが今回の事故の形）。
+ */
+async function adoptIntoFreeSlot(raw: string): Promise<Slot> {
+  const target = otherSlot((await liveSlot()) ?? 'b')
+  await Filesystem.writeFile({ path: slotPath(target), data: raw, directory: Directory.Data, encoding: Encoding.UTF8 })
+  if (!await writtenFully(slotPath(target), raw.length)) throw new Error('書き込みが途中で切れました')
+  await writePointer(target)
+  return target
+}
+
+/**
+ * 選んだ候補を本物にする。**書き込みとまったく同じ手順**（`adoptIntoFreeSlot`）。
+ * いまのセーブは消しません——もう片方のスロットに残るので、選び直せます。
+ */
 export async function restoreFrom(path: string): Promise<void> {
   if (!isNative) return
-  if (await exists(FILE)) { try { await rotateBackup() } catch { /* 逃がせなくても復元は進める */ } }
-  await removeIfExists(FILE)
-  await Filesystem.copy({ from: path, to: FILE, directory: Directory.Data, toDirectory: Directory.Data })
+  const raw = await readText(path)
+  if (raw == null) throw new Error('復元元を読み出せませんでした')
+  await adoptIntoFreeSlot(raw)
 }
 
 /** セーブファイルの中身を読み出す（書き出し・共有に使う） */
-export async function readSaveText(path = FILE): Promise<string | null> {
+export async function readSaveText(path?: string): Promise<string | null> {
   if (!isNative) return localStorage.getItem(`jpel-manager-save${SUF}`)
-  try { return await readText(path) } catch { return null }
+  try { return await readText(path ?? await livePath()) } catch { return null }
 }
 
 async function flushWrite() {
@@ -295,32 +365,35 @@ async function flushWrite() {
     return
   }
   try {
-    // セーブ破壊ガード（ファイル直前）：新規状態を書く前に、既存ファイルが進行中セーブなら中止する。
+    const live = await liveSlot()
+    const livePathNow = live ? slotPath(live) : LEGACY_FILE
+
+    // セーブ破壊ガード（ファイル直前）：新規状態を書く前に、いまのセーブが進行中なら中止する。
     // 「ファイルが無い」と「読めなかった」は必ず区別する（読めないだけなら上書きしてはいけない）。
-    if (!isInit(data) && await exists(FILE)) {
+    if (!isInit(data) && await exists(livePathNow)) {
       let cur: string | null = null
-      try { cur = await readText(FILE) } catch { cur = null }
+      try { cur = await readText(livePathNow) } catch { cur = null }
       if (cur === null || isInit(cur)) {
         console.error('[save] BLOCKED: file has an initialized save; refusing to overwrite with fresh state')
         return
       }
     }
 
-    // 1) まず一時ファイルへ書く（ここでキルされても本体は無傷のまま残る）
-    await Filesystem.writeFile({ path: TMP, data, directory: Directory.Data, encoding: Encoding.UTF8 })
+    // 1) 使っていない方へ全部書く。**もう片方（いまのセーブ）は無傷のまま**
+    const target = otherSlot(live ?? 'b')
+    await Filesystem.writeFile({ path: slotPath(target), data, directory: Directory.Data, encoding: Encoding.UTF8 })
 
-    // 2) 書き切れているか検証。欠けていたら本体には触らず捨てる
-    if (!await writtenFully(TMP, data.length)) {
-      console.error('[save] tmp write incomplete; keeping the previous save')
-      await removeIfExists(TMP)
+    // 2) 書き切れているか検証。欠けていたら**札を動かさない**＝いまのセーブがそのまま残る
+    if (!await writtenFully(slotPath(target), data.length)) {
+      console.error('[save] write incomplete; keeping the previous save')
       return
     }
 
-    // 3) 直前の正常セーブを世代バックアップへ退避（本体が壊れたときの復旧元）。
+    // 3) 直前の正常セーブを世代バックアップへ退避（中身が論理的に壊れたときの戻り先）。
     //    **いちばん古い世代から書き換える。** 1本だけを上書きしていた頃は、
     //    異変に気づいたときには本体もバックアップも新しくなっていて戻す先が無かった。
     const now = Date.now()
-    if (await exists(FILE)) {
+    if (await exists(livePathNow)) {
       if (now - lastBackupAt >= BACKUP_INTERVAL_MS) {
         try {
           await rotateBackup()
@@ -329,15 +402,12 @@ async function flushWrite() {
           console.error('[save] backup failed', e)
         }
       }
-      // rename は宛先が存在すると失敗するので本体を先に消す。
-      // この一瞬でキルされても .tmp（検証済み）と .bak が残り、次回起動で復旧できる。
-      await removeIfExists(FILE)
     } else if (lastBackupAt === 0) {
       lastBackupAt = now
     }
 
-    // 4) 検証済みの一時ファイルを本体へ差し替え
-    await Filesystem.rename({ from: TMP, to: FILE, directory: Directory.Data, toDirectory: Directory.Data })
+    // 4) 札を書き換える。**切り替わりの瞬間はここだけで、20バイトしか書きません**
+    await writePointer(target)
   } catch (e) {
     console.error('[save] write failed', e)
   }
@@ -365,12 +435,24 @@ export async function flushSaveNow(): Promise<void> {
 
 // 本体 → 一時ファイル → バックアップ の順に、実際に JSON として読めるものを探す。
 // （本体の差し替え中にキルされた場合は .tmp が最新の正常データになっている可能性がある）
+/** この起動で、いまのセーブ以外から読んだときにその名前が入る（画面が知らせるため） */
+let recoveredFrom: string | null = null
+/** いまのセーブ以外から復旧して起動したか。null なら普通の起動 */
+export function recoveredSaveLabel(): string | null {
+  if (!recoveredFrom) return null
+  return describeSave(recoveredFrom, SUF)?.label ?? recoveredFrom
+}
+
 async function loadFromDisk(): Promise<{ raw: string | null; sawFile: boolean }> {
   let sawFile = false
+  const live = await livePath()
   // 残っているものを**全部**、読み込みの優先順で試す（collectSaveSources 1本）。
   // 「エラーが起きた＝復旧が要る」ので、ここで手を抜かない。版ごとの退避まで含めて
   // 1つでも読めればそれを本体に戻す。ここを縮めると復旧画面にすらたどり着けなくなる。
-  const sources = await collectSaveSources()
+  const all = await collectSaveSources()
+  // 札が指しているものを先に試す。以降は collectSaveSources の順（新しいスロット →
+  // 古い本体 → 書きかけ → 世代 → 版の退避）。**並びの決め方はあちら1本。**
+  const sources = [...all].sort((a, b) => Number(b.path === live) - Number(a.path === live))
   for (const { path } of sources) {
     sawFile = true
     let raw: string | null
@@ -384,14 +466,20 @@ async function loadFromDisk(): Promise<{ raw: string | null; sawFile: boolean }>
       console.error('[save] broken save file', path)
       continue
     }
-    if (path !== FILE) {
+    // いまのセーブ以外から読めたときは、それを本物として引き継ぐ。
+    // ★手順は書き込みと同じ1本（`adoptIntoFreeSlot`）。**読めなかった方は消しません**
+    //   ——空いている方へ入れて札を回すだけなので、この最中に落ちても
+    //   「正しいセーブが1つも無い」にはなりません。
+    if (path !== live) {
+      recoveredFrom = path
       console.error(`[save] recovered save from ${path}`)
       try {
-        await removeIfExists(FILE)
-        await Filesystem.copy({ from: path, to: FILE, directory: Directory.Data, toDirectory: Directory.Data })
-      } catch (e) {
-        console.error('[save] restore failed', e)
-      }
+        // スロットから読めたなら札を立て直すだけ。それ以外（古い1本・世代・退避）は
+        // 空いているスロットへ引き継ぐ。どちらも「消してからコピー」はしない
+        if (path === SLOT_A) await writePointer('a')
+        else if (path === SLOT_B) await writePointer('b')
+        else await adoptIntoFreeSlot(raw)
+      } catch (e) { console.error('[save] adopt failed', e) }
     }
     return { raw, sawFile }
   }
@@ -431,8 +519,9 @@ export const saveStorage: StateStorage = {
       const legacy = localStorage.getItem(name)
       if (legacy) {
         try {
-          await Filesystem.writeFile({ path: FILE, data: legacy, directory: Directory.Data, encoding: Encoding.UTF8 })
-          const verify = await readText(FILE)
+          // 引き継ぎも同じ1本（空いている方へ入れて札を回す）
+          const slot = await adoptIntoFreeSlot(legacy)
+          const verify = await readText(slotPath(slot))
           if (typeof verify !== 'string' || verify.length !== legacy.length) {
             console.error('[save] migration verify failed')
           }
@@ -491,6 +580,8 @@ export const saveStorage: StateStorage = {
       // 残っているものを全部（世代バックアップも版ごとの退避も）。ここを残すと
       // 「削除したのに前のデータが復旧画面から戻せる」状態になり、削除したことにならない
       for (const { path } of await collectSaveSources()) await removeIfExists(path)
+      // 札はセーブではないので collectSaveSources に出てこない。ここで名指しで消す
+      await removeIfExists(CUR)
     })()
   },
 }
