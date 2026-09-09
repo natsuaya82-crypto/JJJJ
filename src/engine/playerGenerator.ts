@@ -722,12 +722,19 @@ function assignTraits(rank: Rank, specialty: Specialty, age: number): TraitId[] 
 
 let idCounter = 1000
 
+// 新人のランク配分。**1年に生まれる新人の数は、この配列の長さ（120人）そのもの**。
+// 別に人数の定数を置かないこと（2つあると必ず片方だけ動いて、余りが 'A' に落ちる）。
+//
 // 指名される上位40人(2巡×20)が全員A以上になるよう、A+を46人用意する。
 // 残り(B/C/D)は指名漏れ＝FAに回る（＝下位でも使い物にならない選手を指名しなくて済む）。
-// 新人のランク配分。DRAFT_POOL_SIZE と同じ長さにすること
-// （足りないと余りが 'A' に落ちて、配分が意図とずれる）。
 //
-// 70人時代（SSS2/SS6/S14/A22/B14/C6/D4 = 68）の【割合をそのまま】120人へ引き伸ばした。
+// 120人の根拠：20チーム時代は70人だった。3部制で52チームになると
+//   52チーム × 28人 = 1456枠 ／ 平均現役14年 = 毎年104人の欠員
+// なので70人では毎年34人ずつ足りず、リーグ全体が痩せていく（CPUは ROSTER_MIN まで縮む）。
+// 需要104に対して120。差の16はFAで循環するぶんの余裕。2部・3部にドラフトは無く、
+// 指名されなかった選手がFAへ流れるのが唯一の入口なので、ここが細いと下部リーグが選手を取れない。
+//
+// 配分は70人時代（SSS2/SS6/S14/A22/B14/C6/D4 = 68）の【割合をそのまま】引き伸ばした。
 //
 // 上位を据え置く案もあったが採らなかった。日本人の頂点が薄いままだと、
 // 世界選手権で日本代表が戦えない状態が固定される。チーム数が2.6倍になるなら、
@@ -743,19 +750,6 @@ const DRAFT_RANK_POOL: Rank[] = [
 ]
 
 type OriginType = 'university' | 'high_school' | 'foreign' | 'development'
-
-// Build origin distribution: 40 univ, 15 hs, 10 foreign, 5 dev (total 70)
-// 1年に生まれる新人の数。
-//
-// 20チーム時代は70人だった。3部制で52チームになると、
-//   52チーム × 28人 = 1456枠 ／ 平均現役14年（引退32〜40歳）= 毎年104人の欠員
-// なので70人では毎年34人ずつ足りず、リーグ全体が痩せていく
-// （CPUは ROSTER_MIN=15人まで縮む）。
-//
-// 需要104に対して120。差の16はFAで循環するぶんの余裕。
-// 2部・3部にドラフトは無く、指名されなかった選手がFAに流れるのが唯一の入口なので、
-// ここが細いと下部リーグが選手を取れない。
-export const DRAFT_POOL_SIZE = 120
 
 function buildOriginPool(): OriginType[] {
   const pool: OriginType[] = []
@@ -973,19 +967,6 @@ export function generateDraftPool(year: number, avoidNames?: Set<string>): Playe
   ;[...players].sort((a, b) => draftVal(b) - draftVal(a)).forEach((p, i) => { p.predictedPick = i + 1 })
 
   return players
-}
-
-// 年俸配分：予算合計をスター偏重の傾斜で人数分に配る（上位ほど高額・下限あり・合計は予算内）
-export function distributeSalaries(total: number, count: number, minSalary: number): number[] {
-  const weights = Array.from({ length: count }, (_, i) => Math.pow(count - i, 1.6))
-  const wsum = weights.reduce((s, w) => s + w, 0)
-  const raw = weights.map(w => total * w / wsum)
-  // 下限で底上げした分は、上位の「下限を超える部分」を比例圧縮して合計を維持する
-  const fixed = raw.map(v => Math.max(minSalary, v))
-  const over = fixed.reduce((s, v) => s + Math.max(0, v - minSalary), 0)
-  const deficit = fixed.reduce((s, v) => s + v, 0) - total
-  const shrink = over > 0 ? Math.max(0, 1 - deficit / over) : 1
-  return fixed.map(v => Math.round((minSalary + Math.max(0, v - minSalary) * shrink) / 500_000) * 500_000)
 }
 
 // 年俸から選手ランクを決める（calculateRookieSalaryの帯の中間を境界にする）

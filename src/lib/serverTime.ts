@@ -55,16 +55,6 @@ export function serverNow(): number {
   return Date.now() + offsetMs
 }
 
-/** 同期済みかどうか（未同期なら締め切り表示に注意書きを出す等に使う） */
-export function isServerTimeSynced(): boolean {
-  return synced
-}
-
-/** 端末時計とサーバーのズレ（ミリ秒）。デバッグ表示用。 */
-export function serverTimeOffset(): number {
-  return offsetMs
-}
-
 /** 締め切りまでの残り秒（0未満にはならない） */
 export function secondsLeft(deadline: number): number {
   return Math.max(0, Math.ceil((deadline - serverNow()) / 1000))

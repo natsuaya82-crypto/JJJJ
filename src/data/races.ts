@@ -718,9 +718,7 @@ export function generateSeasonRaces(year: number): Race[] {
   }))
 }
 
-export const MAIN_RACE_NAMES: readonly string[] = SEASON_2027_RACES.map(r => r.name)
-
-// 1部にも出る非ファイナル9本（MAIN_RACE_NAMES で既にカバー）を除いた、下部リーグ固有のコース。
+// 1部にも出る非ファイナル9本を除いた、下部リーグ固有のコース。
 // matchCourses.ts（オンライン対戦の「リザーブ」カテゴリ）が引き続きこの名前を参照する
 export const RESERVE_RACE_POOL: RaceTemplate[] = [
   ...LEAGUE_COURSE_POOL.slice(9),

@@ -25,12 +25,6 @@ const cache = new Map<string, number>()
 /** 「引いてみたが入っていなかった」も覚える。毎回引き直さないため */
 const missed = new Set<string>()
 
-/** ランクマッチの結果が動いたときに捨てる（自分のレートが変わったあとなど） */
-export function invalidateRatedRanks(): void {
-  cache.clear()
-  missed.clear()
-}
-
 export function useRatedRanks(ids: readonly string[]): Map<string, number> {
   // ★配列そのものを依存に入れない（毎レンダー新しい配列が来るので無限に引き直す）。
   //   並び順は関係ないので、そろえてから文字列にする

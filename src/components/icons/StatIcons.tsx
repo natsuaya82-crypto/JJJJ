@@ -79,31 +79,6 @@ export const STAT_ICON_MAP: Record<CardStatKey, (props: Props) => ReactElement> 
   recovery: RecoveryIcon,
 }
 
-// Decorative header SVG for CardTraining page
-export function CardTrainingHeaderSVG({ width = 100, height = 72 }: { width?: number; height?: number }) {
-  return (
-    <svg width={width} height={height} viewBox="0 0 100 72" fill="none">
-      {/* Back cards */}
-      <rect x="42" y="8" width="32" height="44" rx="4" fill="#1a1030" stroke={C.purple} strokeWidth="1.2" opacity="0.6" transform="rotate(12 58 30)"/>
-      <rect x="28" y="10" width="32" height="44" rx="4" fill="#1a1030" stroke="#7c3aed" strokeWidth="1.2" opacity="0.7" transform="rotate(-8 44 32)"/>
-      {/* Front card */}
-      <rect x="30" y="14" width="38" height="50" rx="5" fill="#2d1060" stroke={C.purple} strokeWidth="2"/>
-      {/* Card inner frame */}
-      <rect x="33" y="17" width="32" height="44" rx="3" stroke="#c084fc" strokeWidth="0.8" opacity="0.4"/>
-      {/* Lightning bolt on card */}
-      <path d="M49 26l-5 10h5l-5 10" stroke={C.amber} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-      {/* Sparkles */}
-      <path d="M75 16l1 3 3 1-3 1-1 3-1-3-3-1 3-1z" fill={C.amber} opacity="0.9"/>
-      <path d="M82 36l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z" fill="#c084fc" opacity="0.8"/>
-      <path d="M22 28l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5z" fill={C.purple} opacity="0.7"/>
-      <path d="M88 52l.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5 1.2-.5z" fill={C.amber} opacity="0.6"/>
-      {/* Stat label lines on card */}
-      <rect x="36" y="50" width="14" height="2" rx="1" fill="#c084fc" opacity="0.5"/>
-      <rect x="36" y="55" width="8" height="2" rx="1" fill="#c084fc" opacity="0.3"/>
-    </svg>
-  )
-}
-
 /**
  * **優勝トロフィー。** 大きさだけ渡せる。
  *

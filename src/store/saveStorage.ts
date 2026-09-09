@@ -350,12 +350,6 @@ export async function restoreFrom(path: string): Promise<void> {
   await adoptIntoFreeSlot(raw)
 }
 
-/** セーブファイルの中身を読み出す（書き出し・共有に使う） */
-export async function readSaveText(path?: string): Promise<string | null> {
-  if (!isNative) return localStorage.getItem(`jpel-manager-save${SUF}`)
-  try { return await readText(path ?? await livePath()) } catch { return null }
-}
-
 async function flushWrite() {
   if (pending == null) return
   const data = pending
@@ -508,16 +502,7 @@ export async function flushSaveNow(): Promise<void> {
   await flushWrite()
 }
 
-// 本体 → 一時ファイル → バックアップ の順に、実際に JSON として読めるものを探す。
-// （本体の差し替え中にキルされた場合は .tmp が最新の正常データになっている可能性がある）
-/** この起動で、いまのセーブ以外から読んだときにその名前が入る（画面が知らせるため） */
-let recoveredFrom: string | null = null
-/** いまのセーブ以外から復旧して起動したか。null なら普通の起動 */
-export function recoveredSaveLabel(): string | null {
-  if (!recoveredFrom) return null
-  return describeSave(recoveredFrom, SUF)?.label ?? recoveredFrom
-}
-
+// 残っているものを読み込みの優先順で試して、最初に読めたものを返す。
 async function loadFromDisk(): Promise<{ raw: string | null; sawFile: boolean }> {
   let sawFile = false
   const live = await livePath()
@@ -546,7 +531,6 @@ async function loadFromDisk(): Promise<{ raw: string | null; sawFile: boolean }>
     //   ——空いている方へ入れて札を回すだけなので、この最中に落ちても
     //   「正しいセーブが1つも無い」にはなりません。
     if (path !== live) {
-      recoveredFrom = path
       console.error(`[save] recovered save from ${path}`)
       try {
         // スロットから読めたなら札を立て直すだけ。それ以外（古い1本・世代・退避）は

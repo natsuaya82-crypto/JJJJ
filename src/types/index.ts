@@ -1136,10 +1136,3 @@ export const SPECIALTY_LABELS: Record<Specialty, string> = {
   kick: 'スパート型',
   grinder: '粘り型',
 }
-
-export const GROWTH_CURVE_LABELS: Record<GrowthCurve, string> = {
-  early: '早熟型',
-  normal: '標準型',
-  late_bloomer: '晩成型',
-}
-

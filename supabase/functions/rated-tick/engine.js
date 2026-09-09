@@ -1071,7 +1071,6 @@ var FINAL_COURSES = [
     ]
   }
 ];
-var MAIN_RACE_NAMES = SEASON_2027_RACES.map((r) => r.name);
 var RESERVE_RACE_POOL = [
   ...LEAGUE_COURSE_POOL.slice(9),
   ...FINAL_COURSES.slice(1)

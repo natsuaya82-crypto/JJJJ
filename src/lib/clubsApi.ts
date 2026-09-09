@@ -42,12 +42,6 @@ export type Club = ClubBrief & { ownerId: string }
 /** 走友会での役割。owner＝会長 / admin＝副会長 / member＝一般 */
 export type ClubRole = 'owner' | 'admin' | 'member'
 
-export const CLUB_ROLE_LABEL: Record<ClubRole, string> = {
-  owner: '会長',
-  admin: '副会長',
-  member: '',
-}
-
 /** 副会長の人数の上限。clubs_roles.sql の 3 とそろえること */
 export const CLUB_ADMIN_MAX = 3
 
@@ -449,17 +443,6 @@ export async function clubFeed(): Promise<ClubPost[]> {
 }
 
 export type PostMsgResult = 'ok' | 'not_in_club' | 'too_fast'
-
-/**
- * 定型文を書く。**もう画面からは呼ばない**（build 126 までのアプリが使っている関数を
- * サーバーに残してあるだけ）。消すとそのアプリの掲示板が動かなくなる。
- */
-export async function postClubMessage(phrase: number): Promise<PostMsgResult> {
-  await uid()
-  const { data, error } = await supabase.rpc('post_club_message', { p_phrase: phrase })
-  if (error) throw new FriendsOffline()
-  return (data as PostMsgResult) ?? 'not_in_club'
-}
 
 /** 掲示板に書ける文字数 */
 export const CLUB_TEXT_MAX = 100

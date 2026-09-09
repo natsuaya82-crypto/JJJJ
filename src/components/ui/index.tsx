@@ -122,32 +122,6 @@ export function Btn({ children, variant = 'primary', color, onClick, disabled, f
   )
 }
 
-/* ── Badge / Pill ─────────────────────────── */
-interface BadgeProps {
-  children: ReactNode
-  color?: string
-  style?: CSSProperties
-}
-export function Badge({ children, color = C.gold, style }: BadgeProps) {
-  return (
-    <span style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      padding: '2px 8px',
-      backgroundColor: alpha(color, 0.15),
-      border: `1px solid ${alpha(color, 0.35)}`,
-      fontSize: F.caption,
-      fontWeight: '700',
-      color,
-      letterSpacing: '0.3px',
-      whiteSpace: 'nowrap',
-      ...style,
-    }}>
-      {children}
-    </span>
-  )
-}
-
 /* ── Chevron ──────────────────────────────── */
 export function Chevron({ color = C.textDim, size = 14 }: { color?: string; size?: number }) {
   return (
@@ -170,18 +144,4 @@ export function InfoTile({ label, value, color }: { label: string; value: string
       <div style={{ fontSize: F.caption, color: C.textDim, marginTop: '2px' }}>{label}</div>
     </div>
   )
-}
-
-/* ── ProgressBar ──────────────────────────── */
-export function ProgressBar({ pct, color = C.gold }: { pct: number; color?: string }) {
-  return (
-    <div className="progress-track">
-      <div className="progress-fill" style={{ width: `${Math.min(100, Math.max(0, pct))}%`, backgroundColor: color }}/>
-    </div>
-  )
-}
-
-/* ── Divider ──────────────────────────────── */
-export function Divider() {
-  return <div style={{ height: '1px', backgroundColor: C.border, margin: '4px 0' }}/>
 }

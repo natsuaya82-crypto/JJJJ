@@ -12,17 +12,6 @@ import { rankedStandings, divisionStandings, DIVISIONS, DIVISION_LABEL, division
 import type { Division } from '../../types'
 
 
-// 順位表のページ。
-//
-// もとは JpelStandingsPage.tsx と EclStandingsPage.tsx が、ヘッダーも自チーム順位の出し方も
-// ほぼ同じ中身で2本あった。表そのものは StandingsTable の1本なので、リーグごとに違うのは
-// 「行の作り方」だけ。ここで行の作り方だけを出し分けて、見た目と枠組みは1本にする。
-//
-// ★横並びの切り替えを置くのは JPEL の 1部・2部・3部だけ。
-// 同じJPELの中を行き来するのは頻繁なのでページ内で切り替える。ECLは別のリーグなので
-// ここには混ぜず、チームタブのハブから入る（前は JPEL/リザーブ/ECL を1列に並べていた）。
-export type StandingsLeague = 'd1' | 'd2' | 'd3' | 'ecl'
-
 /** URLのリーグ指定 → 部。ECL・未指定なら undefined */
 const divisionOfLeague = (league: string | undefined): Division | undefined => {
   const d = Number((league ?? '').slice(1))

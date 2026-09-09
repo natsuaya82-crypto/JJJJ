@@ -287,13 +287,17 @@ function bootChrome() {
 // ── 意図して走らせないもの ──────────────────────────────────
 // **「一覧から漏れた」と「わざと外した」を区別できるようにする。**
 // 34本が黙って抜け落ちたのは、この区別が無かったのが原因。理由なしで外すことはできない。
+//
+// ★**いまは空です。** 「見張る対象そのものが無い」だけの点検は、ここに理由を書いて
+//   残すのではなく**ファイルごと消すこと**。残すと、削除済みAPIを読んでいて
+//   **ビルドすら通らない点検**が一覧に居座り、「34本が黙って抜け落ちた」ときと同じ
+//   ——見張り番のふりをしたただの文字列——になります（実際に6本そうなっていました：
+//   club-roster / flat-roster / move-player / roster-sync（rebuildRosters）・
+//   reserve-squad（utils/reserveSquad）・foreign-suitors（foreignMinOvr）。
+//   どれも廃止した仕組みを見ていて、消したことは check-single-source が見ています）。
+//
+// ここに書いてよいのは「**いまも動くが、この環境では走らせたくない**」ものだけ。
 const SKIP = {
-  'club-roster':  'v40 で team.roster を廃止し rebuildRosters を削除した。見張る対象そのものが無い',
-  'flat-roster':  '同上（rebuildRosters）',
-  'move-player':  '同上（rebuildRosters）',
-  'roster-sync':  '同上（rebuildRosters）。所属が player.teamId 1本かは check-single-source が見ている',
-  'reserve-squad': 'utils/reserveSquad は削除済み（2軍は secondTeamRaces を読むだけになった）',
-  'foreign-suitors': 'foreignMinOvr（クラブごとのOVR下限表）を廃止した。獲るかどうかは needsPlayer と wouldMakeLineup だけ',
 }
 
 // ── 未修理（pending）──

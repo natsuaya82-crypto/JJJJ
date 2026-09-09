@@ -14,7 +14,6 @@ import { TeamLogoSVG } from '../icons/Icons'
 import { panelStyle } from '../ui/Panel'
 
 
-export type SegRunner = { playerId: string; teamId: string; timeSec: number; rank: number }
 export type SegResult = RaceResults['segmentResults'][number]
 
 export function FaceOrDot({ playerId, nationality, size = 40 }: { playerId?: string; nationality?: string; size?: number }) {
