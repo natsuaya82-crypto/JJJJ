@@ -31,4 +31,4 @@ npm run check     # 一本化の点検。後付けが増えていたら落ちる
 | `src/lib/` | オンライン（Supabase）。`store/` からは値として import しない |
 | `supabase/all.sql` | サーバー側の全部。**流すのはこの1本だけ** |
 | `scripts/` | 点検（`check-*.ts`）と計測（`measure-*.ts`）。一覧は `run-checks.mjs` |
-| `docs/` | 決めたことと、調べたことの記録。`BACKLOG.md` が「まだ決まっていないこと」 |
+| `docs/` | `BACKLOG.md`（まだ決まっていないこと）と `appstore-v*.md`（出したものの記録）だけ。終わった設計書・監査は置かない |

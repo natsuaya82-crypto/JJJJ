@@ -296,7 +296,7 @@ export function runCpuTrades(
     // ★人数の門は**置かない**。1対1の交換なので在籍数は増えも減りもしない。
     //   以前は「23人以上は買い手にならない」と書いてあったが、その直前の解雇が
     //   1軍上限23人に揃えるので**51クラブ全部がちょうど23人**になり、買い手が
-    //   1クラブも残らなかった（`docs/AUDIT_TRANSFERS.md` 2-4）。
+    //   1クラブも残らなかった。
     //   実際に通っていたのは「その前の移籍で人が抜けて22人になったクラブ」だけ。
     // 出すのは「自分のところで出番が無い選手」（transferDecision の hasNoPlayingTime 1本）。
     // 以前はここに平均OVRから作った下限表（74/67/60）があった＝格とは別の物差し
@@ -313,7 +313,7 @@ export function runCpuTrades(
       const sellRoster = (clubIndexOf(players).get(sellerId) ?? [])
         .filter(p => p.status === 'active')
         .sort(comparePlayers('ovr'))
-      // ★**問いは現金の移籍とまったく同じ**（`docs/AUDIT_TRANSFERS.md` §3）。
+      // ★**問いは現金の移籍とまったく同じ**。
       //   ① 買う側が要るか      … needsPlayer（穴があって、そこで走れる）
       //   ② 売る側で出せる選手か … 保有権・今季加入でない・出番が無い（hasNoPlayingTime）
       //   ③ 対価が足りるか      … **形に応じたやり方**。現金なら予算、選手なら tradeBalance

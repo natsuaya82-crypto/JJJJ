@@ -53,16 +53,26 @@ walkMd('.')
 const GONE = /削除|廃止|もうありません|もう存在しません|戻さないこと|当たりません|旧|かつて|以前|消した|消しました|無くなり|やめました/
 
 /**
- * **そのとき限りの文書**（実装前の設計・草案・監査）。頭に「いつの話か」を書く決まりで、
- * 中身は**その日の世界の記録**なので、もう無いファイルの話が出てきてよい。
- * 決まりごと（`CLAUDE.md` / `README.md` / `supabase/README.md` / `store/README.md`）と、
- * いま生きている一覧（`docs/BACKLOG.md`）はここに入れないこと。
+ * **`docs/` に置いてよいのは2種類だけ**（オーナー・2026-08-23「古い記載とか使ってない
+ * コードはいらん。特にmd周りの一回だかわからん古い文字とか」）。
+ *
+ *   `docs/BACKLOG.md`      … 生きている一覧
+ *   `docs/appstore-v*.md`  … 出したものの記録。書き換えない
+ *
+ * ★**終わった作業の設計書・草案・監査を残さないこと。** 実装前の計画や「その日の世界」を
+ *   書いたメモは、コードが先に進んだ瞬間に嘘になります。以前はここに8本並べて
+ *   「頭に『いつの話か』と断ってあれば通す」という**逃がし方**をしていましたが、
+ *   断りを読むより先に中身を読んだ人が**もう無いファイルを直しに行きました**。
+ *   2026-08-23 に7本（リファクタリング設計書・ランクマッチ設計・伏せ字の草案・
+ *   世界選手権の仕様・監査3本）を消し、残す価値のある決まりは**それが効いている場所の
+ *   コメントへ書き写しました**（例：セーブの段の欠番 → `store/persistence/migrateSave.ts`）。
+ *
+ * ★一覧を手で持たないこと。**`docs/` を実際に数えます**（`run-checks.mjs` が
+ *   `scripts/check-*.ts` を数えるのと同じ形）。手書きの一覧は、新しく置かれた md を
+ *   黙って見逃します。
  */
-const DATED_DOCS = [
-  'docs/REFACTORING_DESIGN.md', 'docs/ONLINE_RATED_DESIGN.md', 'docs/WORD_FILTER_DRAFT.md',
-  'docs/world-athletics-spec.md', 'docs/appstore-v2.0.2.md',
-  'docs/AUDIT_MOVEPLAYER.md', 'docs/AUDIT_SAVEPRUNING.md', 'docs/AUDIT_TRANSFERS.md',
-]
+const isRecord = (f: string) => /^docs\/appstore-v[0-9.]+\.md$/.test(f)
+const DOCS_ALLOWED = (f: string) => f === 'docs/BACKLOG.md' || isRecord(f)
 
 console.log('[1] md が指しているファイルが実在する')
 {
@@ -70,7 +80,7 @@ console.log('[1] md が指しているファイルが実在する')
   //   その日の世界を書くのは正しく、そこを直させると調査の記録が嘘になる。
   //   見たいのは**いま読まれる文書**（CLAUDE.md・README・BACKLOG の生きた項目・
   //   supabase/README）が、もう無いファイルを在るように書いていないか。
-  const RECORDS = new Set(DATED_DOCS)
+  const RECORDS = { has: isRecord }
   const dead: string[] = []
   for (const md of mds) {
     if (RECORDS.has(md)) continue
@@ -91,21 +101,21 @@ console.log('[1] md が指しているファイルが実在する')
     `\n      ${dead.join('\n      ')}\n      → 消したなら「削除した」と分かる形で書くこと（そのまま消してもよい）`)
 }
 
-console.log('\n[2] 実装前の設計・草案・監査は、頭に「いつの話か」が書いてある')
+console.log('\n[2] docs/ に置いてよいのは「生きている一覧」と「出したものの記録」だけ')
 {
-  // ★ここに並べるのは**そのとき限りの文書**。決まりごと（CLAUDE.md・README・
-  //   supabase/README・store/README）と、いま生きている一覧（BACKLOG）は対象外
-  const DATED = DATED_DOCS.filter(f => existsSync(f))
-  for (const f of DATED) {
+  // ★**ディレクトリを実際に数える。** 手で一覧を持つと、新しく置かれた md を見逃す。
+  const inDocs = mds.filter(f => f.startsWith('docs/'))
+  const extra = inDocs.filter(f => !DOCS_ALLOWED(f))
+  check('終わった設計書・草案・監査が残っていない', extra.length === 0,
+    `${extra.join(' / ')}\n      → 残す価値のある決まりは、それが効いている場所のコメントへ書き写して md は消すこと`)
+
+  // 記録のほうは、いつ何を出したものか頭で分かること
+  for (const f of inDocs.filter(isRecord)) {
     const head = readFileSync(f, 'utf8').split('\n').slice(0, 14).join('\n')
-    check(`${f.split('/').pop()} に断りがある`,
-      /2026-\d\d-\d\d/.test(head) && (/^>/m.test(head) || /（?(完了|済|草案|記録|記録です)/.test(head)),
-      '頭の数行に「いつの話か」と、いまどうなっているかを書くこと')
+    check(`${f.split('/').pop()} に「いつの話か」がある`, /2026-\d\d-\d\d/.test(head),
+      '頭の数行に日付とビルド番号を書くこと')
   }
-  // ★**一覧そのものが腐っていないか。** 消した文書の名前が残っていると、
-  //   次に同じ名前で作った文書が黙って通る
-  const stale = DATED_DOCS.filter(f => !existsSync(f))
-  check('一覧に載っている文書が全部いまもある', stale.length === 0, stale.join(' / '))
+  check('docs/BACKLOG.md がある', existsSync('docs/BACKLOG.md'))
 }
 
 console.log('\n[3] 終わった作業指示が残っていない')

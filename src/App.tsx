@@ -392,7 +392,7 @@ function AppRoutes({ onBackToTitle }: { resetGame: () => void; onBackToTitle: ()
           {onlineAvailable() && <Route path="/online/history" element={<MatchHistoryPage />} />}
           {/* 殿堂入りチームはオフラインでも使う（登録・固定は端末内で完結する） */}
           <Route path="/online/hof" element={<HofTeamPage />} />
-          {/* イベント → 一覧 → ランクマッチ（docs/ONLINE_RATED_DESIGN.md）。
+          {/* イベント → 一覧 → ランクマッチ。
               一覧を挟むのは、ランクマッチ以外のイベントもやるため */}
           <Route path="/online/events" element={<EventsPage />} />
           <Route path="/online/rated" element={<RatedPage />} />

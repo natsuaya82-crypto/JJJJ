@@ -534,7 +534,7 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext): Appra
   //
   //   これを入れる前は、FAの成立52件のうち43件が「20番手では出番がない」で断られていた。
   //   その44件は「頭数の確保」の枠（在籍23人→24人）で、**無職より控えの方がまし**という
-  //   当たり前が判定に入っていなかった（`docs/AUDIT_TRANSFERS.md` 2-1）。
+  //   当たり前が判定に入っていなかった。
   const freeAgent = !p.teamId
 
   // 1. 格差。行き先が格上なら基本は行く（0.65〜0.90）。同格0.50。格下は落ちる

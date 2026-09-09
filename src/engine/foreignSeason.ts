@@ -106,7 +106,7 @@ export function processForeignSeason(args: {
   // ★移籍市場はここでは回しません。**経路は `engine/transferMarket.ts` の1本だけ**で、
   //   回すのは `beginSeasonDraft`（＝CPUの解雇が終わって枠が空いたあと）です。
   //   ここには「海外↔海外」と「日本↔海外」の2本があり、国内CPU間の1本と合わせて
-  //   同じ問いに3つの実装が並んでいました（`docs/AUDIT_TRANSFERS.md`）。
+  //   同じ問いに3つの実装が並んでいました。
   //   在籍25人のまま市場を回すと買う枠が無いので、順番も解雇のあとで正しい。
   return { players: foreignBasePlayers, teams, foreignLeagues: leaguesWithFinance }
 }

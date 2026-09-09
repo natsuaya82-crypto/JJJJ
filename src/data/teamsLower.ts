@@ -6,8 +6,7 @@ import type { Team } from '../types'
 //   実業団の企業名 / カタカナ＋地名 / 地名＋和語 / 英字略号 / クラブ形式 / 地名＋カタカナ
 // 日本の駅伝の主役は実業団なので、企業名が入るとリーグ全体の顔ぶれが締まる。
 // ※ 企業名はすべて架空。実在の社名は使わないこと（商標）。
-// ★ GM名はまだ仮です。
-//   ロゴだけは実物（assets/logos-pending から public/logos/<id>.png へ移したもの）。
+// ★ GM名はまだ仮です。ロゴは32チームぶん `public/logos/<id>.png` に入っています。
 //
 // finance.budget は 0 のまま。国内チームの予算は gameStore が
 // tierBudget(team)（utils/clubTier.ts）で上書きするので、ここの値は使われない。

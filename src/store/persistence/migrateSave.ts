@@ -1,5 +1,8 @@
 // セーブのバージョン移行（zustand persist の migrate）。gameStore から移設。
-// 段の増やし方・欠番の扱いは docs/REFACTORING_DESIGN.md §4 を参照。
+// ★**段の番号は詰め替えないこと。** 欠番（3・12・14・15・29・41・44）は、
+//   その段を書いたあとに要らなくなって消したぶんです。詰めると、既に配ったアプリの
+//   セーブが持っている番号と食い違い、**通ってはいけない段を通ります**。
+//   新しい段は必ず `SAVE_VERSION`（store/persistence/saveVersion.ts）を1つ上げて末尾に足す。
 // ★ここは「保存された形を今の形へ直す」専用。毎回走る冪等補正は store/bootRepair.ts へ。
 
 import { ECL_COURSES } from '../../data/eclCourses'

@@ -10,7 +10,7 @@
  "src/engine/worldAthletics.ts": 730,
  "src/store/gameStore.ts": 730,
  "src/store/marketOps.ts": 204,
- "src/store/persistence/migrateSave.ts": 634,
+ "src/store/persistence/migrateSave.ts": 637,
  "src/store/persistence/normalizeSave.ts": 201,
  "src/store/saveStorage.ts": 727,
  "src/store/slices/competitionSlice.ts": 418,
