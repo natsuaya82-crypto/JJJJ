@@ -1,6 +1,7 @@
 // オンライン対戦の区間選択。
 // 画面は新しく作らず、本編のレース準備とまったく同じ LineupPhase をそのまま使う。
 // ここがやるのは「コースをレースの形に変える」「残り時間を出す」「時間切れで自動提出」だけ。
+import { injuryBlockedIds } from '../../utils/raceAvailability'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { LineupPhase } from '../race/LineupPhase'
 import { courseToRace, type MatchCourse } from '../../data/matchCourses'
@@ -30,11 +31,11 @@ export default function PickPanel({
   const mainPlayers = useMemo(() => usableRoster(roster), [roster])
 
   // 故障者は選べない（健常者だけで区間が埋まらないときは解禁）
+  // 判定は `utils/raceAvailability` 1本（本編の駅伝・ECL・世界選手権と同じ）
   const unavailable = useMemo(() => {
-    const healthy = mainPlayers.filter(p => p.status !== 'injured').length
-    if (healthy < segCount) return {}
+    const blocked = injuryBlockedIds(mainPlayers, segCount)
     const out: Record<string, string> = {}
-    for (const p of mainPlayers) if (p.status === 'injured') out[p.id] = '故障中'
+    for (const p of mainPlayers) if (blocked.has(p.id)) out[p.id] = '故障中'
     return out
   }, [mainPlayers, segCount])
 

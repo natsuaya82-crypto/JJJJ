@@ -132,6 +132,19 @@ function splitGroups(entries) {
   return out;
 }
 
+// src/utils/raceAvailability.ts
+function injuryBlockedIds(roster, segCount) {
+  const healthy = roster.reduce((n, p) => n + (p.status !== "injured" ? 1 : 0), 0);
+  if (healthy < segCount) return /* @__PURE__ */ new Set();
+  const out = /* @__PURE__ */ new Set();
+  for (const p of roster) if (p.status === "injured") out.add(p.id);
+  return out;
+}
+function runnablePool(roster, segCount) {
+  const blocked = injuryBlockedIds(roster, segCount);
+  return roster.filter((p) => !blocked.has(p.id));
+}
+
 // src/utils/league.ts
 function positionPointsFor(teamCount, rank) {
   return Math.max(1, teamCount + 1 - rank);
@@ -1205,9 +1218,7 @@ function usableRoster(roster) {
 }
 function autoOrder(roster, course, raceNo = 1) {
   const segCount = course.segments.length;
-  const list = usableRoster(roster);
-  const healthy = list.filter((p) => p.status !== "injured");
-  const pool = healthy.length >= segCount ? healthy : list;
+  const pool = runnablePool(usableRoster(roster), segCount);
   return { lineup: assignLineupByTerrain(pool, courseToRace(course, raceNo)) };
 }
 function isOrderComplete(o, course, roster) {

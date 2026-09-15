@@ -12,6 +12,7 @@
 //
 // ★乱数は引数で受ける（既定は Math.random）。1件につき「成立させるか」1回、
 //   成立させるなら「どのクラブが買うか」1回。順序は切り出し前と同じ。
+import { clubIndexOf } from '../utils/rosterSync'
 import type { ForeignLeague, Player, Season, Team } from '../types'
 import type { ClubTier } from '../utils/clubTier'
 import { ROSTER_MAX } from '../data/rosterRules'
@@ -48,11 +49,15 @@ export function settleCpuTransfers(params: {
   const cpuTxListingIds = new Set<string>()
   {
     const movedThisRace = new Set<string>()
-    // 買い手の総在籍数（引退除く）。30人以上のチームは補強不可＝ロスター肥大を止める
+    // 買い手の総在籍数。上限に届いているクラブは補強不可＝ロスター肥大を止める。
+    // ★**数え方は `utils/rosterSync` の索引1本**＝引退していない人は全員（怪我も入る）。
+    //   `data/rosterRules` の `teamRosterSize` と同じ population。
+    //   以前はコメントに「引退除く」と書いたうえで `status === 'active'` で数えていて、
+    //   **怪我人が落ちて**いました。怪我は自分の部のレースで全出走者に起きるので、
+    //   同じ部のCPU19クラブに効きます＝怪我人がいるクラブはそのぶん上限を超えて買えました。
+    const rosterIndex = clubIndexOf(players)
     const rosterCount = new Map<string, number>()
-    for (const pl of players) {
-      if (pl.status === 'active' && pl.teamId) rosterCount.set(pl.teamId, (rosterCount.get(pl.teamId) ?? 0) + 1)
-    }
+    for (const [cid, list] of rosterIndex) rosterCount.set(cid, list.length)
     for (const listing of (currentSeason.transferListings ?? [])) {
       // 自チームの出品は原則対象外だが、「移籍を認めた」選手（lst-allow-）はCPUが直接買い取れる
       const isMyAllowListing = listing.fromTeamId === playerTeamId && listing.id.startsWith('lst-allow-')

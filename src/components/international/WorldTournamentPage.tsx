@@ -1,3 +1,4 @@
+import { injuryBlockedIds } from '../../utils/raceAvailability'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
@@ -68,11 +69,15 @@ export default function WorldTournamentPage() {
     const ids = t?.squads['nat_JPN'] ?? []
     return ids.map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p && p.status !== 'retired')
   }, [t, players])
+  // 故障者は選べない。**ただし健常者だけで区間が埋まらないときは解禁する**
+  // （`utils/raceAvailability` 1本）。★代表は20人固定なので詰みにくいが、
+  //   ここにも解禁が無く、本編の駅伝と答えが割れていた
   const unavailableMap = useMemo(() => {
+    const blocked = injuryBlockedIds(squadPlayers, (nextRace?.segments ?? []).length)
     const m: Record<string, string> = {}
-    for (const p of squadPlayers) if (p.status === 'injured') m[p.id] = '負傷'
+    for (const p of squadPlayers) if (blocked.has(p.id)) m[p.id] = '負傷'
     return m
-  }, [squadPlayers])
+  }, [squadPlayers, nextRace])
   const assignedIds = new Set(Object.values(lineup).filter(Boolean))
   const allSegsFilled = (nextRace?.segments ?? []).every(s => !!lineup[s.index])
 

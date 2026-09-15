@@ -139,7 +139,6 @@ export type GameStore = GameState & {
   getTeam: (teamId: string) => Team | undefined
   getPlayer: (playerId: string) => Player | undefined
   getTeamPlayers: (teamId: string) => Player[]
-  getSalaryTotal: (teamId: string) => number
   generateDevProspects: () => void
   scoutDevProspect: (prospectId: string) => void
   signDevProspect: (prospectId: string) => void
@@ -599,8 +598,6 @@ export const useGameStore = create<GameStore>()(
       // 以前は roster 配列を見ていたため、更新し損ねると「ロスター画面にだけ出ない選手」が生まれていた。
       // 1軍/2軍の区分は廃止済みなので second は常に空を返す。
       getTeamPlayers: (teamId) => squadPlayersOf(get().players, teamId),
-      getSalaryTotal: (teamId) => squadPlayersOf(get().players, teamId)
-        .reduce((sum, p) => sum + (p.contract?.annualSalary ?? 0), 0),
 
       spendScoutPoint: () => {
         set(state => {

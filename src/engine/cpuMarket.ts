@@ -2,6 +2,7 @@
 // どのクラブがどれだけ動くかは格（tierStrength）、誰を獲るかは utils/squadNeeds、
 // 本人が行くかは utils/transferDecision。ここはそれらを組み合わせる進行役。
 
+import { clubSalaryTotal } from '../utils/clubMoney'
 import { roundFee, transferCapOf } from '../data/economy'
 import { ROSTER_MAX, ROSTER_MIN } from '../data/rosterRules'
 import { type ForeignClub, type IncomingLoanOffer, type IncomingOffer, type Player, type Race, type Specialty, type Team, type TransferListing } from '../types'
@@ -100,14 +101,18 @@ export function pickCpuFreeAgents(a: {
 
   // クラブごとの補強の事情（枠・予算・欲しい専門）は最初に1回だけ組み立てる
   const faCtxList = cpuTeamsSorted.map(team => {
-    // フラットロスター：1軍/2軍の区別なし。総在籍だけで管理する
-    const currentRoster = (clubIndexOf(players).get(team.id) ?? []).filter(p => p.status === 'active')
+    // フラットロスター：1軍/2軍の区別なし。総在籍だけで管理する。
+    // ★**数え方は索引そのまま**＝引退していない人は全員（怪我も入る）。以前はここに
+    //   `.filter(p => p.status === 'active')` が付いていて怪我人が落ち、下の `capFor` や
+    //   `ROSTER_MAX` と**違う population で上限を見て**いました（`teamRosterSize` は
+    //   引退していない人を全員数える）。
+    const currentRoster = clubIndexOf(players).get(team.id) ?? []
     const totalNow = currentRoster.length
     // 運用方針と予算
     const avgAge = currentRoster.length ? currentRoster.reduce((s, p) => s + p.age, 0) / currentRoster.length : 27
     const st = standingOf(team.id)
     const strat = cpuStrategy(st.rank, st.total, avgAge)
-    const committedSalary = (clubIndexOf(players).get(team.id) ?? []).reduce((s, p) => s + p.contract.annualSalary, 0)
+    const committedSalary = clubSalaryTotal(players, team.id)
     const spendFactor = strat === 'contend' ? 1.0 : strat === 'rebuild' ? 0.4 : 0.7
     // 補強原資 ＝ 年俸原資の余り（クラブ予算−既存年俸）＋ 実残高の一部。
     // 売却・賞金で貯めた残高が補強に反映され、貧乏チームは予算切れで少人数（下限24）に落ち着く。

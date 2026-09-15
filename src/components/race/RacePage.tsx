@@ -1,3 +1,4 @@
+import { injuryBlockedIds } from '../../utils/raceAvailability'
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
@@ -364,13 +365,16 @@ export default function RacePage() {
   const segCount = race?.segments?.length ?? 6
   // ロスターは1つだけ。所属している選手（レンタルで借りている選手も含む）は全員出走できる
   const mainPlayers = players.filter(p => p.teamId === playerTeamId && p.status !== 'retired')
-  // 【進行不可の安全弁2】それでも健常者が区間数未満なら、負傷者の出走も許可する
-  // （全区間を埋められないと「開始」も「スキップ」も出せず完全に詰むため）
-  const allowInjured = mainPlayers.filter(p => p.status !== 'injured').length < segCount
-  // 出走不可の選手（リストには表示するが選択不可）: playerId → 理由ラベル
+  // 【進行不可の安全弁2】健常者が区間数未満なら負傷者の出走も許可する
+  // （全区間を埋められないと「開始」も「スキップ」も出せず完全に詰むため）。
+  // **判定は `utils/raceAvailability` の `injuryBlockedIds` 1本**（ECL・世界選手権・
+  // オンラインと同じ。以前は4画面に手書きで、うち2画面は解禁が無く詰んでいた）
+  const injuryBlocked = injuryBlockedIds(mainPlayers, segCount)
+  // 出走不可の選手（リストには表示するが選択不可）: playerId → 理由ラベル。
+  // **文言は画面ごと**（ここだけ復帰までの戦数を出す）
   const unavailableMap: Record<string, string> = {}
   for (const p of mainPlayers) {
-    if (p.status === 'injured' && !allowInjured) {
+    if (injuryBlocked.has(p.id)) {
       const left = p.injuredUntilRace != null ? p.injuredUntilRace - racesConsumed(currentSeason) : 0
       unavailableMap[p.id] = left > 0 ? `故障中・復帰まで約${left}戦` : '故障中'
     }

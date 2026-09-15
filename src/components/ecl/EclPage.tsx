@@ -1,3 +1,4 @@
+import { injuryBlockedIds } from '../../utils/raceAvailability'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
@@ -80,11 +81,15 @@ export default function EclPage() {
     () => players.filter(p => p.teamId === playerTeamId && p.status !== 'retired'),
     [players, playerTeamId]
   )
+  // 故障者は選べない。**ただし健常者だけで区間が埋まらないときは解禁する**
+  // （`utils/raceAvailability` 1本）。★以前はここに解禁が無く、健常者が区間数を
+  //   下回ると `allSegsFilled` が永久に false になって**ECLだけ二度と進められません**でした
   const unavailableMap = useMemo(() => {
+    const blocked = injuryBlockedIds(myPlayers, (nextRace?.segments ?? []).length)
     const m: Record<string, string> = {}
-    for (const p of myPlayers) if (p.status === 'injured') m[p.id] = '負傷'
+    for (const p of myPlayers) if (blocked.has(p.id)) m[p.id] = '負傷'
     return m
-  }, [myPlayers])
+  }, [myPlayers, nextRace])
   const assignedIds = new Set(Object.values(lineup).filter(Boolean))
   const allSegsFilled = (nextRace?.segments ?? []).every(s => !!lineup[s.index])
 

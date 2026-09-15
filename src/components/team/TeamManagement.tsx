@@ -1,3 +1,4 @@
+import { clubSalaryTotal } from '../../utils/clubMoney'
 import { useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useStickyTab } from '../../lib/useStickyTab'
@@ -118,7 +119,8 @@ export default function TeamManagement() {
 
   // レンタルで借りている選手（teamId=自チーム・loan付きで所有者が他チーム）。roster配列外の別枠。
   const loanedIn = allPlayers.filter(p => p.teamId === playerTeamId && p.loan && p.loan.ownerTeamId !== playerTeamId && p.status !== 'retired')
-  const rosterSalary = allPlayers.filter(p => p.teamId === playerTeamId && p.status !== 'retired').reduce((s, p) => s + p.contract.annualSalary, 0)
+  // 総年俸は `utils/clubMoney` の `clubSalaryTotal` 1本（予算が引く額と同じ数え方）
+  const rosterSalary = clubSalaryTotal(allPlayers, playerTeamId)
   // ★**人数は枠を判定する数え方と同じ1本**（`data/rosterRules` の `teamRosterSize`）。
   //   ここは `squadPlayersOf`（名簿＝レンタルで**借りている選手を除く**）で数えていたが、
   //   上限を見る `canSignContract` は `teamRosterSize`（借りている選手も入る）なので、

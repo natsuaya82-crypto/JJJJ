@@ -1,5 +1,32 @@
 import { tierBudget } from './clubTier'
-import type { ForeignLeague } from '../types'
+import { belongsToClub } from './rosterSync'
+import type { ForeignLeague, Player } from '../types'
+
+/**
+ * **そのクラブが払う総年俸。数えるのはここ1本。**
+ *
+ * ■誰のぶんを払うのか（オーナー・2026-09-15「年俸は借りた側ね」）
+ *   **レンタルで借りている選手の年俸は、借りた側が払います。** なので数える集合は
+ *   `utils/rosterSync` の `belongsToClub`＝**そのクラブでプレーする人**（引退していない
+ *   人は全員。怪我も借りている選手も入る）。`data/rosterRules` の `teamRosterSize` と
+ *   同じ population で、人数と金額が必ず一致します。
+ *
+ * ■★4か所が別々に数えていました（2026-09-15 に1本化）
+ *   | どこ | 何で数えていたか | 借りている選手 |
+ *   |---|---|---|
+ *   | 予算の請求（`engine/seasonBudget`） | `teamId` だけ | 含む |
+ *   | CPUの使える枠（`engine/cpuMarket`） | `clubIndexOf` | 含む |
+ *   | 画面の「総年俸」（`TeamManagement`） | 手書きの filter | 含む |
+ *   | `gameStore.getSalaryTotal` | `squadPlayersOf` | **除く** |
+ *
+ *   最後の1つだけ答えが違い、しかも**どこからも呼ばれていませんでした**（削除済み）。
+ *   呼ばれていれば「画面の総年俸と、実際に引かれる額が違う」になっていた形です。
+ */
+export function clubSalaryTotal(players: readonly Player[], clubId: string): number {
+  let sum = 0
+  for (const p of players) if (belongsToClub(p, clubId)) sum += p.contract?.annualSalary ?? 0
+  return sum
+}
 
 /**
  * **移籍金の海外側の精算（唯一の場所）。**

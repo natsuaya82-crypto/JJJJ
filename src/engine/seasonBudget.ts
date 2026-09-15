@@ -13,6 +13,7 @@
 //   格の差が消える。
 //
 // 乱数は使わない。
+import { clubSalaryTotal } from '../utils/clubMoney'
 import type { Division, Player, Season, Sponsor, Team } from '../types'
 import { computeNextSeasonBudget } from '../data/economy'
 import { operatingCostOf, tierBudget, type ClubTier } from '../utils/clubTier'
@@ -73,9 +74,9 @@ export function computeSeasonBudgets(params: {
   const newStreakMe = newBudget < 0 ? prevStreakMe + 1 : 0
 
   // 全チームの来季予算（自チームと同じ computeNextSeasonBudget）。
-  const teamSalaryTotal = (teamId: string) => players
-    .filter(p => p.teamId === teamId)
-    .reduce((s, p) => s + p.contract.annualSalary, 0)
+  // 総年俸は `utils/clubMoney` の `clubSalaryTotal` 1本（レンタルで借りている選手は
+  // 借りた側が払う・オーナー2026-09-15）。人数を数える `teamRosterSize` と同じ population
+  const teamSalaryTotal = (teamId: string) => clubSalaryTotal(players, teamId)
   const teamSponsorAnnual = (t: typeof teamsWithFA[0]) => (t.sponsors ?? [])
     .map(id => sponsors.find(s => s.id === id))
     .filter(Boolean)

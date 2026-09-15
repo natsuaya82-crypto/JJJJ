@@ -22,6 +22,7 @@
 // ■ここに通信を持ち込まないこと
 //   このファイルは**入力から答えを出すだけ**です。Supabase も React も import しません
 //   （そうでないと点検から呼べなくなり、また画面の中と同じ状態に戻ります）。
+import { runnablePool } from '../utils/raceAvailability'
 import { assignLineupByTerrain } from '../engine/raceEngine'
 import { courseToRace, type MatchCourse } from '../data/matchCourses'
 import type { Player } from '../types'
@@ -43,9 +44,8 @@ export function usableRoster(roster: Player[]): Player[] {
  */
 export function autoOrder(roster: Player[], course: MatchCourse, raceNo = 1): Order {
   const segCount = course.segments.length
-  const list = usableRoster(roster)
-  const healthy = list.filter(p => p.status !== 'injured')
-  const pool = healthy.length >= segCount ? healthy : list
+  // 故障者を外すかどうかは `utils/raceAvailability` 1本（画面の「選べない」と同じ決まり）
+  const pool = runnablePool(usableRoster(roster), segCount)
   return { lineup: assignLineupByTerrain(pool, courseToRace(course, raceNo)) }
 }
 
