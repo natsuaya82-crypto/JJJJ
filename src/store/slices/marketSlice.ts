@@ -9,7 +9,7 @@ import { runTradeMoves, swapDraftPicks } from '../../engine/tradeExecution'
 import { tradeConsentBonus, tradeRefuser } from '../../engine/tradeConsent'
 import { reinforcementBanned } from '../../data/economy'
 import { pickKeysValue, roundFee } from '../../data/economy'
-import { ROSTER_MAX, canReleaseFromRoster, canSignContract } from '../../data/rosterRules'
+import { ROSTER_MAX, canReleaseFromRoster, canSignContract, teamRosterSize } from '../../data/rosterRules'
 import { nationalityToForeignCategory } from '../../engine/playerGenerator'
 import { type AcquisitionOffer, type ContractRequest, type ExpiredNegKind, type ForeignCategory, type IncomingOffer, type Player, type TradeNegotiation, type TransferListing } from '../../types'
 import { MAJOR_NEWS_OVR, allTieredClubs, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
@@ -1075,7 +1075,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     if (usedSlots >= 3) return false
     // ロスター上限チェック。借入も1人ぶん枠を食う。以前は判定が無く、上限を超えたうえに
     // レンタル選手は解雇できないため人数を戻せない詰み状態になっていた。
-    const myRosterNow = st.players.filter(p => p.teamId === st.playerTeamId && p.status !== 'retired').length
+    const myRosterNow = teamRosterSize(st.players, st.playerTeamId)
     if (myRosterNow >= ROSTER_MAX) return false
     // 相手チームの主力（複数年の出場＋ECL経験で判定）は貸さない（forceなら相手が貸す打診済みなのでスキップ）
     if (!force && keyPlayerStatus(player, st.currentSeason, st.pastSeasons) !== 'open') return false
@@ -1111,7 +1111,10 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     // 借り手の総在籍が上限なら貸せない（上限+1人化の防止）。
     // 人数の上限は rosterRules の ROSTER_MAX 1本。ここだけ 30 が直書きで、
     // 上限を変えたときにここだけ追従しない状態になっていた
-    const toSize = st.players.filter(p => p.teamId === toTeamId && p.status === 'active').length
+    // ★**数え方も `teamRosterSize` 1本**（2026-09-15）。数は直したのに**数え方は
+    //   `status === 'active'` の手書きのまま**で、上限を止める側（引退していない人は全員）と
+    //   食い違っていた。怪我人が2人いると、30人で埋まっているのに「28人」と見えて貸せる
+    const toSize = teamRosterSize(st.players, toTeamId)
     if (toSize >= ROSTER_MAX) return false
     const yrs = Math.max(1, Math.min(2, years))
     set(state => {

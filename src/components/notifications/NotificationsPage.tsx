@@ -15,7 +15,7 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
 import type { TransferBid, Player } from '../../types'
-import { ROSTER_MAX } from '../../data/rosterRules'
+import { ROSTER_MAX, teamRosterSize } from '../../data/rosterRules'
 import { feeRatingOf } from '../../data/economy'
 import TrainingCardSVG from '../training/TrainingCardSVG'
 import { CARD_NAMES, RARITY_LABELS } from '../../utils/cardCombo'
@@ -192,7 +192,8 @@ export default function NotificationsPage() {
   const renewalNeeded = renewalPlayers.length
   // 「交渉中で応対待ち」の人数。まとめカードの一行に出す
   const renewalWaiting = renewalPlayers.filter(r => r.req).length
-  const myRosterCount = players.filter(p => p.teamId === playerTeamId && p.status === 'active').length
+  // 数えるのは `data/rosterRules` の `teamRosterSize` 1本（上限を止める側と同じ条件）
+  const myRosterCount = teamRosterSize(players, playerTeamId)
   const myTeamFinance = teams.find(t => t.id === playerTeamId)?.finance
 
   // 通知から用件を片付けるための操作

@@ -127,3 +127,35 @@ export function actionBody(store: string, name: string): string {
   }
   return best
 }
+
+/**
+ * **`src` 以下の .ts / .tsx すべて**（画面も utils も含む）。
+ *
+ * ■なぜ要るのか（オーナー・2026-09-15）
+ *   `logicSource()` が読むのは `src/store` と `src/engine` **だけ**で、
+ *   **`src/utils` と `src/components` はまるごと網の外**でした。
+ *   ところが「唯一の決まり」の多くは `src/utils` に置く決まりなので、
+ *   一番見なければいけない場所を見ていなかったことになります。実際に
+ *
+ *     ・年齢込みの強さが2本（`effectiveOvr` と `cpuOffseason` の手書き）
+ *     ・「うちの人数」の数え方が2通り（`!== 'retired'` と `=== 'active'`）で34か所が手書き
+ *
+ *   がどの点検からも見えていませんでした。
+ *
+ * ■★`logicSource()` を広げなかった理由
+ *   あちらには「store にこれを手書きするな」という**層の話**の判定が20件ぶら下がっていて、
+ *   範囲を広げると「utils も画面も手書きするな」という**別の主張**に黙って変わります
+ *   （`logicSource` の上の注意書きと同じ理由）。**広げずに、新しい入口を足す。**
+ */
+export function srcSource(): string {
+  const out: string[] = []
+  const walk = (dir: string) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const p = join(dir, e.name)
+      if (e.isDirectory()) walk(p)
+      else if (e.name.endsWith('.ts') || e.name.endsWith('.tsx')) out.push(readFileSync(p, 'utf-8'))
+    }
+  }
+  walk('src')
+  return out.join('\n')
+}

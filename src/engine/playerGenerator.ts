@@ -1345,14 +1345,31 @@ export function refreshDomesticYouth(
  */
 const ROSTER_FILL_RANK: Rank = 'D'
 
-export function fillRosterToMin(
-  team: Team,
+/**
+ * **世界中のクラブを、下限（`ROSTER_MIN`）まで埋める。埋めるのはここ1本。**
+ *
+ * ★**自チームだけを特別扱いしないこと**（オーナー・2026-09-15「そもそも人によって
+ *   違うとかおかしいよね」）。以前は自チームにしか効かず、CPUと海外のクラブには
+ *   下限がありませんでした。海外の契約満了を直した（`engine/contractExpiry`）とたんに
+ *   海外クラブが14人まで痩せて `check-offseason` が落ちたのがそれです。
+ *   出口（引退・満了・移籍）は232クラブ全部にあるのだから、**床も全部に要ります。**
+ *
+ * ★**索引は1回だけ組むこと。** クラブごとに `players.filter(...)` すると
+ *   232クラブ × 6,000人 ＝ 140万回の比較になります（`utils/rosterSync` の注意書きと同じ）。
+ */
+export function fillAllRostersToMin(
+  clubs: readonly Team[],
   year: number,
   players: readonly Player[],
 ): Player[] {
-  const have = (clubMembersByClub(players as Player[]).get(team.id) ?? []).length
-  // 足りないぶんだけ（15人ちょうどにする）。中身は makeNewPlayersFor 1本
-  return makeNewPlayersFor(team, year, ROSTER_MIN - have, [ROSTER_FILL_RANK], 'fill')
+  const byClub = clubMembersByClub(players as Player[])
+  const out: Player[] = []
+  for (const c of clubs) {
+    const have = (byClub.get(c.id) ?? []).length
+    // 足りないぶんだけ（15人ちょうどにする）。中身は makeNewPlayersFor 1本
+    out.push(...makeNewPlayersFor(c, year, ROSTER_MIN - have, [ROSTER_FILL_RANK], 'fill'))
+  }
+  return out
 }
 
 // 海外選手のID採番。カウンタはメモリ上の値なのでアプリ再起動でリセットされる。

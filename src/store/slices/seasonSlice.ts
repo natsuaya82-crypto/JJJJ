@@ -1,6 +1,7 @@
 // season ドメインのアクション（gameStore から分割）。
 
 import type { GameStore, SetGame } from '../gameStore'
+import type { Team } from '../../types'
 import { FOREIGN_LEAGUES } from '../../data/foreignLeagues'
 import { drawSeasonSchedules, generateIndividualEvents, generateSeasonRaces } from '../../data/races'
 import { INITIAL_TEAMS } from '../../data/teams'
@@ -8,7 +9,7 @@ import { ACHIEVEMENT_JEWELS, checkSeasonAchievements, podiumJewels, selectSeason
 import { buildEclParticipants, buildEclRaces } from '../../engine/eclSeries'
 import { initForeignStandings } from '../../engine/foreignLeague'
 import { growPlayer } from '../../engine/growth'
-import { generateDraftPool, generateForeignLeaguePlayers, refreshForeignLeagues, refreshDomesticYouth, fillRosterToMin } from '../../engine/playerGenerator'
+import { generateDraftPool, generateForeignLeaguePlayers, refreshForeignLeagues, refreshDomesticYouth, fillAllRostersToMin } from '../../engine/playerGenerator'
 import { type Division, type GmOffer, type Player, SPECIALTY_LABELS, type SeasonAward, type TransferRecord } from '../../types'
 import { archiveSeason } from '../../utils/archiveSeason'
 import { computeSeasonAwards } from '../../utils/awards'
@@ -30,7 +31,7 @@ import { settleBonusClauses } from '../../engine/bonusPayout'
 import { computeSeasonBudgets } from '../../engine/seasonBudget'
 import { allTieredClubs, tierBudget, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
 import { appraiseGmInvite, gmInviteFeeFor } from '../../utils/gmInvite'
-import { foreignClubIdSet } from '../../utils/clubs'
+import { allForeignClubs, foreignClubIdSet } from '../../utils/clubs'
 import { MORALE_DEFAULT, setMorale } from '../../utils/condition'
 import { backfillDomesticClubs } from '../../utils/domesticClubs'
 import { buildOffer, canResignAsGm, makeGmOffer, resignOffers } from '../../utils/gmOffer'
@@ -178,10 +179,15 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
     //   契約満了**なので、救済が要る場面でちょうど発火しない形でした。
     //
     //   開幕の直前なら、満了も引退もドラフトも全部終わったあとの**確定した人数**を
-    //   見られます。足すのは `fillRosterToMin` 1本（若手の補充と同じ幹）。
+    //   見られます。足すのは `fillAllRostersToMin` 1本（若手の補充と同じ幹）。
     //   **2か所で足さないこと**——`endSeason` 側には置きません。
-    const myTeam = state.teams.find(t => t.id === state.playerTeamId)
-    const rescued = myTeam ? fillRosterToMin(myTeam, state.currentSeason.year, state.players) : []
+    //
+    // ★**自チームだけでなく世界中のクラブを見ます**（オーナー・2026-09-15
+    //   「そもそも人によって違うとかおかしいよね」）。出口（引退・満了・移籍）は
+    //   232クラブ全部にあるのだから、床も全部に要ります。自チームだけ床があった頃は、
+    //   海外の契約満了を直したとたんに海外クラブが14人まで痩せました。
+    const allClubs = [...state.teams, ...allForeignClubs(state.foreignLeagues)] as Team[]
+    const rescued = fillAllRostersToMin(allClubs, state.currentSeason.year, state.players)
     const players = rescued.length > 0 ? [...state.players, ...rescued] : state.players
     // プレシーズンのドラフト（今季スカウトした代）が終わったので、
     // 今季スカウトする「翌年の代」を新規生成する。前回ドラフト済みの代の残りを置き換える。
@@ -352,7 +358,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // ── RETIREMENT SYSTEM ──
       // 引退の年度処理は engine/retirement 1本（引退年齢・引退の反映）
       const retire = processRetirements({
-        grownPlayers, playersAfterFA, expiredIds, year: state.currentSeason.year, playerTeamId: state.playerTeamId })
+        grownPlayers, playersAfterFA, year: state.currentSeason.year })
       const retiringIds = retire.retiringIds
       const playersAfterRetire = retire.players
 

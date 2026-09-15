@@ -59,7 +59,22 @@ export function rosterCapOf(pendingDraftPicks: number = 0): number {
   return ROSTER_MAX - Math.max(0, pendingDraftPicks)
 }
 
-// チームの在籍人数（引退除く）。放出・解雇の下限判定に使う。
+/**
+ * **そのクラブの在籍人数。数えるのはここ1本。**
+ *
+ * ★条件は `utils/rosterSync` の `belongsToClub` と同じ＝**引退していない人は全員**。
+ *   怪我（`status === 'injured'`）も**在籍に入ります**——走れないだけで、名簿に居て
+ *   年俸も払っているため。
+ *
+ * ★**画面で `filter(p => p.teamId === … && p.status === 'active')` と書かないこと**
+ *   （オーナー・2026-09-15「直書きは禁止」）。`'active'` で数えると怪我人が落ちるので、
+ *   **同じ「うちの人数」が画面によって食い違います。** 実際に食い違っていました：
+ *     ・ホーム（`Dashboard`）        … `!== 'retired'`（怪我人を数える）
+ *     ・通知の上限超え警告（`notifItems`）… `=== 'active'`（数えない）
+ *   上限を止める側はこの関数なので、怪我人が2人いると**30人で止まっているのに
+ *   通知は「28人」**になります（オーナー・2026-08-23「29人なのに30人が上限で
+ *   入れませんとも言われるけど？」と同じ形）。
+ */
 export function teamRosterSize(players: Player[], teamId: string): number {
   return players.filter(p => p.teamId === teamId && p.status !== 'retired').length
 }

@@ -13,7 +13,7 @@ import { computeSeasonAwards } from '../utils/awards'
 import { divisionOf } from '../utils/league'
 import { type NewsItem, awardHeadline, retirementHeadline } from '../utils/newsItems'
 import { comparePlayers } from '../utils/playerSort'
-import { ovr, retirementAgeOf } from '../utils/playerUtils'
+import { isRetiringAge, ovr } from '../utils/playerUtils'
 
 export function buildSeasonFinaleNews(params: {
   players: Player[]
@@ -33,9 +33,12 @@ export function buildSeasonFinaleNews(params: {
     const rookieP = award.rookieId ? players.find(p => p.id === award.rookieId) : undefined
     if (mvpP) seasonEndNews.push({ date: raceDate, headline: awardHeadline({ kind: 'mvp', division: divisionOf(teams.find(t => t.id === mvpP.teamId)), clubShort: teams.find(t => t.id === mvpP.teamId)?.shortName ?? '', playerName: mvpP.name }), category: 'race' as const, relatedIds: [mvpP.id] })
     if (rookieP) seasonEndNews.push({ date: raceDate, headline: awardHeadline({ kind: 'rookie', division: divisionOf(teams.find(t => t.id === rookieP.teamId)), clubShort: teams.find(t => t.id === rookieP.teamId)?.shortName ?? '', playerName: rookieP.name }), category: 'race' as const, relatedIds: [rookieP.id] })
-    // 引退表明。開幕時の引退判定と同じ式（utils/playerUtils の retirementAgeOf 1本）を1歳先で評価する
-    const domesticIdsRet = new Set(teams.map(t => t.id))
-    const retiring = players.filter(p => p.status === 'active' && domesticIdsRet.has(p.teamId) && (p.age + 1) >= retirementAgeOf(p))
+    // 引退表明。開幕時の引退判定とまったく同じ `isRetiringAge` を1歳先で評価する。
+    // ★**国内だけに絞らないこと**（2026-09-15）。以前は `teams`（国内52クラブ）の
+    //   IDで絞っていたので、**海外の選手の引退は一度もニュースにならなかった**。
+    //   出す数は下で絞る（自チームは全員・他クラブは OVR72以上を6人まで）ので、
+    //   ここで国で絞る理由は無い
+    const retiring = players.filter(p => p.status === 'active' && p.teamId && isRetiringAge(p, 1))
     const mineRet = retiring.filter(p => p.teamId === playerTeamId)
     const othersRet = retiring.filter(p => p.teamId !== playerTeamId && ovr(p) >= 72).sort(comparePlayers('ovr')).slice(0, 6)
     for (const p of [...mineRet, ...othersRet]) {

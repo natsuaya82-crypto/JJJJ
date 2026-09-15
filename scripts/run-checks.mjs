@@ -34,6 +34,9 @@ const OUT = join(ROOT, 'node_modules/.cache/checks')
 const CHECKS = [
   // 一本化そのものの見張り
   'single-source',
+  // 引退・年齢込みの強さ・在籍人数・在籍上限・下限の救済。**src 全体**を見る唯一の点検
+  // （single-source は store と engine しか読まないので、utils と components が網の外だった）
+  'one-rule',
   // 層をまたいだ import（下から上）を機械的に落とす。
   // 型だけの import は実行時に消えるので違反にしない（check-layers 側で除外済み）
   'layers',

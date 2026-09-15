@@ -14,6 +14,7 @@
 //   触るのが一番危ないので、そこを先に関数にして直接呼べるようにし、
 //   `scripts/check-cpu-trade.ts` で成立側に網を張った。
 //   残り（解雇・レンタル）は golden が効いているので、切り出して差分ゼロを見れば足りる。
+import { effectiveOvr } from '../utils/foreignClubProfile'
 import { tradeBalance, type TradeValueCtx } from '../utils/tradeValue'
 import { playRateOf, prevSeasonOf, type PlayRateSeason } from '../utils/playRate'
 import { appraiseMove, hasNoPlayingTime, type Destination } from '../utils/transferDecision'
@@ -68,16 +69,21 @@ const TRADE_SELLER_PROTECTED = 3
 const LOAN_MAX_AGE = 24
 
 /**
- * 人数を減らすときに**先に切る順**（前から切る）。
- * 素のOVRではなく、31歳以上に−8、34歳以上にもう−8。同じOVRなら年上から切れる。
+ * 人数を減らすときに**先に切る順**（前から切る）。同じOVRなら年上から切れる。
+ *
+ * ★**年齢込みの強さは `effectiveOvr` 1本**（`utils/foreignClubProfile`。33歳から1歳ごとに−3）。
+ *   ここには2本目の式（31歳以上に−8、34歳以上にもう−8）が手書きで残っていました
+ *   （オーナー・2026-09-15「そもそも人によって違うとかおかしいよね」）。
+ *   `CLAUDE.md` には「年齢調整OVRが3か所にあり、基準の年齢が32歳と33歳で食い違っていた」と
+ *   直した記録がありますが、**切る順だけ別の物差しのまま残っていました**。
+ *   選手の格（`utils/playerTier`）も買い手の並び（`engine/cpuMarket`）も `effectiveOvr` で
+ *   見ているので、「誰が要らないか」だけ別の目盛りで測る理由はありません。
  *
  * 2箇所（1軍23人の超過ぶん・総在籍の上限超過ぶん）で同じ式を手書きしていたのを1本にした。
  * ★安定ソートの前提で、同点は元の並び順のまま残る。渡す配列の順を変えないこと。
  */
-export const byReleasePriority = (a: Player, b: Player): number => {
-  const score = (p: Player) => ovr(p) - (p.age > 30 ? 8 : 0) - (p.age > 33 ? 8 : 0)
-  return score(a) - score(b)
-}
+export const byReleasePriority = (a: Player, b: Player): number =>
+  effectiveOvr(a) - effectiveOvr(b)
 
 /**
  * オフの頭に人数を整える（衰えたベテランと余剰を解雇してFAへ）。

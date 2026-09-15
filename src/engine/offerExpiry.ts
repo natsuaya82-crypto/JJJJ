@@ -7,6 +7,7 @@
 // ★2つを見る順番を変えないこと（先に有料の失効、次にフリーの決断）。
 // ★本人が行くかの判定は utils/playerUtils の freeContactConsent 1本
 //   （中身は playerConsentToMove ＝ 移籍の同意と同じ式。ここで別の理屈を書かない）。
+import { rosterCapOf, teamRosterSize } from '../data/rosterRules'
 import type { ExpiredNegotiation, ForeignLeague, Player, Race, Season, Team } from '../types'
 import type { ClubTier } from '../utils/clubTier'
 import { allTieredClubs, tierOfPlayerClub } from '../utils/clubTier'
@@ -66,11 +67,16 @@ export function resolveExpiredOffers(params: {
     // 判定は出場実績込みの freeContactConsent（よく走っている選手・愛着のある選手は残留に傾く）
     const flApps = seasonAppearances(pl.id, ranRaces)
     const flFrac = flApps / Math.max(1, nextRaceIndex)
-    // 受け手が総在籍上限（30人）なら移籍は成立しない＝残留（31人化の防止）。
+    // 受け手が在籍上限なら移籍は成立しない＝残留（31人化の防止）。
+    // ★**数も数え方も直書きしないこと**（2026-09-15）。ここは `30` を直に書いたうえで
+    //   `status === 'active'` で数えていたので、**上限を止める側（`teamRosterSize`＝
+    //   引退していない人は全員）と食い違って**いました。怪我人が居ると上限に届いていても
+    //   ここだけ「まだ空きがある」と見えます。数は `rosterCapOf` 1本、数え方は
+    //   `teamRosterSize` 1本。
     // 引退希望中の選手は移籍しない（引退か引き留めかの話であって、他クラブへは行かない）
-    const suitorSize = players.filter(p => p.teamId === suitor.id && p.status === 'active').length
+    const suitorSize = teamRosterSize(players, suitor.id)
     const isRetiringFl = (currentSeason.retirementRequests ?? []).some(r => r.playerId === pl.id)
-    const leaves = suitorSize >= 30 || isRetiringFl ? false
+    const leaves = suitorSize >= rosterCapOf(0) || isRetiringFl ? false
       : pl.contract.yearsLeft > 1 ? false
       : freeContactConsent(pl, destinationOf(suitor.id, pl), tierOfPlayerClub(pl.teamId, allTieredClubs(teams, foreignLeagues)), flFrac, nextRaceIndex, playerTierOf(pl))
     freeDecisionNotices.push({ id: o.id, playerId: pl.id, playerName: pl.name, toTeamName: suitor.shortName, left: leaves })

@@ -17,7 +17,7 @@
 //   - 移籍希望はここでは作らない（レース進行時の `generateTransferWishes`）
 import { canRequestRenewal, contractTalkCtx, hasContractTalk } from '../utils/contractTalk'
 import { strHash } from '../utils/hash'
-import { faMarketSalary, seasonPerfProfile } from '../utils/playerUtils'
+import { faMarketSalary, isRetiringAge, seasonPerfProfile } from '../utils/playerUtils'
 import { openWishIds } from '../utils/talkSync'
 import { isOwnedBy } from '../utils/transferEligibility'
 import type { ContractRequest, GameState, Player } from '../types'
@@ -32,7 +32,11 @@ export function buildContractRequests(args: {
   const racesPlayed = currentSeason.currentRaceIndex ?? 0
   if (racesPlayed === 0) return null
   // 借りている選手の引退話も出さない（引退を受理しても保有クラブに戻るだけ）
-  const retPlayers = players.filter(p => isOwnedBy(p, playerTeamId) && p.age >= 35)
+  // ★**35 の直書きをやめました**（2026-09-15）。引退年齢は選手ごとに30〜36なので、
+  //   35固定だと「31歳で引退する選手には一生打診が来ず、36歳の選手には35歳から来る」。
+  //   判定は `isRetiringAge` 1本で、**引退表明のニュースと同じ1歳先**で見る
+  //   （来季の終わりに引退する選手が、今季のうちに言い出す）
+  const retPlayers = players.filter(p => isOwnedBy(p, playerTeamId) && isRetiringAge(p, 1))
   const existRet = new Set((currentSeason.retirementRequests ?? []).map(r => r.playerId))
   // 直訴の札は1人1つ（判定は talkSync の openWishIds）。移籍希望・海外挑戦希望を
   // 出したままの選手は引退の抽選に入れない。入れると同じ選手の札が2枚になる

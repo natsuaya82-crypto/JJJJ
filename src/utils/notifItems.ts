@@ -8,7 +8,7 @@
 // ここは画面から切り離した素の関数にしてある（フックを使わない）ので、
 // 呼び出し側でストアから値を取って渡すこと。
 import type { Season, Player, Team, ExpiredNegKind } from '../types'
-import { ROSTER_MAX } from '../data/rosterRules'
+import { ROSTER_MAX, teamRosterSize } from '../data/rosterRules'
 import { loginTodayKey } from './loginDate'
 import { saleAnsweredIds } from './saleAnswer'
 
@@ -338,7 +338,8 @@ export function collectNotifications(input: NotifInput) {
     .sort((a, b) => a.months - b.months)
 
   // ロスター超過警告（旧セーブ救済。強制解雇はせず整理を促すだけ）
-  const myRosterCount = players.filter(p => p.teamId === playerTeamId && p.status === 'active').length
+  // 数えるのは `data/rosterRules` の `teamRosterSize` 1本（上限を止める側と同じ条件）
+  const myRosterCount = teamRosterSize(players, playerTeamId)
   const rosterOver = Math.max(0, myRosterCount - ROSTER_MAX)
 
   // 補強禁止（3シーズン連続赤字、または残高マイナス＝reinforcementBanned と同基準）

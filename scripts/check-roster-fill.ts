@@ -16,13 +16,13 @@
  *   1人も足さず、そのあと11人になっていました。**下限を割るいちばん普通の経路が
  *   契約満了**なので、救済が要る場面でちょうど発火しませんでした。
  *
- *   ★**この点検は長いあいだ `fillRosterToMin` を単体で叩くだけで、`endSeason` も
+ *   ★**この点検は長いあいだ `fillAllRostersToMin` を単体で叩くだけで、`endSeason` も
  *     `startRegularSeason` も1度も呼んでいませんでした。** 関数は正しいので緑、
  *     繋ぎ込みは壊れたまま、という「空振りの緑」です。⑤が世界を1つ作って
  *     実際に endSeason → 開幕 を通します。
  *
  * ■わざと壊して落ちることを確かめた
- *   ・`fillRosterToMin` の `need` を `0` にする              → ①②
+ *   ・`fillAllRostersToMin` の `need` を `0` にする          → ①②
  *   ・ランクを 'A' にする（弱い選手にならない）              → ③
  *   ・15人ちょうどでも入れる（`need <= 0` を外す）           → ④
  *   ・`startRegularSeason` の救済を消す                      → ⑤
@@ -34,7 +34,7 @@ let rngSeed = 20260915
 Math.random = () => { rngSeed = (rngSeed * 1664525 + 1013904223) >>> 0; return rngSeed / 4294967296 }
 
 import { readFileSync } from 'node:fs'
-import { fillRosterToMin, generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
+import { fillAllRostersToMin, generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
@@ -60,13 +60,13 @@ const worldOf = (n: number): Player[] => madeAll.slice(0, n).map(p => ({ ...p, t
 console.log(`[1] 足りないぶんだけ入れて、ちょうど ${ROSTER_MIN} 人にする`)
 {
   for (const have of [0, 3, 5, 10, 13, 14]) {
-    const add = fillRosterToMin(team, 2030, worldOf(have))
+    const add = fillAllRostersToMin([team], 2030, worldOf(have))
     check(`${have}人 → ${add.length}人足して ${have + add.length}人`,
       have + add.length === ROSTER_MIN, `${have + add.length}人`)
   }
   // ★入れすぎない
   for (const have of [15, 16, 25]) {
-    const add = fillRosterToMin(team, 2030, worldOf(have))
+    const add = fillAllRostersToMin([team], 2030, worldOf(have))
     check(`${have}人なら1人も足さない`, add.length === 0, `${add.length}人足した`)
   }
 }
@@ -86,7 +86,7 @@ console.log('\n[1-b] 選手の作り方は1本（ベタ書きしていない）'
 
 console.log(`\n[2] 入るのは弱い選手（OVR60くらい）`)
 {
-  const add = fillRosterToMin(team, 2030, worldOf(10))
+  const add = fillAllRostersToMin([team], 2030, worldOf(10))
   const ovrs = add.map(p => ovr(p))
   const max = Math.max(...ovrs)
   console.log(`      OVR ${Math.min(...ovrs)}〜${max}（平均 ${(ovrs.reduce((a, b) => a + b, 0) / ovrs.length).toFixed(1)}）`)
@@ -107,7 +107,7 @@ console.log(`\n[3] 人数は開幕を止めない（止めると救済に届か�
   check('11人でも開幕は押せる（救済が働く）', canStartSeason(before))
   check('ドラフトが残っていたら止まる', !canStartSeason({ ...before, draftDone: false }))
   check('カードを受け取っていなければ止まる', !canStartSeason({ ...before, campDone: false }))
-  const add = fillRosterToMin(team, 2030, worldOf(11))
+  const add = fillAllRostersToMin([team], 2030, worldOf(11))
   check('埋めると下限に届く', 11 + add.length === ROSTER_MIN, `${11 + add.length}人`)
 }
 
@@ -155,6 +155,34 @@ console.log(`\n[5] 世界を1つ作って endSeason → 開幕 を実際に通�
   // 人数で開幕を止めると、救済にたどり着けない
   check('人数は開幕を止めない（止めると救済に永久に届かない）',
     canStartSeason({ campDone: true, draftDone: true, rosterCount: 1 }))
+
+  // ★**自チームだけを特別扱いしていないか**（オーナー・2026-09-15
+  //   「そもそも人によって違うとかおかしいよね」）。出口（引退・満了・移籍）は
+  //   232クラブ全部にあるので、床も全部に要る。CPUのクラブを1つわざと減らして、
+  //   開幕したときに埋まっているかを見る
+  const st = useGameStore.getState()
+  const victim = st.teams.find(t => t.id !== MY)!
+  const vIds = st.players.filter(p => p.teamId === victim.id && p.status !== 'retired').map(p => p.id)
+  const drop = new Set(vIds.slice(0, Math.max(0, vIds.length - 9)))   // 9人まで減らす
+  useGameStore.setState({ players: st.players.filter(p => !drop.has(p.id)) } as never)
+  const vBefore = useGameStore.getState().players.filter(p => p.teamId === victim.id && p.status !== 'retired').length
+  useGameStore.getState().startRegularSeason()
+  const vAfter = useGameStore.getState().players.filter(p => p.teamId === victim.id && p.status !== 'retired').length
+  console.log(`      CPUのクラブ（${victim.shortName}）を ${vBefore}人に減らす → 開幕 ${vAfter}人`)
+  check('減らした世界になっている（空振りではない）', vBefore < ROSTER_MIN, `${vBefore}人`)
+  check('自チーム以外のクラブも下限まで埋まる', vAfter >= ROSTER_MIN, `${vAfter}人`)
+
+  // 海外クラブも同じ（国内だけに絞っていないか）
+  const st2 = useGameStore.getState()
+  const fClub = (st2.foreignLeagues ?? []).flatMap(l => l.clubs)[0]
+  const fIds = st2.players.filter(p => p.teamId === fClub.id && p.status !== 'retired').map(p => p.id)
+  const fDrop = new Set(fIds.slice(0, Math.max(0, fIds.length - 8)))
+  useGameStore.setState({ players: st2.players.filter(p => !fDrop.has(p.id)) } as never)
+  const fBefore = useGameStore.getState().players.filter(p => p.teamId === fClub.id && p.status !== 'retired').length
+  useGameStore.getState().startRegularSeason()
+  const fAfter = useGameStore.getState().players.filter(p => p.teamId === fClub.id && p.status !== 'retired').length
+  console.log(`      海外クラブ（${fClub.shortName}）を ${fBefore}人に減らす → 開幕 ${fAfter}人`)
+  check('海外クラブも下限まで埋まる（国内だけに絞っていない）', fAfter >= ROSTER_MIN, `${fAfter}人`)
 }
 
 console.log(failed === 0 ? '\n  → OK\n' : `\n  → NG ${failed}件\n`)

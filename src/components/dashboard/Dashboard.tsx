@@ -1,3 +1,4 @@
+import { teamRosterSize } from '../../data/rosterRules'
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
@@ -439,7 +440,7 @@ export default function Dashboard() {
           draftState={draftState}
           lastRank={lastRank}
           objectivesCount={currentSeason.objectives.length}
-          rosterCount={players.filter(p => p.teamId === playerTeamId && p.status !== 'retired').length}
+          rosterCount={teamRosterSize(players, playerTeamId)}
           onClaimCards={claimPreseasonCards}
           onDraft={beginSeasonDraft}
           onStart={startRegularSeason}

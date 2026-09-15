@@ -29,6 +29,7 @@
 import { allForeignClubs, domesticTeamIdSet } from '../utils/clubs'
 import type { ForeignLeague } from '../types'
 import { movePlayer } from '../utils/movePlayer'
+import { isRetiringAge } from '../utils/playerUtils'
 import type { Player, Team } from '../types'
 
 export type ContractExpiryResult = {
@@ -56,9 +57,15 @@ export function processContractExpiry(args: {
   // 集合で見るのは、消えたクラブのIDが選手に残っていたときに「クラブ所属」と誤らないため
   const clubIdsFA = domesticTeamIdSet(teams)
   for (const c of allForeignClubs(foreignLeagues)) clubIdsFA.add(c.id)
+  // ★**引退する歳の選手は満了に入れない**（2026-09-15）。同じ選手を二重に処分しないため。
+  //   以前は逆で、`engine/retirement` 側が「満了の人は引退させない」としていました。
+  //   その向きだと 36歳で契約が切れた選手が**FAになるだけ**で、無所属は引退の
+  //   対象外だったので**永久に歳を取り続けます**（実測で10年目に38歳）。
+  //   判定は `isRetiringAge` 1本（`utils/playerUtils`）。
   const expiredIds = new Set(
     grownPlayers
       .filter(p => p.contract.yearsLeft === 0 && !p.loan && p.teamId && clubIdsFA.has(p.teamId) && p.status === 'active')
+      .filter(p => !isRetiringAge(p))
       .map(p => p.id)
   )
 
