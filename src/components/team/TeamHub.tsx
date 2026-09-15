@@ -1,3 +1,4 @@
+import { squadPlayersOf } from '../../utils/rosterSync'
 import MenuButton from '../ui/MenuButton'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
@@ -68,7 +69,8 @@ export default function TeamHub() {
       label: '移籍方針', en: 'POLICY',
       desc: '選手ごとに非売・貸出歓迎・売出を設定する',
       countLabel: (() => {
-        const n = players.filter(p => p.teamId === playerTeamId && p.status === 'active' && (p.noSale || p.loanListed || p.transferListed)).length
+        // 数える集合は移籍方針の画面（`NoSalePage`）と同じ `squadPlayersOf` 1本
+        const n = squadPlayersOf(players, playerTeamId).filter(p => p.noSale || p.loanListed || p.transferListed).length
         return n > 0 ? `${n}名設定中` : '設定なし'
       })(),
       badge: 0,

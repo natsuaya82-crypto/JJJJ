@@ -14,6 +14,7 @@
 //   触るのが一番危ないので、そこを先に関数にして直接呼べるようにし、
 //   `scripts/check-cpu-trade.ts` で成立側に網を張った。
 //   残り（解雇・レンタル）は golden が効いているので、切り出して差分ゼロを見れば足りる。
+import { isLoanedIn } from '../utils/rosterSync'
 import { effectiveOvr } from '../utils/foreignClubProfile'
 import { tradeBalance, type TradeValueCtx } from '../utils/tradeValue'
 import { playRateOf, prevSeasonOf, type PlayRateSeason } from '../utils/playRate'
@@ -103,11 +104,14 @@ export function runCpuReleases(
   },
 ): { players: Player[]; teams: Team[] } {
   const releaseSet = new Set<string>()
-  const isLoanedIn = (x: Player) => !!x.loan && x.loan.ownerTeamId !== x.teamId
+  // 「借りている選手か」は `utils/rosterSync` の `isLoanedIn` 1本（向きの書き方を割らない）
   const cpuTeamIds = domesticCpuTeamIds(world.players, world.teams, ctx.playerTeamId)
 
   for (const teamId of cpuTeamIds) {
-    const roster = (clubIndexOf(world.players).get(teamId) ?? []).filter(x => x.status === 'active' && !isLoanedIn(x))
+    // ★数え方は索引そのまま＝**引退していない人は全員**（怪我も在籍・年俸も払う）。
+    //   以前は `status === 'active'` で怪我人が落ち、下の `ctx.rosterCapFor` と
+    //   **違う population で上限を見て**いました（`teamRosterSize` は怪我人を数える）
+    const roster = (clubIndexOf(world.players).get(teamId) ?? []).filter(x => !isLoanedIn(x, teamId))
     const avgOvr = roster.length > 0 ? roster.reduce((s, x) => s + ovr(x), 0) / roster.length : 60
     // 衰えたベテラン（チーム平均より6以上低く、契約も切れる）
     for (const p of roster) {
@@ -120,7 +124,7 @@ export function runCpuReleases(
     }
     // 総在籍（1軍+2軍・引退除く）の上限の超過ぶん。既に膨らんだセーブもここを通れば毎年是正される
     const cpuCap = ctx.rosterCapFor(teamId)
-    const totalRoster = (clubIndexOf(world.players).get(teamId) ?? []).filter(x => x.status === 'active' && !releaseSet.has(x.id) && !isLoanedIn(x))
+    const totalRoster = (clubIndexOf(world.players).get(teamId) ?? []).filter(x => !releaseSet.has(x.id) && !isLoanedIn(x, teamId))
     if (totalRoster.length > cpuCap) {
       [...totalRoster].sort(byReleasePriority).slice(0, totalRoster.length - cpuCap).forEach(p => releaseSet.add(p.id))
     }
@@ -130,7 +134,7 @@ export function runCpuReleases(
   // ★ここだけ年齢ペナルティを掛けず、素のOVRの下位から切る。CPUと違って
   //   「誰を残すか」はプレイヤーが決める話なので、こちらで年齢の重みを付けない
   const myCap = ctx.rosterCapFor(ctx.playerTeamId)
-  const myRoster = (clubIndexOf(world.players).get(ctx.playerTeamId) ?? []).filter(x => x.status === 'active' && !releaseSet.has(x.id) && !isLoanedIn(x))
+  const myRoster = (clubIndexOf(world.players).get(ctx.playerTeamId) ?? []).filter(x => !releaseSet.has(x.id) && !isLoanedIn(x, ctx.playerTeamId))
   if (myRoster.length > myCap) {
     [...myRoster].sort((a, b) => ovr(a) - ovr(b)).slice(0, myRoster.length - myCap).forEach(p => releaseSet.add(p.id))
   }

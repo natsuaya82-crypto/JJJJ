@@ -7,7 +7,7 @@ import { ovr, ratingColor, SPEC_COLOR } from '../../../utils/playerUtils'
 // トレードの釣り合いの判断はストアと同じ1箇所（utils/tradeValue.ts）を通す
 import { tradeValues, tradeBalance, TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO } from '../../../utils/tradeValue'
 import { keyPlayerStatus } from '../../../utils/playerUtils'
-import { canBePoached, canTradeAway, eligibilityCtx } from '../../../utils/transferEligibility'
+import { canBePoached, canTradeAway, ctxForTeam, eligibilityCtx } from '../../../utils/transferEligibility'
 import type { Player, Team } from '../../../types'
 import { TeamLogoSVG } from '../../icons/Icons'
 import { pickKeysValue } from '../../../data/economy'
@@ -27,7 +27,7 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: Team; onC
   // 判定に渡す材料はシーズンから1本で作る（utils/transferEligibility の eligibilityCtx）。
   // 手書きしていたので「譲ります」と返事をした選手がトレードの候補に残っていた
   const tradeCtxT = eligibilityCtx(currentSeason, playerTeamId)
-  const theirPlayers = players.filter(p => canBePoached(p, { teamId: team.id, currentYear: currentSeason.year })).sort(comparePlayers('ovr'))
+  const theirPlayers = players.filter(p => canBePoached(p, ctxForTeam(tradeCtxT, team.id))).sort(comparePlayers('ovr'))
   const myPlayersT = players.filter(p => canTradeAway(p, tradeCtxT)).sort(comparePlayers('ovr'))
   const myTeam = teams.find(t => t.id === playerTeamId)
 

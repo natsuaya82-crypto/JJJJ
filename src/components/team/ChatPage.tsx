@@ -1,3 +1,4 @@
+import { belongsToClub } from '../../utils/rosterSync'
 import { useEffect, useRef } from 'react'
 import { useStickyTab } from '../../lib/useStickyTab'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -132,8 +133,9 @@ export default function ChatPage() {
   const transferRequests = currentSeason.transferRequests ?? []
 
   // ケガ人も一覧に出す。以前は status === 'active' だけで数えていたので、ケガをした瞬間に
-  // その選手の契約更新の用件がチャットから消え、放置されたまま期限切れになっていた
-  const myPlayers = players.filter(p => p.teamId === playerTeamId && (p.status === 'active' || p.status === 'injured'))
+  // その選手の契約更新の用件がチャットから消え、放置されたまま期限切れになっていた。
+  // 所属の判定は `utils/rosterSync` の `belongsToClub` 1本（状態を並べて書かない）
+  const myPlayers = players.filter(p => belongsToClub(p, playerTeamId))
 
   // 獲得交渉中（トレード成立後の再契約など）の自チーム選手は「移籍・獲得」タブに出すので、自チーム一覧からは除く
   const activeAcqPlayerIds = new Set((currentSeason.acquisitionOffers ?? []).filter(o => o.status === 'pending' || o.status === 'countered').map(o => o.playerId))

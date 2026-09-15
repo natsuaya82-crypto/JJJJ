@@ -51,6 +51,23 @@ export function eligibilityCtx(season: EligibilitySeason, teamId: string): Eligi
   }
 }
 
+/**
+ * **同じシーズンの材料を使い回して、見るクラブだけ差し替える。**
+ *
+ * 一覧を絞り込むときは選手ごとに所属クラブが変わりますが、`eligibilityCtx` を
+ * 1人ずつ呼ぶと**引退希望と返事済みの集合を選手の数だけ作り直す**ことになります
+ * （移籍市場の一覧は5,800人）。材料は1回だけ作って、これで持ち替えてください。
+ *
+ * ★**呼ぶ側で `{ teamId, currentYear }` を手書きしないこと。** 手書きすると
+ *   `retiringIds` と `saleAnsweredIds` が落ちます。実際に2か所で落ちていて、
+ *   **引退を申し出た選手が移籍市場の一覧とトレードの候補に並んで**いました。
+ *   しかもボタン側（`utils/bidGate`）は正しく `eligibilityCtx` を通すので、
+ *   **一覧には出るのに押すと「引退を申し出ている選手」で弾かれる**状態でした。
+ */
+export function ctxForTeam(base: EligibilityCtx, teamId: string): EligibilityCtx {
+  return base.teamId === teamId ? base : { ...base, teamId }
+}
+
 /** 今季加入した選手か。1シーズンに何度も移籍させないための判定 */
 export function isNewJoin(p: Player, currentYear?: number): boolean {
   return (currentYear ?? 0) > 0 && p.joinedYear === currentYear

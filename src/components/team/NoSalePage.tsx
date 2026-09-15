@@ -1,3 +1,4 @@
+import { squadPlayersOf } from '../../utils/rosterSync'
 import { useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
@@ -20,8 +21,11 @@ export default function NoSalePage() {
   const { players, playerTeamId, toggleNoSale, toggleLoanListed, allowPlayerTransfer, cancelSellListing } = useGameStore()
   const [sheetPlayerId, setSheetPlayerId] = useState<string | null>(null)
 
-  const myPlayers = players
-    .filter(p => p.teamId === playerTeamId && p.status === 'active' && !p.loan)
+  // ★**名簿は `utils/rosterSync` の `squadPlayersOf` 1本**（引退していない人は全員・
+  //   貸し借り中は除く）。以前は `status === 'active'` の手書きで、**怪我をした瞬間に
+  //   その選手がこの画面から消えて非売に設定できず、怪我中に引き抜かれて**いました。
+  //   `ChatPage` に同じ不具合を直した跡がコメントで残っています
+  const myPlayers = squadPlayersOf(players, playerTeamId)
     .sort((a, b) =>
       ((b.noSale || b.loanListed || b.transferListed) ? 1 : 0) - ((a.noSale || a.loanListed || a.transferListed) ? 1 : 0)
       || ovr(b) - ovr(a))

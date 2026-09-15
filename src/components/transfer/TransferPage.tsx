@@ -18,7 +18,7 @@ import ActionSheet from '../ui/ActionSheet'
 import BidSheet from './BidSheet'
 import LoanSheet from './LoanSheet'
 import { getMarketFilters, saveMarketFilters } from '../../utils/marketFilters'
-import { canBePoached } from '../../utils/transferEligibility'
+import { canBePoached, ctxForTeam, eligibilityCtx } from '../../utils/transferEligibility'
 // 入札・レンタルを出せるか（store が受け付けるかと同じ1本）
 import { bidBlockReason, loanBlockReason } from '../../utils/bidGate'
 import { useOfferResults } from './useOfferResults'
@@ -291,9 +291,14 @@ export default function TransferPage() {
         // ここに判定が無く、レンタルで貸している自分の選手や、よそが借りている選手まで
         // 「所属＝貸出先クラブ」の顔で並んでいて、そのまま買えてしまっていた。
         // FA（teamId が空）は保有クラブが無いので判定の対象外
+        // 判定に渡す材料はシーズンから1本で作る（`eligibilityCtx`）。選手ごとに
+        // 所属クラブが変わるので、見るクラブだけ `ctxForTeam` で持ち替える。
+        // ★以前は `{ teamId, currentYear }` を手書きしていて `retiringIds` が落ち、
+        //   **引退を申し出た選手が一覧に並ぶのに、押すとボタンに弾かれ**ていた
+        const marketCtx = eligibilityCtx(currentSeason, playerTeamId)
         const marketPlayers = players
           .filter(p => p.teamId !== playerTeamId && p.status === 'active')
-          .filter(p => p.teamId === '' || canBePoached(p, { teamId: p.teamId, currentYear: currentSeason.year }))
+          .filter(p => p.teamId === '' || canBePoached(p, ctxForTeam(marketCtx, p.teamId)))
           .filter(p => f.search === '' || p.name.includes(f.search))
           .filter(p => f.spec === 'all' || p.specialty === f.spec)
           .filter(p => f.nat === 'all' || p.nationality === f.nat)

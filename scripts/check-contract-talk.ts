@@ -224,7 +224,15 @@ console.log('\n[11] チャットの用件が二重に出ない')
       .every(k => chat.includes(k) || chatLines.includes(k) || chatTalk.includes(k)))
   check('退団予定の選手には用件を出さない分岐がフリー接触より前にある',
     chat.indexOf('if (player.transferListed) return [') < chat.indexOf('if (freeContactOffer) {'))
-  check('チャット一覧がケガ人も対象にしている', chat.includes("p.status === 'active' || p.status === 'injured'"))
+  // ★**字面ではなく「1本を通っているか」を見る**（2026-09-15）。以前は
+  //   `p.status === 'active' || p.status === 'injured'` という**その日の書き方**を
+  //   そのまま探していたので、同じ意味の `belongsToClub`（所属の唯一の定義・
+  //   引退していない人は全員）へ寄せただけで落ちました。見たいのは
+  //   「ケガ人が落ちないこと」であって、書き方ではありません。
+  check('チャット一覧は所属の判定1本（belongsToClub）を通っている',
+    chat.includes('belongsToClub(p, playerTeamId)'))
+  check('ケガ人を落とす書き方（=== active だけ）に戻っていない',
+    !/myPlayers = players\.filter\([^\n]*status === 'active'/.test(chat))
   // 更新ロック中の選手にも「契約条件を提示する」が出ていて、押しても札が作られず
   // 何も起きないボタンになっていた。出していいかは canOfferRenewal 1本で見る
   check('GMから持ちかけるボタンが canOfferRenewal で止まる', chat.includes('if (!canOfferRenewal(player, talkCtx)) return ['))

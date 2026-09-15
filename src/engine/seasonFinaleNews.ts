@@ -38,7 +38,10 @@ export function buildSeasonFinaleNews(params: {
     //   IDで絞っていたので、**海外の選手の引退は一度もニュースにならなかった**。
     //   出す数は下で絞る（自チームは全員・他クラブは OVR72以上を6人まで）ので、
     //   ここで国で絞る理由は無い
-    const retiring = players.filter(p => p.status === 'active' && p.teamId && isRetiringAge(p, 1))
+    // ★**`p.teamId &&` を戻さないこと**（2026-09-15）。FA（`teamId` が空）を落とすと、
+    //   契約満了で無所属になったベテランが**表明のニュース無しに翌開幕で消えます**。
+    //   実際に引退させる `engine/retirement` は所属を見ないので、母集団を揃える
+    const retiring = players.filter(p => p.status === 'active' && isRetiringAge(p, 1))
     const mineRet = retiring.filter(p => p.teamId === playerTeamId)
     const othersRet = retiring.filter(p => p.teamId !== playerTeamId && ovr(p) >= 72).sort(comparePlayers('ovr')).slice(0, 6)
     for (const p of [...mineRet, ...othersRet]) {

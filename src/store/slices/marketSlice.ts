@@ -25,7 +25,7 @@ import { foreignSignedHeadline, joinedHeadline, loanInOutHeadline, renewalHeadli
 import { type OfferOutcome } from '../../utils/offerResult'
 import { playRateOf, prevSeasonOf } from '../../utils/playRate'
 import { acquisitionDesiredSalary, calcTransferValue, faMarketSalary, freeContactConsent, keyPlayerStatus, newContractYears, ovr, perfOf, playerConsentToMove, racesConsumed, salaryAppealBonus, seasonPerfProfile } from '../../utils/playerUtils'
-import { belongsToClub, squadIdsOf } from '../../utils/rosterSync'
+import { belongsToClub, squadIdsOf, loanedInCount } from '../../utils/rosterSync'
 import { withSaleAnswer } from '../../utils/saleAnswer'
 import { STALE_TRADE_MSG } from '../../utils/talkSync'
 import { TRADE_HARD_NO_RATIO, TRADE_MIN_RATIO, TRADE_OK_RATIO, priceOf, tradeBalance, tradeNotLopsided, tradeValues } from '../../utils/tradeValue'
@@ -1071,8 +1071,9 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     const player = st.players.find(p => p.id === playerId)
     if (!player || player.teamId === '' || player.teamId === st.playerTeamId || player.loan) return false
     // レンタル枠 最大3（借りている選手＝loan.ownerTeamId が自分でない）
-    const usedSlots = st.players.filter(p => p.teamId === st.playerTeamId && p.loan && p.loan.ownerTeamId !== st.playerTeamId).length
-    if (usedSlots >= 3) return false
+    // 枠の数は `LOAN_SLOTS` 1本、数え方は `loanedInCount` 1本（`3` を直書きしない）
+    const usedSlots = loanedInCount(st.players, st.playerTeamId)
+    if (usedSlots >= LOAN_SLOTS) return false
     // ロスター上限チェック。借入も1人ぶん枠を食う。以前は判定が無く、上限を超えたうえに
     // レンタル選手は解雇できないため人数を戻せない詰み状態になっていた。
     const myRosterNow = teamRosterSize(st.players, st.playerTeamId)

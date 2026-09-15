@@ -91,6 +91,26 @@ export function isSquadMember(p: Player, teamId: string): boolean {
   return belongsToClub(p, teamId) && !p.loan
 }
 
+/**
+ * **そのクラブが「借りている」選手か。レンタルの向きを見るのはここ1本。**
+ *
+ * `p.loan` が立っているだけでは貸し借りのどちら側か分かりません。保有元
+ * （`loan.ownerTeamId`）がそのクラブ**でない**ときだけ「借りている」です。
+ *
+ * ★以前は `p.loan && p.loan.ownerTeamId !== <自分>` が4か所に手書きされていて、
+ *   基準クラブの書き方も `playerTeamId` と `x.teamId` に割れていました。
+ */
+export function isLoanedIn(p: Player, clubId: string): boolean {
+  return belongsToClub(p, clubId) && !!p.loan && p.loan.ownerTeamId !== clubId
+}
+
+/** そのクラブが借りている人数（レンタル枠の判定はこれと `bidGate` の `LOAN_SLOTS`） */
+export function loanedInCount(players: readonly Player[], clubId: string): number {
+  let n = 0
+  for (const p of players) if (isLoanedIn(p, clubId)) n++
+  return n
+}
+
 export function squadPlayersOf(players: Player[], teamId: string): Player[] {
   return players.filter(p => isSquadMember(p, teamId))
 }
