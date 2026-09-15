@@ -41,7 +41,14 @@ export type PreSeasonState = {
   rosterCount: number
 }
 
-/** 人数が足りているか。線は `data/rosterRules` の `ROSTER_MIN` 1本 */
+/**
+ * 人数が足りているか。線は `data/rosterRules` の `ROSTER_MIN` 1本。
+ *
+ * ★**これは開幕を止めません**（2026-09-15 に止めるのをやめました）。
+ *   足りないときは `startRegularSeason` が足りないぶんだけ足して開幕します
+ *   （オーナー「足りないならシーズン開始に勝手足りない分弱いの足せば？」）。
+ *   残してあるのは**画面の見出しに出すため**だけです。
+ */
 export function rosterShortFor(rosterCount: number): boolean {
   return rosterCount < ROSTER_MIN
 }
@@ -49,12 +56,13 @@ export function rosterShortFor(rosterCount: number): boolean {
 /**
  * 開幕を止めている用件。**空なら開幕してよい。**
  * 画面はこの文言をそのまま出すこと（「なぜ押せないか」を必ず見せるため）。
+ *
+ * ★**人数はここに入れないこと**（2026-09-15）。入れると、下限を割った人は
+ *   ボタンが押せない＝`startRegularSeason` の救済に**一生たどり着けません**。
+ *   止める側と足す側の両方を置くと、足す側が死にます。
  */
 export function seasonStartBlockers(s: PreSeasonState): string[] {
   const out: string[] = []
-  if (rosterShortFor(s.rosterCount)) {
-    out.push(`ロスターが下限（${ROSTER_MIN}人）未満です（現在${s.rosterCount}人）。ドラフト・移籍で人数を確保してください`)
-  }
   if (!s.draftDone) out.push('ドラフトがまだです。ドラフトは1年に1度きりで、開幕すると今年は開けません')
   if (!s.campDone) out.push('プレシーズンのカードを受け取っていません')
   return out

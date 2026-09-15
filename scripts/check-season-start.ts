@@ -38,15 +38,20 @@ console.log('[1] プレシーズンに並べた用件が全部そろうまで開
   check('全部そろっていれば開幕できる', canStartSeason(ok))
   check('ドラフトが残っていたら開幕できない', !canStartSeason({ ...ok, draftDone: false }))
   check('カードを受け取っていなければ開幕できない', !canStartSeason({ ...ok, campDone: false }))
-  check(`人数が下限（${ROSTER_MIN}人）未満なら開幕できない`, !canStartSeason({ ...ok, rosterCount: ROSTER_MIN - 1 }))
-  check(`下限ちょうどは開幕できる`, canStartSeason({ ...ok, rosterCount: ROSTER_MIN }))
-  check('全部だめなら理由も3つ出る',
-    seasonStartBlockers({ campDone: false, draftDone: false, rosterCount: 3 }).length === 3)
+  // ★人数はもう開幕を止めません（2026-09-15）。止めると、下限を割った人は
+  //   ボタンが押せない＝`startRegularSeason` の救済に**一生たどり着けません**。
+  //   足りないぶんは開幕の直前に足します（`check-roster-fill` の⑤が実際に通す）。
+  check(`人数が下限（${ROSTER_MIN}人）未満でも開幕できる（救済が働く）`,
+    canStartSeason({ ...ok, rosterCount: ROSTER_MIN - 1 }))
+  check(`下限ちょうどでも開幕できる`, canStartSeason({ ...ok, rosterCount: ROSTER_MIN }))
+  check('全部だめなら理由が2つ出る（カード・ドラフト。人数は止めない）',
+    seasonStartBlockers({ campDone: false, draftDone: false, rosterCount: 3 }).length === 2)
   check('開幕できるときは理由が0件', seasonStartBlockers(ok).length === 0)
   // 理由は必ず文章で出す（押せないのに何も出ないのが一番まずい）
   check('止めるときは必ず理由の文がある',
     seasonStartBlockers({ ...ok, draftDone: false }).every(b => b.length > 0))
   check('人数の線は rosterShortFor 1本', rosterShortFor(ROSTER_MIN - 1) && !rosterShortFor(ROSTER_MIN))
+  check('人数を止める側へ戻していない', !seasonStartBlockers({ ...ok, rosterCount: 1 }).some(b => b.includes('ロスター')))
 }
 
 console.log('\n[2] 画面が実際にその判定を通している')
@@ -76,4 +81,4 @@ console.log('\n[2] 画面が実際にその判定を通している')
 
 console.log('')
 if (failed > 0) { console.log(`✗ 準備が残っていても開幕できてしまいます（${failed}件）`); process.exit(1) }
-console.log('✓ カード・ドラフト・人数が全部そろうまで開幕できない。理由も画面に出る')
+console.log('✓ カードとドラフトが済むまで開幕できない。理由も画面に出る（人数は救済が働くので止めない）')

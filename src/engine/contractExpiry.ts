@@ -9,8 +9,14 @@
 //   - **レンタル中の選手は契約満了の対象にしない。** 満了は返却後に保有元で改めて処理する。
 //     ここで拾うと「残り1年の選手を2年レンタル」したときに1年目の終わりで FA 化し、
 //     借り手からも保有元からも消える（2年契約が1年で消える）
-//   - **対象は国内クラブ所属だけ。** 海外の名簿は海外リーグ側の年度更新で管理しているので、
-//     ここで海外の選手を FA にすると、クラブには残ったまま teamId だけ空になり「未所属」表示になる
+//   - **国内も海外も同じに扱う**（2026-09-15）。★以前は「対象は国内クラブ所属だけ」でした。
+//     理由は「海外の名簿は海外リーグ側が持っているので、ここで FA にするとクラブには
+//     残ったまま teamId だけ空になる」でしたが、**その前提はもうありません**——
+//     所属は `player.teamId` 1本で、クラブ側は名簿を持ちません（`types/index.ts` の
+//     `ForeignClub`）。前提が消えたあとも除外だけが残っていて、**海外180クラブの
+//     契約が一生切れませんでした**。実測（世界を4年）で海外5,035人のうち2,920人＝58%が
+//     「残り0年だが誰も出ていかない」状態。出口が無いので海外の名簿は膨らむ一方で、
+//     移籍金の契約年数の係数も全員が最低値に張り付いていました。
 //   - **契約満了は自チームもCPUと同じく自動FA。** 旧実装は自チームだけ「判断待ちキュー」に
 //     積んでいたが、その判断UIが存在せず契約切れのまま残り続けるバグだった。
 //     シーズン中に半年切り通知・チャット催促・終了カードの警告が出ていて、
@@ -20,7 +26,8 @@
 //     （`currentSeason.stayOrLeave`）。選ぶまではロスターに残る＝既定は残留。
 //     ここは「その候補を集めて返す」だけ
 //   - 名簿はクラブ側に持たない（在籍は `player.teamId` 1本）ので、触るのは選手だけ
-import { domesticTeamIdSet } from '../utils/clubs'
+import { allForeignClubs, domesticTeamIdSet } from '../utils/clubs'
+import type { ForeignLeague } from '../types'
 import { movePlayer } from '../utils/movePlayer'
 import type { Player, Team } from '../types'
 
@@ -37,16 +44,21 @@ export function processContractExpiry(args: {
   /** 成長処理まで終わった全選手 */
   grownPlayers: Player[]
   teams: Team[]
+  /** 海外リーグ。**渡すこと**——渡さないと海外の契約が切れず、名簿が膨らみ続ける */
+  foreignLeagues?: ForeignLeague[] | null
   playerTeamId: string
   /** 今季の年 */
   year: number
 }): ContractExpiryResult {
-  const { grownPlayers, teams, playerTeamId, year } = args
+  const { grownPlayers, teams, foreignLeagues, playerTeamId, year } = args
 
-  const domesticIdsFA = domesticTeamIdSet(teams)
+  // **国内52＋海外180を同じ1つの集合**にする。どちらのクラブに居ても契約は同じに切れる。
+  // 集合で見るのは、消えたクラブのIDが選手に残っていたときに「クラブ所属」と誤らないため
+  const clubIdsFA = domesticTeamIdSet(teams)
+  for (const c of allForeignClubs(foreignLeagues)) clubIdsFA.add(c.id)
   const expiredIds = new Set(
     grownPlayers
-      .filter(p => p.contract.yearsLeft === 0 && !p.loan && p.teamId && domesticIdsFA.has(p.teamId) && p.status === 'active')
+      .filter(p => p.contract.yearsLeft === 0 && !p.loan && p.teamId && clubIdsFA.has(p.teamId) && p.status === 'active')
       .map(p => p.id)
   )
 

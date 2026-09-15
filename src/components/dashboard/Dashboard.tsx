@@ -16,7 +16,7 @@ import { clubSeasonRank } from '../../utils/clubStanding'
 import type { Race } from '../../types'
 import { getDueIndividualEvent } from '../../utils/eventTime'
 import { hostForYear } from '../../engine/worldAthletics'
-import { canStartSeason, rosterShortFor } from '../../utils/seasonStart'
+import { canStartSeason } from '../../utils/seasonStart'
 // ホームの「チャット」に出す未読の数。数え方は notifItems 1本（ここで数えない）
 import { chatUnseenCount } from '../../utils/notifItems'
 // 赤い丸は ui/CountBadge 1本（ベル・下タブと同じもの）
@@ -82,7 +82,6 @@ function PreseasonHub({
   //   （オーナー・2026-08-14「予定表見て戻ったらドラフト自体がスキップされた」
   //   「スキップを可能にしたことは今までで一度もないが？」）
   const preSeason   = { campDone, draftDone, rosterCount }
-  const rosterShort = rosterShortFor(rosterCount)
   // **並べた用件が全部そろうまで開幕できない。** 押せる＝すべて済み、の1つだけ
   const allReady    = canStartSeason(preSeason)
 
@@ -207,7 +206,7 @@ function PreseasonHub({
         }}
       >
         <span style={{ fontSize: F.title, fontWeight: 900, letterSpacing: '3px' }}>
-          {year}シーズン {allReady ? '開幕！' : rosterShort ? '開幕（補強が必要）' : '開幕（準備が残っています）'}
+          {year}シーズン {allReady ? '開幕！' : '開幕（準備が残っています）'}
         </span>
       </button>
 

@@ -169,18 +169,29 @@ function applyGmMove(state: GameStore, offer: GmOffer, inviteId?: string): Parti
 export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
   startRegularSeason: () => set(state => {
-    // ロスター下限ガード：15人未満では開幕できない（UI側でもブロックするが、最終防衛線としてここでも弾く）
-    const myCount = state.players.filter(p => p.teamId === state.playerTeamId && p.status !== 'retired').length
-    if (myCount < 15) return state
+    // ★**在籍が下限を割っていたら、ここで足りないぶんだけ足して開幕する**
+    //   （オーナー・2026-09-15「足りないならシーズン開始に勝手足りない分弱いの足せば？」）。
+    //
+    //   以前は `endSeason` の中で足していましたが、渡していたのが**契約満了と引退を
+    //   適用する前の名簿**だったので、「16人のうち5人が満了」のときに16人あると見て
+    //   1人も足さず、そのあと11人になっていました。**下限を割るいちばん普通の経路が
+    //   契約満了**なので、救済が要る場面でちょうど発火しない形でした。
+    //
+    //   開幕の直前なら、満了も引退もドラフトも全部終わったあとの**確定した人数**を
+    //   見られます。足すのは `fillRosterToMin` 1本（若手の補充と同じ幹）。
+    //   **2か所で足さないこと**——`endSeason` 側には置きません。
+    const myTeam = state.teams.find(t => t.id === state.playerTeamId)
+    const rescued = myTeam ? fillRosterToMin(myTeam, state.currentSeason.year, state.players) : []
+    const players = rescued.length > 0 ? [...state.players, ...rescued] : state.players
     // プレシーズンのドラフト（今季スカウトした代）が終わったので、
     // 今季スカウトする「翌年の代」を新規生成する。前回ドラフト済みの代の残りを置き換える。
     // これで endSeason 側で引き継いだ視察済みプールがドラフトに使われ、シーズン中の視察は常に新しい代になる。
-    const freshScoutPool = generateDraftPool(state.currentSeason.year + 1, new Set(state.players.map(pl => pl.name)))
+    const freshScoutPool = generateDraftPool(state.currentSeason.year + 1, new Set(players.map(pl => pl.name)))
     if ((state.currentSeason.objectives ?? []).length === 0) {
       const firstObjectives = selectSeasonObjectives(!!state.rivalTeamId, myDivSize(state))
-      return { currentSeason: { ...state.currentSeason, phase: 'regular', objectives: firstObjectives, scoutProspects: freshScoutPool } }
+      return { players, currentSeason: { ...state.currentSeason, phase: 'regular', objectives: firstObjectives, scoutProspects: freshScoutPool } }
     }
-    return { currentSeason: { ...state.currentSeason, phase: 'regular', scoutProspects: freshScoutPool } }
+    return { players, currentSeason: { ...state.currentSeason, phase: 'regular', scoutProspects: freshScoutPool } }
   }),
 
 
@@ -331,7 +342,8 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
 
       // 契約満了 → FA、レンタル満了 → 保有元へ返却。engine/contractExpiry 1本
       const expiry = processContractExpiry({
-        grownPlayers, teams: state.teams, playerTeamId: state.playerTeamId, year: state.currentSeason.year })
+        grownPlayers, teams: state.teams, foreignLeagues: state.foreignLeagues,
+        playerTeamId: state.playerTeamId, year: state.currentSeason.year })
       const expiredIds = expiry.expiredIds
       const playersAfterFA = expiry.players
       // 行き先が決まらなかった退団予定の選手（新シーズンの stayOrLeave に積む）
@@ -361,17 +373,6 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       //   **ドラフト（1部20クラブだけ）しか口が無く**、6年で国内の在籍が
       //   1300→729人まで痩せて FA も尽きていた。1部はドラフトで獲るので入れない。
       const domesticYouth = refreshDomesticYouth(state.teams, state.currentSeason.year + 1, grownPlayers)
-
-      // ★**自チームが下限（15人）を割ったら、足りないぶんだけ弱い選手を入れて15人にする**
-      //   （オーナー・2026-08-23「開幕できないは防ぎたいから…60くらいの弱い選手が
-      //     足りない分追加されて15人になるのは？」）。
-      //   下限を割ると開幕が止まるのに、そこから抜ける道が画面に無く、
-      //   ドラフトで獲れるのは1部だけ・FAが尽きると詰む形だった。
-      //   中身は engine/playerGenerator の fillRosterToMin 1本（若手の補充と同じ幹）。
-      const myTeamForFill = state.teams.find(t => t.id === state.playerTeamId)
-      const rosterFill = myTeamForFill
-        ? fillRosterToMin(myTeamForFill, state.currentSeason.year + 1, [...grownPlayers, ...domesticYouth])
-        : []
 
       // Morale streak system: apply morale bonus/penalty to player team based on season finish
       const myFinalRank = rankOfTeam(seasonDivisionStandings(state.currentSeason, state.playerTeamId), state.playerTeamId)
@@ -609,7 +610,10 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         // （入れ方を2本に増やさない）
         refreshedLeagues: foreignRefresh.updatedLeagues,
         // ★入れ口は1本（CLAUDE.md「2本目の入口を作らないこと」）。自チームの救済ぶんもここへ混ぜる
-        newForeignPlayers: [...foreignRefresh.newPlayers, ...domesticYouth, ...rosterFill],
+        // ★自チームの下限の救済はここではなく `startRegularSeason`（開幕の直前）。
+        //   ここで足すと、契約満了と引退を当てる**前**の人数を見ることになり、
+        //   いちばん普通の経路（満了で割る）でちょうど発火しない
+        newForeignPlayers: [...foreignRefresh.newPlayers, ...domesticYouth],
         removedForeignPlayerIds, teams: teamsWithCleanedPicks,
         playerTeamId: state.playerTeamId, newYear })
       // ★移籍はここでは起きません（`engine/transferMarket.ts` の1本を `beginSeasonDraft` で回す）。

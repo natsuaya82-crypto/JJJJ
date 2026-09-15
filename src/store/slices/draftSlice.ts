@@ -130,6 +130,24 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     const team = state.teams.find(t => t.id === teamId)
     if (!team) return
 
+    // ★**在籍上限に届いているクラブは指名を見送る**（2026-09-15）。
+    //   上限の数え方は `rosterRules` の `rosterCapOf` 1本（他所で 30 と書かないこと）。
+    //
+    //   ここには上限の確かめが**1つもありませんでした**。枠は「ドラフトで入る人数ぶんを
+    //   先に差し引いておく」（`rosterCapFor` ＝ 30 − 保有指名権数）で空けているつもりでしたが、
+    //   それは**市場が買うのを止めるだけ**で、すでに 30 − 指名権数 を超えているクラブを
+    //   減らしはしません。指名権はトレードで集められるので、28人のクラブが4枚持っていると
+    //   そのまま32人になります。実測（世界を10年）で上限超えが0 → 20クラブ、最多37人。
+    //
+    //   見送ったぶんは**プールに残って次のクラブへ回り**、最後まで残れば `advanceDraft` が
+    //   FAへ流します（「指名漏れはFAへ」と同じ道）。指名の順番だけ進めること——
+    //   進めないと会場が止まります。
+    if (teamRosterSize(state.players, teamId) >= rosterCapOf(0)) {
+      const skipped = currentPick + 1
+      set({ draftState: { ...draftState, currentPick: skipped, isComplete: skipped >= pickOrder.length } })
+      return
+    }
+
     // 外国人枠は廃止したので国籍による指名制限は無い（誰でも指名できる）
     const scored = pool.map(p => {
       return { p, score: ovr(p) * (0.97 + Math.random() * 0.06) }
