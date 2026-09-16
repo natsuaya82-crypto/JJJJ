@@ -15,7 +15,8 @@ import { allForeignClubs, bigClub, findClub, leagueOfClub } from '../utils/clubs
 import { movePlayer } from '../utils/movePlayer'
 import { settleForeignFee } from '../utils/clubMoney'
 import { clubLabel, overseasMoveHeadline, soldPlayerHeadline } from '../utils/newsItems'
-import { calcTransferValue, ovr } from '../utils/playerUtils'
+import { marketValueOf, ovr } from '../utils/playerUtils'
+import { type PlayRateWorld } from '../utils/playRate'
 import { type TradeValueCtx } from '../utils/tradeValue'
 
 // 指名権のバックフィル判定。「自分が今持っているか」ではなく「どこかのチームが保有しているか」で見る。
@@ -24,8 +25,6 @@ export function tradeValueCtxOf(state: { currentSeason: GameState['currentSeason
   return {
     races: state.currentSeason.races,
     teamRaces: state.currentSeason.currentRaceIndex,
-    currentSeason: state.currentSeason,
-    pastSeasons: state.pastSeasons,
     // 出す側での序列（＝余剰か）を数えるために要る。渡さないと全員が主力扱いになり、
     // 現金の移籍と値段が食い違う
     players: state.players }
@@ -54,11 +53,12 @@ export function tradeValueCtxOf(state: { currentSeason: GameState['currentSeason
  *   クラブは `utils/clubs` の `findClub` 1本で引く（国内・海外を区別しない引き方）。
  */
 export function willingFeeFor(
-  state: { teams: Team[]; foreignLeagues?: import('../types').ForeignLeague[] | null },
+  state: PlayRateWorld & { teams: Team[]; foreignLeagues?: import('../types').ForeignLeague[] | null },
   offer: { fromTeamId: string; offeredPrice: number; fromForeign?: boolean },
   player: Player,
 ): number {
-  const ceil = counterCeiling(calcTransferValue(player), offer.offeredPrice)
+  // 市場価値は `playerUtils.marketValueOf` 1本（出品の希望額・入札の受諾ライン・画面と同じ材料）
+  const ceil = counterCeiling(marketValueOf(player, state), offer.offeredPrice)
   // クラブは国内52＋海外180から引く（どちらも `finance.budget` を持つ）。
   // 上限の式は `transferCapOf`（手元の資金）1本＝他所とまったく同じ
   const club = state.teams.find(t => t.id === offer.fromTeamId)

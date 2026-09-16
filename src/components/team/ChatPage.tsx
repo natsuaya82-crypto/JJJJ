@@ -6,7 +6,7 @@ import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import PlayerFace from '../player/PlayerFace'
-import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, calcTransferValue, racesConsumed } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, racesConsumed } from '../../utils/playerUtils'
 import { useOfferResults } from '../transfer/useOfferResults'
 import { OfferResultList } from '../transfer/OfferResultList'
 import { chatTopicIds, offersByPlayer, offersAwaitingReply, asCardCount, expiredNegText } from '../../utils/notifItems'
@@ -77,7 +77,7 @@ export default function ChatPage() {
   const [searchParams] = useSearchParams()
   // 買い取り・レンタルの打診への返事は ChatView（会話）が持つ。一覧はタップして開くだけ
   const { players, playerTeamId, currentSeason, teams, generateContractRequests,
-    openPlayerSheet, setChatLog, markChatSeen } = useGameStore()
+    openPlayerSheet, setChatLog, markChatSeen, marketValueOf } = useGameStore()
   const clubIndex = useClubIndex()
   // 選手カードの長押しで選手詳細(PlayerSheet)を開く共通ハンドラ。顔タップは各カード側で個別に処理。
   const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -339,7 +339,7 @@ export default function ChatPage() {
                 ) : <span style={{ fontSize: F.caption, color: C.green, fontWeight: 700 }}>未所属</span>
               })()}
               <span style={{ fontSize: F.label, color: C.textDim }}>
-                {offer.source === 'fa' ? `市場年俸 ${fmtYen(faMarketSalary(player))}` : `市場価値 ${fmtYen(calcTransferValue(player))}`}
+                {offer.source === 'fa' ? `市場年俸 ${fmtYen(faMarketSalary(player))}` : `市場価値 ${fmtYen(marketValueOf(player))}`}
               </span>
             </div>
           </div>

@@ -16,10 +16,11 @@
 import type { OverseasRegion, Player, Race, Season, SeasonStanding } from '../types'
 import { DIVISION_SIZE, rankOfTeam } from '../utils/league'
 import type { Division } from '../types'
-import { faMarketSalary, ovr, seasonAppearances, seasonPerfProfile } from '../utils/playerUtils'
+import { faMarketSalary, ovr, seasonPerfProfile } from '../utils/playerUtils'
+import { seasonAppearances } from '../utils/playRate'
 import { openWishIds } from '../utils/talkSync'
 import { canWishTransfer } from '../utils/transferEligibility'
-import { dreamRegionOf } from '../utils/transferDecision'
+import { APPEARANCE_FLOOR, dreamRegionOf } from '../utils/transferDecision'
 import { MORALE_DEFAULT } from '../utils/condition'
 
 export function generatePlayerWishes(params: {
@@ -62,7 +63,9 @@ export function generatePlayerWishes(params: {
       const frac = apps / (raceIndex + 1)
       let score = 0
       let reason: 'playing_time' | 'team_performance' | 'unhappy' = 'unhappy'
-      if (frac < 0.3) { score = (0.3 - frac) * 40; reason = 'playing_time' }
+      // 「走れているか」の線は `transferDecision` の `APPEARANCE_FLOOR` 1本
+      //   （不満の強さは線からの距離。線そのものをここで決めない）
+      if (frac < APPEARANCE_FLOOR) { score = (APPEARANCE_FLOOR - frac) * 40; reason = 'playing_time' }
       // 役割ミスマッチ：任命した役割が期待する出場ラインを下回ると不満（エース/主力ほど強い）
       const roleExpect = p.teamRole === 'ace' ? 0.7 : p.teamRole === 'key_player' ? 0.5 : p.teamRole === 'sub_ace' ? 0.35 : 0
       if (roleExpect > 0 && frac < roleExpect) {

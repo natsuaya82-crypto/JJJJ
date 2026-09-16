@@ -2,12 +2,13 @@ import type { Player, Specialty, Ratings, CardStatKey, Nationality } from '../ty
 import { calcBaseAbility, calcAffinity, calcConditionModifier, safeRatings } from '../engine/raceEngine'
 import { peakAgeOfCurve } from '../engine/ageCurve'
 import { type ClubTier } from './clubTier'
-import { appraiseMove, CONSENT_LINE, moveDeclineText, type Destination } from './transferDecision'
+import { appraiseMove, CONSENT_LINE, moveDeclineText, playingStatus, PLAY_SAMPLE_RACES, type Destination } from './transferDecision'
 import { strHash } from './hash'
 import { POACH_PREMIUM, roundSalary } from '../data/economy'
 import { type Race } from '../types'
 import { MORALE_DEFAULT } from './condition'
 import { lerpAnchors } from './anchors'
+import { clubSeasonRaces, playRateOf, prevSeasonOf, type PlayRateWorld } from './playRate'
 
 /**
  * 記録や結果に「焼き込まれた名前」ではなく、いまの名前を返す。
@@ -358,83 +359,6 @@ export function acquisitionDesiredSalary(player: Player, source: 'fa' | 'scout',
   return roundSalary(desired)
 }
 
-// 選手がそのシーズンに何レース出場したか（データ判定用）
-export type RaceLike = { results?: { segmentResults: { runners: { playerId: string }[] }[] } }
-export function seasonAppearances(playerId: string, races: readonly RaceLike[]): number {
-  let c = 0
-  for (const r of races) {
-    if (r.results?.segmentResults.some(s => s.runners.some(rn => rn.playerId === playerId))) c++
-  }
-  return c
-}
-
-// 主力かどうかを「データ」で判定（年俸ではなく、よく出場しているか）。
-// playFraction=そのチームの消化レースに対する出場割合(0..1), teamRaces=消化レース数。
-export function isDataKeyPlayer(_p: Player, playFraction: number, teamRaces: number): boolean {
-  // 主力かどうかは「出場数」だけで判断する。
-  // ・OVRの高さでは判断しない（高OVRでもあまり出ていないなら主力ではない＝普通に引き抜ける）
-  // ・1軍/2軍の区分は廃止済み（ロスターはフラット）なので在籍区分では判断しない
-  // 3戦以降で出場割合5.5割以上を主力とみなす（序盤は出場データが無いので主力扱いしない）。
-  return teamRaces >= 3 && playFraction >= 0.55
-}
-
-type SeasonLike = { year: number; races?: readonly RaceLike[]; eclSeries?: { races?: readonly RaceLike[] } }
-
-// 引き抜き耐性ステータス（複数年の本編駅伝 出場データ＋ECL経験で判定）。
-//   'locked' = 完全に取れない（1年未満で本編3戦以下＝新人・データ不足を保護。いくら積んでも不可）
-//   'key'    = 主力（引き抜きに割増1.8倍が必要／レンタル・トレードでも保護）
-//   'open'   = 普通に動かせる
-// P = その選手が本編に1度でも出場した過去シーズン数。
-//   P>=3 : 直近3年の本編出場率 >= 60%
-//   P=1〜2: 直近1年の出場率     >= 70%
-//   P=0  : 在籍1年以上で本編出場ゼロ（リザーブのみ／出番なし）は主力外＝ open で動かしやすくする。
-//          ドラフト当年の新人だけ、今季3戦以下の間は locked（データ不足で保護）。
-//          4戦目以降は「直近3戦で2回以上出場」で主力。
-//   ECL出場経験あり → 率の閾値を-0.10緩和 / P=0の必要回数を2→1に緩和。
-// ・契約残1年以下 or 士気45未満は保護しない（不満・満了間近は普通に動く）。
-export function keyPlayerStatus(player: Player, currentSeason: SeasonLike, pastSeasons: readonly SeasonLike[]): 'locked' | 'key' | 'open' {
-  if (player.contract.yearsLeft <= 1 || (player.morale ?? MORALE_DEFAULT) < 45) return 'open'
-
-  // ECL出場経験（過去＋今季）→ 閾値を10%緩和
-  const eclRaces: RaceLike[] = [
-    ...pastSeasons.flatMap(s => [...(s.eclSeries?.races ?? [])]),
-    ...(currentSeason.eclSeries?.races ?? []),
-  ]
-  const relief = seasonAppearances(player.id, eclRaces) > 0 ? 0.10 : 0
-
-  // その選手が本編に1度でも出た過去シーズン（新しい順）
-  const activePast = pastSeasons
-    .filter(s => (s.races?.length ?? 0) > 0 && seasonAppearances(player.id, s.races ?? []) > 0)
-    .slice()
-    .sort((a, b) => b.year - a.year)
-  const P = activePast.length
-
-  const rateOver = (seasons: readonly SeasonLike[]) => {
-    let apps = 0, total = 0
-    for (const s of seasons) {
-      apps += seasonAppearances(player.id, s.races ?? [])
-      total += (s.races ?? []).filter(r => r.results).length
-    }
-    return total > 0 ? apps / total : 0
-  }
-
-  if (P >= 3) return rateOver(activePast.slice(0, 3)) >= (0.60 - relief) ? 'key' : 'open'
-  if (P >= 1) return rateOver(activePast.slice(0, 1)) >= (0.70 - relief) ? 'key' : 'open'
-
-  // P === 0：過去シーズンに本編出場が1度もない
-  // 在籍1年以上でこれ＝リザーブ止まり or 出番なし。主力ではないので普通に動かせる（保護しない）。
-  const tenure = currentSeason.year - (player.draftYear ?? currentSeason.year)
-  if (tenure >= 1) return 'open'
-
-  // ここから下はドラフト当年の新人のみ
-  const done = (currentSeason.races ?? []).filter(r => r.results)
-  if (done.length <= 3) return 'locked'   // 本編3戦以下＝データ不足で守る（いくら積んでも取れない）
-  const last3 = done.slice(-3)
-  const recentApps = last3.filter(r => (r.results?.segmentResults.some(sg => sg.runners.some(rn => rn.playerId === player.id))) ?? false).length
-  const need = relief > 0 ? 1 : 2   // ECL経験ありなら1回でも主力
-  return recentApps >= need ? 'key' : 'open'
-}
-
 /**
  * 移籍・トレードで動く選手本人が「移籍先クラブに行くことに納得するか」。
  *
@@ -466,8 +390,13 @@ export function playerConsentToMove(
   playerTier: ClubTier,
 ): { ok: boolean; reason: string } {
   const a = appraiseMove(p, dest, { srcTier, playFraction, teamRaces, bonus: consentBonus, clubBlessed, playerTier })
-  // 「主力だから残りたい」は行き先の情報とは別軸。ここだけ従来どおり残す
-  const key = isDataKeyPlayer(p, playFraction, teamRaces) && !clubBlessed
+  // 「いま走れているから残りたい」は行き先の情報とは別軸。ここだけ従来どおり残す。
+  // ★**走れているかを聞くのは `transferDecision` の `playingStatus` 1本**
+  //   （`appraiseMove` の「干されている」+0.2 とちょうど裏表。線は `APPEARANCE_FLOOR`）。
+  //   以前ここだけ `isDataKeyPlayer`（出走率0.55・3戦から）という**3本目の線**を持っていて、
+  //   出走率0.45の選手は「市場には出ない（0.34）・干されてもいない（0.40）・主力でもない（0.55）」
+  //   と3つの問いの答えが全部違っていました。
+  const key = playingStatus({ fraction: playFraction, teamRaces }) === 'playing' && !clubBlessed
   if (key && a.score - 0.3 < CONSENT_LINE) {
     // 文面は transferDecision の moveDeclineText 1本（ここで書かない）
     return { ok: false, reason: moveDeclineText('key_player', { dream: '' }) }
@@ -663,6 +592,37 @@ export function newContractYears(p: Pick<Player, 'id' | 'age'>, year: number): n
  *   「海外へ出ていくときのほうが安い」という逆の関係になっていたうえ、
  *   海外↔海外に至っては**移籍金そのものが0円**でした。
  */
+/**
+ * **その選手の市場価値（今季の出場込み）。画面も store も、引くのはここ1本。**
+ *
+ * ★**`calcTransferValue(p)` を第2引数なしで呼ばないこと。** 渡さないと
+ *   今季フル出場の選手も1戦も走っていない選手も**同じ額**になります。
+ *   消化レース数は `utils/playRate` の `playRateOf` 1本から引くので、
+ *   他の部の選手も海外の選手も同じ数え方になります。
+ *
+ * ★以前は**画面9か所**が引数なしで呼び、**入札の受諾ライン**（`utils/transferBid`）と
+ *   **出品の希望額**（`listMyPlayerForSale`）も引数なしでした。一方で実際に請求する
+ *   `transferFeeFor` は出場を見るので、**表示・受諾ライン・請求額の3つが別の数**でした。
+ */
+export function marketValueOf(p: Player, w: PlayRateWorld): number {
+  const { teamRaces } = playRateOf(p.id, p.teamId, w.currentSeason, w.teams, w.foreignLeagues,
+    prevSeasonOf(w.pastSeasons, w.currentSeason.year))
+  // ★**分からないうちは出場で値引きしないこと**（`playingStatus` の `'unknown'` と同じ扱い。
+  //   線も同じ `PLAY_SAMPLE_RACES`）。`salaryPerfFactor` は出場0を **0.6倍**と読むので、
+  //   まだ走っていないだけの選手が**4割引**で出品されます——開幕直後は世界中の出品が、
+  //   そして日程を引けないクラブの選手は一年中そうなります（実測：開幕1戦目の出品231件が
+  //   全部 5100万→3000万 のように下がりました）。
+  // ★**数えるのは「そのクラブが走った日程」**（`utils/playRate` の `clubSeasonRaces` 1本）。
+  //   `currentSeason.races` は**自分の部の日程だけ**なので、他の部・海外の選手は
+  //   出場0と数えられ、`salaryPerfFactor` の 0.6倍が丸ごと乗ります
+  //   （実測：最終戦の出品51件が 3900万→2200万 のように下がりました）。
+  const perf = teamRaces >= PLAY_SAMPLE_RACES
+    ? perfOf({ ...w.currentSeason, races: clubSeasonRaces(w.currentSeason, p.teamId, w.teams, w.foreignLeagues) },
+      p.id, teamRaces)
+    : undefined
+  return calcTransferValue(p, perf)
+}
+
 export function transferFeeFor(p: Player, surplus: boolean, perf?: PerfProfile): number {
   const v = calcTransferValue(p, perf)
   return surplus ? v : Math.round(v * POACH_PREMIUM)
@@ -670,13 +630,26 @@ export function transferFeeFor(p: Player, surplus: boolean, perf?: PerfProfile):
 
 export type CareerStage = 'developing' | 'growing' | 'peak' | 'declining'
 
+/**
+ * **ピークの前後どのあたりか（画面に出す札）。**
+ *
+ * ★**ピーク年齢は `peakAgeOf` 1本**（＝`engine/ageCurve` の `PEAK_AGE`）。
+ *   以前ここは `specialty` から作った**2本目のピーク表**（スプリンター22〜27／
+ *   グラインダー26〜31／ほか24〜27）を持っていて、実際の成長も衰えも見ている
+ *   `growthCurve` とは**別の入力**でした。そのため `late_bloomer`（ピーク30）の
+ *   スプリンターが28歳で「下降期」と出るのに、`growPlayer` はまだ伸ばす、という
+ *   **画面と中身が食い違う**状態でした。「下降期か」は `isDeclining` と同じ線です。
+ *
+ * 帯の幅だけがこの札のための数で、ピークそのものはここで決めません。
+ */
+export const CAREER_PEAK_BAND = 2
+
 export function careerStage(p: Player): CareerStage {
-  const peakStart = p.specialty === 'sprinter' ? 22 : p.specialty === 'grinder' ? 26 : 24
-  const peakEnd   = p.specialty === 'grinder' ? 31 : p.specialty === 'long' ? 29 : 27
-  if (p.age < peakStart - 2) return 'developing'
-  if (p.age < peakStart)     return 'growing'
-  if (p.age <= peakEnd)      return 'peak'
-  return 'declining'
+  const peak = peakAgeOf(p)
+  if (p.age > peak) return 'declining'              // isDeclining と同じ線
+  if (p.age >= peak - CAREER_PEAK_BAND) return 'peak'
+  if (p.age >= peak - CAREER_PEAK_BAND - 3) return 'growing'
+  return 'developing'
 }
 
 export const CAREER_STAGE_LABEL: Record<CareerStage, string> = {
@@ -734,8 +707,8 @@ export function ratingColor(v: number, maxed = false): string {
 
 /** その選手の今季の出場実績。海外にいる選手は海外の出場記録から、国内はレース結果から作る。
  *  置き場所が違うだけなので読む側は区別しない（playRate と同じ思想）。gameStore から移設 */
-export function perfOf(season: { races: Race[]; currentRaceIndex?: number; foreignAppearances?: Record<string, { clubId: string; races: number; wins: number; rankSum?: number; rankedRaces?: number }>; foreignRaceIndex?: number }, playerId: string, teamRaces?: number): PerfProfile | undefined {
+export function perfOf(season: { races?: Race[]; currentRaceIndex?: number; foreignAppearances?: Record<string, { clubId: string; races: number; wins: number; rankSum?: number; rankedRaces?: number }>; foreignRaceIndex?: number }, playerId: string, teamRaces?: number): PerfProfile | undefined {
   const fa = season.foreignAppearances?.[playerId]
   if (fa && fa.races > 0) return foreignPerfProfile(fa, season.foreignRaceIndex ?? fa.races)
-  return seasonPerfProfile(playerId, season.races, teamRaces ?? season.currentRaceIndex ?? 0)
+  return seasonPerfProfile(playerId, season.races ?? [], teamRaces ?? season.currentRaceIndex ?? 0)
 }

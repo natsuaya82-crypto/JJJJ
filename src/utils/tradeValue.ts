@@ -35,7 +35,7 @@
 // 新しい条件を足すときは必ずこのファイルに足すこと。
 // 呼び出し側に 0.92 や 1.5 を直接書かないこと（scripts/check-trade-value.ts が検出する）。
 import type { Player } from '../types'
-import { keyPlayerStatus, ovr, seasonPerfProfile, transferFeeFor } from './playerUtils'
+import { ovr, seasonPerfProfile, transferFeeFor } from './playerUtils'
 import { clubIndexOf } from './rosterSync'
 import { isSurplus } from './transferDecision'
 import { squadRankOf } from './squadNeeds'
@@ -70,8 +70,6 @@ export const AI_OFFER_GAIN_MAX = 1.30
 export type TradeValueCtx = {
   races: readonly SegRaceLike[]
   teamRaces: number
-  currentSeason: Parameters<typeof keyPlayerStatus>[1]
-  pastSeasons: Parameters<typeof keyPlayerStatus>[2]
   /**
    * 全選手。**出す側での序列**（＝余剰か）を数えるのに使う。
    * 省略すると「主力」として扱う（割増が掛かる側）。

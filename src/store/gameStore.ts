@@ -193,6 +193,12 @@ export type GameStore = GameState & {
   destinationOf: (clubId: string, player: Player) => Destination
   /** 選手の格（utils/playerTier）。落ちていい幅（選手の格 + TIER_FALL_LIMIT）の関門が見る */
   playerTierOf: (player: Player) => ClubTier
+  /**
+   * **画面に出す「市場価値」。store が実際に請求する額と同じ材料から出す唯一の口。**
+   * 以前は画面が `calcTransferValue(p)` を第2引数なしで呼んでいて（9か所）、
+   * **今季フル出場の選手も1戦も走っていない選手も同じ額**に見えていました。
+   */
+  marketValueOf: (player: Player) => number
   // 行き先が決まらなかった退団予定の選手を、FAで出すか残留させるか
   resolveStayOrLeave: (playerId: string, choice: 'stay' | 'release') => void
   // 同時に来ている打診を本人の希望順に並べる（1位が本命）
@@ -426,7 +432,6 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
       phase: 'draft',
       races: [],
       collegeRaces: [],
-      draftPool: [],
       scoutPoints: 5,
       // 1年目は前シーズンが無いので、自チームの格そのままが初期予算になる
       initialBudget: tierBudget({ id: 'fukuoka' }),

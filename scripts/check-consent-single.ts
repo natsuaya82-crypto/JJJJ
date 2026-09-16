@@ -19,8 +19,8 @@
  *   本物の行き先を渡せば appraiseMove とズレようがない、を確かめる。
  *   （唯一の違いは「主力だから残りたい」の1行。これは行き先とは別軸なので意図的に残してある）
  */
-import { appraiseMove, buildDestination, CONSENT_LINE } from '../src/utils/transferDecision'
-import { playerConsentToMove, isDataKeyPlayer } from '../src/utils/playerUtils'
+import { appraiseMove, buildDestination, CONSENT_LINE, playingStatus } from '../src/utils/transferDecision'
+import { playerConsentToMove } from '../src/utils/playerUtils'
 import { generateCpuRosters } from '../src/engine/playerGenerator'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
@@ -64,7 +64,7 @@ for (const p of players) {
     const shown = playerConsentToMove(p, d, srcTier, 0.5, 0, 0, false, PT(p))
     if (real.ok === shown.ok) { same++; continue }
     // 食い違うのは「主力だから残りたい」で落ちたときだけのはず
-    const key = isDataKeyPlayer(p, 0.5, 0)
+    const key = playingStatus({ fraction: 0.5, teamRaces: 0 }) === 'playing'
     if (real.ok && !shown.ok && key && real.score - 0.3 < CONSENT_LINE) { keyOnly++; continue }
     bad++
     if (badEx.length < 5) badEx.push(`${p.name} → ${dest.shortName}：窓口${shown.ok ? 'OK' : 'NG'} / 本体${real.ok ? 'OK' : 'NG'}`)

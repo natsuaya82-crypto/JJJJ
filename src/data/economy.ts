@@ -111,19 +111,21 @@ export function transferBidBase(marketValue: number, isListed: boolean, isExpiri
   return marketValue * (isListed ? 0.85 : isExpiring ? 0.92 : 1.05)
 }
 
-// 主力(key)を売らせるための割増。**この数字は3箇所に手書きされていた**
-// （自チームへの入札処理2つ＋入札画面の成立確率表示）。画面が「80%で成立」と
-// 出しているのに実際は割増が乗っていて拒否される、という食い違いの原因
-export const BID_KEY_PREMIUM = 1.8
 // 受諾ラインに届かなくても、この割合を超えていれば「もう少し積め」と逆提示する
 export const BID_COUNTER_RATIO = 0.68
 
 /**
  * 入札の受諾ライン（揺れを乗せる前のベース）。
  * 呼び出し側で transferBidBase と割増を組み立て直さないこと
+ *
+ * ★**割増は `POACH_PREMIUM` 1本**（オーナー・2026-09-16「1.4で」）。
+ *   以前はここだけ `BID_KEY_PREMIUM`(1.8) という2つ目の割増を持っていて、
+ *   **同じ「主力を引き剥がす対価」が自チームの入札だけ1.8倍、CPU同士とトレードは
+ *   1.4倍**でした。しかも1.8倍が乗るかどうかを決めていた物差し（複数年の出場率）は
+ *   自分の部しか数えておらず、2部・3部・海外の選手には一度も乗っていませんでした。
  */
 export function bidThreshold(marketValue: number, isExpiring: boolean, isKey: boolean): number {
-  return transferBidBase(marketValue, false, isExpiring) * (isKey ? BID_KEY_PREMIUM : 1)
+  return transferBidBase(marketValue, false, isExpiring) * (isKey ? POACH_PREMIUM : 1)
 }
 
 // 相手の逆提示に応じる上限。「市場価値の1.15倍」か「相手の提示額の1.3倍」の高い方。

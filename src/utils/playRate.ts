@@ -1,6 +1,22 @@
-import type { ForeignLeague, Race, Team } from '../types'
+import type { ForeignLeague, Player, Race, Team } from '../types'
 import { divisionOf, divisionOfRaces } from './league'
-import { seasonAppearances } from './playerUtils'
+
+/**
+ * **「そのレースにその選手が走ったか」を数えるのに要る形だけ。**
+ * 出場を数えるのは出場率の領分なので、型も関数もここに置く
+ * （以前は `utils/playerUtils` にあり、`playRate` → `playerUtils` の import が
+ *   `playerUtils` → `transferDecision` → `playRate` の輪を作っていた）。
+ */
+export type RaceLike = { results?: { segmentResults: { runners: { playerId: string }[] }[] } }
+
+/** その選手がその日程のうち何本に出場したか。**出場を数えるのはこの1本。** */
+export function seasonAppearances(playerId: string, races: readonly RaceLike[]): number {
+  let c = 0
+  for (const r of races) {
+    if (r.results?.segmentResults.some(s => s.runners.some(rn => rn.playerId === playerId))) c++
+  }
+  return c
+}
 
 // ============================================================================
 // 「その選手は今季どれだけ走っているか」を出す唯一の入口。
@@ -125,4 +141,18 @@ export function playRateOf(
   }
   if (teamRaces === 0) return { fraction: 0.5, teamRaces: 0, races: 0 }
   return { fraction: races / teamRaces, teamRaces, races }
+}
+
+/**
+ * **移籍まわりで「世界」を渡すところの形。ここ1つ。**
+ * 出場率（`playRateOf`）・戦力に入っているか（`transferDecision.keyPlayerStatus`）・
+ * 市場価値（`playerUtils.marketValueOf`）が、どれも同じこの材料から出ます。
+ * store の状態も engine の引数もそのまま当てはまるので、**呼ぶ側で作り直さないこと。**
+ */
+export type PlayRateWorld = {
+  players: readonly Player[]
+  teams: readonly Team[]
+  foreignLeagues?: readonly ForeignLeague[]
+  currentSeason: { year: number } & PlayRateSeason
+  pastSeasons?: readonly ({ year: number } & PlayRateSeason)[]
 }

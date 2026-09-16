@@ -10,9 +10,9 @@
 import { effectiveOvr } from '../utils/foreignClubProfile'
 import type { AITradeOffer, ForeignLeague, Player, Season, Team } from '../types'
 import { allForeignClubs } from '../utils/clubs'
-import { AI_OFFER_GAIN_MAX, AI_OFFER_GAIN_MIN } from '../utils/tradeValue'
+import { AI_OFFER_GAIN_MAX, AI_OFFER_GAIN_MIN, priceOf } from '../utils/tradeValue'
 import { canBePoached, eligibilityCtx } from '../utils/transferEligibility'
-import { calcTransferValue, ovr } from '../utils/playerUtils'
+import { ovr } from '../utils/playerUtils'
 import { cpuSpecialtyNeeds } from './cpuMarket'
 
 /** 打診が1件も無いときだけ、25%の確率で1件つくる。作れなければ空 */
@@ -70,13 +70,17 @@ export function generateAiTradeOffers(params: {
       // 数値が低ければ結局使わないので意味がない。市場価値の年齢補正で「若手60⇄ベテラン75」が
       // 等価になっても、額面で損する交換は提示しない）。上回る分は制限なし。
       // 選定はニーズ適合を最優先し、その中でOVR最上位
+      // ★**値段は `utils/tradeValue` の `priceOf` 1本**（成立を判断する側とまったく同じ）。
+      //   以前ここだけ `calcTransferValue(p)` を**引数なしで**呼んでいて、判断する側は
+      //   出場と割増（`transferFeeFor`）を見ていたので、**作る物差しと飲む物差しが別**でした。
+      const tvCtx = { races: currentSeason.races, teamRaces: currentSeason.currentRaceIndex, players }
       let best: { mine: Player; theirs: Player; fits: boolean } | null = null
       for (const mine of askPool) {
-        const myVal = calcTransferValue(mine)
+        const myVal = priceOf(mine, tvCtx)
         for (const theirs of offerPool) {
           // ここは「こちらがもらう額面 ÷ こちらが出す額面」なので、成立判定の定数とは逆向き。
           // 同じ数字を使い回すと片方の調整がもう片方に逆向きに効くので別の定数にしてある
-          const r = calcTransferValue(theirs) / Math.max(1, myVal)
+          const r = priceOf(theirs, tvCtx) / Math.max(1, myVal)
           if (r < AI_OFFER_GAIN_MIN || r > AI_OFFER_GAIN_MAX) continue
           if (ovr(theirs) < ovr(mine) - 3) continue
           const fits = myNeeds.includes(theirs.specialty)

@@ -109,7 +109,10 @@ export function resolveTransferBids(params: {
     const r = resolveBid(bid, {
       players: players,
       listings: listings,
-      currentSeason: { year: currentSeason.year, races: races, eclSeries: currentSeason.eclSeries },
+      teams, foreignLeagues,
+      // ★**シーズンはそのまま渡すこと**（`{ year, races }` だけに削ると、
+      //   出場率が自分の部の日程しか見られず、他の部・海外の選手が全員0％になります）
+      currentSeason: { ...currentSeason, races },
       pastSeasons: pastSeasons,
       raceIndex: raceClock,
       rivals: bid.status === 'pending' && target ? rivalsFor(target) : undefined })

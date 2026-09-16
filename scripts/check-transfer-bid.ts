@@ -17,12 +17,15 @@
 import { resolveBid, FEE_ACCEPTED_EXPIRE_RACES, BID_MAX_ROUND } from '../src/utils/transferBid'
 import type { BidContext } from '../src/utils/transferBid'
 import { LISTED_ACCEPT_MIN, LISTED_COUNTER_RATIO, listedThreshold, listedAcceptChance, bidThreshold, BID_COUNTER_RATIO } from '../src/data/economy'
-import { calcTransferValue } from '../src/utils/playerUtils'
+import { marketValueOf } from '../src/utils/playerUtils'
 import { expiredNegText, EXPIRED_NEG_TEXT } from '../src/utils/notifItems'
 import type { Player, TransferBid } from '../src/types'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { storeSource, logicSource } from './storeSource'
+import { SQUAD_DEPTH_SLOTS } from '../src/data/rosterRules'
+import { POACH_PREMIUM } from '../src/data/economy'
+import { keyPlayerStatus } from '../src/utils/transferDecision'
 
 let failed = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -48,9 +51,17 @@ const B = (extra: Partial<TransferBid> = {}): TransferBid => ({
   status: 'pending', submittedAtRace: 0, ...extra,
 })
 
+/**
+ * 相手クラブの名簿の「上の層」。**主力かどうかは序列1本**（`transferDecision.keyPlayerStatus`）
+ * なので、名簿に本人しか居ないと必ず1番手＝主力になります。
+ * 割増の掛からない素の受諾ラインを見たい箇所は、この層を入れて本人を序列の下へ置きます。
+ */
+const DEPTH = Array.from({ length: SQUAD_DEPTH_SLOTS }, (_, i) => P(`f${i}`, 95))
+
 // rand を固定して揺れを消す（0.5＝ちょうど真ん中）
 const ctx = (players: Player[], o: Partial<BidContext> = {}): BidContext => ({
-  players, listings: [], currentSeason: { year: YEAR, races: [] }, pastSeasons: [],
+  players: [...players, ...DEPTH], teams: [], listings: [],
+  currentSeason: { year: YEAR, races: [] }, pastSeasons: [],
   raceIndex: 10, rand: () => 0.5, ...o,
 })
 
@@ -96,6 +107,35 @@ console.log('\n[3] 主力ガード(locked)に当たったら必ず通知＋ロ�
   check('種類は入札(bid)', r.expired?.kind === 'bid', String(r.expired?.kind))
 }
 
+console.log('\n[3b] 主力かどうかは序列1本。割増も POACH_PREMIUM 1本')
+{
+  // ★同じ選手・同じ額で、**名簿の中の位置だけ**を変える。
+  //   以前ここは「複数年の本編出場率」で決めていて、その出場を
+  //   `season.races`＝自分の部の日程だけで数えていたので、
+  //   2部・3部・海外の選手は1人残らず open（＝割増が一度も乗らない）でした。
+  const star = P('p1', 80)
+  // 名簿に本人しか居ない＝1番手＝戦力
+  const aloneCtx = { players: [star], teams: [], listings: [],
+    currentSeason: { year: YEAR, races: [] }, pastSeasons: [], raceIndex: 10, rand: () => 0.5 } as BidContext
+  const mv = marketValueOf(star, aloneCtx)
+  check('名簿の1番手は key', keyPlayerStatus(star, aloneCtx) === 'key', keyPlayerStatus(star, aloneCtx))
+  check('序列が SQUAD_DEPTH_SLOTS より下なら open',
+    keyPlayerStatus(star, ctx([star])) === 'open', keyPlayerStatus(star, ctx([star])))
+
+  // 受諾ラインは、主力のときだけ POACH_PREMIUM 倍
+  const plain = Math.ceil(bidThreshold(mv, false, false))
+  const keyThr = Math.ceil(bidThreshold(mv, false, true))
+  check(`主力の受諾ラインは素の ${POACH_PREMIUM} 倍`,
+    Math.abs(keyThr / plain - POACH_PREMIUM) < 0.001, String(keyThr / plain))
+  check('名簿の1番手には素のラインでは足りない',
+    resolveBid(B({ offeredFee: plain }), aloneCtx).bid.status !== 'fee_accepted')
+  check('  割増のラインなら成立',
+    resolveBid(B({ offeredFee: keyThr }), aloneCtx).bid.status === 'fee_accepted',
+    resolveBid(B({ offeredFee: keyThr }), aloneCtx).bid.status)
+  check('序列の下なら素のラインで成立',
+    resolveBid(B({ offeredFee: plain }), ctx([star])).bid.status === 'fee_accepted')
+}
+
 console.log('\n[4] 出品中(移籍リスト掲載)：希望額が受諾ライン')
 {
   const p = P('p1', 80)
@@ -139,7 +179,7 @@ console.log('\n[5] 出品中の成立確率表示と判定が同じ定数から�
 console.log('\n[6] 出品していない選手：economy.bidThreshold の1本で判定')
 {
   const p = P('p1', 80)
-  const val = calcTransferValue(p)
+  const val = marketValueOf(p, ctx([p]))
   // rand=0.5 → 揺れ = 0.9 + 0.5×0.2 = 1.0（ちょうどベース）
   const thr = bidThreshold(val, false, false)
   const bid = (fee: number, round = 1) => resolveBid(B({ offeredFee: fee, round }), ctx([p]))
@@ -155,8 +195,8 @@ console.log('\n[6] 出品していない選手：economy.bidThreshold の1本で
 
   // 契約残1年以下は安くなる（transferBidBase の isExpiring）
   const expiring = P('p2', 80, { contract: { annualSalary: 10_000_000, yearsLeft: 1, faEligibleYear: YEAR + 5 } } as Partial<Player>)
-  const eThr = bidThreshold(calcTransferValue(expiring), true, false)
-  check('契約残1年以下は受諾ラインが下がる', eThr < bidThreshold(calcTransferValue(expiring), false, false))
+  const eThr = bidThreshold(marketValueOf(expiring, ctx([expiring])), true, false)
+  check('契約残1年以下は受諾ラインが下がる', eThr < bidThreshold(marketValueOf(expiring, ctx([expiring])), false, false))
   check('契約残1年以下でも同じ関数で判定', resolveBid(B({ playerId: 'p2', offeredFee: eThr }), ctx([expiring])).bid.status === 'fee_accepted')
 }
 
@@ -178,7 +218,7 @@ console.log('\n[7.5] 買う側も取り合いになる（rivals）')
 //   点検は旧仕様のまま8件落ちていた（pending: 8）。現行仕様に合わせて書き直す。
 {
   const p = P('p1', 80)
-  const mv = calcTransferValue(p)
+  const mv = marketValueOf(p, ctx([p]))
   const thr = Math.ceil(bidThreshold(mv, false, false))
   const rival = (willing: number) => [{ clubId: 'rv', name: '青森', willing }]
 

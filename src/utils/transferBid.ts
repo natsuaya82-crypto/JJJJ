@@ -1,5 +1,7 @@
-import type { Player, TransferBid, ExpiredNegotiation } from '../types'
-import { keyPlayerStatus, calcTransferValue } from './playerUtils'
+import type { TransferBid, ExpiredNegotiation } from '../types'
+import { marketValueOf } from './playerUtils'
+import { keyPlayerStatus } from './transferDecision'
+import { type PlayRateWorld } from './playRate'
 import { bidThreshold, BID_COUNTER_RATIO, listedThreshold, LISTED_COUNTER_RATIO, roundFee } from '../data/economy'
 import { fmtYen } from './money'
 
@@ -17,15 +19,9 @@ export const FEE_ACCEPTED_EXPIRE_RACES = 5
 // 逆提示できる上限の回数
 export const BID_MAX_ROUND = 3
 
-type SeasonArg = Parameters<typeof keyPlayerStatus>[1]
-type PastArg = Parameters<typeof keyPlayerStatus>[2]
-
-export type BidContext = {
-  players: readonly Player[]
+export type BidContext = PlayRateWorld & {
   // 移籍リストに出ている選手（クラブ希望額つき）
   listings: readonly { playerId: string; askingPrice: number }[]
-  currentSeason: SeasonArg
-  pastSeasons: PastArg
   // いま何戦目か
   raceIndex: number
   /**
@@ -129,15 +125,16 @@ export function resolveBid(bid: TransferBid, ctx: BidContext): BidResult {
       expired: { id: bid.id, playerId: player.id, playerName: player.name, kind: 'bid_rejected' } }
   }
 
-  // 主力ガード：出場データ(複数年)＋ECL経験で判定
-  const kStatus = keyPlayerStatus(player, ctx.currentSeason, ctx.pastSeasons)
+  // 主力ガード：戦力に入っているか（序列）1本。`utils/transferDecision` の `keyPlayerStatus`
+  const kStatus = keyPlayerStatus(player, ctx)
   if (kStatus === 'locked') {
     // いくら積んでも無理な相手。黙って却下すると「入札が消えた」ようにしか見えないので必ず通知する
     return { bid: { ...bid, status: 'rejected' }, expired: { id: bid.id, playerId: player.id, playerName: player.name, kind: 'bid' } }
   }
 
   // 受諾ラインは economy.bidThreshold の1本（入札画面の成立確率表示と共有）。判定は±10%の揺れ
-  const threshold = bidThreshold(calcTransferValue(player), player.contract.yearsLeft <= 1, kStatus === 'key') * (0.9 + rand() * 0.2)
+  // 市場価値は `playerUtils.marketValueOf` 1本（入札画面が出す額とまったく同じ材料）
+  const threshold = bidThreshold(marketValueOf(player, ctx), player.contract.yearsLeft <= 1, kStatus === 'key') * (0.9 + rand() * 0.2)
   if (bid.offeredFee >= threshold) {
     return outbid(bid.offeredFee) ?? { bid: { ...bid, status: 'fee_accepted', feeAcceptedAtRace: ctx.raceIndex }, expired: null }
   }

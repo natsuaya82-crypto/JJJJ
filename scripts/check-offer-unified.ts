@@ -43,7 +43,7 @@ import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
 import { drawSeasonSchedules } from '../src/data/races'
 import { tierBudget, tierOf } from '../src/utils/clubTier'
-import { calcTransferValue } from '../src/utils/playerUtils'
+import { marketValueOf } from '../src/utils/playerUtils'
 import { comparePlayers } from '../src/utils/playerSort'
 import { wouldMakeLineup } from '../src/utils/squadNeeds'
 import { TIER_FALL_LIMIT, playerTierOf, tierLines } from '../src/utils/playerTier'
@@ -95,6 +95,9 @@ const destOf = (all: Player[]) => (clubId: string, player: Player) => {
     { isForeign: !!c, region: c ? regionOfLeague(c.leagueId) : undefined, player })
 }
 
+// 市場価値。store の `marketValueOf` と同じ1本（この世界はレース結果を持たないので出場は0）
+const mv = (p: Player) => marketValueOf(p, { players: [], teams, currentSeason: { year: YEAR, races: [] } })
+
 const worldOf: { byId: Map<string, Player>; myRoster: Player[]; players: Player[] }[] = []
 for (let run = 0; run < RUNS; run++) {
   const players = run === 0 ? players0 : [...generateCpuRosters(teams, YEAR - run).cpuPlayers, ...foreignPlayers]
@@ -110,7 +113,7 @@ for (let run = 0; run < RUNS; run++) {
     const r = generateTransferActivity(
       players, teams, MY, i, liveL, live, [], new Set(), YEAR, races.length, foreignClubs,
       // この点検の世界はレース結果を持たないので「まだ分からない」を返す＝序列で見る
-      () => ({ fraction: 0, teamRaces: 0 }), destOf(players))
+      () => ({ fraction: 0, teamRaces: 0 }), destOf(players), mv)
     rounds.push({ fresh: r.incomingOffers.filter(o => !live.some(l => l.id === o.id)), raceIndex: i, run })
     live = r.incomingOffers
     liveL = r.listings
@@ -147,7 +150,7 @@ console.log('[1.5] **1年に来る件数**（上限だけ見ても「多すぎ�
     for (let i = 0; i < sch.length; i++) {
       const r = generateTransferActivity(
         players0, teams, MY, i, [], live, [], new Set(), YEAR, sch.length, foreignClubs,
-        () => ({ fraction: 0, teamRaces: 0 }), destOf(players0))
+        () => ({ fraction: 0, teamRaces: 0 }), destOf(players0), mv)
       got += r.incomingOffers
         .filter(o => !live.some(l => l.id === o.id) && o.offeredPrice > 0 && !o.id.startsWith('inc-lst-')).length
       live = r.incomingOffers
@@ -194,7 +197,9 @@ console.log('[4] 提示額の式は1本（海外だけ高く出す枝を戻し�
     .map(o => ({ o, p: byId.get(o.playerId) }))
     .filter((x): x is { o: IncomingOffer; p: Player } => !!x.p)
     // 1000万円刻みに丸めるので、丸めのぶん（+1000万）だけ広げて見る
-    .map(x => (x.o.offeredPrice - 1_000_000) / Math.max(1, calcTransferValue(x.p)))
+    // ★相場は engine が使うのと同じ `marketValueOf` 1本で数えること
+    //   （ここだけ `calcTransferValue(p)` を引数なしで呼ぶと、比べている相場が別物になります）
+    .map(x => (x.o.offeredPrice - 1_000_000) / Math.max(1, mv(x.p)))
   check('比べられる打診がある', ratios.length > 0, `${ratios.length}件`)
   const hi = Math.max(...ratios)
   check('相場の1.05倍を超える打診が無い（夢・スターの割増を戻していない）', hi <= 1.05, `最高 ${hi.toFixed(2)}倍`)

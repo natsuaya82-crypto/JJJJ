@@ -6,7 +6,7 @@ import PlayerFace from '../../player/PlayerFace'
 import { ovr, ratingColor, SPEC_COLOR } from '../../../utils/playerUtils'
 // トレードの釣り合いの判断はストアと同じ1箇所（utils/tradeValue.ts）を通す
 import { tradeValues, tradeBalance, TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO } from '../../../utils/tradeValue'
-import { keyPlayerStatus } from '../../../utils/playerUtils'
+import { keyPlayerStatus } from '../../../utils/transferDecision'
 import { canBePoached, canTradeAway, ctxForTeam, eligibilityCtx } from '../../../utils/transferEligibility'
 import type { Player, Team } from '../../../types'
 import { TeamLogoSVG } from '../../icons/Icons'
@@ -44,14 +44,17 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: Team; onC
   // 以前はここだけ主力の判定を自前で書き直していて（isDataKeyPlayer＋士気）、
   // ストア側の keyPlayerStatus と条件が違った。表示が100%でも出すと断られることがあった
   const tradeOutlook = (() => {
-    const tvCtx = { races: currentSeason.races, teamRaces: currentSeason.currentRaceIndex, currentSeason, pastSeasons }
+    // ★**store と同じ材料を渡すこと**（`players` を渡さないと全員が主力扱いになり、
+    //   画面の見積もりだけが store の判定とズレます）
+    const tvCtx = { races: currentSeason.races, teamRaces: currentSeason.currentRaceIndex, players }
+    const keyWorld = { players, teams, foreignLeagues, currentSeason, pastSeasons }
     const getPlayers = [...getP].map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p)
     const givePlayers = [...give].map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p)
     const tradeIn = { outPlayers: givePlayers, inPlayers: getPlayers,
       outExtra: pickKeysValue([...givePk]),
       inExtra: pickKeysValue([...getPk]) }
     const { cpuGain, cpuLoss, ratio } = tradeValues(tradeIn, tvCtx)
-    const hasKey = getPlayers.some(p => keyPlayerStatus(p, tvCtx.currentSeason, tvCtx.pastSeasons) !== 'open')
+    const hasKey = getPlayers.some(p => keyPlayerStatus(p, keyWorld) !== 'open')
     // 本人が断るかは engine/tradeConsent 1本（成立させる tradePlayer・打診の proposeTrade と同じ）。
     // 行き先も store の destinationOf 1本（トレード成立時に使われるものと同じ）
     const refuser = tradeRefuser(getPlayers, { myTeamId: playerTeamId, teams, foreignLeagues, destinationOf, playerTierOf,

@@ -13,7 +13,8 @@ import type { ClubTier } from '../utils/clubTier'
 import { allTieredClubs, tierOfPlayerClub } from '../utils/clubTier'
 import { findClub } from '../utils/clubs'
 import { type NewsItem, freeTransferHeadline } from '../utils/newsItems'
-import { freeContactConsent, seasonAppearances } from '../utils/playerUtils'
+import { freeContactConsent } from '../utils/playerUtils'
+import { seasonAppearances } from '../utils/playRate'
 import type { Destination } from '../utils/transferDecision'
 
 export function resolveExpiredOffers(params: {

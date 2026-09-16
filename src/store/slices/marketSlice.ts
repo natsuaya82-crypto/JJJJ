@@ -25,21 +25,21 @@ import { settleForeignFee } from '../../utils/clubMoney'
 import { foreignSignedHeadline, joinedHeadline, loanInOutHeadline, renewalHeadline, signedWithFeeHeadline, tradeAcceptedHeadline, tradeSummaryHeadline } from '../../utils/newsItems'
 import { type OfferOutcome } from '../../utils/offerResult'
 import { playRateOf, prevSeasonOf } from '../../utils/playRate'
-import { acquisitionDesiredSalary, calcTransferValue, faMarketSalary, freeContactConsent, keyPlayerStatus, newContractYears, ovr, perfOf, playerConsentToMove, racesConsumed, salaryAppealBonus, seasonPerfProfile, transferFeeFor } from '../../utils/playerUtils'
+import { acquisitionDesiredSalary, marketValueOf as marketValueOfUtil, faMarketSalary, freeContactConsent, newContractYears, ovr, perfOf, playerConsentToMove, racesConsumed, salaryAppealBonus, seasonPerfProfile, transferFeeFor } from '../../utils/playerUtils'
 import { belongsToClub, squadIdsOf, loanedInCount } from '../../utils/rosterSync'
 import { withSaleAnswer } from '../../utils/saleAnswer'
 import { STALE_TRADE_MSG } from '../../utils/talkSync'
 import { TRADE_HARD_NO_RATIO, TRADE_MIN_RATIO, TRADE_OK_RATIO, priceOf, tradeBalance, tradeNotLopsided, tradeValues } from '../../utils/tradeValue'
-import { type Appraisal, type Destination, appraiseMove, buildDestination, isSurplus, rankOffers, regionOfLeague } from '../../utils/transferDecision'
+import { type Appraisal, type Destination, appraiseMove, buildDestination, isSurplus, keyPlayerStatus, playingStatus, rankOffers, regionOfLeague } from '../../utils/transferDecision'
 import { comparePlayers } from '../../utils/playerSort'
 import { squadRankOf } from '../../utils/squadNeeds'
 import { canAcceptOfferFor, canBePoached, canListForSale, canLoanOut, canTradeAway, ctxForTeam, eligibilityCtx, isLeavingClub } from '../../utils/transferEligibility'
 // 入札・レンタル申請を出せるか（画面の「押せるか」と同じ1本）
 import { acquisitionBlockReason, bidBlockReason, loanBlockReason, LOAN_SLOTS } from '../../utils/bidGate'
-import { facilitiesOf } from '../../utils/facilities'
+import { facilitiesOf, facilityScoutNegoBonus } from '../../utils/facilities'
 
 type Slice = Pick<GameStore,
-  'renewContractOffer' | 'sendScoutMission' | 'startFAVisit' | 'acceptTradeOffer' | 'rejectTradeOffer' | 'executeTransferPurchase' | 'destinationOf' | 'playerTierOf' | 'resolveStayOrLeave' | 'rankIncomingOffers' | 'consentToLeave' | 'acceptIncomingOffer' | 'declineIncomingOffer' | 'acceptIncomingLoanOffer' | 'declineIncomingLoanOffer' | 'initiateContractRenewal' | 'generateContractRequests' | 'submitContractRenewalOffer' | 'acceptContractCounter' | 'reNegotiateContract' | 'abandonContractRenewal' | 'startAcquisitionOffer' | 'submitAcquisitionOffer' | 'acceptAcquisitionCounter' | 'reNegotiateAcquisition' | 'abandonAcquisitionOffer' | 'releasePlayerWithBuyout' | 'counterAllIncomingOffers' | 'counterIncomingOffer' | 'dismissRetirementRequest' | 'acceptRetirement' | 'approveOverseasChallenge' | 'denyOverseasChallenge' | 'dismissTransferRequest' | 'allowPlayerTransfer' | 'toggleNoSale' | 'toggleLoanListed' | 'cancelSellListing' | 'loanInPlayer' | 'loanOutPlayer' | 'submitLoanRequest' | 'cancelLoanRequest' | 'dismissLoanResponse' | 'submitTransferBid' | 'acceptFeeCounter' | 'rejectTransferBid' | 'finalizeTransfer' | 'listMyPlayerForSale' | 'delistMyPlayer' | 'scoutOpponentPlayer' | 'toggleStarOpponent' | 'toggleStarProspect' | 'tradePlayer' | 'proposeTrade' | 'acceptTradeCounter' | 'dismissTradeNegotiation' | 'setChatLog' | 'signForeignPlayer' | 'getTransferWindow' | 'refuseFreeContactRetention'>
+  'renewContractOffer' | 'sendScoutMission' | 'startFAVisit' | 'acceptTradeOffer' | 'rejectTradeOffer' | 'executeTransferPurchase' | 'destinationOf' | 'playerTierOf' | 'marketValueOf' | 'resolveStayOrLeave' | 'rankIncomingOffers' | 'consentToLeave' | 'acceptIncomingOffer' | 'declineIncomingOffer' | 'acceptIncomingLoanOffer' | 'declineIncomingLoanOffer' | 'initiateContractRenewal' | 'generateContractRequests' | 'submitContractRenewalOffer' | 'acceptContractCounter' | 'reNegotiateContract' | 'abandonContractRenewal' | 'startAcquisitionOffer' | 'submitAcquisitionOffer' | 'acceptAcquisitionCounter' | 'reNegotiateAcquisition' | 'abandonAcquisitionOffer' | 'releasePlayerWithBuyout' | 'counterAllIncomingOffers' | 'counterIncomingOffer' | 'dismissRetirementRequest' | 'acceptRetirement' | 'approveOverseasChallenge' | 'denyOverseasChallenge' | 'dismissTransferRequest' | 'allowPlayerTransfer' | 'toggleNoSale' | 'toggleLoanListed' | 'cancelSellListing' | 'loanInPlayer' | 'loanOutPlayer' | 'submitLoanRequest' | 'cancelLoanRequest' | 'dismissLoanResponse' | 'submitTransferBid' | 'acceptFeeCounter' | 'rejectTransferBid' | 'finalizeTransfer' | 'listMyPlayerForSale' | 'delistMyPlayer' | 'scoutOpponentPlayer' | 'toggleStarOpponent' | 'toggleStarProspect' | 'tradePlayer' | 'proposeTrade' | 'acceptTradeCounter' | 'dismissTradeNegotiation' | 'setChatLog' | 'signForeignPlayer' | 'getTransferWindow' | 'refuseFreeContactRetention'>
 
 // トレードの同意判定に渡す材料（engine/tradeConsent）。成立させる側とチャットの打診側で
 // **同じものを渡す**ためにここ1本から作る（手書きすると片方だけ古い state を見る事故が起きる）
@@ -275,6 +275,14 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     }
     return playerTierFromLines(player, tierLineCache.lines)
   },
+
+  /**
+   * **画面に出す「市場価値」。** 材料は store が請求するときとまったく同じ
+   * （`perfOf` の今季の出場 ＋ 消化レース数は `utils/playRate` の `playRateOf` 1本）。
+   * ★**画面で `calcTransferValue(p)` を引数なしで呼ばないこと**——出場を渡さないと
+   *   今季フル出場の選手も1戦も走っていない選手も同じ額になります。
+   */
+  marketValueOf: (player) => marketValueOfUtil(player, get()),
 
   // 行き先クラブの姿（格・そこで何番手か・ECL出場・順位）を作る。
   // 国内チームでも海外クラブでも同じ入口。判断そのものは utils/transferDecision.ts
@@ -648,9 +656,10 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
             ? { ...o, status: 'rejected' as const, offerSalary: salary, offerYears: years, offerContractType: contractType, offerTeamRole: teamRole, rejectReason: reason }
             : o) } })
       // 相手チームがデータ上の主力（複数年の出場＋ECL経験で判定）を手放さない（引き抜き）
-      if (offer.source === 'scout' && keyPlayerStatus(player, state.currentSeason, state.pastSeasons) !== 'open') return rejectWith('team_refused')
+      if (offer.source === 'scout' && keyPlayerStatus(player, state) !== 'open') return rejectWith('team_refused')
       // 契約形態：良い選手は2軍(2way/育成)契約では納得しない
-      const isQuality = ovr(player) >= 68 || (teamRaces >= 3 && playFraction >= 0.5)
+      // 走れているかを聞くのは `transferDecision` の `playingStatus` 1本（線を書かない）
+      const isQuality = ovr(player) >= 68 || playingStatus({ fraction: playFraction, teamRaces }) === 'playing'
       if (contractType !== 'standard' && isQuality) return rejectWith('demotion')
 
       const desired = acquisitionDesiredSalary(player, offer.source, playFraction, teamRaces, perfOf(state.currentSeason, player.id, teamRaces))
@@ -675,7 +684,8 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       })()
       // スカウト拠点: Lv×2%ぶん受諾ラインを緩和（獲得・移籍しやすくなる）
       const scoutLv = facilitiesOf(state.teams.find(t => t.id === state.playerTeamId)).scoutOffice
-      const scoutNegoBonus = scoutLv * 0.02
+      // スカウト拠点の交渉ボーナスは `utils/facilities` の1本（画面の効き目の表示と同じ式）
+      const scoutNegoBonus = facilityScoutNegoBonus(scoutLv)
       const acceptThresh = (personality === 'loyalty' ? 0.97 : personality === 'winning' ? 1.0 : 1.02) + infoPenalty - rlx + roleBonus + typeAdjust + yearsBonus + appealAdj - scoutNegoBonus
       const counterThresh = (personality === 'salary' ? 0.90 : 0.85) + infoPenalty - rlx - scoutNegoBonus
       const isLastRound = offer.round >= 3
@@ -970,7 +980,8 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       id: `lst-allow-${raceIdx}-${playerId}`,
       playerId,
       fromTeamId: state.playerTeamId,
-      askingPrice: roundFee(calcTransferValue(player)),
+      // 希望額も市場価値 1本（`marketValueOf`）。以前ここだけ出場を見ていなかった
+      askingPrice: roundFee(marketValueOfUtil(player, state)),
       listedAtRace: raceIdx,
       // 選手本人の移籍希望を認めた売出は今季いっぱい有効
       expiresAtRace: Math.max(raceIdx + 1, state.currentSeason.races.length),
@@ -1055,7 +1066,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     const myRosterNow = teamRosterSize(st.players, st.playerTeamId)
     if (myRosterNow >= ROSTER_MAX) return false
     // 相手チームの主力（複数年の出場＋ECL経験で判定）は貸さない（forceなら相手が貸す打診済みなのでスキップ）
-    if (!force && keyPlayerStatus(player, st.currentSeason, st.pastSeasons) !== 'open') return false
+    if (!force && keyPlayerStatus(player, st) !== 'open') return false
     const yrs = Math.max(1, Math.min(2, years))
     set(state => {
       // 移動は movePlayer 一本。until を渡すとレンタル扱いになり、保有元(ownerId)が残り
@@ -1228,7 +1239,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     // 出場率は utils/playRate 1本（BidSheet が見せている数字と同じ）
     const { fraction: cFrac, teamRaces: cRaces } = playRateOf(player.id, player.teamId,
       state.currentSeason, state.teams, state.foreignLeagues, prevSeasonOf(state.pastSeasons, state.currentSeason.year))
-    const consent = playerConsentToMove(player, get().destinationOf(myTeam.id, player), tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)), cFrac, cRaces, scoutLvT * 0.02 + salaryBonus, true, get().playerTierOf(player))
+    const consent = playerConsentToMove(player, get().destinationOf(myTeam.id, player), tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)), cFrac, cRaces, facilityScoutNegoBonus(scoutLvT) + salaryBonus, true, get().playerTierOf(player))
     if (!consent.ok) {
       // 交渉決裂: 入札を破談にし、来季までこの選手への移籍金オファーを不可にする
       set(s => ({

@@ -1,7 +1,7 @@
 import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
-import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, faMarketSalary } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, faMarketSalary } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
 import { SPECIALTY_LABELS } from '../../types'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
@@ -13,6 +13,7 @@ import { panelStyle } from '../ui/Panel'
 
 export default function StarredPlayersPage() {
   const players = useGameStore(s => s.players)
+  const marketValueOf = useGameStore(s => s.marketValueOf)
   const clubIndex = useClubIndex()
   const scoutProspects = useGameStore(s => s.currentSeason.scoutProspects) ?? []
   const starredOpponents = useGameStore(s => s.starredOpponents) ?? []
@@ -65,7 +66,7 @@ export default function StarredPlayersPage() {
           const isProspect = !players.some(pp => pp.id === p.id)
           const teamName = isProspect ? p.origin : getTeamName(p.teamId)
           const isFA     = p.teamId === ''
-          const value    = isFA ? faMarketSalary(p) : calcTransferValue(p)
+          const value    = isFA ? faMarketSalary(p) : marketValueOf(p)
           const valueLabel = isFA ? '市場' : '価値'
           // 他チーム所属の現役選手はタップ=契約メニュー/長押し=詳細。自チーム/FA/ドラフト候補は長押し=詳細のみ
           // ★`'active'` で絞らないこと。入札できるかの関門は `utils/bidGate` の

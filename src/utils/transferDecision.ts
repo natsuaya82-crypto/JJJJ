@@ -36,6 +36,7 @@ import { TIER_POTENTIAL_CAP, type ClubTier } from './clubTier'
 import { RUNNING_SLOTS, SQUAD_DEPTH_SLOTS } from '../data/rosterRules'
 // 「そのクラブで何番手か」は squadNeeds の1本
 import { squadRankOf } from './squadNeeds'
+import { playRateOf, prevSeasonOf, type PlayRateWorld } from './playRate'
 import { MORALE_DEFAULT } from './condition'
 
 /**
@@ -95,6 +96,44 @@ export function hasNoPlayingTime(squadRank: number, slots: number = SQUAD_DEPTH_
 
 /** 「走れている」と言える出走率。今季これを下回ると出番が無い扱い */
 export const APPEARANCE_FLOOR = 0.34
+
+/**
+ * **出走率を「その選手の姿」として読みはじめる消化レース数。**
+ * これ未満は `'unknown'`＝走れているとも走れていないとも言わない。
+ */
+export const PLAY_SAMPLE_RACES = 3
+
+/** 実際に走っているか。分からないときは `'unknown'`（どちらにも読まない） */
+export type PlayingStatus = 'playing' | 'benched' | 'unknown'
+
+/**
+ * **「その選手は実際に走っているか」を聞く唯一の関数。**（移籍の物差しの2本目）
+ *
+ * 材料は `utils/playRate` の `playRateOf` 1本（自分の部・他の部・海外リーグを
+ * 区別せずに出す唯一の入口）。**呼ぶ側で `fraction < 0.4` のような線を書かないこと。**
+ *
+ * ■なぜ要るか（実際に割れていた）
+ *   同じ「走っているか」に**線が4本**ありました。
+ *
+ *   | どこ | 線 | 分からないときの読み |
+ *   |---|---|---|
+ *   | `seeksPlayingTime`（市場に出るか） | 0.34 | 1戦でもあれば読む |
+ *   | `appraiseMove` の「干されている」+0.2 | **0.40** | 3戦から読む |
+ *   | `playerUtils.isDataKeyPlayer`（本人の同意・一覧の絞り込み） | **0.55** | 3戦から読む |
+ *   | 同上のコメントに残っていた `starterNow` | **0.50** | — |
+ *
+ *   線が違うので、出走率0.45の選手は「市場には出ないが、干されてもおらず、
+ *   主力でもない」——**3つの問いの答えが全部違う**状態でした。
+ *
+ * ■3つに割るのは「分からない」を混ぜないため
+ *   `'unknown'` を `'benched'` に混ぜると、開幕直後に**全員が「出番が無い」**になり、
+ *   他の部の主力まで市場へ出てきます。`'playing'` に混ぜると、逆に**全員が保護**されて
+ *   誰も引き抜けません。**聞く側がどちらへ寄せるかを選べるように、3つ返します。**
+ */
+export function playingStatus(a: { fraction: number; teamRaces: number }): PlayingStatus {
+  if (a.teamRaces < PLAY_SAMPLE_RACES) return 'unknown'
+  return a.fraction >= APPEARANCE_FLOOR ? 'playing' : 'benched'
+}
 /** これ未満は移籍せず残る（出番はレンタルで作る） */
 export const SEEK_MIN_AGE = 24
 /** もともと控えの選手が「もう待てない」と判断する年齢 */
@@ -131,6 +170,49 @@ export function isSurplus(a: {
   slots?: number
 }): boolean {
   return hasNoPlayingTime(a.squadRank, a.slots)
+}
+
+/**
+ * **ドラフト当年の新人を守るあいだの消化レース数。** これ以下なら `'locked'`。
+ * 序列は名簿さえあれば出るが、入ったばかりの選手は名簿の中の位置が
+ * まだ「その選手の姿」ではないので、少しのあいだだけ絶対に取れなくする。
+ */
+export const ROOKIE_GUARD_RACES = 3
+
+/**
+ * **その選手は、いまのクラブの戦力に入っているか。**（移籍の物差しの1本目）
+ *
+ *   `'locked'` … ドラフト当年の新人で、まだ何も分からない。**いくら積んでも取れない**
+ *   `'key'`    … 戦力（序列 `SQUAD_DEPTH_SLOTS` 以内）。引き抜きに割増（`POACH_PREMIUM`）が
+ *                要り、レンタル・トレード・引き抜きの打診も断られる
+ *   `'open'`   … 普通に動かせる
+ *
+ * ■**答えは序列1本です**（`isSurplus` と同じ線 ＝ `SQUAD_DEPTH_SLOTS`）
+ *   オーナー判断（2026-09-16）。以前ここは**複数年の本編出場率**（P>=3なら60%、
+ *   P=1〜2なら70%、ECL経験で-10%緩和）という**2本目の物差し**でした。
+ *
+ *   その出場率が `season.races`＝**自分の部の日程だけ**で数えられていたので、
+ *   2部・3部・海外の選手は**1人残らず出場0**とみなされ、必ず `'open'` を返していました。
+ *   つまり割増もレンタル拒否も引き抜き拒否も、**自分の部の選手にしか効いていません**
+ *   でした（CLAUDE.md が名指しで禁じている「`currentSeason.races` で数えないこと」そのもの）。
+ *
+ *   序列なら名簿さえあればどのクラブでも同じ答えになるので、置き場所の違いで
+ *   答えが変わりません。**出す側（`isSurplus`）・買う側（`squadNeeds.needsPlayer`）と
+ *   同じ線を使うこと。** ここに2本目の条件を足さないこと。
+ *
+ * ■材料は呼ぶ側の世界そのものを渡す
+ *   名簿は `clubIndexOf`、消化レース数は `playRateOf` 1本から引きます。
+ *   **呼ぶ側で名簿を絞ったり、レース数を数え直したりしないこと。**
+ */
+export function keyPlayerStatus(p: Player, w: PlayRateWorld): 'locked' | 'key' | 'open' {
+  // 満了間近・不満は守らない（普通に動く）
+  if (p.contract.yearsLeft <= 1 || (p.morale ?? MORALE_DEFAULT) < 45) return 'open'
+  const { teamRaces } = playRateOf(p.id, p.teamId, w.currentSeason, w.teams, w.foreignLeagues,
+    prevSeasonOf(w.pastSeasons, w.currentSeason.year))
+  // ドラフト当年の新人は、名簿の中の位置がまだ姿になっていないあいだだけ絶対に取れない
+  if ((p.draftYear ?? w.currentSeason.year) >= w.currentSeason.year && teamRaces <= ROOKIE_GUARD_RACES) return 'locked'
+  const roster = clubIndexOf(w.players).get(p.teamId) ?? []
+  return isSurplus({ squadRank: squadRankOf(roster, p) }) ? 'open' : 'key'
 }
 
 /**
@@ -231,14 +313,12 @@ export function seeksPlayingTime(a: {
   //   出場率は utils/playRate の playRateOf で数えるが、シーズン頭や日程が引けない
   //   クラブでは 0戦になる。それを0%として扱うと、**その時点で全員が「出番が無い」**に
   //   なり、他の部の主力まで市場へ出てくる（3部で遊ぶと1部の主力が流れてきていた）。
-  if (a.teamRaces <= 0) return false
-  const rate = a.races / a.teamRaces
-  if (rate >= APPEARANCE_FLOOR) return false
+  // 走れているかを聞くのは `playingStatus` 1本（線も、分からないときの読みもあちら）
+  if (playingStatus({ fraction: a.races / (a.teamRaces || 1), teamRaces: a.teamRaces }) !== 'benched') return false
   // 前季が分からない（加入1年目・古いセーブ）なら今季だけで判断する
   if (a.prevRaces == null || !a.prevTeamRaces) return true
-  const prevRate = a.prevRaces / a.prevTeamRaces
   // 去年は走れていた＝スタメンを失った年。すぐ動く
-  if (prevRate >= APPEARANCE_FLOOR) return true
+  if (playingStatus({ fraction: a.prevRaces / a.prevTeamRaces, teamRaces: a.prevTeamRaces }) === 'playing') return true
   // もともと控え。伸びしろに賭けられる年齢のうちは残る
   return a.age >= SEEK_PATIENCE_AGE
 }
@@ -329,10 +409,11 @@ export type MoveContext = {
    * 分からないときはその関数が `{ fraction: 0.5, teamRaces: 0 }` を返すので、
    * **呼ぶ側で 0.5 / 0 を書かないこと。**
    *
-   * ★ここが省略可だったころ、7つの呼び出し口のうち**移籍の唯一の経路を含む5つ**が
-   *   渡しておらず、既定の 0 が入って下の
-   *     starterNow = races >= 3 && frac >= 0.5
-   *   が常に false になり、オーナー指示（2026-08-14「格下げてまでエースになりたい
+   * ★**走れているかを読むのは `playingStatus` 1本**（線は `APPEARANCE_FLOOR`）。
+   *   ここが省略可だったころ、7つの呼び出し口のうち**移籍の唯一の経路を含む5つ**が
+   *   渡しておらず、既定の 0 が入って当時の関門（出走率から「いま走れているか」を
+   *   出す式。いまの `playingStatus`）が常に false になり、
+   *   オーナー指示（2026-08-14「格下げてまでエースになりたい
    *   やついないだろ。海外でやってる久保がいきなりJ3に移籍するか？」）で入れた
    *   関門 `tooFarDown` が**世界中で一度も発火していませんでした**。
    *   実測（232クラブ5800人・1年）：格下へ動いた561件のうち131件（23.4%）が本来は止まる。
@@ -554,9 +635,9 @@ export function appraiseMove(p: Player, d: Destination, ctx: MoveContext): Appra
   // 3. 今のクラブで干されているか。
   //    ★行き先でも出られないなら効かない。「出たいから動く」のであって、
   //      別のベンチへ移りたいわけではない（格上でも20番手なら行かない、が保たれる）
-  const races = ctx.teamRaces
-  const frac = ctx.playFraction
-  const benched = races >= 3 && frac < 0.4 && playingTime > 0 ? 0.2 : 0
+  //    線も「分からないときの読み」も `playingStatus` 1本（ここで 0.4 を書かない）
+  const benched = playingStatus({ fraction: ctx.playFraction, teamRaces: ctx.teamRaces }) === 'benched'
+    && playingTime > 0 ? 0.2 : 0
 
   // 4. 優勝争いをしているクラブか
   const title = d.leagueRank != null && d.leagueRank <= 3 ? 0.08 : 0

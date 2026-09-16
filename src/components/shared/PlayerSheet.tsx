@@ -15,7 +15,7 @@ import type { Player } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { TeamLogoSVG, LeagueLogoSVG } from '../icons/Icons'
 import { buildPlayerHistory, type HistComp, type HistoryRow } from '../../utils/careerStats'
-import { ovr, ratingColor, SPEC_COLOR, calcTransferValue, isStatMaxed } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, isStatMaxed } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
 import { C, CARD, glassStyle, rankColor, FONT, SAIRA, bottomStack, F } from '../../styles/tokens'
 import { getPlayerBadges } from '../../utils/badges'
@@ -121,7 +121,7 @@ function OVRSparkline({ history }: { history: { year: number; ovr: number }[] })
 export default function PlayerSheet() {
   const {
     openPlayerId, openPlayerSheet, players,
-    currentSeason, pastSeasons, playerTeamId,
+    currentSeason, pastSeasons, playerTeamId, marketValueOf,
   } = useGameStore()
   // draftState を購読（安定参照）。pool の ?? [] はセレクタの外で行う（毎回新配列を返すと無限ループになる）
   const draftState = useGameStore(s => s.draftState)
@@ -596,7 +596,7 @@ export default function PlayerSheet() {
                       { label: '所属', val: resolveTeam(player.teamId)?.name ?? (player.teamId === '' ? '未所属' : '—') },
                       { label: '出身', val: player.origin },
                       { label: '成長タイプ', val: player.growthCurve === 'early' ? '早熟' : player.growthCurve === 'late_bloomer' ? '晩成' : '標準' },
-                      { label: '市場価値', val: fmtYen(calcTransferValue(player)) },
+                      { label: '市場価値', val: fmtYen(marketValueOf(player)) },
                       { label: '契約残', val: player.contract ? `${player.contract.yearsLeft}年` : '—' },
                       { label: '年俸', val: player.contract ? fmtYen(player.contract.annualSalary) : '—' },
                       { label: 'ドラフト', val: player.draftRound && player.draftPick != null ? `${player.draftYear}年 全体${(player.draftRound - 1) * 20 + player.draftPick}位` : 'ドラフト外' },

@@ -8,7 +8,8 @@ import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import type { Specialty, Nationality } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
-import { ovr, ratingColor, calcTransferValue, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR, isDataKeyPlayer } from '../../utils/playerUtils'
+import { ovr, ratingColor, careerStage, CAREER_STAGE_LABEL, CAREER_STAGE_COLOR } from '../../utils/playerUtils'
+import { playingStatus } from '../../utils/transferDecision'
 import { playRateOf, prevSeasonOf } from '../../utils/playRate'
 import SortSelect from '../ui/SortSelect'
 import { comparePlayers, PLAYER_SORT_LABEL, type PlayerSortKey } from '../../utils/playerSort'
@@ -54,7 +55,7 @@ export default function TransferPage() {
     acceptIncomingOffer, declineIncomingOffer,
     counterIncomingOffer,
     listMyPlayerForSale, delistMyPlayer, sellDraftPick,
-
+    marketValueOf,
   } = useGameStore()
   const clubIndex = useClubIndex()
   const starredOpponents = useGameStore(s => s.starredOpponents) ?? []
@@ -321,7 +322,8 @@ export default function TransferPage() {
               // 出場率は「そのクラブが走っている日程」で数える1本（utils/playRate）。
               // 自分の部の日程で数えると、1部・2部の選手は全員0＝全員が主力でない扱いになる
               const { fraction: frac, teamRaces: tr } = playRateOf(p.id, p.teamId, currentSeason, teams, foreignLeagues, prevSeasonOf(pastSeasons, currentSeason.year))
-              return !!p.transferListed || !isDataKeyPlayer(p, frac, tr)
+              // 走れているかを聞くのは `transferDecision` の `playingStatus` 1本
+              return !!p.transferListed || playingStatus({ fraction: frac, teamRaces: tr }) !== 'playing'
             }
             return true
           })
@@ -431,7 +433,7 @@ export default function TransferPage() {
               //   押すと札ができないままチャットへ飛んでいました。
               const acqNg = acquisitionBlockReason(mp, 'fa', {
                 ...gate, players, offersOnPlayer: (currentSeason.acquisitionOffers ?? []).filter(o => o.playerId === mp.id) })
-              const mVal = calcTransferValue(mp)
+              const mVal = marketValueOf(mp)
               const isStarred = starredOpponents.includes(mp.id)
               const items: { label: string; disabled?: boolean; color?: string; onClick: () => void }[] = isFA ? [
                 { label: acqNg ?? '契約オファー', disabled: !!acqNg, color: C.green, onClick: () => { setMenuPlayerId(null); startAcquisitionOffer(mp.id, 'fa'); navigate(`/team/chat?player=${mp.id}`) } },
@@ -511,7 +513,7 @@ export default function TransferPage() {
                   // 移籍金0＝契約満了間近の選手へのフリー移籍オファー
                   const isFreeOffer = offer.offeredPrice === 0
                   // フリー移籍へのカウンターは市場価値ベース（0×1.3=0を出さない）
-                  const counterPrice = roundFee(isFreeOffer ? calcTransferValue(p) : offer.offeredPrice * COUNTER_OFFER_CAP)
+                  const counterPrice = roundFee(isFreeOffer ? marketValueOf(p) : offer.offeredPrice * COUNTER_OFFER_CAP)
                   return (
                     <div key={offer.id} style={{
                       marginBottom: '16px', paddingBottom: '16px',
@@ -576,7 +578,7 @@ export default function TransferPage() {
             {myPlayers.map(p => {
               const isListed = listedIds.has(p.id)
               const myListing = listings.find(l => l.playerId === p.id && l.fromTeamId === playerTeamId)
-              const val = calcTransferValue(p)
+              const val = marketValueOf(p)
               const stage = careerStage(p)
               const stageCol = CAREER_STAGE_COLOR[stage]
               const competingOffers = (incomingOffers).filter(o => o.playerId === p.id)

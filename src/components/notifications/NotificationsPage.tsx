@@ -4,7 +4,7 @@ import PageHeader from '../ui/PageHeader'
 import { panelStyle } from '../ui/Panel'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
-import { ovr, calcTransferValue, ratingColor, racesConsumed } from '../../utils/playerUtils'
+import { ovr, ratingColor, racesConsumed } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import { collectNotifications, expiredNegText, chatReplyLine, giftContents } from '../../utils/notifItems'
@@ -67,7 +67,8 @@ function FeeCounterCard({ bid, player, targetTeamName, cardStyle, inset, onAccep
   onGiveUp: () => void
 }) {
   const pOvr = ovr(player)
-  const mv = calcTransferValue(player)
+  // 市場価値は store の `marketValueOf` 1本（画面で `calcTransferValue(p)` を引数なしで呼ばない）
+  const mv = useGameStore(s => s.marketValueOf)(player)
   const counterFee = bid.counterFee ?? 0
   const counterRatio = counterFee ? counterFee / mv : 0
   const counterFeeRating = feeRatingOf(counterRatio)
@@ -133,7 +134,7 @@ function FeeCounterCard({ bid, player, targetTeamName, cardStyle, inset, onAccep
 
 export default function NotificationsPage() {
   const navigate = useNavigate()
-  const { teams, players, currentSeason, playerTeamId, lastLoginDate } = useGameStore()
+  const { teams, players, currentSeason, playerTeamId, lastLoginDate, marketValueOf } = useGameStore()
   const clubIndex = useClubIndex()
   const acceptFeeCounter = useGameStore(s => s.acceptFeeCounter)
   const rejectTransferBid = useGameStore(s => s.rejectTransferBid)
@@ -458,7 +459,7 @@ export default function NotificationsPage() {
                             <FaceOvr playerId={p.id} nationality={p.nationality} pOvr={ovr(p)} accentColor={col} />
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: '700', color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-                              <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textSub }}>{p.age}歳 / 価値 {fmtYen(calcTransferValue(p))}</div>
+                              <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textSub }}>{p.age}歳 / 価値 {fmtYen(marketValueOf(p))}</div>
                             </div>
                           </div>
                         ))}

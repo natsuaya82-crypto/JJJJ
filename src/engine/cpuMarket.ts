@@ -16,7 +16,7 @@ import { effectiveOvr } from '../utils/foreignClubProfile'
 import { DIVISION_SIZE } from '../utils/league'
 import { playRateOf } from '../utils/playRate'
 import { comparePlayers } from '../utils/playerSort'
-import { calcTransferValue, faMarketSalary, ovr, perfOf } from '../utils/playerUtils'
+import { faMarketSalary, ovr, perfOf } from '../utils/playerUtils'
 import { roundRobin } from '../utils/roundRobin'
 import { saleAnsweredIds } from '../utils/saleAnswer'
 import { needsPlayer, squadRankOf, thinSpecialties, wouldMakeLineup } from '../utils/squadNeeds'
@@ -335,6 +335,10 @@ export function generateTransferActivity(
   // 行き先の姿（store の destinationOf をそのまま渡すこと）。**既定値は置きません**
   // ——置くと「渡し忘れても動く」＝本人の判定を通さない打診が黙って生まれます
   destinationOf: (clubId: string, player: Player) => Destination,
+  // 市場価値（store の marketValueOf をそのまま渡すこと）。**既定値は置きません**
+  // ——`calcTransferValue(p)` を引数なしで呼ぶと、今季フル出場の選手も
+  //   1戦も走っていない選手も同じ額の出品になります
+  marketValue: (player: Player) => number,
 ): { listings: TransferListing[]; incomingOffers: IncomingOffer[] } {
   const validListings = existingListings.filter(l => l.expiresAtRace > raceIndex)
   const validIncoming = existingIncoming.filter(o => o.expiresAtRace > raceIndex)
@@ -390,7 +394,7 @@ export function generateTransferActivity(
           // ★**年齢の値引き（28歳超で0.85倍）は外しました。** `calcTransferValue` の中の
           //   `transferFeeAgeMultiplier`（〜22歳×5／23〜27×4／28〜31×3／32〜×2）が
           //   既に年齢を効かせているので、**同じことを2回引いて**いました
-          const price = roundFee(calcTransferValue(c))
+          const price = roundFee(marketValue(c))
           newListings.push({ id: `lst-${raceIndex}-${c.id}`, playerId: c.id, fromTeamId: team.id, askingPrice: price, listedAtRace: raceIndex, expiresAtRace: raceIndex + 6, competingTeams: aiTeams.filter(t => t.id !== team.id && Math.random() < 0.5).slice(0, 3).map(t => t.id) })
           listedPlayerIds.add(c.id); listed = true
         }
@@ -401,7 +405,7 @@ export function generateTransferActivity(
     if (!listed && teamPlayers.length > 20) {
       const c = [...teamPlayers].filter(p => spare(p) && p.contract.yearsLeft > 0).sort((a, b) => ovr(a) - ovr(b))[0]
       if (c) {
-        newListings.push({ id: `lst-${raceIndex}-${c.id}`, playerId: c.id, fromTeamId: team.id, askingPrice: roundFee(calcTransferValue(c)), listedAtRace: raceIndex, expiresAtRace: raceIndex + 5, competingTeams: aiTeams.filter(t => t.id !== team.id && Math.random() < 0.4).slice(0, 3).map(t => t.id) })
+        newListings.push({ id: `lst-${raceIndex}-${c.id}`, playerId: c.id, fromTeamId: team.id, askingPrice: roundFee(marketValue(c)), listedAtRace: raceIndex, expiresAtRace: raceIndex + 5, competingTeams: aiTeams.filter(t => t.id !== team.id && Math.random() < 0.4).slice(0, 3).map(t => t.id) })
         listedPlayerIds.add(c.id); listed = true
       }
     }
@@ -413,7 +417,7 @@ export function generateTransferActivity(
       // ピーク30の晩成型は全盛期の31歳で売りに出される
       const c = [...teamPlayers].filter(p => isDeclining(p.growthCurve ?? 'normal', p.age) && spare(p) && p.contract.yearsLeft <= 1).sort((a, b) => a.age - b.age)[0]
       if (c) {
-        newListings.push({ id: `lst-${raceIndex}-${c.id}`, playerId: c.id, fromTeamId: team.id, askingPrice: roundFee(calcTransferValue(c) * 0.7), listedAtRace: raceIndex, expiresAtRace: raceIndex + 4, competingTeams: aiTeams.filter(t => t.id !== team.id && Math.random() < 0.25).slice(0, 2).map(t => t.id) })
+        newListings.push({ id: `lst-${raceIndex}-${c.id}`, playerId: c.id, fromTeamId: team.id, askingPrice: roundFee(marketValue(c) * 0.7), listedAtRace: raceIndex, expiresAtRace: raceIndex + 4, competingTeams: aiTeams.filter(t => t.id !== team.id && Math.random() < 0.25).slice(0, 2).map(t => t.id) })
         listedPlayerIds.add(c.id); listed = true
       }
     }
@@ -422,7 +426,7 @@ export function generateTransferActivity(
     if (!listed) {
       const c = [...teamPlayers].filter(p => p.contract.yearsLeft <= 1 && spare(p)).sort((a, b) => ovr(a) - ovr(b))[0]
       if (c) {
-        newListings.push({ id: `lst-${raceIndex}-${c.id}`, playerId: c.id, fromTeamId: team.id, askingPrice: roundFee(calcTransferValue(c) * 0.65), listedAtRace: raceIndex, expiresAtRace: raceIndex + 4, competingTeams: aiTeams.filter(t => t.id !== team.id && Math.random() < 0.25).slice(0, 2).map(t => t.id) })
+        newListings.push({ id: `lst-${raceIndex}-${c.id}`, playerId: c.id, fromTeamId: team.id, askingPrice: roundFee(marketValue(c) * 0.65), listedAtRace: raceIndex, expiresAtRace: raceIndex + 4, competingTeams: aiTeams.filter(t => t.id !== team.id && Math.random() < 0.25).slice(0, 2).map(t => t.id) })
         listedPlayerIds.add(c.id)
       }
     }
@@ -586,7 +590,7 @@ export function generateTransferActivity(
     if (targets.length === 0) continue
     targets = [...targets].sort((a, b) => effectiveOvr(b) - effectiveOvr(a))
     const target = targets[0]
-    const tv = calcTransferValue(target)
+    const tv = marketValue(target)
     // 相場まで払えないクラブはオファーを出さない。
     // 上限は**手元の資金だけ**（economy の transferCapOf 1本。オーナー・2026-08-21「上限撤廃」）。
     // ★finance が無い古いセーブ（海外クラブ）は、次の endSeason で入るまで格の年間予算ちょうどとみなす
@@ -624,7 +628,7 @@ export function generateTransferActivity(
       .filter(() => Math.random() < bidChance)
       .slice(0, MAX_OFFERS_PER_PLAYER - cur.length)
     for (const bTeam of biddingTeams) {
-      const tv = calcTransferValue(p)
+      const tv = marketValue(p)
       newIncoming.push({
         id: `inc-lst-${raceIndex}-${bTeam.id}-${p.id}`,
         fromTeamId: bTeam.id,

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useAdHeight } from '../layout/Layout'
 import NumberDial from '../ui/NumberDial'
-import { calcTransferValue, playerConsentToMove, keyPlayerStatus } from '../../utils/playerUtils'
+import { playerConsentToMove } from '../../utils/playerUtils'
+import { keyPlayerStatus } from '../../utils/transferDecision'
 import { bidThreshold, transferAcceptChance, listedAcceptChance, roundFee } from '../../data/economy'
 import { useGameStore } from '../../store/gameStore'
 import { C, SAIRA, F, bottomStack } from '../../styles/tokens'
@@ -23,14 +24,15 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
   onClose: () => void
 }) {
   const adH = useAdHeight()
-  const val = calcTransferValue(player)
+  // 市場価値は store の `marketValueOf` 1本（成立の判定と同じ材料を見る）
+  const val = useGameStore(s => s.marketValueOf)(player)
   // 出品中はクラブ希望額(askingPrice)が受諾ライン。デフォルト入札額も希望額に合わせる（満額＝ほぼ成立）。
   const initFee = listing ? roundFee(listing.askingPrice) : roundFee(val * 0.85)
   const [fee, setFee] = useState(Math.max(1_000_000, initFee))
   const over = fee > budget
 
   // 本人の意向：クラブが合意しても本人が納得しなければ成立しない（契約段階と同じ判定）ので、入札前に見せる
-  const { currentSeason, pastSeasons, teams, playerTeamId, foreignLeagues, destinationOf, playerTierOf } = useGameStore()
+  const { players, currentSeason, pastSeasons, teams, playerTeamId, foreignLeagues, destinationOf, playerTierOf } = useGameStore()
   // 行き先の姿は store の destinationOf 1本。**成立したときに実際に使われるものと同じ**。
   // 以前はここに「格」だけを渡していて、中で空のロスターから行き先が作られていた。
   // そのため序列・優勝・ECL・憧れの地域・成長上限が全部抜けた答えを表示していて、
@@ -50,10 +52,11 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
     : 'refuse'
   const mindLabel = mind === 'willing' ? '前向き' : mind === 'salary12' ? '高めの年俸なら承諾' : mind === 'salary15' ? '大幅な高年俸なら承諾' : '移籍を望んでいない'
   const mindColor = mind === 'willing' ? C.green : mind === 'refuse' ? C.red : C.gold
-  // 引き抜き耐性：出場データ(複数年)＋ECL経験で判定。合否判定(store)と同じ関数を使い、ズレを防ぐ。
+  // 引き抜き耐性：戦力に入っているか（序列）1本。合否判定(store)と同じ関数を使い、ズレを防ぐ。
   // 出品中は割増を適用しない（クラブが希望額を提示して売りに出しているため open 扱い）。
-  const kStatus = listing ? 'open' : keyPlayerStatus(player, currentSeason, pastSeasons)
-  const isKeyGuard = kStatus === 'key'  // 主力＝割増1.8倍
+  const kStatus = listing ? 'open'
+    : keyPlayerStatus(player, { players, teams, foreignLeagues, currentSeason, pastSeasons })
+  const isKeyGuard = kStatus === 'key'  // 主力＝`POACH_PREMIUM` の割増
   const isLocked = kStatus === 'locked' // 新人・データ不足で獲得不可
   const base = bidThreshold(val, player.contract.yearsLeft <= 1, isKeyGuard)
   const chancePct = listing

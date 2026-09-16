@@ -11,11 +11,11 @@ import { LOAN_SLOTS } from '../utils/bidGate'
 import { findClub } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
 import { loanReplyHeadline } from '../utils/newsItems'
-import { keyPlayerStatus } from '../utils/playerUtils'
+import { keyPlayerStatus } from '../utils/transferDecision'
 import { loanedInCount } from '../utils/rosterSync'
 import { ROSTER_MAX, teamRosterSize } from '../data/rosterRules'
 
-type PastArg = Parameters<typeof keyPlayerStatus>[2]
+type PastArg = Parameters<typeof keyPlayerStatus>[1]['pastSeasons']
 
 /**
  * **出したレンタル要請のうち、どれを受けられるか。判定はここ1本。**
@@ -81,7 +81,10 @@ export function resolveLoanRequests(params: {
   if (pendingLoanReqs.length > 0) {
     // 受けるかどうかは `decideLoanRequests` 1本（枠の数・借りている人数・在籍の空き）
     const decided = decideLoanRequests(players0, playerTeamId, pendingLoanReqs, pl =>
-      keyPlayerStatus(pl, { year: currentSeason.year, races: races, eclSeries: currentSeason.eclSeries }, pastSeasons) === 'open')
+      // ★**走り終わったぶんを載せたシーズンを渡すこと**（`currentSeason.races` はまだ
+      //   このレースの結果を持っていないので、消化数が1戦ずれます）
+      keyPlayerStatus(pl, { players: players0, teams: teams0, foreignLeagues,
+        currentSeason: { ...currentSeason, races }, pastSeasons }) === 'open')
     for (const d of decided) {
       const ownerShort = findClub(teams0, foreignLeagues, d.player.teamId)?.shortName ?? '相手クラブ'
       loanRespNews.push({ date: raceDate, headline: loanReplyHeadline({ ownerLabel: ownerShort, playerName: d.player.name, years: d.years, accepted: d.accepted }), category: 'trade', relatedIds: [d.player.id] })
