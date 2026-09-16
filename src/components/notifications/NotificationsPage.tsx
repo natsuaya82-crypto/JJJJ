@@ -392,7 +392,10 @@ export default function NotificationsPage() {
                   const p = players.find(x => x.id === playerId)
                   if (!p) return null
                   const best = offers.reduce((a, b) => (b.offeredPrice > a.offeredPrice ? b : a))
-                  const from = teams.find(t => t.id === best.fromTeamId)
+                  // クラブは国内52＋海外180から引く（`useClubIndex` 1本）。
+                  // `teams.find` だと海外クラブが `undefined` になり、**海外からの打診だけ
+                  // クラブ名が「他クラブ」**になっていた
+                  const from = clubIndex.byId(best.fromTeamId)
                   return (
                     <div key={playerId} style={cardStyle(alpha(C.cyan, 0.45), '#0a2a3a')}>
                       <div style={inset}/>
@@ -427,7 +430,13 @@ export default function NotificationsPage() {
               <SectionHead label="トレード打診" color={C.orange} count={tradeOffers.length}/>
               <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {tradeOffers.map(o => {
-                  const fromTeam = teams.find(t => t.id === o.fromTeamId)
+                  // ★**クラブは `useClubIndex` 1本で引くこと。** ここは `teams.find`（国内52）
+                  //   だったので、**海外クラブからの打診はカードごと落ちて**いました。
+                  //   打診してくるのは `engine/aiTradeOffer` の 231クラブで、ベルの数
+                  //   （`utils/notifItems`）は 2026-09-16 に海外ぶんも数えるよう直したので、
+                  //   **ベルに1件出ているのに通知ページには何も無い**＝承諾も拒否もできず、
+                  //   その打診が永久に残る形でした。
+                  const fromTeam = clubIndex.byId(o.fromTeamId)
                   const getP = players.find(p => p.id === o.offeredPlayerIds[0])
                   const giveP = players.find(p => p.id === o.requestedPlayerIds[0])
                   if (!fromTeam || !getP || !giveP) return null

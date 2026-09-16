@@ -72,16 +72,27 @@ console.log('')
 // 保存したレースの部が正しいことも見る
 const wrongDiv = racedByDiv[myDivision].length
 console.log(`  自分の部を二重に走らせていないか  ${wrongDiv === 0 ? 'OK（0本）' : `✗ ${wrongDiv}本`}`)
+// ★**判定した結果を必ず exit につなぐこと。** ここは長いあいだ `console.log` するだけで、
+//   画面に「✗ 混ざっている」と出しながら **exit 0 で通って**いました（他の部の記録に
+//   別の部のチームを混ぜても緑）。数えた結果は `mixed` に積んで下の条件に入れます。
+const mixed: string[] = []
 for (const d of DIVISIONS) {
   if (d === myDivision) continue
   const ok = racedByDiv[d].every(r => (r.results?.teamRankings ?? []).every(tr => divisionOf(teams.find(t => t.id === tr.teamId)) === d))
+  if (!ok) mixed.push(DIVISION_LABEL[d])
   console.log(`  ${DIVISION_LABEL[d]} の記録に他の部が混ざっていないか  ${ok ? 'OK' : '✗ 混ざっている'}`)
 }
 console.log('')
-if (diffs.length === 0 && wrongDiv === 0) {
+// ★**空振り除け。** 走った選手が0人だと `diffs` も `wrongDiv` も空のまま条件が成立し、
+//   「1つも変わらない」と出して緑になります（裏の部を1本も走らせなくても通る）。
+if (ids.size === 0 || totalNewRaces === 0) {
+  console.log(`✗ 空振り（走った選手 ${ids.size}人／のべ出走 ${totalNewRaces}）。この世界では何も確かめていません`)
+  process.exit(1)
+}
+if (diffs.length === 0 && wrongDiv === 0 && mixed.length === 0) {
   console.log('✓ 走行記録から数え直しても、通算出走・通算区間賞は1つも変わらない')
   process.exit(0)
 }
-console.log(`✗ ${diffs.length}件の食い違い`)
+console.log(`✗ ${diffs.length}件の食い違い${mixed.length > 0 ? ` ／ 他の部が混ざっている部 ${mixed.join('・')}` : ''}${wrongDiv > 0 ? ` ／ 自分の部を二重に走らせた ${wrongDiv}本` : ''}`)
 for (const d of diffs.slice(0, 20)) console.log(d)
 process.exit(1)

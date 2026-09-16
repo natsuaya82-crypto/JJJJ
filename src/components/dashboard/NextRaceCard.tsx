@@ -1,10 +1,11 @@
 import type { Race } from '../../types'
+import { WEATHER_LABEL } from '../../data/races'
 import { C, CARD, alpha, COMPETITION_BTN, SAIRA, F } from '../../styles/tokens'
 import { InfoTile } from '../ui'
 import { courseTypeOf } from '../../data/races'
 import { panelStyle } from '../ui/Panel'
 
-const WEATHER_LABEL: Record<string, string> = { sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風' }
+// 天候の呼び名は `data/races` の `WEATHER_LABEL` 1本（この名前で再エクスポートしない）
 const WEATHER_COLOR: Record<string, string> = { sunny: C.gold, cloudy: CARD.textDim, rainy: C.blue, windy: C.cyan }
 
 const RACE_TYPE_LABEL: Record<string, string> = { league: 'LEAGUE', college: 'COLLEGE' }

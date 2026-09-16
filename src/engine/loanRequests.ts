@@ -6,13 +6,53 @@
 //
 // 断られたぶんもニュースと通知に残す（黙って消えると「返事が来ない」ように見える）。
 // 乱数は使わない。
-import type { ForeignLeague, LoanResponse, Player, Race, Season, Team } from '../types'
+import type { ForeignLeague, LoanRequest, LoanResponse, Player, Race, Season, Team } from '../types'
+import { LOAN_SLOTS } from '../utils/bidGate'
 import { findClub } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
 import { loanReplyHeadline } from '../utils/newsItems'
 import { keyPlayerStatus } from '../utils/playerUtils'
+import { loanedInCount } from '../utils/rosterSync'
+import { ROSTER_MAX, teamRosterSize } from '../data/rosterRules'
 
 type PastArg = Parameters<typeof keyPlayerStatus>[2]
+
+/**
+ * **出したレンタル要請のうち、どれを受けられるか。判定はここ1本。**
+ *
+ * 見るのは3つで、どれも既にある決まりを通します。
+ *   ・枠の数 … `utils/bidGate` の `LOAN_SLOTS`（`3` を直書きしない）
+ *   ・借りている人数 … `utils/rosterSync` の `loanedInCount`（`belongsToClub` を通る）
+ *   ・在籍の空き … `data/rosterRules` の `ROSTER_MAX` と `teamRosterSize`
+ *
+ * ★**本編のレース（`resolveLoanRequests`）も、記録会・リザーブの回
+ *   （`store/slices/competitionSlice`）も、同じここを通すこと。**
+ *   以前は2本に割れていて、**本編の側だけ**
+ *     ・枠を `3` で直書きし、借りている人数も自前で数えていた（引退した選手も数え得る）
+ *     ・**在籍上限を1行も見ていなかった**
+ *   ので、30人ちょうどのときに承諾されると31人になりました。
+ *   **レンタルで借りた選手は解雇できない**ので、そうなると人数を戻せません。
+ */
+export function decideLoanRequests(
+  players: readonly Player[],
+  playerTeamId: string,
+  requests: readonly LoanRequest[],
+  /** その選手を相手が手放してよいか（`keyPlayerStatus` は季節の材料が要るので呼ぶ側から渡す） */
+  loanable: (p: Player) => boolean,
+): { player: Player; years: number; accepted: boolean }[] {
+  let freeSlots = Math.max(0, LOAN_SLOTS - loanedInCount(players, playerTeamId))
+  let roomLeft = Math.max(0, ROSTER_MAX - teamRosterSize(players as Player[], playerTeamId))
+  const out: { player: Player; years: number; accepted: boolean }[] = []
+  for (const req of requests) {
+    const pl = players.find(p => p.id === req.playerId)
+    // 要請を出したあとに選手が動いていたら、その札はもう意味が無い（返事も出さない）
+    if (!pl || pl.teamId !== req.targetTeamId || pl.loan) continue
+    const accepted = loanable(pl) && freeSlots > 0 && roomLeft > 0
+    if (accepted) { freeSlots--; roomLeft-- }
+    out.push({ player: pl, years: req.years, accepted })
+  }
+  return out
+}
 
 export function resolveLoanRequests(params: {
   players: Player[]
@@ -39,26 +79,17 @@ export function resolveLoanRequests(params: {
   const loanRespNews: { date: string; headline: string; category: 'trade'; relatedIds: string[] }[] = []
   const newLoanResponses: LoanResponse[] = []
   if (pendingLoanReqs.length > 0) {
-    let freeSlots = Math.max(0, 3 - players0.filter(p => p.teamId === playerTeamId && p.loan && p.loan.ownerTeamId !== playerTeamId).length)
-    const accepted: { playerId: string; ownerId: string; years: number }[] = []
-    for (const req of pendingLoanReqs) {
-      const pl = players0.find(p => p.id === req.playerId)
-      if (!pl || pl.teamId !== req.targetTeamId || pl.loan) { continue }
-      const loanable = keyPlayerStatus(pl, { year: currentSeason.year, races: races, eclSeries: currentSeason.eclSeries }, pastSeasons) === 'open'
-      const ownerShort = findClub(teams0, foreignLeagues, pl.teamId)?.shortName
-        ?? '相手クラブ'
-      if (loanable && freeSlots > 0) {
-        accepted.push({ playerId: pl.id, ownerId: pl.teamId, years: req.years }); freeSlots--
-        loanRespNews.push({ date: raceDate, headline: loanReplyHeadline({ ownerLabel: ownerShort, playerName: pl.name, years: req.years, accepted: true }), category: 'trade', relatedIds: [pl.id] })
-        newLoanResponses.push({ id: `lresp_${pl.id}_${raceIndex}`, playerId: pl.id, playerName: pl.name, ownerShort, accepted: true, years: req.years })
-      } else {
-        loanRespNews.push({ date: raceDate, headline: loanReplyHeadline({ ownerLabel: ownerShort, playerName: pl.name, years: req.years, accepted: false }), category: 'trade', relatedIds: [pl.id] })
-        newLoanResponses.push({ id: `lresp_${pl.id}_${raceIndex}`, playerId: pl.id, playerName: pl.name, ownerShort, accepted: false, years: req.years })
-      }
+    // 受けるかどうかは `decideLoanRequests` 1本（枠の数・借りている人数・在籍の空き）
+    const decided = decideLoanRequests(players0, playerTeamId, pendingLoanReqs, pl =>
+      keyPlayerStatus(pl, { year: currentSeason.year, races: races, eclSeries: currentSeason.eclSeries }, pastSeasons) === 'open')
+    for (const d of decided) {
+      const ownerShort = findClub(teams0, foreignLeagues, d.player.teamId)?.shortName ?? '相手クラブ'
+      loanRespNews.push({ date: raceDate, headline: loanReplyHeadline({ ownerLabel: ownerShort, playerName: d.player.name, years: d.years, accepted: d.accepted }), category: 'trade', relatedIds: [d.player.id] })
+      newLoanResponses.push({ id: `lresp_${d.player.id}_${raceIndex}`, playerId: d.player.id, playerName: d.player.name, ownerShort, accepted: d.accepted, years: d.years })
     }
     // 借用成立も movePlayer に通す（保有元を残して、貸した側の名簿から外す）
-    for (const a of accepted) {
-      const m = movePlayer({ players: playersAfterLoan, teams: teamsAfterLoan }, a.playerId, playerTeamId, {
+    for (const a of decided.filter(d => d.accepted)) {
+      const m = movePlayer({ players: playersAfterLoan, teams: teamsAfterLoan }, a.player.id, playerTeamId, {
         year: currentSeason.year,
         until: currentSeason.year + a.years,
         raceIndex: raceIndex + 1,

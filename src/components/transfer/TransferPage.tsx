@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
+import { clubSalaryTotal } from '../../utils/clubMoney'
 import { squadPlayersOf } from '../../utils/rosterSync'
 import PageHeader from '../ui/PageHeader'
 import GlassButton from '../ui/GlassButton'
@@ -150,7 +151,11 @@ export default function TransferPage() {
   const myPlayers = players.filter(p => p.teamId === playerTeamId && p.status === 'active')
     .sort(comparePlayers('ovr'))
 
-  const salaryUsed = myPlayers.reduce((sum, p) => sum + p.contract.annualSalary, 0)
+  // ★**総年俸は `utils/clubMoney` の `clubSalaryTotal` 1本**（母集団は `belongsToClub`＝
+  //   引退していない人は全員。怪我も借りている選手も入る）。ここは `'active'` で
+  //   数え直していたので**怪我人の年俸が落ち**、ロスター画面・クラブ詳細・実際に
+  //   予算から引かれる額と食い違っていました。
+  const salaryUsed = clubSalaryTotal(players, playerTeamId)
 
 
   const tabTitle = tab === 'market' ? '移籍市場' : tab === 'market-results' ? '検索結果' : tab === 'listings' ? '出品管理' : 'トレード'
@@ -296,8 +301,13 @@ export default function TransferPage() {
         // ★以前は `{ teamId, currentYear }` を手書きしていて `retiringIds` が落ち、
         //   **引退を申し出た選手が一覧に並ぶのに、押すとボタンに弾かれ**ていた
         const marketCtx = eligibilityCtx(currentSeason, playerTeamId)
+        // ★**`status === 'active'` で先に落とさないこと。** 関門は下の `canBePoached`
+        //   （`status !== 'retired'`）1本で、負傷は止めません。ここで先に落としていたので、
+        //   **怪我をした瞬間に移籍市場からだけ消えるのに、他クラブのページ
+        //   （`bidGate` の `bidBlockReason` 1本）からは普通に入札できる**状態でした
+        //   ＝「一覧に出す＝入札できる」という2行下の但し書きと食い違っています。
         const marketPlayers = players
-          .filter(p => p.teamId !== playerTeamId && p.status === 'active')
+          .filter(p => p.teamId !== playerTeamId && p.status !== 'retired')
           .filter(p => p.teamId === '' || canBePoached(p, ctxForTeam(marketCtx, p.teamId)))
           .filter(p => f.search === '' || p.name.includes(f.search))
           .filter(p => f.spec === 'all' || p.specialty === f.spec)

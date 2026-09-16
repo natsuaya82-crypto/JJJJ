@@ -1,4 +1,5 @@
 import { injuryBlockedIds } from '../../utils/raceAvailability'
+import { WEATHER_LABEL } from '../../data/races'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
@@ -280,7 +281,7 @@ export default function WorldTournamentPage() {
         onStart={() => runWithLoading('レース準備中…', () => run(lineup), 500)}
         onSkipRace={() => runWithLoading('結果を計算中…', () => run(lineup, true), 500)}
         onBack={() => setPhase('entry')}
-        weatherLabel={{ sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風' }}
+        weatherLabel={WEATHER_LABEL}
         raceStrategy={raceStrategy}
         setRaceStrategy={setRaceStrategy}
         unavailable={unavailableMap}

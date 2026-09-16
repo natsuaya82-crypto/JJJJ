@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { WEATHER_LABEL } from '../../data/races'
 import { lineupChemistry } from '../../engine/raceBoosts'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
@@ -22,7 +23,8 @@ import { MORALE_DEFAULT } from '../../utils/condition'
 import ScreenPortal from '../ui/ScreenPortal'
 
 
-const weatherLabel: Record<string, string> = { sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風' }
+// 天候の呼び名は `data/races` の `WEATHER_LABEL` 1本
+const weatherLabel: Record<string, string> = WEATHER_LABEL
 
 function autoFill(
   segments: import('../../types').Segment[],

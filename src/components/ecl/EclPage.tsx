@@ -1,4 +1,5 @@
 import { injuryBlockedIds } from '../../utils/raceAvailability'
+import { WEATHER_LABEL } from '../../data/races'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
@@ -21,7 +22,8 @@ import { C, alpha, rankColor, SAIRA, FONT, bottomStack, F } from '../../styles/t
 import { panelStyle } from '../ui/Panel'
 import ScreenPortal from '../ui/ScreenPortal'
 
-const weatherLabel: Record<string, string> = { sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風' }
+// 天候の呼び名は `data/races` の `WEATHER_LABEL` 1本
+const weatherLabel: Record<string, string> = WEATHER_LABEL
 
 type Phase = 'entry' | 'lineup' | 'simulating' | 'results' | 'view'
 

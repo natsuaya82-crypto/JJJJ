@@ -1,6 +1,18 @@
 import type { Race, IndividualEvent, Specialty } from '../types'
 
 // 記録会（タイムトライアル）年7回。本編レースの合間に配置。種目を散らし、負荷の高いマラソンは夏の休養期に。
+/**
+ * **天候の呼び名。ここ1本。**
+ *
+ * ★以前は同じ表が**7か所に手書き**されていて、**2つ既にズレて**いました——
+ *   `RacePage` の記録会の見出しだけ `windy` が「風」（他は「強風」）、
+ *   `RatedPage` だけ `cloudy` が「くもり」（他は「曇り」）。
+ *   呼び名を変えるときはここだけを直すこと。
+ */
+export const WEATHER_LABEL: Record<NonNullable<IndividualEvent['weather']>, string> = {
+  sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風',
+}
+
 const pickTTWeather = (): IndividualEvent['weather'] => {
   // 晴れ・曇り多め、雨・風は控えめ
   const r = Math.random()

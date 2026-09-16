@@ -11,6 +11,7 @@ import { rosterCapOf, teamRosterSize } from '../data/rosterRules'
 import type { ExpiredNegotiation, ForeignLeague, Player, Race, Season, Team } from '../types'
 import type { ClubTier } from '../utils/clubTier'
 import { allTieredClubs, tierOfPlayerClub } from '../utils/clubTier'
+import { findClub } from '../utils/clubs'
 import { type NewsItem, freeTransferHeadline } from '../utils/newsItems'
 import { freeContactConsent, seasonAppearances } from '../utils/playerUtils'
 import type { Destination } from '../utils/transferDecision'
@@ -61,7 +62,13 @@ export function resolveExpiredOffers(params: {
   ;(currentSeason.incomingOffers ?? []).forEach(o => {
     if (o.offeredPrice !== 0 || o.expiresAtRace > nextClock) return
     const pl = players.find(p => p.id === o.playerId)
-    const suitor = teams.find(t => t.id === o.fromTeamId)
+    // ★**クラブは国内52＋海外180から引くこと**（`utils/clubs` の `findClub` 1本）。
+    //   接触してくるのは `engine/cpuMarket` の `aiTeams`＝**231クラブ**なので、
+    //   `teams.find(...)` だと海外からの `inc-free-` がここで黙って落ち、
+    //   `freeDecisionNotices` にも `freeMoves` にもニュースにも出ない
+    //   ＝**返事が永久に来ない札**になっていました（受け口の `marketSlice` は
+    //   `offer.fromForeign` を見て正しく通しているので、期限処理だけ取り残された形）。
+    const suitor = findClub(teams, foreignLeagues, o.fromTeamId)
     if (!pl || pl.teamId !== playerTeamId || pl.status !== 'active' || !suitor) return
     // 決断までに契約を更新できていれば残留確定（引き留め成功）。
     // 判定は出場実績込みの freeContactConsent（よく走っている選手・愛着のある選手は残留に傾く）

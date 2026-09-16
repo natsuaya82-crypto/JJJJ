@@ -68,7 +68,10 @@ export default function StarredPlayersPage() {
           const value    = isFA ? faMarketSalary(p) : calcTransferValue(p)
           const valueLabel = isFA ? '市場' : '価値'
           // 他チーム所属の現役選手はタップ=契約メニュー/長押し=詳細。自チーム/FA/ドラフト候補は長押し=詳細のみ
-          const isOpp = !isProspect && !isFA && p.teamId !== playerTeamId && p.status === 'active'
+          // ★`'active'` で絞らないこと。入札できるかの関門は `utils/bidGate` の
+          //   `bidBlockReason` 1本で負傷を止めないので、ここで落とすと
+          //   **★を付けた選手が怪我をした瞬間に、この一覧からだけ声を掛けられなく**なります
+          const isOpp = !isProspect && !isFA && p.teamId !== playerTeamId && p.status !== 'retired'
           const rowProps = isOpp ? rowHandlers(p.id) : longPressP(p.id)
 
           return (

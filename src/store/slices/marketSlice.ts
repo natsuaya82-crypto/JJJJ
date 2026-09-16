@@ -15,7 +15,7 @@ import { nationalityToForeignCategory } from '../../engine/playerGenerator'
 import { type AcquisitionOffer, type ContractRequest, type ExpiredNegKind, type ForeignCategory, type IncomingOffer, type Player, type TradeNegotiation, type TransferListing } from '../../types'
 import { MAJOR_NEWS_OVR, allTieredClubs, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
 import { tierLines, playerTierOf as playerTierFromLines } from '../../utils/playerTier'
-import { bigClub, findClub, leagueOfClub } from '../../utils/clubs'
+import { allForeignClubs, bigClub, findClub, leagueOfClub } from '../../utils/clubs'
 import { withMorale } from '../../utils/condition'
 import { canOfferRenewal, canReNegotiate, contractTalkCtx, liveContractOf } from '../../utils/contractTalk'
 import { divisionOf, divisionStandings, domesticThroughRankOfTeam, rankOfTeam, rankedStandings, seasonDivisionStandings } from '../../utils/league'
@@ -993,7 +993,14 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     // 移籍を認めた選手は市場に出品され、シーズン中にCPUが市場価値で買い取れる（成立した瞬間に移籍金＋退団通知）。
     // シーズン内に買い手が付かなければ従来どおり年度末にFA
     const raceIdx = state.currentSeason.currentRaceIndex ?? 0
-    const aiTeams = state.teams.filter(t => t.id !== state.playerTeamId)
+    // ★**買い手の抽選は国内52＋海外180から**（`engine/cpuMarket` の `aiTeams` と同じ並び）。
+    //   ここだけ `state.teams`（国内）に閉じていたので、**GMが移籍を認めた選手にだけ
+    //   海外クラブが一度も手を挙げません**でした。
+    // ★**並びはシャッフルすること。** 下は先頭から3つ取るので、国内52を先に並べると
+    //   海外180には順番が一度も回りません（`cpuMarket` と同じ理由）。
+    const aiTeams = [...state.teams, ...allForeignClubs(state.foreignLeagues)]
+      .filter(t => t.id !== state.playerTeamId)
+      .sort(() => Math.random() - 0.5)
     const interested = aiTeams.filter(() => Math.random() < 0.5).slice(0, 3).map(t => t.id)
     if (interested.length === 0 && aiTeams.length > 0) interested.push(aiTeams[Math.floor(Math.random() * aiTeams.length)].id)
     const allowListing: TransferListing = {

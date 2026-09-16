@@ -18,6 +18,13 @@ import { GROW_STAT_KEYS, applyGrowth, growWorldPlayer } from './growth'
 import { facilitiesOf } from '../utils/facilities'
 import { applyRaceMorale, standingOf, type RaceStanding } from './raceMorale'
 
+/**
+ * **練習プランが当たる確率。ここ1本。**
+ * 画面（`components/team/TeamManagement` のプラン一覧）も同じこれを出すこと。
+ * 以前は engine が `0.30`・画面の文字が「確率35%」で、**遊ぶ人に見える数字だけが嘘**でした。
+ */
+export const TRAINING_PLAN_CHANCE = 0.30
+
 export function applyRaceProgress(params: {
   players: Player[]
   results: RaceResults
@@ -118,7 +125,7 @@ export function applyRaceProgress(params: {
         const planStatMap: Record<string, keyof typeof newRatings> = {
           '持久重視': 'stamina', 'スピード重視': 'speed', '精神強化': 'mental', '登り強化': 'mountainUp' }
         const planStat = planStatMap[plan]
-        if (planStat && rng() < 0.30) {
+        if (planStat && rng() < TRAINING_PLAN_CHANCE) {
           // 練習プランはEXPボーナスとして追加（直接+1ではなく）
           const bonusGain: Partial<Record<CardStatKey, number>> = { [planStat as CardStatKey]: 600 }
           const outcome = applyGrowth({ player: { ...p, ratings: newRatings, exp: newExp }, source: 'plan', baseGains: bonusGain, campLv })

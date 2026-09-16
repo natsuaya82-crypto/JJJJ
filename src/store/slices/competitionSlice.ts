@@ -1,15 +1,14 @@
 // competition ドメインのアクション（gameStore から分割）。
 
-import { loanedInCount } from '../../utils/rosterSync'
-import { LOAN_SLOTS } from '../../utils/bidGate'
 import type { GameStore, SetGame } from '../gameStore'
 import { ACHIEVEMENT_JEWELS, podiumJewels } from '../../engine/achievements'
 import { type EclParticipant, simulateEclEvent } from '../../engine/ecl'
 import { buildEclParticipants, buildEclRaces } from '../../engine/eclSeries'
 import { initForeignStandings, simulateForeignLeagueRound } from '../../engine/foreignLeague'
 import { cpuMarketRounds, runCpuMarketTick } from '../../engine/cpuOffseason'
+import { decideLoanRequests } from '../../engine/loanRequests'
 import { tradeValueCtxOf } from '../marketOps'
-import { ROSTER_MAX, rosterCapOf, teamRosterSize } from '../../data/rosterRules'
+import { ROSTER_MAX, rosterCapOf } from '../../data/rosterRules'
 import { type LoanResponse, type EclStanding, type ExpiredNegotiation, type GameState, type Player, type TransferRecord } from '../../types'
 import { findClub } from '../../utils/clubs'
 import { TOP_DIVISION, divisionStandings, rankedStandings } from '../../utils/league'
@@ -143,28 +142,17 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
     const newLoanResponses: LoanResponse[] = []
     const acceptedLoans: { playerId: string; ownerId: string; years: number }[] = []
     if (pendingLoanReqs.length > 0) {
-      // ★**枠の数は `utils/bidGate` の `LOAN_SLOTS` 1本、数え方は `utils/rosterSync` の
-      //   `loanedInCount` 1本**（2026-09-15）。ここは `3` を直書きしたうえで自前で
-      //   数えていたので、枠を変えても追随しませんでした。
-      let freeSlots = Math.max(0, LOAN_SLOTS - loanedInCount(state.players, playerTeamId))
-      // ★**在籍上限も見ること。** 借りた選手も1人ぶん枠を食うのに、ここだけ人数を
-      //   見ていませんでした。`marketSlice` の直接借入には
-      //   「以前は判定が無く、上限を超えたうえにレンタル選手は解雇できないため
-      //   人数を戻せない詰み状態になっていた」と書いてあるのに、**要請の承諾には
-      //   その判定が無い**ままで、30人ちょうどで承諾されると31人になって戻せませんでした。
-      let roomLeft = Math.max(0, ROSTER_MAX - teamRosterSize(state.players, playerTeamId))
-      for (const req of pendingLoanReqs) {
-        const pl = state.players.find(p => p.id === req.playerId)
-        if (!pl || pl.teamId !== req.targetTeamId || pl.loan) continue
-        const loanable = keyPlayerStatus(pl, { year: cs.year, races, eclSeries: cs.eclSeries }, state.pastSeasons) === 'open'
-        const ownerShort = findClub(state.teams, state.foreignLeagues, pl.teamId)?.shortName
+      // ★**受けるかどうかは `engine/loanRequests` の `decideLoanRequests` 1本**
+      //   （枠の数 `LOAN_SLOTS`・借りている人数 `loanedInCount`・在籍の空き `teamRosterSize`）。
+      //   **本編のレースと同じ関数を通すこと。** 以前はここと `engine/loanRequests` の
+      //   2本に割れていて、本編の側だけ枠を `3` で直書きし、**在籍上限を1行も見ていません**でした
+      //   （30人ちょうどで承諾されると31人になり、レンタル選手は解雇できないので戻せない）。
+      for (const d of decideLoanRequests(state.players, playerTeamId, pendingLoanReqs, pl =>
+        keyPlayerStatus(pl, { year: cs.year, races, eclSeries: cs.eclSeries }, state.pastSeasons) === 'open')) {
+        const ownerShort = findClub(state.teams, state.foreignLeagues, d.player.teamId)?.shortName
           ?? '相手クラブ'
-        if (loanable && freeSlots > 0 && roomLeft > 0) {
-          acceptedLoans.push({ playerId: pl.id, ownerId: pl.teamId, years: req.years }); freeSlots--; roomLeft--
-          newLoanResponses.push({ id: `lresp_${pl.id}_${raceIdx}`, playerId: pl.id, playerName: pl.name, ownerShort, accepted: true, years: req.years })
-        } else {
-          newLoanResponses.push({ id: `lresp_${pl.id}_${raceIdx}`, playerId: pl.id, playerName: pl.name, ownerShort, accepted: false, years: req.years })
-        }
+        if (d.accepted) acceptedLoans.push({ playerId: d.player.id, ownerId: d.player.teamId, years: d.years })
+        newLoanResponses.push({ id: `lresp_${d.player.id}_${raceIdx}`, playerId: d.player.id, playerName: d.player.name, ownerShort, accepted: d.accepted, years: d.years })
       }
     }
 

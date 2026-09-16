@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { WEATHER_LABEL } from '../../data/races'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import PageHeader from '../ui/PageHeader'
@@ -123,7 +124,8 @@ export default function RatedPage() {
   const mm = String(Math.floor((left % 3600) / 60)).padStart(2, '0')
   const ss = String(left % 60).padStart(2, '0')
   const weather = today?.course.conditions.weather
-  const weatherJa = weather === 'sunny' ? '晴れ' : weather === 'rainy' ? '雨' : weather === 'windy' ? '強風' : 'くもり'
+  // 天候の呼び名は `data/races` の `WEATHER_LABEL` 1本（ここだけ曇りが「くもり」になっていた）
+  const weatherJa = (weather && WEATHER_LABEL[weather]) ?? WEATHER_LABEL.cloudy
 
   return (
     <div style={{ fontFamily: FONT, minHeight: '100dvh', paddingBottom: 96 }}>

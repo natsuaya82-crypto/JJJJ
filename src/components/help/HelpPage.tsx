@@ -1,4 +1,7 @@
 import PageHeader from '../ui/PageHeader'
+import { fmtYen } from '../../utils/money'
+import { CARRYOVER_CAP_SHARE, OPERATING_COST_RATE } from '../../data/economy'
+import { FACILITY_KEYS, FACILITY_UPKEEP_PER_LEVEL } from '../../utils/facilities'
 import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
 import { LOADING_TIPS } from '../../data/tips'
 import TipText from '../ui/TipText'
@@ -118,8 +121,8 @@ const SECTIONS: Section[] = [
     color: C.green,
     lines: [
       '来季予算＝前年の繰越＋（クラブ予算＋スポンサー収入＋区間賞＋目標達成ボーナス）−（総年俸＋運営費＋出来高＋施設維持費）。',
-      '運営費は総年俸の1割、施設維持費はレベル1つにつき2500万／年（4施設ぶん）です。',
-      '使い切らなかったぶんは翌年へ繰り越せますが、繰り越せるのはクラブ予算の50%までです。貯め続けることはできません。',
+      `運営費は総年俸の${Math.round(OPERATING_COST_RATE * 100)}%、施設維持費は施設のレベル1つにつき${fmtYen(FACILITY_UPKEEP_PER_LEVEL)}／年です（施設は${FACILITY_KEYS.length}つ）。`,
+      `使い切らなかったぶんは翌年へ繰り越せますが、繰り越せるのはクラブ予算の${Math.round(CARRYOVER_CAP_SHARE * 100)}%までです。貯め続けることはできません。`,
       'クラブ予算はクラブの規模で決まり、規模は前年の国内順位で毎年上下します。1部優勝と3部最下位では4倍の差がつきます。',
       'チームタブの「財務・予算」で、来季予算の見込みや高額給与の内訳を確認できます。',
       '選手を抱えすぎると年俸で予算が圧迫されます。放出やスポンサー獲得で調整を。',

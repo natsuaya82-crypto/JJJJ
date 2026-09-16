@@ -1,4 +1,5 @@
 import { injuryBlockedIds } from '../../utils/raceAvailability'
+import { WEATHER_LABEL } from '../../data/races'
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
@@ -32,7 +33,8 @@ import ScreenPortal from '../ui/ScreenPortal'
 
 type Phase = 'lineup' | 'simulating' | 'results'
 
-const weatherLabel: Record<string, string> = { sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '強風' }
+// 天候の呼び名は `data/races` の `WEATHER_LABEL` 1本
+const weatherLabel: Record<string, string> = WEATHER_LABEL
 
 const TT_DIST_LABEL: Record<number, string> = { 5000: '5000m', 10000: '10000m', 21097: 'ハーフ', 42195: 'マラソン' }
 
@@ -75,7 +77,7 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
     <div style={{ fontFamily: "'Noto Sans JP', system-ui, sans-serif", paddingBottom: 100, minHeight: '100%' }}>
       <div style={{ borderBottom: `1px solid ${C.border}`, background: C.bg, position: 'sticky', top: 0, zIndex: 5 }}>
         <PageHeader
-          eyebrow={`記録会 — ${event.date.replace(/-/g, '/')} · ${TT_DIST_LABEL[event.distance]}${event.weather ? ` · ${({ sunny: '晴れ', cloudy: '曇り', rainy: '雨', windy: '風' } as const)[event.weather]}` : ''}`}
+          eyebrow={`記録会 — ${event.date.replace(/-/g, '/')} · ${TT_DIST_LABEL[event.distance]}${event.weather ? ` · ${WEATHER_LABEL[event.weather]}` : ''}`}
           title={event.name}
         />
       </div>
