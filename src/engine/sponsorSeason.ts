@@ -9,6 +9,7 @@
 //
 // 乱数は generateSponsorOffers の中だけ。ここでは引かない。
 import type { Season, SponsorOffer, Sponsor, Team } from '../types'
+import { roundSalary } from '../data/economy'
 import { generateSponsorOffers } from '../data/sponsors'
 import type { ClubTier } from '../utils/clubTier'
 import { type NewsItem, sponsorEndHeadline } from '../utils/newsItems'
@@ -51,7 +52,7 @@ export function processSeasonSponsors(params: {
           id: `offer_renewal_${sp.id}_${newYear}`,
           name: sp.name,
           tier: sp.tier,
-          annualPayment: Math.round(sp.annualPayment * 1.05 / 500000) * 500000,
+          annualPayment: roundSalary(sp.annualPayment * 1.05),
           contractYears: Math.min((sp.contractYears ?? 1) + 1, 3),
           target: sp.target ?? { type: 'rank', value: 5, description: '5位以内' },
           logoColor: sp.logoColor })

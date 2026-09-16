@@ -10,7 +10,7 @@ import { runTradeMoves, swapDraftPicks } from '../../engine/tradeExecution'
 import { tradeConsentBonus, tradeRefuser } from '../../engine/tradeConsent'
 import { reinforcementBanned } from '../../data/economy'
 import { pickKeysValue, roundFee } from '../../data/economy'
-import { ROSTER_MAX, canReleaseFromRoster, canSignContract, teamRosterSize } from '../../data/rosterRules'
+import { ROSTER_MAX, canReleaseFromRoster, canSignContract, canSignPlayer, teamRosterSize } from '../../data/rosterRules'
 import { nationalityToForeignCategory } from '../../engine/playerGenerator'
 import { type AcquisitionOffer, type ContractRequest, type ExpiredNegKind, type ForeignCategory, type IncomingOffer, type Player, type TradeNegotiation, type TransferListing } from '../../types'
 import { MAJOR_NEWS_OVR, allTieredClubs, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
@@ -25,12 +25,14 @@ import { settleForeignFee } from '../../utils/clubMoney'
 import { foreignSignedHeadline, joinedHeadline, loanInOutHeadline, renewalHeadline, signedWithFeeHeadline, tradeAcceptedHeadline, tradeSummaryHeadline } from '../../utils/newsItems'
 import { type OfferOutcome } from '../../utils/offerResult'
 import { playRateOf, prevSeasonOf } from '../../utils/playRate'
-import { acquisitionDesiredSalary, calcTransferValue, faMarketSalary, freeContactConsent, keyPlayerStatus, newContractYears, ovr, perfOf, playerConsentToMove, racesConsumed, salaryAppealBonus, seasonPerfProfile } from '../../utils/playerUtils'
+import { acquisitionDesiredSalary, calcTransferValue, faMarketSalary, freeContactConsent, keyPlayerStatus, newContractYears, ovr, perfOf, playerConsentToMove, racesConsumed, salaryAppealBonus, seasonPerfProfile, transferFeeFor } from '../../utils/playerUtils'
 import { belongsToClub, squadIdsOf, loanedInCount } from '../../utils/rosterSync'
 import { withSaleAnswer } from '../../utils/saleAnswer'
 import { STALE_TRADE_MSG } from '../../utils/talkSync'
 import { TRADE_HARD_NO_RATIO, TRADE_MIN_RATIO, TRADE_OK_RATIO, priceOf, tradeBalance, tradeNotLopsided, tradeValues } from '../../utils/tradeValue'
-import { type Appraisal, type Destination, appraiseMove, buildDestination, rankOffers, regionOfLeague } from '../../utils/transferDecision'
+import { type Appraisal, type Destination, appraiseMove, buildDestination, isSurplus, rankOffers, regionOfLeague } from '../../utils/transferDecision'
+import { comparePlayers } from '../../utils/playerSort'
+import { squadRankOf } from '../../utils/squadNeeds'
 import { canAcceptOfferFor, canBePoached, canListForSale, canLoanOut, canTradeAway, ctxForTeam, eligibilityCtx, isLeavingClub } from '../../utils/transferEligibility'
 // 入札・レンタル申請を出せるか（画面の「押せるか」と同じ1本）
 import { bidBlockReason, loanBlockReason, LOAN_SLOTS } from '../../utils/bidGate'
@@ -1613,10 +1615,26 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     // foreignCategory は選手データの表示用に持たせるだけ。
     const foreignCat: ForeignCategory = player.foreignCategory ?? nationalityToForeignCategory(player.nationality)
 
-    // Transfer fee is based on player market value (independent of salary)
-    const transferFee = calcTransferValue(player)
+    // ★**在籍上限を見ること。** ここだけ `canSignPlayer` を通しておらず、
+    //   **この経路だけ `ROSTER_MAX` を素通り**していました（`finalizeTransfer` は見ている）。
+    if (!canSignPlayer(state.players, state.playerTeamId, playerId)) return false
+
+    // ★**移籍金は `transferFeeFor` 1本**（余剰でなければ `POACH_PREMIUM` の割増）。
+    //   ここは `calcTransferValue(player)` を第2引数も無しで呼んでいたので、
+    //   **海外から獲るときだけ主力が余剰と同じ値段**になっていました。
+    //   今季の出場を渡さないと、出場0の選手もフル出場の選手も同じ額になります。
+    const signRoster = state.players.filter(p => p.teamId === player.teamId && p.status === 'active')
+      .sort(comparePlayers('ovr'))
+    const signSurplus = isSurplus({ squadRank: squadRankOf(signRoster, player) })
+    const signPerf = perfOf(state.currentSeason, player.id,
+      playRateOf(player.id, player.teamId, state.currentSeason, state.teams, state.foreignLeagues).teamRaces)
+    const transferFee = transferFeeFor(player, signSurplus, signPerf)
     if (myTeam.finance.budget < transferFee) return false
 
+    // ★**成否を返すこと。** ここは `set()` の外で無条件に `true` を返していたので、
+    //   `movePlayer` が失敗しても画面は「加入した」と受け取っていました
+    //   （`executeTransferPurchase` / `releasePlayerWithBuyout` は正しくフラグを返している）。
+    let signed = false
     set(s => {
       // 所属・名簿・移籍金・加入年・移籍履歴は movePlayer にまとめて任せる（国内移籍と同じ後始末）
       const moved = movePlayer(s, playerId, s.playerTeamId, {
@@ -1627,6 +1645,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
         myTeamId: s.playerTeamId,
         contract: { annualSalary: salary, yearsLeft: years, contractType: 'standard' } })
       if (!moved.ok) return s
+      signed = true
       return {
         // 海外選手だけの持ち物（国籍区分・FA取得年・性格）はここで足す
         players: moved.players.map(p => p.id === playerId
@@ -1650,7 +1669,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
             category: 'fa' as const,
             relatedIds: [playerId] }, ...s.currentSeason.newsFeed].slice(0, 30) } }
     })
-    return true
+    return signed
   },
 
   refuseFreeContactRetention: (playerId) => set(s => {

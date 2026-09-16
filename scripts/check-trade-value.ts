@@ -202,8 +202,12 @@ console.log('\n[7] 呼び出し側が自前で閾値を書いていない')
   // store は分割済み。本文は scripts/storeSource の1本から取る（範囲の決め方もそこ）
   // logic は store＋engine。**「どこかに1本だけあるか」を数えるものはこちら**
   // （判定の実体が engine へ移っても数え漏らさない）
-  const store = storeSource()
-  const logic = logicSource()
+  // ★**コメントを外してから数えること**（`check-morale` と同じ形）。
+  //   経緯の説明文に「`POACH_PREMIUM` を掛けるのはここだけ」と書いただけで落ちていました
+  //   ＝コメントで落ちるということは、**コメントで隠すこともできる**という意味でもあります。
+  const noComment = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
+  const store = noComment(storeSource())
+  const logic = noComment(logicSource())
   // チャット画面は分割済み（ChatPage.tsx + chat/ 配下）。本文は scripts/uiSource の1本から取る
   const chat = chatSource()
 
@@ -251,7 +255,7 @@ console.log('\n[7] 呼び出し側が自前で閾値を書いていない')
   // ── 値段の出どころ（data/economy.ts）を素通りしていないか ──
   const bid = readFileSync(join('src', 'components', 'transfer', 'BidSheet.tsx'), 'utf-8')
   const tp = readFileSync(join('src', 'components', 'transfer', 'TransferPage.tsx'), 'utf-8')
-  const fx = readFileSync(join('src', 'engine', 'transferMarket.ts'), 'utf-8')
+  const fx = noComment(readFileSync(join('src', 'engine', 'transferMarket.ts'), 'utf-8'))
   // 指名権キーの読み取り（正規表現＋既定値8,000,000）が2箇所に手書きされていた
   const pickRe = /match\(\/-R\(\\d\+\)-\(\\d\+\)\$\//g
   const pickDefs = (store.match(pickRe) ?? []).length + (chat.match(pickRe) ?? []).length

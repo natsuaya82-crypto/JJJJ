@@ -1,6 +1,7 @@
 // meta ドメインのアクション（gameStore から分割）。
 
 import type { GameStore, SetGame } from '../gameStore'
+import { loginPrevKey, loginTodayKey } from '../../utils/loginDate'
 import { type Gift } from '../../types'
 import { ADS_PER_DAY, getAdDay } from '../../utils/ads'
 import { findClub } from '../../utils/clubs'
@@ -141,17 +142,13 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
   claimLoginBonus: () => {
     const state = get()
-    // 10:00 AM reset: before 10AM counts as previous day。日付はローカル基準で統一（UTCと混ぜない）。
-    const localDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    const now = new Date()
-    const base = new Date(now)
-    if (base.getHours() < 10) base.setDate(base.getDate() - 1)
-    const today = localDate(base)
+    // ★**「今日」は `utils/loginDate` 1本**（中身は `jstDate` の `jstGameDayISO`＝
+    //   日本時間の朝10時区切り）。ここは同じ前日補正を**1文字ずつ写した**インライン版で、
+    //   しかも `getHours()`＝端末のローカル時刻基準でした。`loginDate.ts` を直しても
+    //   ここだけ古い区切りのまま残る形だったので、写しをやめます。
+    const today = loginTodayKey()
     if (state.lastLoginDate === today) return null
-
-    const prev = new Date(base)
-    prev.setDate(prev.getDate() - 1)
-    const yesterday = localDate(prev)
+    const yesterday = loginPrevKey(today)
     const continued = state.lastLoginDate === yesterday
     const prevStreak = continued ? (state.loginStreak ?? 0) : 0
     const newStreak = prevStreak + 1

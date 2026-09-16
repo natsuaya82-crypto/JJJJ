@@ -1,4 +1,5 @@
 import type { ForeignLeague, Player, Season, Team } from '../types'
+import { squadRankOf } from './squadNeeds'
 import type { ClubTier } from './clubTier'
 import { appraiseMove, isSurplus, moveDeclineText, type Appraisal, type Destination } from './transferDecision'
 import { allTieredClubs, tierOfPlayerClub } from './clubTier'
@@ -67,7 +68,11 @@ export function gmInviteFeeFor(ctx: GmInviteCtx, playerId: string): number | nul
   const oldRoster = ctx.players
     .filter(x => x.teamId === ctx.fromTeamId && x.status === 'active')
     .sort(comparePlayers('ovr'))
-  const surplus = isSurplus({ squadRank: oldRoster.findIndex(x => x.id === p.id) + 1 })
+  // ★**序列は `utils/squadNeeds` の `squadRankOf` 1本**（「自分より上は何人か」）。
+  //   `findIndex` は**同じOVRの選手に別々の順位**を与えるので、14番手と15番手が
+  //   同OVRのとき、同じ選手が「余剰」と「主力」に割れます＝`POACH_PREMIUM`(1.4) が
+  //   **監督について行く経路だけ**他と違う額になります。
+  const surplus = isSurplus({ squadRank: squadRankOf(oldRoster, p) })
   return transferFeeFor(p, surplus, perfOf(ctx.currentSeason, p.id, ranRaces))
 }
 

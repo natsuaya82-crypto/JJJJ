@@ -4,7 +4,7 @@ import { peakAgeOfCurve } from '../engine/ageCurve'
 import { type ClubTier } from './clubTier'
 import { appraiseMove, CONSENT_LINE, moveDeclineText, type Destination } from './transferDecision'
 import { strHash } from './hash'
-import { POACH_PREMIUM } from '../data/economy'
+import { POACH_PREMIUM, roundSalary } from '../data/economy'
 import { type Race } from '../types'
 import { MORALE_DEFAULT } from './condition'
 import { lerpAnchors } from './anchors'
@@ -332,7 +332,9 @@ export function salaryPerfFactor(p: Player, perf?: PerfProfile): number {
 // perf を渡さない経路（CPUの更新・ドラフト・FA一括処理など）は通算実績だけで評価する。
 export function faMarketSalary(p: Player, perf?: PerfProfile): number {
   // 年齢係数は廃止。衰えは年齢カーブでOVRが下がることだけで表す（二重に効かせない）
-  return Math.round(ovrSalary(ovr(p)) * salaryPerfFactor(p, perf) / 500000) * 500000
+  // 刻みは `data/economy` の `roundSalary` 1本（`SALARY_DIAL_STEP`）。
+  // ここと下の `acquisitionDesiredSalary` だけ 500000 の手書きが残っていた
+  return roundSalary(ovrSalary(ovr(p)) * salaryPerfFactor(p, perf))
 }
 
 // 獲得オファーで本人が求める年俸。**市場年俸（faMarketSalary）の枝**なので、
@@ -353,7 +355,7 @@ export function acquisitionDesiredSalary(player: Player, source: 'fa' | 'scout',
     const playMult = playFraction >= 0.8 ? 1.35 : playFraction >= 0.6 ? 1.18 : 1.0
     desired *= playMult
   }
-  return Math.round(desired / 500000) * 500000
+  return roundSalary(desired)
 }
 
 // 選手がそのシーズンに何レース出場したか（データ判定用）
@@ -589,15 +591,11 @@ export function isRetiringAge(p: Player, aheadYears = 0): boolean {
 const AGE_FEE_POINTS: readonly [number, number][] = [[21, 5], [25, 4], [29.5, 3], [34, 2]]
 
 export function transferFeeAgeMultiplier(age: number): number {
-  const pts = AGE_FEE_POINTS
-  if (age <= pts[0][0]) return pts[0][1]
-  const last = pts[pts.length - 1]
-  if (age >= last[0]) return last[1]
-  for (let i = 1; i < pts.length; i++) {
-    const [x0, y0] = pts[i - 1], [x1, y1] = pts[i]
-    if (age <= x1) return y0 + (y1 - y0) * ((age - x0) / (x1 - x0))
-  }
-  return last[1]
+  // ★**表を引くのは `utils/anchors` の `lerpAnchors` 1本**（下端の扱いは `belowFirst` で
+  //   名前を付けて渡す）。ここは同じ区分線形のループを手書きしていた4本目でした——
+  //   答えは同じですが、`lerpAnchors` の下端・上端の扱いを直したときにここだけ
+  //   取り残されます（「3か所に写って下端だけ3通り」を再生産する形）。
+  return lerpAnchors(AGE_FEE_POINTS, age)
 }
 
 /**

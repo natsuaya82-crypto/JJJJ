@@ -159,7 +159,15 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     const newPool = pool.filter(p => p.id !== picked.id)
     // 自チームの指名と同じ入口を通す（加入年・名簿の入れ方が指名する側で変わらないように）
     const moved = movePlayer(state, picked.id, teamId, { year: state.currentSeason.year, history: false })
-    if (!moved.ok) return
+    // ★**指名の順番だけは必ず進めること。** ここは何もせず抜けていたので、
+    //   `movePlayer` が失敗すると `DraftRoom` のタイマーが同じ指名を呼び続けて
+    //   **会場が止まります**（22行上の「見送り」の枝はちゃんと進めているのに、
+    //   その直下のここだけ取り残されていた）。見送りと同じく順番を進めて次へ回す。
+    if (!moved.ok) {
+      const skipped = currentPick + 1
+      set({ draftState: { ...draftState, currentPick: skipped, isComplete: skipped >= pickOrder.length } })
+      return
+    }
     const teams = moved.teams
     const players = moved.players.map(p => p.id === picked.id
       ? { ...p, ...(({ round, pickInRound }) => ({ draftRound: round, draftPick: pickInRound }))(draftRoundOf(currentPick, pickOrder.length)) }
@@ -220,8 +228,19 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
               fraction, teamRaces, 0, true, get().playerTierOf(fa)).ok
           } })
         for (const sg of postSignings) {
+          const before = updatedPlayers.find(x => x.id === sg.playerId)
+          if (!before) continue
+          // ★**契約を結び直すこと。** 同じ「CPUのFA加入」は3か所（ドラフト前の一括処理・
+          //   シーズン中の `engine/inSeasonFa`・ここ）あり、**ここだけ契約を触って**
+          //   いませんでした。拾われた選手は前の契約（残0年・前クラブの年俸）のまま加入し、
+          //   次のオフにまた満了でFAへ戻ります。年数は `newContractYears`、
+          //   年俸は `faMarketSalary` 1本。
           const m = movePlayer({ players: updatedPlayers, teams: [] }, sg.playerId, sg.clubId, {
-            year: state.currentSeason.year, kind: 'free', history: false })
+            year: state.currentSeason.year, kind: 'free', history: false,
+            contract: {
+              yearsLeft: newContractYears(before, state.currentSeason.year),
+              annualSalary: faMarketSalary(before, perfOf(state.currentSeason, sg.playerId)),
+              contractType: 'standard' } })
           if (m.ok) updatedPlayers = m.players
         }
       }

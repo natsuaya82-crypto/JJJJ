@@ -10,6 +10,7 @@
 // 新しい条件を足すときは、必ずこのファイルの関数に足すこと。
 // 呼び出し側に直接 p.noSale や p.overseasListed を書かないこと（scripts/check-transfer-eligibility.ts が検出する）。
 import type { Player } from '../types'
+import { isSquadMember } from './rosterSync'
 import { saleAnsweredIds, type SaleAnswerSeason } from './saleAnswer'
 
 export type EligibilityCtx = {
@@ -124,7 +125,11 @@ export function isRetiring(p: Player, retiringIds?: Set<string>): boolean {
  * レンタルで借りている選手は teamId が借り手になっているが持ち物ではないので false
  */
 export function isOwnedBy(p: Player, teamId: string): boolean {
-  return p.teamId === teamId && p.status !== 'retired' && !p.loan
+  // ★**中身は `utils/rosterSync` の `isSquadMember` 1本**（所属の定義はあちらが持つ）。
+  //   ここは同じ式を手書きしていて `rosterSync` を import していなかったので、
+  //   所属の定義（引退の扱い・レンタルの扱い）を変えても**市場側だけ古いまま**でした。
+  //   名前は残します——呼ぶ側は「保有権があるか」を聞いていて、意味が読みやすいため。
+  return isSquadMember(p, teamId)
 }
 
 /**
