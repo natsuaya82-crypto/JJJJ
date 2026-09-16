@@ -149,10 +149,8 @@ export type GameStore = GameState & {
   initScoutPool: () => void
 
   // Transfer & FA
-  releasePlayer: (playerId: string) => void
   // ドラフト後：指名した新人の契約（年俸・役割・契約形態・契約年数）を設定
   setDraftContract: (playerId: string, salary: number, years: number, contractType: 'standard' | 'development' | 'dual', teamRole?: import('../types').TeamRole) => void
-  extendContract: (playerId: string) => void
   // 成立したか＝ok。断られた理由は reason（チャットにそのまま出す）
   tradePlayer: (offeredIds: string[], requestedIds: string[], targetTeamId: string, transferFee?: number, offerPickKeys?: string[], requestPickKeys?: string[]) => { ok: boolean; reason?: string }
   proposeTrade: (targetTeamId: string, giveIds: string[], givePickKeys: string[], getIds: string[], getPickKeys: string[]) => void
@@ -160,7 +158,6 @@ export type GameStore = GameState & {
   dismissTradeNegotiation: (negId: string) => void
   setChatLog: (playerId: string, messages: import('../types').ChatMessage[]) => void
   getTransferWindow: () => { open: boolean; label: string; racesUntil: number | null }
-  getRosterWindow: () => { open: boolean; label: string }
   ensureFuturePicks: () => void
 
   // Player sheet

@@ -928,7 +928,7 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
     // ただし**空いている枠が分からないときは出さない**。
     // サーバー側の club_feed が古いと open_stats が返らず、押しても全部のカードが
     // 薄いまま「あと0枚まで入ります」になって、何も渡せないシートが開くだけになる
-    // （supabase/club_feed.sql）
+    // （supabase/all.sql の club_feed）
     const canGive = p.kind === 'req' && !p.mine && !done && p.openStats.length > 0
     const col = p.kind === 'req' && p.rarity ? RARITY_COLORS[p.rarity] : C.border2
     const rc = reacts.data?.[p.id]

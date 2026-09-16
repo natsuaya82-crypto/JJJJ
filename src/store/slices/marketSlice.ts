@@ -39,7 +39,7 @@ import { bidBlockReason, loanBlockReason, LOAN_SLOTS } from '../../utils/bidGate
 import { facilitiesOf } from '../../utils/facilities'
 
 type Slice = Pick<GameStore,
-  'releasePlayer' | 'extendContract' | 'renewContractOffer' | 'sendScoutMission' | 'startFAVisit' | 'acceptTradeOffer' | 'rejectTradeOffer' | 'executeTransferPurchase' | 'destinationOf' | 'playerTierOf' | 'resolveStayOrLeave' | 'rankIncomingOffers' | 'consentToLeave' | 'acceptIncomingOffer' | 'declineIncomingOffer' | 'acceptIncomingLoanOffer' | 'declineIncomingLoanOffer' | 'initiateContractRenewal' | 'generateContractRequests' | 'submitContractRenewalOffer' | 'acceptContractCounter' | 'reNegotiateContract' | 'abandonContractRenewal' | 'startAcquisitionOffer' | 'submitAcquisitionOffer' | 'acceptAcquisitionCounter' | 'reNegotiateAcquisition' | 'abandonAcquisitionOffer' | 'releasePlayerWithBuyout' | 'counterAllIncomingOffers' | 'counterIncomingOffer' | 'dismissRetirementRequest' | 'acceptRetirement' | 'approveOverseasChallenge' | 'denyOverseasChallenge' | 'dismissTransferRequest' | 'allowPlayerTransfer' | 'toggleNoSale' | 'toggleLoanListed' | 'cancelSellListing' | 'loanInPlayer' | 'loanOutPlayer' | 'submitLoanRequest' | 'cancelLoanRequest' | 'dismissLoanResponse' | 'submitTransferBid' | 'acceptFeeCounter' | 'rejectTransferBid' | 'finalizeTransfer' | 'listMyPlayerForSale' | 'delistMyPlayer' | 'scoutOpponentPlayer' | 'toggleStarOpponent' | 'toggleStarProspect' | 'tradePlayer' | 'proposeTrade' | 'acceptTradeCounter' | 'dismissTradeNegotiation' | 'setChatLog' | 'signForeignPlayer' | 'getTransferWindow' | 'getRosterWindow' | 'refuseFreeContactRetention'>
+  'renewContractOffer' | 'sendScoutMission' | 'startFAVisit' | 'acceptTradeOffer' | 'rejectTradeOffer' | 'executeTransferPurchase' | 'destinationOf' | 'playerTierOf' | 'resolveStayOrLeave' | 'rankIncomingOffers' | 'consentToLeave' | 'acceptIncomingOffer' | 'declineIncomingOffer' | 'acceptIncomingLoanOffer' | 'declineIncomingLoanOffer' | 'initiateContractRenewal' | 'generateContractRequests' | 'submitContractRenewalOffer' | 'acceptContractCounter' | 'reNegotiateContract' | 'abandonContractRenewal' | 'startAcquisitionOffer' | 'submitAcquisitionOffer' | 'acceptAcquisitionCounter' | 'reNegotiateAcquisition' | 'abandonAcquisitionOffer' | 'releasePlayerWithBuyout' | 'counterAllIncomingOffers' | 'counterIncomingOffer' | 'dismissRetirementRequest' | 'acceptRetirement' | 'approveOverseasChallenge' | 'denyOverseasChallenge' | 'dismissTransferRequest' | 'allowPlayerTransfer' | 'toggleNoSale' | 'toggleLoanListed' | 'cancelSellListing' | 'loanInPlayer' | 'loanOutPlayer' | 'submitLoanRequest' | 'cancelLoanRequest' | 'dismissLoanResponse' | 'submitTransferBid' | 'acceptFeeCounter' | 'rejectTransferBid' | 'finalizeTransfer' | 'listMyPlayerForSale' | 'delistMyPlayer' | 'scoutOpponentPlayer' | 'toggleStarOpponent' | 'toggleStarProspect' | 'tradePlayer' | 'proposeTrade' | 'acceptTradeCounter' | 'dismissTradeNegotiation' | 'setChatLog' | 'signForeignPlayer' | 'getTransferWindow' | 'refuseFreeContactRetention'>
 
 // トレードの同意判定に渡す材料（engine/tradeConsent）。成立させる側とチャットの打診側で
 // **同じものを渡す**ためにここ1本から作る（手書きすると片方だけ古い state を見る事故が起きる）
@@ -57,43 +57,8 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
   const consentCtx = consentCtxOf(get)
   return ({
 
-  releasePlayer: (playerId) => {
-    set(state => {
-      const player = state.players.find(p => p.id === playerId)
-      if (!player || player.teamId !== state.playerTeamId) return state
-      // 最低ロスター人数を割る放出は不可
-      if (!canReleaseFromRoster(state.players, state.playerTeamId)) return state
-      // 契約期間が残っているなら解約金（残年俸×(残年-1)）。満了(残1年以下)は無償。
-      const buyout = player.contract.annualSalary * Math.max(0, player.contract.yearsLeft - 1)
-      // 支払いは Math.max(0, ...) で挟まない。挟むと残高がマイナスのときに
-      // 「払ったら0円に戻る（＝実質チャージ）」になってしまう。赤字はそのまま深くする。
-      // 移動は movePlayer 一本（所属を空にして名簿から外し、移籍リストの札もはがす）
-      const moved = movePlayer(state, playerId, '', { year: state.currentSeason.year })
-      if (!moved.ok) return state
-      return {
-        players: moved.players,
-        teams: moved.teams.map(t => t.id === state.playerTeamId
-          ? { ...t, finance: { ...t.finance, budget: t.finance.budget - buyout } }
-          : t) }
-    })
-  },
 
 
-  extendContract: (playerId) => {
-    set(state => {
-      const player = state.players.find(p => p.id === playerId)
-      if (!player || player.teamId !== state.playerTeamId) return state
-      return {
-        players: state.players.map(p =>
-          p.id === playerId ? {
-            ...p,
-            contract: {
-              ...p.contract,
-              yearsLeft: p.contract.yearsLeft + 3,
-              annualSalary: Math.round(p.contract.annualSalary * 1.1) } } : p
-        ) }
-    })
-  },
 
 
   sendScoutMission: (prospectId) => {
@@ -1375,13 +1340,6 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
   getTransferWindow: () => ({ open: true, label: '移籍受付中', racesUntil: null }),
 
 
-  getRosterWindow: () => {
-    const { currentSeason } = get()
-    if (currentSeason.phase === 'preseason') return { open: true, label: '開幕前ウィンドウ' }
-    if (currentSeason.phase === 'regular' && currentSeason.currentRaceIndex === 5)
-      return { open: true, label: '中間ウィンドウ（第5戦後）' }
-    return { open: false, label: 'ウィンドウ閉鎖中' }
-  },
 
 
   tradePlayer: (offeredIds, requestedIds, targetTeamId, transferFee = 0, offerPickKeys = [], requestPickKeys = []) => {

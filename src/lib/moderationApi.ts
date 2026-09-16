@@ -1,4 +1,4 @@
-// 通報とブロックのサーバー窓口。supabase/moderation.sql と対になっている。
+// 通報とブロックのサーバー窓口。サーバー側は supabase/all.sql 1本。
 //
 // 走友会の掲示板は定型文しか書けないが、チーム名・監督名・走友会名・選手名は
 // 自由入力で他の人に見える。App Store の審査基準 1.2 が求める
@@ -10,7 +10,7 @@ import { supabase, ensureAuth } from './supabase'
 // 相手のロゴをどれにするかは data/logoPresets の remoteLogoId 1本
 import { remoteLogoId } from '../data/logoPresets'
 
-/** 通報の理由。値は moderation.sql の check とそろえること */
+/** 通報の理由。値は all.sql の check とそろえること */
 export type ReportReason = 'harass' | 'sexual' | 'impersonate' | 'spam' | 'other'
 
 export const REPORT_REASONS: { key: ReportReason; label: string }[] = [

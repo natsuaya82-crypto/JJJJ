@@ -115,8 +115,6 @@ export type TransferBid = {
   round: number
   status: TransferBidStatus
   counterFee?: number
-  offeredSalary?: number
-  offeredYears?: number
   submittedAtRace: number
   feeAcceptedAtRace?: number
   /** 競り上げられて逆提示になったときの相手クラブ名（1回だけ上乗せの機会を出す） */
@@ -305,7 +303,6 @@ export type Player = {
   personality?: 'salary' | 'winning' | 'loyalty'
   foreignCategory?: ForeignCategory
   personalSponsors?: string[]    // Sponsor IDs
-  missNextRace?: boolean
   exp?: Partial<Record<CardStatKey, number>>  // 蓄積EXP（レース・カードで貯まりLvUpに使う）
   teamRole?: TeamRole
 }
@@ -481,7 +478,6 @@ export type EclResult = {
   races: { name: string; raceId: string }[]
   courseName?: string                // 開催コース（10コースからランダム）
   location?: string
-  courseCharacter?: string
   raceResults?: RaceResults          // 一発勝負の全区間結果（結果画面用）
   winnerPlayerIds?: string[]         // 優勝チームの出走メンバー（記録パッチ付与用）
   mvpPlayerId?: string               // 大会MVP（区間で最も突出した走りをした選手）

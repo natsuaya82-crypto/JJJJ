@@ -1,6 +1,4 @@
 import type { ClubTier } from './clubTier'
-import { RUNNING_SLOTS } from '../data/rosterRules'
-import { ovr } from './playerUtils'
 import { effectiveOvr } from './foreignClubProfile'
 import type { Player } from '../types'
 

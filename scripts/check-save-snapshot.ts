@@ -95,7 +95,9 @@ const acts: [string, () => void][] = [
   ['advanceMarketOneRace', () => st().advanceMarketOneRace?.()],
   ['runCpuMarketRound', () => st().runCpuMarketRound?.()],
   ['advanceEclRace', () => st().advanceEclRace?.()],
-  ['releasePlayer', () => st().releasePlayer?.(P[7].id)],
+  // `releasePlayer` は `releasePlayerWithBuyout` の写し（成否を返さないだけ）で、
+  // 画面からは一度も呼ばれていなかったので消した。生きているほうを流す
+  ['releasePlayerWithBuyout', () => st().releasePlayerWithBuyout?.(P[7].id)],
   ['allowPlayerTransfer', () => st().allowPlayerTransfer?.(P[8].id)],
   ['scoutOpponentPlayer', () => st().scoutOpponentPlayer?.(someoneElse.id)],
   ['simulateIndividualEvent', () => st().simulateIndividualEvent?.(0)],

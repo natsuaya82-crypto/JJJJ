@@ -1,4 +1,4 @@
-// 走友会（所属のみ）のサーバー窓口。サーバー側は supabase/all.sql 1本（clubs.sql は廃止）。
+// 走友会（所属のみ）のサーバー窓口。サーバー側は supabase の SQL 1本にまとまっている。
 // 探して入る形。対抗戦などの競技要素はここには無い。
 import { supabase, ensureAuth } from './supabase'
 import {
@@ -42,7 +42,7 @@ export type Club = ClubBrief & { ownerId: string }
 /** 走友会での役割。owner＝会長 / admin＝副会長 / member＝一般 */
 export type ClubRole = 'owner' | 'admin' | 'member'
 
-/** 副会長の人数の上限。`supabase/all.sql` 側とそろえること（clubs_roles.sql は廃止） */
+/** 副会長の人数の上限。`supabase/all.sql` の `set_club_role` の即値とそろえること */
 export const CLUB_ADMIN_MAX = 3
 
 /** メンバー1人ぶん。表示に必要なものはフレンドと同じなので Friend を土台にする */
@@ -420,7 +420,7 @@ export async function clubFeed(): Promise<ClubPost[]> {
     userId: r.user_id,
     kind: r.kind,
     phrase: r.phrase ?? 0,
-    // 古いサーバー（club_text.sql 未適用）だと列が無い。そのときは定型文へ落とす
+    // 古いサーバー（いまの all.sql をまだ流していない）だと列が無い。そのときは定型文へ落とす
     body: r.body ?? '',
     roomCode: r.room_code ?? '',
     rarity: (r.rarity || '') as ClubReqRarity | '',

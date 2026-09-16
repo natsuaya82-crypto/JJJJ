@@ -84,7 +84,7 @@ function clearClearedMark(): void {
 
 /**
  * サーバーに残っている自分のデータを消す（プロフィール・フレンド関係・走友会の在籍など）。
- * 中身は supabase/account.sql の delete_me()。
+ * 中身は supabase/all.sql の delete_me()。
  *
  * ログイン状態が無いときは何もしない。消すために新しいアカウントを作ってしまうと本末転倒なので、
  * ここでは ensureAuth() を呼ばない。

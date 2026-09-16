@@ -192,7 +192,7 @@ export async function pushMyProfile(
  *
  * 殿堂入りを同じ行に相乗りさせているのは、見せたい相手（フレンドと同じ走友会の人）が
  * ロスターとまったく同じで、その決まりが rosters のポリシー3つにもう書いてあるため。
- * 別のテーブルにすると同じ決まりを2か所に書くことになる（supabase/hof_share.sql）。
+ * 別のテーブルにすると同じ決まりを2か所に書くことになる（supabase/all.sql の rosters のポリシー）。
  */
 export async function pushMyRoster(players: Player[], hof: readonly HofPlayer[] = []): Promise<void> {
   const me = await uid()

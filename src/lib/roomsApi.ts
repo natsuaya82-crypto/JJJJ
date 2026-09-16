@@ -1,5 +1,5 @@
 // オンライン対戦（部屋番号式）のサーバー窓口。
-// テーブルとRPCの定義は supabase/rooms.sql にある。
+// テーブルとRPCの定義は supabase/all.sql にある。
 //
 // 役割分担
 //   ・このファイル … 部屋を作る／入る／出る／キック／開始／結果確定（＝DBに残るもの）
@@ -270,7 +270,7 @@ export async function getMatchDetail(matchId: string): Promise<MatchDetail | und
 // finish_match() が matches / match_results に残しているものを読むだけ。
 // 書き込みは既にあり、SQLの変更は要らない。
 // RLS は「自分が出た試合だけ、その試合の全員ぶんが見える」なので相手の順位も出せる
-// （rooms.sql の matches_select_mine / match_results_select_mine）。
+// （all.sql の matches_select_mine / match_results_select_mine）。
 
 /** 対戦履歴1件ぶんの参加者。自分も相手も同じ形で入る。 */
 export type MatchEntry = {
@@ -312,7 +312,7 @@ export async function myMatchHistory(limit = 20): Promise<MatchHistoryItem[]> {
   const me = await uid()
 
   // list_my_matches は「自分が出た試合と、その全参加者」を1回で返す。
-  // 呼ばれたついでにサーバー側で60日より古い記録を消す（supabase/matches_prune.sql）。
+  // 呼ばれたついでにサーバー側で60日より古い記録を消す（supabase/all.sql）。
   const { data, error } = await supabase.rpc('list_my_matches', { p_limit: limit })
   if (error) throw new RoomsOffline('myMatchHistory / list_my_matches', error)
   const rows = (data ?? []) as {

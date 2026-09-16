@@ -150,5 +150,31 @@ console.log('\n⑤ アプリが呼ぶものが全部ある')
     `${noGrant.join(', ')} が grant の一覧に入っていません（42501 permission denied になります）`)
 }
 
+// ★**もう無い `.sql` を指すコメントを残さないこと。**
+//   `supabase/` にあるのは `all.sql` 1本だけなので、`rooms.sql` や `moderation.sql` を
+//   名指ししたコメントは、読んだ人が**その名前で新しいファイルを作る動機**になります
+//   （作った時点でこの点検の1本目が落ちますが、その前に混乱します）。
+//   実際に6ファイルに残っていました（2026-09-16）。
+{
+  const walk = (d: string): string[] => {
+    const out: string[] = []
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      const p = `${d}/${e.name}`
+      if (e.isDirectory()) out.push(...walk(p))
+      else if (/\.(ts|tsx)$/.test(e.name)) out.push(p)
+    }
+    return out
+  }
+  const here = readdirSync('supabase').filter(f => f.endsWith('.sql'))
+  const ghosts: string[] = []
+  for (const f of walk('src')) {
+    const txt = readFileSync(f, 'utf8')
+    for (const m of txt.matchAll(/([A-Za-z0-9_]+\.sql)/g)) {
+      if (!here.includes(m[1])) ghosts.push(`${f}  → ${m[1]}`)
+    }
+  }
+  check('もう無い .sql を指すコメントが残っていない', ghosts.length === 0, ghosts.slice(0, 8).join(' ／ '))
+}
+
 console.log(failed === 0 ? '\n  → OK\n' : `\n  → NG ${failed}件\n`)
 process.exit(failed === 0 ? 0 : 1)

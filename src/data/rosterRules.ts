@@ -103,8 +103,3 @@ export function canSignPlayer(players: Player[], teamId: string, playerId: strin
 }
 
 // 選手ステータス：FA / 移籍リスト入り / 契約中 の3種（契約形態の区別は廃止）
-export function playerStatusLabel(p: Player): { label: string; key: 'standard' | 'dual' | 'development' | 'listed' | 'fa' } {
-  if (p.teamId === '') return { label: '契約満了（FA）', key: 'fa' }
-  if (p.transferListed) return { label: '移籍リスト入り', key: 'listed' }
-  return { label: '契約中', key: 'standard' }
-}
