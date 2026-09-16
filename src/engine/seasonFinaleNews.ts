@@ -8,7 +8,8 @@
 //   （分け方は utils/awards の computeSeasonAwards 1本）。
 // ★引退表明は開幕時の引退判定と同じ式（utils/playerUtils の retirementAgeOf 1本）を
 //   1歳先で評価する。ここに別の年齢を書かないこと。
-import type { Player, Race, Season, Team } from '../types'
+import { findClub } from '../utils/clubs'
+import type { Player, Race, Season, Team, ForeignLeague } from '../types'
 import { computeSeasonAwards } from '../utils/awards'
 import { divisionOf } from '../utils/league'
 import { type NewsItem, awardHeadline, retirementHeadline } from '../utils/newsItems'
@@ -18,13 +19,15 @@ import { isRetiringAge, ovr } from '../utils/playerUtils'
 export function buildSeasonFinaleNews(params: {
   players: Player[]
   teams: Team[]
+  /** 海外リーグ。**渡すこと**——渡さないと海外所属の引退がクラブ名なしで出る */
+  foreignLeagues?: ForeignLeague[] | null
   currentSeason: Season
   /** 今季の日程（結果入り） */
   races: Race[]
   playerTeamId: string
   raceDate: string
 }): NewsItem[] {
-  const { players, teams, currentSeason, races, playerTeamId, raceDate } = params
+  const { players, teams, foreignLeagues, currentSeason, races, playerTeamId, raceDate } = params
   const seasonEndNews: NewsItem[] = []
   {
     // ★MVPは部ごと（1部MVP・2部MVP・3部MVP）。ここは自分の部のぶん
@@ -45,8 +48,10 @@ export function buildSeasonFinaleNews(params: {
     const mineRet = retiring.filter(p => p.teamId === playerTeamId)
     const othersRet = retiring.filter(p => p.teamId !== playerTeamId && ovr(p) >= 72).sort(comparePlayers('ovr')).slice(0, 6)
     for (const p of [...mineRet, ...othersRet]) {
-      const tn = teams.find(t => t.id === p.teamId)?.shortName ?? ''
-      seasonEndNews.push({ date: raceDate, headline: retirementHeadline({ division: divisionOf(teams.find(t => t.id === p.teamId)), clubShort: tn, playerName: p.name, age: p.age }), category: 'race' as const, relatedIds: [p.id] })
+      // クラブ名は `utils/clubs` の `findClub` 1本（国内・海外を区別しない引き方）。
+      // ★`teams.find(...)` で引くと**海外所属の選手だけクラブ名が空**になる
+      const club = findClub(teams, foreignLeagues ?? [], p.teamId)
+      seasonEndNews.push({ date: raceDate, headline: retirementHeadline({ division: divisionOf(teams.find(t => t.id === p.teamId)), clubShort: club?.shortName ?? '', playerName: p.name, age: p.age }), category: 'race' as const, relatedIds: [p.id] })
     }
   }
   return seasonEndNews

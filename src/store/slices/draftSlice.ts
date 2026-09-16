@@ -536,11 +536,15 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     // 上限の数え方は rosterRules の rosterCapOf 1本（未消化の指名権ぶんを空けておく）
     const rosterCapFor = (teamId: string) => rosterCapOf(draftPickCounts.get(teamId) ?? 0)
 
-    // ①CPUの解雇（衰えたベテランと余剰をFAへ）。中身は engine/cpuOffseason の runCpuReleases 1本。
-    // 対象は国内リーグのCPUチームのみ（選手のteamIdから拾うと海外クラブまで混ざり、
-    // ロスター概念の無い海外側との取引で国内名簿が壊れる）
+    // ①CPUの解雇（余剰をFAへ）。中身は engine/cpuOffseason の runCpuReleases 1本。
+    // ★**国内52＋海外180を同じ列で回します**（オーナー・2026-09-16「全部海外も全部1本」）。
+    //   以前は「対象は国内リーグのCPUチームのみ（ロスター概念の無い海外側との取引で
+    //   国内名簿が壊れる）」と書いて国内だけに絞っていましたが、その前提はもうありません
+    //   ——海外クラブの上限も同じ `ROSTER_MAX` で、この数行下にもそう書いてあります。
+    //   海外は `engine/savePruning` の中で**別の線・別の出口**で切られていたので、
+    //   そちらは消しました（同じ問いに2実装を残さない）。
     const releasedWorld = runCpuReleases(
-      { players: state.players, teams: teamsWithPicks },
+      { players: state.players, teams: teamsWithPicks, foreignLeagues: state.foreignLeagues ?? [] },
       { playerTeamId: state.playerTeamId, year: yr, rosterCapFor })
     const playersAfterCpuRelease = releasedWorld.players
     const teamsAfterCpuRelease = releasedWorld.teams

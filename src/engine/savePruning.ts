@@ -18,8 +18,6 @@ import { ROSTER_MAX } from '../data/rosterRules'
 import { seasonAwardsOf } from '../utils/awards'
 import { eclHistoryOf } from '../utils/eclHistory'
 import { movePlayer } from '../utils/movePlayer'
-import { ovr } from '../utils/playerUtils'
-import { clubMembersByClub } from '../utils/rosterSync'
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import type { ForeignLeague, GameState, Nationality, Player } from '../types'
 
@@ -39,31 +37,21 @@ export function pruneSaveData(args: {
   /** 来季の年 */
   newYear: number
 }): PruneResult {
-  const { players, foreignLeagues, state: st, newYear } = args
+  const { players, state: st, newYear } = args
 
   // ── 長期プレイでの肥大化対策（記録は名前焼き込みで残るため消えない） ──
-  // 1) 海外クラブの在籍上限(30人)をここで適用する。所属は選手側の teamId だけが記録なので、
-  //    クラブごとに数えて、はみ出したぶん（能力の低い順）を下の整理で外す
-  const playerByIdCl = new Map(players.map(p => [p.id, p]))
-  const foreignDropIds = new Set<string>()
-  {
-    // 数えるのは現役だけ。負傷中の選手まで数に入れると、怪我をしただけで
-    // 上限からはみ出して引退させられてしまう
-    const membersByClub = clubMembersByClub(players.filter(p => p.status === 'active'))
-    for (const l of foreignLeagues) {
-      for (const c of l.clubs) {
-        const ids = membersByClub.get(c.id) ?? []
-        // 人数上限は data/rosterRules の ROSTER_MAX 1本。30 と書かない
-        if (ids.length <= ROSTER_MAX) continue
-        const sorted = [...ids].sort((a, b) => {
-          const pa = playerByIdCl.get(a); const pb = playerByIdCl.get(b)
-          return (pb ? ovr(pb) : 0) - (pa ? ovr(pa) : 0)
-        })
-        sorted.slice(ROSTER_MAX).forEach(id => foreignDropIds.add(id))
-      }
-    }
-  }
-  // 2) 引退選手の軽量化（能力履歴・特性などを落として名前と実績だけ残す）
+  // ★**海外クラブの人数を切る処理はここから消しました**（2026-09-16）。
+  //   同じ「人数が多いクラブから誰を外すか」が2実装あり、**線も出口も違って**いました。
+  //
+  //     | | 国内（`engine/cpuOffseason` の `runCpuReleases`） | 海外（ここにあった処理） |
+  //     |---|---|---|
+  //     | 線 | 払える年俸（`SALARY_ROOM`）と `rosterCapFor` | `ROSTER_MAX` だけ |
+  //     | 誰から | `byReleasePriority`（年齢込みの `effectiveOvr`） | 生の `ovr` |
+  //     | 行き先 | **FA**（また拾われる） | **引退・削除**（世界から消える） |
+  //
+  //   いまは `runCpuReleases` が国内52＋海外180を同じ列で回します
+  //   （オーナー・2026-09-16「全部海外も全部1本」）。ここは**引退選手の軽量化だけ**。
+  // 1) 引退選手の軽量化（能力履歴・特性などを落として名前と実績だけ残す）
   //    ＋整理のルールは国内・海外で共通：「実績（出走・区間賞・記録会ベスト）のある選手は絶対に消さず引退として残す」。
   //    実績ゼロの選手だけ削除する。これでニュース・記録・歴代優勝から選手詳細が必ず開ける
   //    引退後の選手詳細は1ページ目（能力レーダー・契約・市場価値）を表示しないので、
@@ -158,10 +146,6 @@ export function pruneSaveData(args: {
     // 今season自チームに居た選手には在籍歴の印を付ける（以後の整理で絶対に消えない）
     .map(p => (p.teamId === st.playerTeamId && p.wasPlayerTeam !== true ? { ...p, wasPlayerTeam: true } : p))
     .flatMap((p): Player[] => {
-      // 海外クラブの名簿から溢れた選手
-      if (foreignDropIds.has(p.id)) {
-        return isWorthKeeping(p) ? [leanRetired(p)] : dropPlayer(p)
-      }
       if (p.status === 'retired') return isWorthKeeping(p) ? [leanRetired(p)] : dropPlayer(p)
       if (p.status === 'active' && p.teamId === '') {
         const since = p.faSinceYear ?? st.currentSeason.year

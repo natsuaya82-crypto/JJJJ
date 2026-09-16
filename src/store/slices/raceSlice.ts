@@ -462,7 +462,8 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       // 確定処理は次シーズン開幕のままで、ここは発表だけ
       const isFinalRace = raceIndex + 1 >= state.currentSeason.races.length
       const seasonEndNews = isFinalRace ? buildSeasonFinaleNews({
-        players: finalPlayers, teams: state.teams, currentSeason: state.currentSeason,
+        players: finalPlayers, teams: state.teams, foreignLeagues: state.foreignLeagues,
+        currentSeason: state.currentSeason,
         races: updatedRaces, playerTeamId, raceDate: race.date }) : []
 
       return {

@@ -112,7 +112,7 @@ export const byReleasePriority = (a: Player, b: Player): number =>
  * ★借りている選手は切れない（保有権が無い）。返却はレンタル期間の処理に任せる。
  */
 export function runCpuReleases(
-  world: { players: Player[]; teams: Team[] },
+  world: { players: Player[]; teams: Team[]; foreignLeagues?: ForeignLeague[] },
   ctx: {
     playerTeamId: string
     year: number
@@ -122,7 +122,16 @@ export function runCpuReleases(
 ): { players: Player[]; teams: Team[] } {
   const releaseSet = new Set<string>()
   // 「借りている選手か」は `utils/rosterSync` の `isLoanedIn` 1本（向きの書き方を割らない）
-  const cpuTeamIds = domesticCpuTeamIds(world.players, world.teams, ctx.playerTeamId)
+  //
+  // ★**国内52＋海外180を同じ列で回す**（オーナー・2026-09-16「全部海外も全部1本」）。
+  //   以前は `domesticCpuTeamIds` だけで、海外クラブは `engine/savePruning` の中で
+  //   **別の処理**に切られていました——線も出口も違う2実装です
+  //   （23人 対 30人／`effectiveOvr` 順 対 生OVR順／FAへ放出 対 引退・削除）。
+  //   除外の理由は「ロスター概念の無い海外側」でしたが、海外クラブも
+  //   `ROSTER_MAX` で管理すると同じファイルの隣に書いてあります。
+  //   トレードとレンタルは 2026-08-13 に既に1本化済みで、**解雇だけが取り残されて**いました。
+  const cpuTeamIds = marketClubIds(world.players, world.teams, ctx.playerTeamId, world.foreignLeagues)
+  const clubById = new Map(allTieredClubs(world.teams, world.foreignLeagues ?? []).map(c => [c.id, c]))
 
   for (const teamId of cpuTeamIds) {
     // ★数え方は索引そのまま＝**引退していない人は全員**（怪我も在籍・年俸も払う）。
@@ -141,7 +150,7 @@ export function runCpuReleases(
     }
     // 払える年俸に収まるまで切る（人数の線ではなくお金で止める）。
     // **下限（`CPU_SELL_FLOOR`）を割ってまでは切らない**——名簿が溶けるほうが害が大きい
-    const payCap = tierBudget(world.teams.find(t => t.id === teamId)) * SALARY_ROOM
+    const payCap = tierBudget(clubById.get(teamId)) * SALARY_ROOM
     const remaining = [...roster.filter(p => !releaseSet.has(p.id))].sort(byReleasePriority)
     let pay = remaining.reduce((sum, p) => sum + p.contract.annualSalary, 0)
     let left = remaining.length
