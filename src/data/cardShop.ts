@@ -34,3 +34,26 @@ export { RARITY_EXP as CARD_UNIT_EXP } from '../utils/cardCombo'
 export function cardPackPrice(rarity: CardRarity, cards: number): number {
   return CARD_UNIT_PRICE[rarity] * cards
 }
+
+/**
+ * **プレシーズンに配る練習カードの中身。ここ1本。**
+ *
+ * ★**画面（`components/dashboard/Dashboard`）と store（`store/slices/cardsSlice`）が
+ *   同じここを通すこと。** 以前は同じ6分岐が**1文字違わず2本**あり、片方だけ中身を
+ *   変えると「画面には EPIC 1枚と出ているのに配られない」になります。
+ * ★`rank === 0`（初年度でまだ順位が無い）は `rank <= 6` の枝に入ります——
+ *   2本あったころは最後に `// first season` の行がありましたが、
+ *   **手前の `rank <= 6` が先に拾うので到達しません**でした。そのぶんを消して、
+ *   初年度は 0 として明示的に拾います。
+ */
+export type PreseasonCardDist = { rarity: CardRarity; count: number }
+
+export function preseasonCardDist(rank: number): PreseasonCardDist[] {
+  if (rank === 1) return [{ rarity: 'legendary', count: 1 }, { rarity: 'epic', count: 1 }, { rarity: 'rare', count: 2 }, { rarity: 'normal', count: 2 }]
+  if (rank === 2) return [{ rarity: 'epic', count: 1 }, { rarity: 'rare', count: 2 }, { rarity: 'normal', count: 3 }]
+  if (rank === 3) return [{ rarity: 'epic', count: 1 }, { rarity: 'rare', count: 1 }, { rarity: 'normal', count: 4 }]
+  if (rank >= 15) return [{ rarity: 'epic', count: 1 }, { rarity: 'normal', count: 6 }]
+  if (rank <= 6) return [{ rarity: 'rare', count: 2 }, { rarity: 'normal', count: 4 }]
+  if (rank <= 10) return [{ rarity: 'rare', count: 1 }, { rarity: 'normal', count: 5 }]
+  return [{ rarity: 'normal', count: 6 }]
+}

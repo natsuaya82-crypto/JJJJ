@@ -19,6 +19,13 @@ export function getAdDay(): string {
 
 export const ADS_PER_DAY = 3
 
+/**
+ * **動画広告1本ぶんのジュエル。ここ1本。**
+ * 以前は store（`metaSlice.watchAd`）と `JewelsPage` の文字と `HelpPage` の3か所に
+ * `100` が直書きされていて、**報酬額にどこにも定数がありません**でした。
+ */
+export const AD_REWARD_JEWELS = 100
+
 let started = false
 let bannerShown = false
 

@@ -1,7 +1,8 @@
 // economy ドメインのアクション（gameStore から分割）。
 
 import type { GameStore, SetGame } from '../gameStore'
-import { facilitiesOf } from '../../utils/facilities'
+import { SPONSOR_SLOTS } from '../../data/sponsors'
+import { facilitiesOf, facilityUpgradeCost } from '../../utils/facilities'
 
 type Slice = Pick<GameStore,
   'signSponsor' | 'terminateSponsor' | 'acceptSponsorOffer' | 'collectSponsorIncome' | 'upgradeFacility' | 'dismissBudgetNotice'>
@@ -57,7 +58,7 @@ export const createEconomySlice = (set: SetGame, get: () => GameStore): Slice =>
       const myTeam = state.teams.find(t => t.id === state.playerTeamId)
       if (!myTeam) return state
       const currentTeamSponsors = myTeam.sponsors ?? []
-      if (currentTeamSponsors.length >= 3) return state
+      if (currentTeamSponsors.length >= SPONSOR_SLOTS) return state
       const newSponsor = {
         id: `sp_${offerId}`,
         name: offer.name,
@@ -122,10 +123,9 @@ export const createEconomySlice = (set: SetGame, get: () => GameStore): Slice =>
     if (!myTeam) return false
     // ★いまのレベルは `facilitiesOf`（格の土台＋建てたぶん）。0 から数え直さないこと
     const currentLv = facilitiesOf(myTeam)[key]
-    if (currentLv >= 5) return false
-    const UPGRADE_COSTS = [100, 300, 500, 1000, 3000]
-    const cost = UPGRADE_COSTS[currentLv]
-    if (state.jewels < cost) return false
+    // 値段も上限も `utils/facilities` 1本（画面の「押せるか」と同じところから出す）
+    const cost = facilityUpgradeCost(currentLv)
+    if (cost === null || state.jewels < cost) return false
     set(state => ({
       jewels: state.jewels - cost,
       teams: state.teams.map(t => t.id === state.playerTeamId ? {

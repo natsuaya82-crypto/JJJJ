@@ -1,4 +1,5 @@
 import { teamRosterSize } from '../../data/rosterRules'
+import { preseasonCardDist } from '../../data/cardShop'
 import { useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
@@ -44,16 +45,7 @@ const RARITY_COLOR: Record<string, string> = {
 const RARITY_LABEL: Record<string, string> = {
   legendary: 'LEG', epic: 'EPIC', rare: 'RARE', normal: 'NRM',
 }
-function preseasonCardDist(rank: number) {
-  if (rank === 1)  return [{ rarity: 'legendary', count: 1 }, { rarity: 'epic', count: 1 }, { rarity: 'rare', count: 2 }, { rarity: 'normal', count: 2 }]
-  if (rank === 2)  return [{ rarity: 'epic', count: 1 }, { rarity: 'rare', count: 2 }, { rarity: 'normal', count: 3 }]
-  if (rank === 3)  return [{ rarity: 'epic', count: 1 }, { rarity: 'rare', count: 1 }, { rarity: 'normal', count: 4 }]
-  if (rank <= 6)   return [{ rarity: 'rare', count: 2 }, { rarity: 'normal', count: 4 }]
-  if (rank <= 10)  return [{ rarity: 'rare', count: 1 }, { rarity: 'normal', count: 5 }]
-  if (rank <= 14)  return [{ rarity: 'normal', count: 6 }]
-  if (rank >= 15)  return [{ rarity: 'epic', count: 1 }, { rarity: 'normal', count: 6 }]
-  return [{ rarity: 'rare', count: 1 }, { rarity: 'normal', count: 5 }] // first season
-}
+// 配るカードの中身は `data/cardShop` の `preseasonCardDist` 1本（store の配布と同じところから出す）
 
 function PreseasonHub({
   year, isFirstSeason, campBonus, draftState,

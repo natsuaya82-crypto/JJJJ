@@ -188,6 +188,13 @@ md は消すこと**。2026-08-23 に7本（リファクタリング設計書・
 | `src/utils/transferDecision.ts` の `DREAM_LABEL` | 憧れの地域の**呼び名**。会話・ボタン・移籍の理由が同じ文字を使う（`dreamLabelOf`） |
 | `src/data/economy.ts` | `transferCapOf`（1人に出せる移籍金の上限＝**手元資金だけ**。割合の蓋は撤廃・オーナー2026-08-21） |
 | `src/data/rosterRules.ts` | `ROSTER_MAX` / `ROSTER_MIN` / `RUNNING_SLOTS`（走れる人数）／`rosterCapOf`。★**在籍上限に「海外だけ別」の枝を置かないこと**——`capFor: (id) => 海外 ? ROSTER_MAX : rosterCapOf(0)` という三項が3か所にありましたが、`rosterCapOf(0)` は `ROSTER_MAX - 0` なので**両側とも同じ数**でした＝「海外は別扱い」に見えるだけの残骸です。残すと `ROSTER_MAX` と `rosterCapOf` の片方を動かしたときに**国内と海外で上限が割れます**。`check-one-rule` の⑨が見張る |
+| `src/utils/facilities.ts` の `FACILITY_UPGRADE_COSTS` | **施設を1段上げる値段と上限レベル**。`facilityUpgradeCost(いまのレベル)` が「上げられるか（null）」と「いくらか」を一緒に返す。★**画面の「押せるか」と store の「受け付けるか」を同じここから出すこと**（`bidGate` と同じ形）——以前は同じ配列と `>= 5` が `FacilitiesPage` と `economySlice` の2か所に手書きされていて、`FACILITY_MAX_LEVEL` はどちらからも使われていなかった |
+| `src/data/sponsors.ts` の `SPONSOR_SLOTS` | **契約できるスポンサーの数（3）**。以前は画面が `MAX_SPONSORS = 3`、store が生の `3` で、**数え方まで違った**（画面は実体の見つからないIDを数えない／store は配列長）。実体の欠けたIDが1件でもあると**ボタンは押せるのに store が黙って何もしない** |
+| `src/utils/ads.ts` の `AD_REWARD_JEWELS` / `ADS_PER_DAY` | **動画広告の報酬額と1日の回数**。以前は `100` が store・`JewelsPage`・`HelpPage` の3か所に直書きで、**報酬額にどこにも定数が無かった** |
+| `src/data/cardShop.ts` の `preseasonCardDist` | **プレシーズンに配る練習カードの中身**（前年の順位で6分岐）。★画面（`Dashboard`）と store（`cardsSlice`）が同じここを通すこと——以前は**1文字違わず2本**あり、片方だけ変えると「画面には EPIC 1枚と出ているのに配られない」になる。`rank === 0`（初年度）は `rank <= 6` の枝に入る（2本あったころの末尾の `// first season` は**手前の枝が先に拾うので到達しなかった**） |
+| `src/data/races.ts` の `WEATHER_LABEL` | **天候の呼び名**。★以前は7か所に手書きで、**2つ既にズレて**いた（`RacePage` の記録会だけ `windy` が「風」／`RatedPage` だけ `cloudy` が「くもり」）。`check-one-rule` の⑫が見張る |
+| `src/utils/loginDate.ts` の `loginTodayKey` | **ゲームの中の「今日」**（朝10時区切り）。★**中身は `utils/jstDate` の `jstGameDayISO` 1本＝日本時間**。以前は `getHours()`＝**端末のローカル時刻**で前日補正していて、しかも `metaSlice` に同じ式を1文字ずつ写したインライン版があった（3本あって2本が物差し違い）。日本国外では、ログインボーナス・広告の回数・ベルの「1日」と、イベント・お知らせポップ・ランクマッチの「1日」が**別の日付**になっていた。`check-one-rule` の⑬が見張る |
+| `src/engine/raceProgress.ts` の `TRAINING_PLAN_CHANCE` | **練習プランが当たる確率**（0.30）。画面（`TeamManagement` のプラン一覧）も同じこれを出すこと——以前は engine が 0.30・画面の文字が「確率35%」で、**遊ぶ人に見える数字だけが嘘**だった |
 | `src/utils/squadNeeds.ts` | `squadRankOf`（そのクラブで何番手か）／`wouldMakeLineup`（走れる7人に入るか） |
 
 ### `npm run check` — 一本化の見張り番

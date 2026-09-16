@@ -135,6 +135,52 @@ console.log('\n[9] 在籍上限に「海外だけ別」の枝を置かない')
   check('capFor に海外だけの三項が残っていない', ternaries === 0, `${ternaries}か所`)
 }
 
+console.log('\n[10] 画面の「押せるか」と store の「受け付けるか」が同じところから出ている')
+{
+  // 戻し方：FacilitiesPage か economySlice に `[100, 300, 500, 1000, 3000]` を書き戻す／
+  //         SponsorPage か economySlice に `3` を書き戻す
+  check('施設の値段は `utils/facilities` 1本', /export const FACILITY_UPGRADE_COSTS/.test(code))
+  const costTables = (code.match(/\[\s*100,\s*300,\s*500,\s*1000,\s*3000\s*\]/g) ?? []).length
+  check('値段の表が1つだけ', costTables === 1, `${costTables}か所`)
+  check('施設の上限レベルを直書きしていない', !/currentLv\s*>=\s*5\b/.test(code))
+  check('スポンサーの枠は `data/sponsors` 1本', /export const SPONSOR_SLOTS/.test(code))
+  check('枠の数を直書きしていない', !/[Ss]ponsors(\.length)?\s*>=\s*3\b/.test(code))
+  check('広告の報酬は `utils/ads` 1本', /export const AD_REWARD_JEWELS/.test(code))
+  check('報酬額を直書きしていない', !/jewels\s*\+\s*100\b/.test(code))
+}
+
+console.log('\n[11] プレシーズンに配るカードの中身は1本')
+{
+  // 戻し方：Dashboard か cardsSlice に rank の6分岐を書き戻す
+  // ★画面と store に**1文字違わず2本**あり、片方だけ変えると
+  //   「画面には EPIC 1枚と出ているのに配られない」になっていた。
+  check('`preseasonCardDist` が居る', /export function preseasonCardDist\(/.test(code))
+  const callers = (code.match(/(?<!function )preseasonCardDist\(/g) ?? []).length
+  check('呼んでいるのは2か所（画面と store）', callers === 2, `${callers}か所`)
+  const legRows = (code.match(/rarity: 'legendary', count: 1/g) ?? []).length
+  check('表が1つだけ', legRows === 1, `${legRows}か所`)
+}
+
+console.log('\n[12] 天候の呼び名は1本')
+{
+  // 戻し方：どれかの画面に `sunny: '晴れ'` の表を書き戻す
+  // ★7か所に手書きされていて、**2つ既にズレて**いた（`windy` が「風」／`cloudy` が「くもり」）
+  check('`WEATHER_LABEL` が居る', /export const WEATHER_LABEL/.test(code))
+  const tables = (code.match(/sunny:\s*'晴れ'/g) ?? []).length
+  check('表が1つだけ', tables === 1, `${tables}か所`)
+}
+
+console.log('\n[13] ゲームの中の「今日」は日本時間の1本')
+{
+  // 戻し方：loginDate か metaSlice に `getHours() < 10` を書き戻す
+  // ★`jstGameDayISO`（日本時間）と `loginTodayKey`（端末のローカル時刻）と
+  //   metaSlice のインライン版の3本があり、2本が物差し違いだった。
+  check('区切りは `jstGameDayISO` 1本', /export function jstGameDayISO\(/.test(code))
+  const local = (code.match(/getHours\(\)\s*<\s*10/g) ?? []).length
+  check('端末のローカル時刻で日付を決めていない', local === 0, `${local}か所`)
+  check('`loginTodayKey` は `jstGameDayISO` を通る', /loginTodayKey\(\)[\s\S]{0,80}jstGameDayISO\(\)/.test(code))
+}
+
 console.log('')
 if (failed > 0) { console.log(`✗ 同じ問いに物差しが2本あります（${failed}件）`); process.exit(1) }
 console.log('✓ 引退・年齢込みの強さ・在籍人数・在籍上限・下限の救済は、どれも1本')

@@ -5,7 +5,7 @@ import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import { JewelIcon } from '../icons/Icons'
 import { panelStyle } from '../ui/Panel'
 import GlassButton from '../ui/GlassButton'
-import { facilitiesOf } from '../../utils/facilities'
+import { facilitiesOf, FACILITY_MAX_LEVEL, FACILITY_UPGRADE_COSTS } from '../../utils/facilities'
 
 
 function FacilityIconSVG({ facilityKey, color, size = 26 }: { facilityKey: FacilityKey; color: string; size?: number }) {
@@ -80,8 +80,9 @@ const FACILITY_META: {
   },
 ]
 
-const UPGRADE_COSTS = [100, 300, 500, 1000, 3000]
-const MAX_LV = 5
+// 値段も上限も `utils/facilities` 1本（store の `upgradeFacility` と同じところから出す）
+const UPGRADE_COSTS = FACILITY_UPGRADE_COSTS
+const MAX_LV = FACILITY_MAX_LEVEL
 
 export default function FacilitiesPage() {
   const teams = useGameStore(s => s.teams)

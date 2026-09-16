@@ -1,6 +1,16 @@
 import type { SponsorTier, SponsorOffer, SponsorTarget } from '../types'
 import { tierSponsorIncome, type ClubTier } from '../utils/clubTier'
 
+/**
+ * **契約できるスポンサーの数。ここ1本。**
+ * 画面（`components/sponsors/SponsorPage`）と store（`economySlice.acceptSponsorOffer`）が
+ * 同じこれを見ること。以前は画面が `MAX_SPONSORS = 3`、store が生の `3` で、
+ * 数え方まで違いました（画面は実体の見つからないIDを数えない／store は配列長）。
+ * 実体の欠けたIDが1件でもあると**ボタンは押せるのに store が黙って何もしない**、
+ * という「押しても何も起きない」になります。
+ */
+export const SPONSOR_SLOTS = 3
+
 // テンプレは「名前・色・達成目標・契約年数の候補」だけを持つ。金額は持たない。
 // tier は名前の格付け（どの金額帯のときにこの名前が出るか）で、金額そのものではない。
 type SponsorTemplate = {

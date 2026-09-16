@@ -1041,9 +1041,13 @@ begin
   if not exists (select 1 from public.club_requests where club_id = c.id and user_id = p_user) then
     return 'not_found';
   end if;
-  delete from public.club_requests where club_id = c.id and user_id = p_user;
+  -- ★**関門を通してから申請を消すこと。** ここは先に消していたので、満員の走友会で
+  --   承認を押すと 'full' が返るのに**申請行はもう消えている**＝会長の画面から申請が消え、
+  --   申請した側も「申請中」が消えて、入れないまま**もう一度申請し直すしかない**状態でした。
+  --   `join_club` は満員チェックが先なので、同じ「満員」の扱いが2つの関数で食い違っていました。
   if c.members >= public.club_member_cap() then return 'full'; end if;
   if exists (select 1 from public.club_members where user_id = p_user) then return 'already'; end if;
+  delete from public.club_requests where club_id = c.id and user_id = p_user;
   insert into public.club_members (user_id, club_id, role) values (p_user, c.id, 'member');
   delete from public.club_requests where user_id = p_user;   -- 他所への申請も消す
   perform public.post_club_join(c.id, p_user);
@@ -2024,9 +2028,13 @@ language sql stable as $$
   limit 1
 $$;
 
--- 殿堂入りの人数。参加資格（30人）をサーバー側で数える。
+-- 殿堂入りの人数をサーバー側で数える。
+-- ★**参加に要る人数は `rated_join` の中の数が正**（TS の `HOF_ENTRY_MIN` と突き合わせるのは
+--   `check-rated-server` の①）。ここのコメントは 30 のまま残っていましたが、
+--   門は 2026-08-21 に 30 → **15** へ下げてあります。次に触る人が「サーバーは30なのか」と
+--   読んで戻さないように直しました。
 -- ★**必ず数を返すこと**（null を返さない）。まだ1度もロスターを上げていない人は
---   `rosters` に行が無いので null になり、`null < 30` は真でも偽でもない＝
+--   `rosters` に行が無いので null になり、`null < 15` は真でも偽でもない＝
 --   `rated_join` の関門を**素通りしていた**（殿堂入り0人で参加できた）。
 create function public.rated_hof_count(u uuid) returns integer
 language sql stable security definer set search_path = public as $$
@@ -2485,9 +2493,15 @@ grant select, insert, delete on public.blocks  to authenticated;
 --   ★RLS に insert / update のポリシーを置いていないので RLS でも止まりますが、
 --     Supabase は public の表に既定で書き込み権限を配るので、**ここで明示的に取り上げます**
 --     （「ポリシーを1つ足したら書けるようになった」を防ぐ2枚目の板）。
+-- ★`rated_round_groups` もこの並びに入れること。ここだけ漏れていたので、
+--   レート戦の表で唯一「明示的に書き込み権限を取り上げる」板が効いていませんでした
+--   （いま読めるのは security definer の `rated_my_group` 経由だけなので動作は正常ですが、
+--     select ポリシーを1本足した瞬間に端末から組割りを直接書けるようになります）。
+--   なお `rated_round_groups_select` は**作っていないポリシー**なので、上の drop は
+--   「昔あったものを確実に落とす」ためのものです（消さないこと）。
 revoke all on public.rated_events, public.rated_entries, public.rated_rounds,
               public.rated_lineups, public.rated_results, public.rated_races,
-              public.rated_players
+              public.rated_players, public.rated_round_groups
   from anon, authenticated;
 grant select on public.rated_events, public.rated_entries, public.rated_rounds,
                 public.rated_lineups, public.rated_results, public.rated_races,

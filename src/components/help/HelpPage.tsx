@@ -1,4 +1,5 @@
 import PageHeader from '../ui/PageHeader'
+import { ADS_PER_DAY, AD_REWARD_JEWELS } from '../../utils/ads'
 import { fmtYen } from '../../utils/money'
 import { CARRYOVER_CAP_SHARE, OPERATING_COST_RATE } from '../../data/economy'
 import { FACILITY_KEYS, FACILITY_UPKEEP_PER_LEVEL } from '../../utils/facilities'
@@ -135,7 +136,7 @@ const SECTIONS: Section[] = [
     color: C.jewel,
     lines: [
       'ジュエルはレース順位・区間賞・実績・目標達成・広告視聴などで貯まります。',
-      'ショップで練習カードと交換できます。広告視聴は1日3回まで、1回+100J。',
+      `ショップで練習カードと交換できます。広告視聴は1日${ADS_PER_DAY}回まで、1回+${AD_REWARD_JEWELS}J。`,
       '広告を見る前に確認が出ます。最後まで見ると受け取り、途中で閉じると無効です。',
       'ログインボーナスも毎日忘れずに。',
     ],

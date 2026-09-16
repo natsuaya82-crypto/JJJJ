@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { SPONSOR_SLOTS } from '../../data/sponsors'
 import { useStickyTab } from '../../lib/useStickyTab'
 import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
@@ -8,7 +9,8 @@ import type { SponsorTarget } from '../../types'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
 
-const MAX_SPONSORS = 3
+// 枠の数は `data/sponsors` の `SPONSOR_SLOTS` 1本（store の受け口と同じところから出す）
+const MAX_SPONSORS = SPONSOR_SLOTS
 
 const TIER_COLOR: Record<string, string> = {
   small:  C.textSub,
@@ -194,7 +196,7 @@ export default function SponsorPage() {
                   style={{ padding: '10px', fontFamily: SAIRA, fontSize: F.body }}
                   onClick={() => canAccept && acceptSponsorOffer(offer.id)}
                 >
-                  {canAccept ? '契約する' : '上限到達（3社）'}
+                  {canAccept ? '契約する' : `上限到達（${SPONSOR_SLOTS}社）`}
                 </GlassButton>
               </div>
             )

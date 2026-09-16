@@ -1,10 +1,11 @@
 // cards ドメインのアクション（gameStore から分割）。
 
 import type { GameStore, SetGame } from '../gameStore'
+import { preseasonCardDist } from '../../data/cardShop'
 import { withFatigue } from '../../utils/condition'
 import { CARD_UNIT_EXP, CARD_UNIT_PRICE } from '../../data/cardShop'
 import { applyGrowth } from '../../engine/growth'
-import { type CardRarity, type CardStatKey, type Player, type TrainingCard } from '../../types'
+import { type CardStatKey, type Player, type TrainingCard } from '../../types'
 import { MAX_FUSION_CARDS, detectCombo, planExchange } from '../../utils/cardCombo'
 import { rankOfTeam, seasonDivisionStandings } from '../../utils/league'
 import { getStatPotentials, limitBreakCost } from '../../utils/playerUtils'
@@ -52,16 +53,9 @@ export const createCardsSlice = (set: SetGame, get: () => GameStore): Slice => (
       if (lastSeason) {
         rank = rankOfTeam(seasonDivisionStandings(lastSeason, state.playerTeamId), state.playerTeamId)
       }
-      type Dist = { rarity: CardRarity; count: number }
-      const dist: Dist[] =
-        rank === 1 ? [{ rarity: 'legendary', count: 1 }, { rarity: 'epic', count: 1 }, { rarity: 'rare', count: 2 }, { rarity: 'normal', count: 2 }] :
-        rank === 2 ? [{ rarity: 'epic', count: 1 }, { rarity: 'rare', count: 2 }, { rarity: 'normal', count: 3 }] :
-        rank === 3 ? [{ rarity: 'epic', count: 1 }, { rarity: 'rare', count: 1 }, { rarity: 'normal', count: 4 }] :
-        rank <= 6  ? [{ rarity: 'rare', count: 2 }, { rarity: 'normal', count: 4 }] :
-        rank <= 10 ? [{ rarity: 'rare', count: 1 }, { rarity: 'normal', count: 5 }] :
-        rank <= 14 ? [{ rarity: 'normal', count: 6 }] :
-        rank >= 15 ? [{ rarity: 'epic', count: 1 }, { rarity: 'normal', count: 6 }] :
-        [{ rarity: 'rare', count: 1 }, { rarity: 'normal', count: 5 }]
+      // 配るカードの中身は `data/cardShop` の `preseasonCardDist` 1本
+      // （画面の「もらえる中身」の表示と同じところから出す）
+      const dist = preseasonCardDist(rank)
       const STAT_KEYS: CardStatKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
       const cards: TrainingCard[] = []
       let idx = 0

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
-import { showRewardAd, getAdDay, ADS_PER_DAY } from '../../utils/ads'
+import { showRewardAd, getAdDay, ADS_PER_DAY, AD_REWARD_JEWELS } from '../../utils/ads'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import PageHeader from '../ui/PageHeader'
 import ConfirmDialog from '../ui/ConfirmDialog'
@@ -85,7 +85,7 @@ export default function JewelsPage() {
       {confirmOpen && (
         <ConfirmDialog
           title="動画を見ますか？"
-          message={`動画を最後まで見ると +100J 受け取れます（残り ${adsLeft}/${ADS_PER_DAY} 回）。`}
+          message={`動画を最後まで見ると +${AD_REWARD_JEWELS}J 受け取れます（残り ${adsLeft}/${ADS_PER_DAY} 回）。`}
           confirmLabel="動画を見る"
           accent={C.jewel}
           onConfirm={runWatchAd}
@@ -110,7 +110,7 @@ export default function JewelsPage() {
         <div style={{ background: `linear-gradient(135deg, #0f2240 0%, ${C.bg} 100%)`, border: `1px solid ${alpha(C.jewel, adsLeft > 0 ? 0.4 : 0.15)}`,padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: adsLeft > 0 ? C.jewel : C.textDim }}>広告を見る</div>
-            <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim, marginTop: 3 }}>残り {adsLeft} / 3 回 · 1日3回まで</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim, marginTop: 3 }}>残り {adsLeft} / {ADS_PER_DAY} 回 · 1日{ADS_PER_DAY}回まで</div>
             {adResult !== null && (
               <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.jewel, marginTop: 4, fontWeight: 700 }}>
                 {adResult.before.toLocaleString()} → {adResult.after.toLocaleString()} J（+{adResult.after - adResult.before}）
@@ -149,7 +149,7 @@ export default function JewelsPage() {
         <Row label="実績解除 (silver)" right={<J n={20}/>}/>
         <Row label="実績解除 (gold)" right={<J n={50}/>}/>
         <Row label="実績解除 (legendary)" right={<J n={100}/>}/>
-        <Row label="広告視聴" right={<J n={100}/>} sub="1日3回まで"/>
+        <Row label="広告視聴" right={<J n={AD_REWARD_JEWELS}/>} sub={`1日${ADS_PER_DAY}回まで`}/>
       </div>
 
       <div style={{ margin: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>

@@ -33,6 +33,24 @@ export const FACILITY_LABEL: Record<FacilityKey, string> = {
 export const FACILITY_MAX_LEVEL = 5
 
 /**
+ * **施設を1段上げるのに要るジュエル。ここ1本。**
+ *
+ * ★**画面の「押せるか」と store の「受け付けるか」を同じここから出すこと**
+ *   （`bidGate` / `trophyBlockReason` / `myPlayerBlockReason` と同じ形）。
+ *   以前は同じ配列と上限が `components/facilities/FacilitiesPage` と
+ *   `store/slices/economySlice` の**2か所**に手書きされていて、`FACILITY_MAX_LEVEL` は
+ *   どちらからも使われていませんでした。値段を変えると
+ *   「ボタンに 3000 と出ているのに引かれるのは別の額」になります。
+ */
+export const FACILITY_UPGRADE_COSTS: readonly number[] = [100, 300, 500, 1000, 3000]
+
+/** いまのレベルから1段上げる値段（上限に届いていれば null＝上げられない） */
+export function facilityUpgradeCost(currentLv: number): number | null {
+  if (currentLv >= FACILITY_MAX_LEVEL) return null
+  return FACILITY_UPGRADE_COSTS[currentLv] ?? null
+}
+
+/**
  * 格からその年の施設レベルを出す（自チーム以外）。格1→Lv5、格20→Lv1。
  * 20段の格を5段のレベルへ落とすので、格4つぶんで1レベル動く。
  */

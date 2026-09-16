@@ -3,7 +3,7 @@
 import type { GameStore, SetGame } from '../gameStore'
 import { loginPrevKey, loginTodayKey } from '../../utils/loginDate'
 import { type Gift } from '../../types'
-import { ADS_PER_DAY, getAdDay } from '../../utils/ads'
+import { ADS_PER_DAY, AD_REWARD_JEWELS, getAdDay } from '../../utils/ads'
 import { findClub } from '../../utils/clubs'
 import { canRegisterHof, isHofEligible, registerHof, removeHof } from '../../utils/hofRoster'
 import { MY_PLAYER_POINTS_GRANT, myPlayerBlockReason, myPlayerCaps } from '../../utils/myPlayer'
@@ -172,8 +172,8 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
     const sameDay = state.lastAdDate === today
     const watched = sameDay ? (state.adsWatchedToday ?? 0) : 0
     if (watched >= ADS_PER_DAY) return null
-    set({ jewels: state.jewels + 100, lastAdDate: today, adsWatchedToday: watched + 1 })
-    return 100
+    set({ jewels: state.jewels + AD_REWARD_JEWELS, lastAdDate: today, adsWatchedToday: watched + 1 })
+    return AD_REWARD_JEWELS
   },
 
 
