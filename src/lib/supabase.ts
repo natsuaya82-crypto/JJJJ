@@ -32,6 +32,25 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   },
 })
 
+/**
+ * **通信に失敗したときの文言はここ1本。**
+ *
+ * 画面（フレンド・走友会・申請・オンライン対戦・設定のブロック一覧）も、
+ * 例外の名前（`FriendsOffline` / `RoomsOffline`）も、全部ここから引く。
+ * 置き場所を通信の土台に置いてあるのは、オンラインの窓口
+ * （`friendsApi` / `roomsApi` / `clubsApi` / `moderationApi` / `ratedApi`）が
+ * どれもこのファイルを通っているため。
+ *
+ * ★以前は同じ字が **11ファイル・30か所**に手書きされていた。1行しか出さない所と
+ *   2行目（`message`）まで出す所が混ざっていて、どちらが正なのか字面からは
+ *   分からない状態だった。2行目は別の見出しからも使う（部屋を作れなかったとき）ので、
+ *   `title` と `message` を別々に引けるようにしてある。
+ */
+export const OFFLINE_TEXT: { title: string; message: string } = {
+  title: '通信できませんでした',
+  message: '電波の良い場所で、もう一度お試しください',
+}
+
 import { loadIdentity, saveIdentity, newIdentity, IdentityUnavailable, type Identity } from './durableId'
 
 /**

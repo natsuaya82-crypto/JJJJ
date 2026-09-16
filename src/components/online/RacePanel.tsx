@@ -12,6 +12,8 @@ import { TeamLogoSVG } from '../icons/Icons'
 import { courseToRace, type MatchCourse } from '../../data/matchCourses'
 import { asPlayer, asTeam, type MatchRacePayload } from '../../lib/matchSim'
 import { serverNow } from '../../lib/serverTime'
+import { useRatedRanks } from '../../lib/useRatedRanks'
+import { RankBadge } from '../rated/ratedUi'
 import { C, alpha, rankColor, SAIRA, F } from '../../styles/tokens'
 
 
@@ -138,6 +140,9 @@ export default function RacePanel({
   // ── 表示用のチーム・選手 ──
   const teams: Team[] = useMemo(() => payload.teams.map(asTeam), [payload])
   const teamMap = useMemo(() => new Map(teams.map(t => [t.id, t])), [teams])
+  // ★相手の名前が出るところには段位の紋章を出す（オーナー・2026-08-18「全部です」）。
+  //   引くのは `useRatedRanks` 1本で**出場ぶんまとめて**（`FinishPanel` と同じ形）
+  const ranks = useRatedRanks(useMemo(() => [...teamMap.keys()], [teamMap]))
   // 自分のチームだけは手元の選手をそのまま使う（顔・長押しが本編と同じになる）
   const srcById = useMemo(() => new Map(payload.runners.map(r => [r.id, r])), [payload])
   const displayId = (pid: string) => {
@@ -235,9 +240,10 @@ export default function RacePanel({
                 <div style={{ width: 20, textAlign: 'center', fontSize: F.subLg, fontWeight: 900, color: rankCol, fontFamily: SAIRA, flexShrink: 0 }}>{s.rank}</div>
                 {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} logoId={t.logoId} size={24} />}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: F.body, fontWeight: isMe ? 800 : 500, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {t?.name ?? s.teamId}
-                    {payload.forfeits.includes(s.teamId) && <span style={{ marginLeft: 6, fontSize: F.tiny, color: C.red }}>不戦</span>}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: F.body, fontWeight: isMe ? 800 : 500, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t?.name ?? s.teamId}</span>
+                    <RankBadge rating={ranks.get(s.teamId)} size={15} />
+                    {payload.forfeits.includes(s.teamId) && <span style={{ fontSize: F.tiny, color: C.red }}>不戦</span>}
                   </div>
                   <div style={{ fontSize: F.tiny, color: C.gold }}>
                     +{s.points}pt{s.segPts > 0 ? `（区間賞 ${s.segPts}）` : ''}
@@ -360,7 +366,10 @@ export default function RacePanel({
                 <div style={{ width: 20, textAlign: 'center', fontSize: F.sub, fontWeight: 900, color: rankCol, fontFamily: SAIRA, flexShrink: 0 }}>{i + 1}</div>
                 {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} logoId={t.logoId} size={24} />}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: F.body, fontWeight: isMe ? 800 : 500, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t?.name ?? teamId}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: F.body, fontWeight: isMe ? 800 : 500, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t?.name ?? teamId}</span>
+                    <RankBadge rating={ranks.get(teamId)} size={15} />
+                  </div>
                 </div>
                 <div style={{ fontFamily: SAIRA, textAlign: 'right', flexShrink: 0 }}>
                   {gap === 0

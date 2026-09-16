@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import { REPORT_REASONS, REPORT_DETAIL_MAX, sendReport, blockUser, invalidateBlocked, type ReportReason } from '../../lib/moderationApi'
 import ScreenCover from '../ui/ScreenCover'
+import { OFFLINE_TEXT } from '../../lib/supabase'
 
 
 export type ReportTarget = {
@@ -35,7 +36,7 @@ export default function ReportSheet({ target, onClose, onDone }: {
     if (!reason) return
     setBusy(true)
     const r = await sendReport({ userId: target.userId, clubId: target.clubId }, reason, detail)
-    if (r === 'offline') { setBusy(false); onDone('通信できませんでした', false); return }
+    if (r === 'offline') { setBusy(false); onDone(OFFLINE_TEXT.title, false); return }
     if (r === 'too_many') { setBusy(false); onDone('通報が多すぎます。時間をおいてください', false); return }
     if (r !== 'ok') { setBusy(false); onDone('通報できませんでした', false); return }
 

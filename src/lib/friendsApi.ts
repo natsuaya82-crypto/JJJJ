@@ -2,7 +2,7 @@
 // UI側の型（Friend / FriendRequest）はモック時代と同じ形のまま維持して、
 // 画面側の書き換えを最小限にしている。
 import type { Division, HofPlayer, Player, Team } from '../types'
-import { supabase, ensureAuth } from './supabase'
+import { supabase, ensureAuth, OFFLINE_TEXT } from './supabase'
 import { withoutBlocked } from './moderationApi'
 import { defaultLogoIdFor, remoteLogoId } from '../data/logoPresets'
 
@@ -118,7 +118,7 @@ export class FriendsOffline extends Error {
   /** サーバーが返した本当の文言。原因を追うときだけ画面に小さく出す */
   detail?: string
   constructor(detail?: string) {
-    super('通信できませんでした')
+    super(OFFLINE_TEXT.title)
     this.detail = detail || undefined
   }
 }

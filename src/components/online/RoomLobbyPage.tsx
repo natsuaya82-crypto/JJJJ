@@ -4,7 +4,7 @@ import ConfirmDialog from '../ui/ConfirmDialog'
 import NoticeDialog from '../ui/NoticeDialog'
 import { LoadingBox } from '../friends/friendsUi'
 import { TeamLogoSVG } from '../icons/Icons'
-import { ensureAuth } from '../../lib/supabase'
+import { ensureAuth, OFFLINE_TEXT } from '../../lib/supabase'
 import { useGameStore } from '../../store/gameStore'
 import type { Player } from '../../types'
 import {
@@ -17,7 +17,7 @@ import { showInterstitialAd } from '../../utils/ads'
 import { randomCourseIds, courseById } from '../../data/matchCourses'
 import RulesPanel from './RulesPanel'
 import PickPanel from './PickPanel'
-import { allSubmitted, autoOrder, resolveOrders, type Order } from '../../lib/roomMachine'
+import { allSubmitted, autoOrder, resolveOrders, MIN_TEAMS, type Order } from '../../lib/roomMachine'
 import RacePanel from './RacePanel'
 import CoursePanel from './CoursePanel'
 import FinishPanel from './FinishPanel'
@@ -33,8 +33,6 @@ import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
 import GlassButton from '../ui/GlassButton'
 
 
-/** 開始に必要な最少チーム数（CPUを足さない場合） */
-const MIN_TEAMS = 2
 /** ホストがルールを決める持ち時間 */
 const RULES_SECONDS = 45
 /** コース発表を見せる時間 */
@@ -372,7 +370,7 @@ export default function RoomLobbyPage() {
       notifyLobby()
       navigate('/online/match', { replace: true })
     } catch {
-      setNotice({ title: '通信できませんでした', message: '電波の良い場所で、もう一度お試しください' })
+      setNotice({ ...OFFLINE_TEXT })
     } finally { setBusy(false) }
   }
 
@@ -386,7 +384,7 @@ export default function RoomLobbyPage() {
       await refresh()
       notifyLobby()
     } catch {
-      setNotice({ title: '通信できませんでした', message: '電波の良い場所で、もう一度お試しください' })
+      setNotice({ ...OFFLINE_TEXT })
     } finally { setBusy(false) }
   }
 
@@ -398,7 +396,7 @@ export default function RoomLobbyPage() {
       await refresh()
       notifyLobby()
     } catch {
-      setNotice({ title: '通信できませんでした', message: '電波の良い場所で、もう一度お試しください' })
+      setNotice({ ...OFFLINE_TEXT })
     } finally { setBusy(false) }
   }
 
@@ -417,7 +415,7 @@ export default function RoomLobbyPage() {
       setDeadline(dl)
       setPhase('rules')
     } catch {
-      setNotice({ title: '通信できませんでした', message: '電波の良い場所で、もう一度お試しください' })
+      setNotice({ ...OFFLINE_TEXT })
     } finally { setBusy(false) }
   }
 
@@ -490,7 +488,7 @@ export default function RoomLobbyPage() {
       setPhase('course')
     } catch {
       confirmedRef.current = false
-      setNotice({ title: '通信できませんでした', message: '電波の良い場所で、もう一度お試しください' })
+      setNotice({ ...OFFLINE_TEXT })
     } finally { setBusy(false) }
   }, [roomId, rules, buildCpu])
 

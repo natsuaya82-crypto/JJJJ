@@ -5,7 +5,7 @@ import type { GameStore, SetGame } from '../gameStore'
 import { courseRegionOfNation } from '../../data/courseNames'
 import { HOME_NATION, natLabel } from '../../data/nationalities'
 import { runBackgroundRace } from '../../engine/backgroundRace'
-import { WA_CLOSING_DATE, WA_HOST_CITY, advanceContinentalQualifiers, autoSelectEkiden, composeMainResult, composeQualifierResult, contRacesOf, ekidenCandidates, ekidenSegmentPoints, finishContinentalQualifiers, hostForYear, hostTerrain, qualHostForYear, qualifierNations, qualifyNations, runContinentalQualifiers, selectIndividualFields, simulateIndividuals, startContinentalQualifiers, stripContRaces, waRaceDate } from '../../engine/worldAthletics'
+import { WA_EVENT_LABEL, WA_CLOSING_DATE, WA_HOST_CITY, advanceContinentalQualifiers, autoSelectEkiden, composeMainResult, composeQualifierResult, contRacesOf, ekidenCandidates, ekidenSegmentPoints, finishContinentalQualifiers, hostForYear, hostTerrain, qualHostForYear, qualifierNations, qualifyNations, runContinentalQualifiers, selectIndividualFields, simulateIndividuals, startContinentalQualifiers, stripContRaces, waRaceDate } from '../../engine/worldAthletics'
 import { type Nationality, type Player } from '../../types'
 import { type NewsItem, continentalQualifierHeadline, nationalCallUpHeadline, worldChampHeadline } from '../../utils/newsItems'
 import { worldRace, worldRaceName, worldRacePlans } from '../../utils/worldCourses'
@@ -107,8 +107,7 @@ export const createWorldAthleticsSlice = (set: SetGame, get: () => GameStore): S
         for (const id of ids) pushRep({ playerId: id, year, nat, label: '駅伝' })
       }
       if (individuals) {
-        const EV: Record<string, string> = { d5000: '5000m', d10000: '10000m', marathon: 'マラソン' }
-        for (const ir of individuals) for (const pl of ir.placings) pushRep({ playerId: pl.playerId, year, nat: pl.nat, label: EV[ir.event] ?? ir.event })
+        for (const ir of individuals) for (const pl of ir.placings) pushRep({ playerId: pl.playerId, year, nat: pl.nat, label: WA_EVENT_LABEL[ir.event] ?? ir.event })
       }
       // 予選年は欧州・アフリカ・アメリカの大陸予選も同時に裏開催。
       // **アジア予選と同じコース・同じ3戦を実際に走る**（advanceWorldRace で一緒に進む）。
@@ -213,8 +212,7 @@ export const createWorldAthleticsSlice = (set: SetGame, get: () => GameStore): S
         if (!endRepSeen.has(k)) { reps.push(r); endRepSeen.add(k) }
       }
       if (result.kind === 'main') {
-        const EV: Record<string, string> = { d5000: '5000m', d10000: '10000m', marathon: 'マラソン' }
-        for (const ir of result.meet.individuals) for (const pl of ir.placings) pushEndRep({ playerId: pl.playerId, year: t.year, nat: pl.nat, label: EV[ir.event] ?? ir.event, rank: pl.rank })
+        for (const ir of result.meet.individuals) for (const pl of ir.placings) pushEndRep({ playerId: pl.playerId, year: t.year, nat: pl.nat, label: WA_EVENT_LABEL[ir.event] ?? ir.event, rank: pl.rank })
         for (const ek of result.meet.ekiden) {
           const squad = t.squads[`nat_${ek.nat}`] ?? []
           const ran = new Set(ek.runnerIds)
@@ -244,14 +242,13 @@ export const createWorldAthleticsSlice = (set: SetGame, get: () => GameStore): S
             headline: worldChampHeadline({ year: t.year, eventName: '駅伝', winner: natLabel(ek.nat), japanRank: jpRank }),
             category: 'race', relatedIds: [], major: true })
         }
-        const EVN: Record<string, string> = { d5000: '5000m', d10000: '10000m', marathon: 'マラソン' }
         for (const ir of result.meet.individuals) {
           const top = ir.placings.find(x => x.rank === 1)
           if (!top) continue
           waNews.push({
             date: closing,
             headline: worldChampHeadline({
-              year: t.year, eventName: EVN[ir.event] ?? ir.event, winner: natLabel(top.nat),
+              year: t.year, eventName: WA_EVENT_LABEL[ir.event] ?? ir.event, winner: natLabel(top.nat),
               japanRank: ir.placings.find(x => x.nat === HOME_NATION)?.rank }),
             category: 'race', relatedIds: [], major: false })
         }

@@ -547,6 +547,11 @@ function pickForeignName(pool: ForeignNamePool): { name: string; origin: string;
 // 乱数を使うと画面を開くたびに監督が変わってしまうので、IDのハッシュで固定する。
 // 国のプールを引くだけなので国内・海外を問わない（国が分からなければ _default）。
 // 呼ぶのは utils/clubs.ts の clubGmName 1本。
+/**
+ * クラブIDからGM名を引く。**ここのハッシュ（FNV-1a）は `utils/hash` の `strHash` とは別物で、
+ * 寄せてはいけません**——GM名は保存されずクラブIDから毎回引き直すので、式を変えると
+ * いま遊んでいる全セーブのGMが別人になります。`utils/hash` の説明にも書いてあります。
+ */
 export function hashedGmName(clubId: string, country: string): string {
   let h = 2166136261
   for (let i = 0; i < clubId.length; i++) {

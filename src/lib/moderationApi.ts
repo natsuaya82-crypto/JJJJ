@@ -6,7 +6,7 @@
 //
 // friendsApi / clubsApi からこのファイルを読み込むので、
 // ここから friendsApi を読み込まないこと（読み込みが輪になる）。
-import { supabase, ensureAuth } from './supabase'
+import { supabase, ensureAuth, OFFLINE_TEXT } from './supabase'
 // 相手のロゴをどれにするかは data/logoPresets の remoteLogoId 1本
 import { remoteLogoId } from '../data/logoPresets'
 
@@ -146,6 +146,6 @@ export async function listBlocked(): Promise<BlockedUser[]> {
   const me = await ensureAuth()
   if (!me) return []
   const { data, error } = await supabase.rpc('my_blocks')
-  if (error) throw new Error('通信できませんでした')
+  if (error) throw new Error(OFFLINE_TEXT.title)
   return ((data ?? []) as BlockedRow[]).map(toBlocked)
 }

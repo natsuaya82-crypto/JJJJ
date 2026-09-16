@@ -20,6 +20,18 @@
  * ■わざと壊して落ちることを確かめた（下の各項に「戻し方」を書いてある）
  */
 import { srcSource } from './storeSource'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { join } from 'node:path'
+
+/** `src` 以下の .ts/.tsx を「どのファイルに在るか」まで見たいとき用（check-morale と同じ形） */
+const walkTs = (dir: string): string[] => readdirSync(dir).flatMap(f => {
+  const q = join(dir, f)
+  return statSync(q).isDirectory() ? walkTs(q) : /\.tsx?$/.test(q) ? [q] : []
+})
+const srcFiles = walkTs('src')
+/** ★コメントを外してから見ること（経緯の説明文に当たって落ちるのを防ぐ） */
+const fileCode = (f: string) => readFileSync(f, 'utf8')
+  .replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
 
 let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
@@ -133,6 +145,10 @@ console.log('\n[9] 在籍上限に「海外だけ別」の枝を置かない')
   //   「海外は別扱い」に見えるだけの残骸。残すと片方だけ動かしたときに国内と海外で割れます。
   const ternaries = (code.match(/\?\s*ROSTER_MAX\s*:\s*rosterCap/g) ?? []).length
   check('capFor に海外だけの三項が残っていない', ternaries === 0, `${ternaries}か所`)
+  // 戻し方：TeamDetailPage のロスター見出しを `{isForeign ? '名' : `/${ROSTER_MAX}`}` に戻す
+  // ★上限は海外も同じ `ROSTER_MAX`（`rosterCapFor` が国内も海外も同じ数を返す）なので、
+  //   画面だけ「海外は上限なし」に見せるのも同じ残骸。
+  check('画面でも在籍上限を海外だけ別に見せていない', !/isForeign \? '名'/.test(code))
 }
 
 console.log('\n[10] 画面の「押せるか」と store の「受け付けるか」が同じところから出ている')
@@ -181,6 +197,136 @@ console.log('\n[13] ゲームの中の「今日」は日本時間の1本')
   check('`loginTodayKey` は `jstGameDayISO` を通る', /loginTodayKey\(\)[\s\S]{0,80}jstGameDayISO\(\)/.test(code))
 }
 
+console.log('\n[14] 「通信できませんでした」の文言は1本')
+{
+  // 戻し方：どれかの画面に `title: '通信できませんでした'` を書き戻す
+  // ★以前は **11ファイル・30か所**に手書きされていた（`FriendClubPage` だけで13か所）。
+  //   1行しか出さない所と2行目（`電波の良い場所で…`）まで出す所が混ざっていて、
+  //   どちらが正なのか字面からは分からなかった。2行目は別の見出し
+  //   （「部屋を作れませんでした」）からも使うので、`title` と `message` は別々に引く。
+  check('`OFFLINE_TEXT` が居る', /export const OFFLINE_TEXT/.test(code))
+  const titles = (code.match(/通信できませんでした/g) ?? []).length
+  check('見出しの字が1つだけ', titles === 1, `${titles}か所`)
+  const msgs = (code.match(/電波の良い場所で、もう一度お試しください/g) ?? []).length
+  check('2行目の字が1つだけ', msgs === 1, `${msgs}か所`)
+}
+
+console.log('\n[15] 「その選手は主力か」の物差しは1本（序列）')
+{
+  // 戻し方：`keyPlayerStatus` を出場率で書き戻す／`isDataKeyPlayer` を足す／
+  //        `bidThreshold` の割増を 1.8 に戻す
+  //
+  // ★以前は**同じ問いに3本**ありました（オーナー・2026-09-16「1.4で」で1本化）。
+  //   `isSurplus`（序列14番手）／`keyPlayerStatus`（複数年の出場率60〜70%）／
+  //   `isDataKeyPlayer`（今季の出場率55%）。しかも割増が 1.4 と 1.8 の2つ。
+  //   出場率版は `season.races`＝**自分の部の日程だけ**で数えていたので、
+  //   2部・3部・海外の選手は1人残らず `open`＝割増もレンタル拒否も
+  //   引き抜き拒否も**自分の部の選手にしか効いていません**でした。
+  check('`keyPlayerStatus` が居る', /export function keyPlayerStatus\(/.test(code))
+  check('答えは序列（`isSurplus` × `squadRankOf`）から出す',
+    /keyPlayerStatus[\s\S]{0,900}isSurplus\(\{ squadRank: squadRankOf\(/.test(code))
+  check('`isDataKeyPlayer`（2本目）が復活していない', !/isDataKeyPlayer/.test(code))
+  check('`BID_KEY_PREMIUM`（2つ目の割増）が復活していない', !/BID_KEY_PREMIUM/.test(code))
+  const premiums = (code.match(/isKey \? [\d.]+/g) ?? []).filter(x => !x.includes('POACH_PREMIUM'))
+  check('入札の割増を数字で直書きしていない', premiums.length === 0, premiums.join(' / '))
+}
+
+console.log('\n[16] 「実際に走っているか」の線も1本（APPEARANCE_FLOOR）')
+{
+  // 戻し方：`appraiseMove` の benched を `frac < 0.4` に戻す／
+  //        `marketSlice` の isQuality を `playFraction >= 0.5` に戻す
+  //
+  // ★線が**4本**ありました。0.34（市場に出るか）／0.40（干されている）／
+  //   0.50（2軍契約で納得するか）／0.55（主力だから残りたい）。
+  //   出走率0.45の選手は、3つの問いの答えが全部違っていました。
+  check('`playingStatus` が居る', /export function playingStatus\(/.test(code))
+  check('線は `APPEARANCE_FLOOR` 1本',
+    (code.match(/APPEARANCE_FLOOR/g) ?? []).length >= 2
+    && /playingStatus[\s\S]{0,200}APPEARANCE_FLOOR/.test(code))
+  // ★**値の曲線は別の問い**なので除く（「走っているか」の yes/no ではなく
+  //   「どれだけ走ったか」で額や不満の強さを作っている行）。
+  //   漏れと区別できるように、除くものはここに理由つきで書くこと。
+  const VALUE_CURVES = [
+    'playMult',    // 出場率 → 年俸の倍率（`playerUtils`）。yes/no ではない
+    'roleExpect',  // 任命した役割が期待する出場ライン（`playerWishes`）。別の問い
+  ]
+  const lines = code.split('\n')
+    .filter(l => /(playFraction|\bfrac\b|fraction)\s*[<>]=?\s*0\.\d/.test(l))
+    .filter(l => !VALUE_CURVES.some(k => l.includes(k)))
+  check('出走率を数字と直に比べている行が無い', lines.length === 0, lines.map(l => l.trim()).join(' / ').slice(0, 200))
+}
+
+console.log('\n[17] 累計ポイント制の順位（ECL・世界選手権）は pointSeriesStandings 1本')
+{
+  // 戻し方：EclPage / StandingsPage / ChampionsHistoryPage / WorldTournamentPage のどれかに
+  //        `participants.map(pt => ({ ...pt, points: ... })).sort((a, b) => b.points - a.points)` を書き戻す
+  // ★ECLページ・順位表・記録室の歴代優勝・世界選手権・`utils/eclHistory` の**5か所**に
+  //   同じ式が写っていた。タイブレークを足すときに5か所を直すことになる形。
+  // ★**画面のほうを実際に数える**（呼び出し回数だけ見ると、手書きの7か所目を足しても緑のまま）。
+  //   store 側（`competitionSlice` のECL最終順位）も同じここを通る＝**6か所**。
+  check('pointSeriesStandings が居る', /export function pointSeriesStandings[<(]/.test(code))
+  const callers = (code.match(/(?<!function )pointSeriesStandings\(/g) ?? []).length
+  check('呼んでいるのは6か所', callers === 6, `${callers}か所`)
+  const hand = srcFiles.filter(f => f.startsWith('src/components')
+    && /\.sort\(\(a, b\) => b\.points - a\.points\)/.test(fileCode(f)))
+  check('画面で並べ直していない', hand.length === 0, hand.join(', '))
+}
+
+console.log('\n[18] 記録会の距離の呼び名とキーは utils/eventTime 1本')
+{
+  // 戻し方：Dashboard / SchedulePage / RacePage / RecordsPage / ChampionsHistoryPage / badges の
+  //        どれかに `{ d5000: '5000m', d10000: '10000m', half: 'ハーフ', marathon: 'マラソン' }` を書き戻す
+  // ★キーで持つ形（`EVENT_LABEL` の写し）と距離の数で持つ形（`21097: 'ハーフ'`）の
+  //   2通りに割れたまま、合わせて6か所に手書きされていた。世界選手権の
+  //   `WA_EVENT_LABEL` も同じ3件を別に持っていた（いまは `EVENT_LABEL` そのもの）。
+  check('EVENT_LABEL が居る', /export const EVENT_LABEL/.test(code))
+  const tables = (code.match(/d5000: '5000m'/g) ?? []).length
+  check('呼び名の表が1つだけ', tables === 1, `${tables}か所`)
+  check('距離→キーは eventDistKey が居る', /export function eventDistKey\(/.test(code))
+  const splits = (code.match(/=== 21097 \? 'half'/g) ?? []).length
+  check('距離の分け方も1つだけ', splits === 1, `${splits}か所`)
+  const numTables = (code.match(/21097: 'ハーフ'/g) ?? []).length
+  check('距離の数で引く表を画面に持っていない', numTables === 0, `${numTables}か所`)
+}
+
+console.log('\n[19] 施設の効き目は、実際に掛ける側から出す')
+{
+  // 戻し方：FacilitiesPage の FACILITY_META に `effects: ['Lv1: 疲労-8%', …]` を書き戻す
+  // ★以前は効き目が画面に**文字列で**焼いてあり（'Lv1: レースEXP+6%' など）、
+  //   engine 側（`growth` / `raceFatigue` / `raceBoosts`）を変えても画面だけ元のままだった
+  //   （`raceBoosts` の `lineupChemistry` で実際に起きたのと同じ形）。
+  check('合宿は engine/growth の facilityExpMultiplier', /export function facilityExpMultiplier\(/.test(code))
+  // `facilityScoutNegoBonus` は3か所（画面の効き目・獲得オファーの交渉・引き抜きの交渉）。
+  // 以前は store 2か所が `scoutLv * 0.02` の手書きで、画面だけが関数を通っていた
+  for (const [name, want] of [['facilityMedFatigueMultiplier', 2], ['facilityTacticsStatBonus', 4], ['facilityScoutNegoBonus', 3]] as const) {
+    check(`${name} が居る`, new RegExp(`export function ${name}\\(`).test(code))
+    const n = (code.match(new RegExp(`(?<!function )${name}\\(`, 'g')) ?? []).length
+    check(`${name} を通っている`, n === want, `${n}か所（期待 ${want}）`)
+  }
+  const baked = (code.match(/レースEXP\+6%|疲労-8%|成立\+2%/g) ?? []).length
+  check('効き目の率を画面に文字で焼いていない', baked === 0, `${baked}か所`)
+}
+
+console.log('\n[20] 「その選手はいくらか」の材料も1本（今季の出場込み）')
+{
+  // 戻し方：どこかで `calcTransferValue(p)` を引数なしで呼び直す
+  //
+  // ★`calcTransferValue` は第2引数（今季の出場）を**省略できます**。省略すると
+  //   **フル出場の選手も1戦も走っていない選手も同じ額**になります。ところが実際に
+  //   請求する `transferFeeFor` は出場を見るので、**表示・受諾ライン・請求額が別の数**
+  //   でした（画面9か所・入札の受諾ライン・出品の希望額・逆提示の上限が引数なし）。
+  check('`marketValueOf` が居る', /export function marketValueOf\(/.test(code))
+  // ★**並べ替えだけは素の値でよい**（同じ一覧の中の順番を決めるだけで、
+  //   額として画面に出ないし、誰かに請求もしない）。漏れと区別できるように名指しで書く。
+  const SORT_ONLY = ["case 'value': return", 'sort((a, b) => calcTransferValue']
+  const bare = code.split('\n')
+    .map(l => l.trim())
+    .filter(l => /calcTransferValue\([A-Za-z_$][\w$]*\)/.test(l))
+    .filter(l => !l.includes('marketValueOf') && !SORT_ONLY.some(k => l.includes(k)))
+  check('額を出すところで `calcTransferValue` を引数なしで呼んでいない',
+    bare.length === 0, bare.join(' / ').slice(0, 200))
+}
+
 console.log('')
 if (failed > 0) { console.log(`✗ 同じ問いに物差しが2本あります（${failed}件）`); process.exit(1) }
-console.log('✓ 引退・年齢込みの強さ・在籍人数・在籍上限・下限の救済は、どれも1本')
+console.log('✓ 引退・年齢込みの強さ・在籍人数・在籍上限・下限の救済・通信の文言・主力か・走れているかは、どれも1本')

@@ -1,4 +1,5 @@
 import type { EclHistoryEntry, Race } from '../types'
+import { pointSeriesStandings } from './league'
 
 // ECLの歴代優勝を、保存してあるレース結果から毎回組み立てる。
 //
@@ -47,9 +48,8 @@ function entryOf(s: SeasonEclLike): EclHistoryEntry | null {
   if (series && series.races.length > 0) {
     // 全戦を走り終えるまでは優勝は決まらない（途中の年は記録に入れない）
     if (!series.races.every(r => r?.results)) return null
-    const champion = [...series.participants]
-      .map(pt => ({ id: pt.id, points: series.points?.[pt.id] ?? 0 }))
-      .sort((a, b) => b.points - a.points)[0]
+    // 並べ方は `utils/league` の `pointSeriesStandings` 1本（ECLページ・順位表・記録室と同じ）
+    const champion = pointSeriesStandings(series.participants, series.points)[0]
     if (!champion) return null
     const winnerPlayerIds = [...new Set(series.races.flatMap(r =>
       (r.results?.segmentResults ?? []).flatMap(sr => sr.runners.filter(x => x.teamId === champion.id).map(x => x.playerId)),

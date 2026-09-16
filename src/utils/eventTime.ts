@@ -3,7 +3,23 @@
 export type EventDistance = 'd5000' | 'd10000' | 'half' | 'marathon'
 export const EVENT_DISTANCES: EventDistance[] = ['d5000', 'd10000', 'half', 'marathon']
 export const EVENT_LABEL: Record<EventDistance, string> = { d5000: '5000m', d10000: '10000m', half: 'ハーフ', marathon: 'マラソン' }
-// 記録会の距離キー（simulateIndividualTime の引数）との対応
+
+/**
+ * 距離(m)から種目キーへ。**距離の分け方はここ1本**（`engine/timeTrialRecords` から移した）。
+ */
+export function eventDistKey(distance: number): EventDistance {
+  return distance === 5000 ? 'd5000' : distance === 10000 ? 'd10000' : distance === 21097 ? 'half' : 'marathon'
+}
+
+/**
+ * 距離(m)の呼び名。**記録会の距離の呼び名を画面に手書きしないこと。**
+ *
+ * 以前は同じ表が6か所（ホーム・日程・レース結果・記録室の種目タブ・歴代優勝・パッチ）に
+ * 写してあり、キーで持つ形と距離の数で持つ形の2通りに割れていた。
+ */
+export function eventLabelOf(distance: number): string {
+  return EVENT_LABEL[eventDistKey(distance)]
+}
 
 // カレンダー進行: 直前に消化したレースと次のレースの間にある未実施の記録会（＝次の予定）を返す。
 // 現在位置より前の日付の未実施分は対象外（過去にさかのぼって実施しない）。

@@ -29,7 +29,7 @@ import { processRetirements } from '../../engine/retirement'
 import { processSeasonSponsors } from '../../engine/sponsorSeason'
 import { settleBonusClauses } from '../../engine/bonusPayout'
 import { computeSeasonBudgets } from '../../engine/seasonBudget'
-import { allTieredClubs, tierBudget, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
+import { allTieredClubs, tierBudget, tierOf, tierOfClubId } from '../../utils/clubTier'
 import { appraiseGmInvite, gmInviteFeeFor } from '../../utils/gmInvite'
 import { allForeignClubs, foreignClubIdSet } from '../../utils/clubs'
 import { MORALE_DEFAULT, setMorale } from '../../utils/condition'
@@ -39,15 +39,14 @@ import { managedTeamIds, startTenure } from '../../utils/gmTenure'
 import { DIVISIONS, TOP_DIVISION, divisionOf, divisionStandings, myDivSize, newSeasonStandings, rankOfTeam, seasonDivisionStandings } from '../../utils/league'
 import { divisionChampionHeadline, divisionsFoundedHeadline, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline } from '../../utils/newsItems'
 import { comparePlayers } from '../../utils/playerSort'
-import { faMarketSalary, newContractYears, ovr, packForeignApps, perfOf, transferFeeFor } from '../../utils/playerUtils'
-import { playRateOf } from '../../utils/playRate'
+import { faMarketSalary, newContractYears, ovr, packForeignApps, perfOf } from '../../utils/playerUtils'
 import { movePlayer } from '../../utils/movePlayer'
 import { squadIdsOf, clubIndexOf } from '../../utils/rosterSync'
 import { needsPlayer, squadRankOf } from '../../utils/squadNeeds'
 import { teamHistoryOf } from '../../utils/teamHistory'
-import { appraiseMove, hasNoPlayingTime, isSurplus } from '../../utils/transferDecision'
+import { hasNoPlayingTime } from '../../utils/transferDecision'
 import { writeSeasonArchive } from '../seasonArchive'
-import { facilitiesOf } from '../../utils/facilities'
+import { facilitiesOf, facilityScoutPoints } from '../../utils/facilities'
 
 type Slice = Pick<GameStore,
   'startRegularSeason' | 'initObjectivesIfEmpty' | 'endSeason' | 'acceptGmOffer' | 'declineGmOffer' | 'resignAsGm'>
@@ -318,8 +317,6 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         }
       }
 
-      // 格を引くクラブ一覧。国内だけ渡すと海外の格が初期値のままになるので必ず両方入れる
-      const tieredClubsForGrowth = allTieredClubs(state.teams, state.foreignLeagues)
       // 加齢処理 + 契約更新適用
       const grownPlayers = state.players.map(pRaw => {
         // オフシーズンで負傷は全快（負傷状態と復帰カウントを持ち越さない）
@@ -756,8 +753,8 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
           races: newRaces,
           divisionRaces: nextSchedules,
           collegeRaces: [],
-          draftPool: [],
-          scoutPoints: 5 + objBonus + facilitiesOf(state.teams.find(t => t.id === state.playerTeamId)).scoutOffice,
+          // スカウトPTの効き目は `utils/facilities` の1本（画面の効き目の表示と同じ式）
+          scoutPoints: 5 + objBonus + facilityScoutPoints(facilitiesOf(state.teams.find(t => t.id === state.playerTeamId)).scoutOffice),
           initialBudget: newBudget,   // 来期の開始予算（＝繰越+クラブ予算+スポンサー）。収支表示の基準。
           seasonGrant: newBudgetBreakdown.grant,   // 来期のクラブ予算（＝来季の格の年間予算）。内訳表示と一致させる。
           budgetBreakdown: newBudgetBreakdown,       // 初期予算の内訳（財務ページで表示）

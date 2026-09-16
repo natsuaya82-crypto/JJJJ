@@ -20,6 +20,9 @@ import { Chevron } from '../ui'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
 import ScreenCover from '../ui/ScreenCover'
+import { OFFLINE_TEXT } from '../../lib/supabase'
+import { useRatedRanks } from '../../lib/useRatedRanks'
+import { RankBadge } from '../rated/ratedUi'
 
 
 
@@ -120,6 +123,10 @@ function BlockedScreen({ onClose }: { onClose: () => void }) {
   const [failed, setFailed] = useState(false)
   const [busy, setBusy] = useState('')
   const [round, setRound] = useState(0)
+  // ★ここに並ぶのは**他の人**（ブロックした相手のチーム名とGM名）なので、
+  //   名前の横には段位の紋章を出す（オーナー・2026-08-18「全部です」）。
+  //   引くのは一覧ぶんまとめて1回（`lib/useRatedRanks`）
+  const ranks = useRatedRanks((rows ?? []).map(u => u.id))
 
   useEffect(() => {
     let alive = true
@@ -146,7 +153,7 @@ function BlockedScreen({ onClose }: { onClose: () => void }) {
       {rows === null ? (
         <div style={{ textAlign: 'center', color: C.textDim, fontSize: F.body, padding: '40px 0' }}>読み込み中…</div>
       ) : failed ? (
-        <div style={{ textAlign: 'center', color: C.textDim, fontSize: F.body, padding: '40px 0' }}>通信できませんでした</div>
+        <div style={{ textAlign: 'center', color: C.textDim, fontSize: F.body, padding: '40px 0' }}>{OFFLINE_TEXT.title}</div>
       ) : rows.length === 0 ? (
         <div style={{ textAlign: 'center', color: C.textDim, fontSize: F.body, padding: '40px 0' }}>ブロックしている相手はいません</div>
       ) : (
@@ -158,8 +165,11 @@ function BlockedScreen({ onClose }: { onClose: () => void }) {
             }}>
               <TeamLogoSVG primary={u.primary} secondary={u.secondary} shortName={u.shortName} logoId={u.logoId} size={38} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: F.sub, fontWeight: 900, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {u.teamName}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ fontSize: F.sub, fontWeight: 900, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {u.teamName}
+                  </div>
+                  <RankBadge rating={ranks.get(u.id)} size={17} />
                 </div>
                 <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 2 }}>GM {u.gmName}</div>
               </div>

@@ -1460,9 +1460,16 @@ language plpgsql
 security definer
 set search_path = public
 as $$
-declare me uuid := auth.uid(); v_club uuid; v_cur integer;
+declare me uuid := auth.uid(); v_club uuid; v_cur integer; v_emoji integer;
 begin
   if me is null then raise exception 'not signed in'; end if;
+
+  -- ★**押せる絵文字は6種類、番号は 0〜5**（`src/lib/clubsApi.ts` の `CLUB_REACTIONS`。
+  --   配列の位置がそのまま入る）。**範囲外はここで収めること**——受けてしまうと
+  --   画面（`components/friends/FriendClubPage`）は `CLUB_REACTIONS[idx] ?? '?'` なので
+  --   「?」だけの札が並び、取り消しも付け替えもできない番号が保存で残る。
+  --   SQL は TS を import できないので、数は `scripts/check-supabase-sql.ts` が突き合わせる。
+  v_emoji := greatest(0, least(coalesce(p_emoji, 0), 5));
 
   select club_id into v_club from public.club_posts where id = p_post;
   if v_club is null or v_club <> public.my_club_id() then raise exception 'not your club'; end if;
@@ -1470,15 +1477,15 @@ begin
   select emoji into v_cur from public.club_reactions
    where post_id = p_post and user_id = me;
 
-  if v_cur is not null and v_cur = p_emoji then
+  if v_cur is not null and v_cur = v_emoji then
     delete from public.club_reactions where post_id = p_post and user_id = me;
     return null;
   end if;
 
   insert into public.club_reactions (post_id, user_id, emoji)
-       values (p_post, me, p_emoji)
+       values (p_post, me, v_emoji)
   on conflict (post_id, user_id) do update set emoji = excluded.emoji;
-  return p_emoji;
+  return v_emoji;
 end $$;
 
 -- 投稿ごとに「番号 → 人数」と「自分が押した番号」。
@@ -1745,9 +1752,15 @@ begin
   if v_host is null then return 'not_found'; end if;
   if v_host <> auth.uid() then return 'not_host'; end if;
 
+  -- ★**始められるのは2チームから。** `room_members` には**ホストも入っている**
+  --   （`create_room` が seat 1 で入れる）ので、ここが `< 1` だと**ホスト1人でも
+  --   'started' が返り**、止めていたのは画面だけだった＝作り替えた端末なら1人で始められる。
+  --   CPU はホストの端末だけが足すもので、サーバーは1人も知らない。
+  --   この数は TS の `src/lib/roomMachine.ts` の `MIN_TEAMS` と同じ線で、
+  --   SQL は TS を import できないので `scripts/check-rated-server.ts` が突き合わせる。
   select count(*) into v_count from public.room_members
    where room_id = p_room and left_at is null;
-  if v_count < 1 then return 'empty'; end if;
+  if v_count < 2 then return 'empty'; end if;
 
   update public.rooms
      set status = 'playing', rules = coalesce(p_rules, rules),
@@ -2160,7 +2173,10 @@ end $$;
 
 /*
  * **提出。渡すのは区間ごとの選手IDだけ**（タイムにも順位にも触れない）。
- *   'ok' 受け付けた / 'closed' 締め切り後 / 'bad' 区間数が合わない / 'join' 未参加
+ *   'ok' 受け付けた / 'closed' 締め切り後 / 'bad' 中身が受け付けられない / 'join' 未参加
+ *
+ * ★'bad' は「区間数が合わない」「区間番号が範囲外」「中身が選手IDでない」
+ *   「**同じ選手を2区間に置いている**」の全部。端末の言い値は1つも信用しない。
  */
 create function public.rated_submit(l jsonb) returns text
 language plpgsql security definer set search_path = public as $$
@@ -2179,6 +2195,20 @@ begin
   for k in select jsonb_object_keys(l) loop
     if k !~ '^[0-9]+$' or k::int < 1 or k::int > r.seg_count then return 'bad'; end if;
   end loop;
+  -- 中身は選手ID（空でない文字列）。数値や配列を混ぜられないようにする
+  if exists (select 1 from jsonb_each(l) as t(seg, pid)
+              where jsonb_typeof(t.pid) <> 'string' or (t.pid #>> '{}') = '') then
+    return 'bad';
+  end if;
+  -- ★**同じ選手を2区間に置けない。** 画面（`components/race/LineupPhase`）は
+  --   既に置いてある選手を選ぶと元の区間と入れ替えるので、人の手では重複しない。
+  --   ところが**ここが見ていなければ、作り替えた端末から1人を全区間に置ける**
+  --   （走らせる側の `src/lib/ratedTick.ts` は区間ごとに選手を引くだけで重複を見ない）。
+  --   殿堂入りの人数の下限（`HOF_ENTRY_MIN`）が区間数の上限を下回らないのも、
+  --   この「同じ選手を2区間に置けない」が前提。
+  if (select count(distinct t.pid) from jsonb_each(l) as t(seg, pid)) <> r.seg_count then
+    return 'bad';
+  end if;
   insert into public.rated_lineups (round_id, user_id, lineup)
   values (r.id, me, l)
   on conflict (round_id, user_id) do update

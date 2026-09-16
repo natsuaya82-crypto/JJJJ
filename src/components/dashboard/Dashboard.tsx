@@ -16,7 +16,7 @@ import NextRaceCard from './NextRaceCard'
 import { computeSeasonAwards } from '../../utils/awards'
 import { clubSeasonRank } from '../../utils/clubStanding'
 import type { Race } from '../../types'
-import { getDueIndividualEvent } from '../../utils/eventTime'
+import { eventLabelOf, getDueIndividualEvent } from '../../utils/eventTime'
 import { hostForYear } from '../../engine/worldAthletics'
 import { canStartSeason } from '../../utils/seasonStart'
 // ホームの「チャット」に出す未読の数。数え方は notifItems 1本（ここで数えない）
@@ -257,7 +257,7 @@ export default function Dashboard() {
   // 在籍は player.teamId 1本（utils/rosterSync）。ロスター画面と同じ取り方
   const mainPlayers = getTeamPlayers(playerTeamId).filter(p => p.status !== 'retired')
   const avgMorale = mainPlayers.length > 0
-    ? Math.round(mainPlayers.reduce((s, p) => s + (p.morale ?? MORALE_DEFAULT), 0) / mainPlayers.length) : 70
+    ? Math.round(mainPlayers.reduce((s, p) => s + (p.morale ?? MORALE_DEFAULT), 0) / mainPlayers.length) : MORALE_DEFAULT
 
   const nextMainRace = currentSeason.races[currentSeason.currentRaceIndex] ?? null
   type NextRaceData = { race: Race; kind: 'main'; number: number; total: number }
@@ -601,7 +601,7 @@ export default function Dashboard() {
         <div style={{ padding: '20px 12px 16px' }}>
           {eclDue && eclNextCard && (!showTTNext || !dueTT || nextEclRace!.date <= dueTT.date) ? eclNextCard
           : showTTNext && dueTT ? (() => {
-            const distLabel = dueTT.distance === 5000 ? '5000m' : dueTT.distance === 10000 ? '10000m' : dueTT.distance === 21097 ? 'ハーフ' : 'マラソン'
+            const distLabel = eventLabelOf(dueTT.distance)
             const distKm = (dueTT.distance / 1000).toFixed(dueTT.distance >= 10000 ? 0 : 1)
             return (
             <div role="button" tabIndex={0} className="pressable" onClick={() => navigate('/race')} style={panelStyle(C.green)}>

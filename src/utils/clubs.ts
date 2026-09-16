@@ -83,7 +83,12 @@ export function clubGmName(club: { id: string; gmName?: string; country?: string
   return club.gmName ?? hashedGmName(club.id, club.country ?? '')
 }
 
-/** クラブIDから決め打ちの値を作るときのハッシュ。式は utils/hash の1本（`| 0` は既存のGM名を変えないため） */
+/**
+ * クラブIDから決め打ちの値を作るときのハッシュ。式は utils/hash の1本
+ * （`| 0` は既に画面へ出した創設年を変えないため）。
+ * ★**GM名はこれではありません**——`engine/playerGenerator` の `hashedGmName`（FNV-1a）で、
+ *   そちらへ寄せると遊んでいるセーブのGMが全員別人になります。
+ */
 function hashClubId(id: string): number {
   return Math.abs(strHash(id) | 0)
 }

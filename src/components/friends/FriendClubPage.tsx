@@ -36,7 +36,8 @@ import { useLongPress } from '../../lib/useLongPress'
 import { useStickyTab } from '../../lib/useStickyTab'
 import { useClubFeedUnread, markClubFeedRead } from '../../lib/useClubFeedUnread'
 import CountBadge from '../ui/CountBadge'
-import { useRatedRank, useRatedRanks } from '../../lib/useRatedRanks'
+import { OFFLINE_TEXT } from '../../lib/supabase'
+import { useRatedRanks } from '../../lib/useRatedRanks'
 import { RankBadge } from '../rated/ratedUi'
 import { C, alpha, SAIRA, contentHeight, F } from '../../styles/tokens'
 
@@ -346,19 +347,19 @@ export function ClubSearch({ onChanged, readOnly }: { onChanged?: () => void; re
           r === 'low_ovr' ? `チーム平均OVRが ${club.minOvr} 以上ないと入れません` :
           r === 'already' ? 'すでに走友会に入っています' : '走友会が見つかりませんでした',
       })
-    } catch { setNotice({ title: '通信できませんでした' }) } finally { setBusy('') }
+    } catch { setNotice({ title: OFFLINE_TEXT.title }) } finally { setBusy('') }
   }
 
   const onCancelReq = async (club: ClubBrief) => {
     setBusy(club.id)
     try { await cancelClubRequest(club.id); refresh() }
-    catch { setNotice({ title: '通信できませんでした' }) } finally { setBusy('') }
+    catch { setNotice({ title: OFFLINE_TEXT.title }) } finally { setBusy('') }
   }
 
   const onCreate = async (f: ClubForm) => {
     setBusy('new')
     try { await createClub(f); setMaking(false); refresh() }
-    catch { setNotice({ title: '通信できませんでした' }) } finally { setBusy('') }
+    catch { setNotice({ title: OFFLINE_TEXT.title }) } finally { setBusy('') }
   }
 
   if (making) {
@@ -456,8 +457,15 @@ type FriendState = 'unknown' | 'me' | 'friend' | 'sent' | 'none'
 /** 走友会のタブ。URLに覚えさせるので、取りうる値をここに1本で置く（`useStickyTab`） */
 const CLUB_TABS = ['members', 'board', 'cards'] as const
 
-export function MemberRow({ m, canKick, isMe, friendState, onKick, onMenu, onOpen, onAddFriend, readOnly }: {
-  m: ClubMember; canKick: boolean; isMe: boolean; friendState: FriendState
+export function MemberRow({ m, rating, canKick, isMe, friendState, onKick, onMenu, onOpen, onAddFriend, readOnly }: {
+  m: ClubMember
+  /**
+   * この人の段位。**引くのは呼ぶ側で、一覧ぶんまとめて1回**（`useRatedRanks`）。
+   * ここで `useRatedRank(m.id)` を呼ぶと、行の数だけ通信が飛ぶ
+   * （20人の名簿で20回。`lib/useRatedRanks` の見出しに書いてあるとおり）。
+   */
+  rating: number | undefined
+  canKick: boolean; isMe: boolean; friendState: FriendState
   onKick: () => void; onMenu: () => void; onOpen: () => void; onAddFriend: () => void
   /**
    * **見るだけ**（入っていない走友会を外から見るとき）。
@@ -467,7 +475,6 @@ export function MemberRow({ m, canKick, isMe, friendState, onKick, onMenu, onOpe
   readOnly?: boolean
 }) {
   const longPress = useLongPress()
-  const rank = useRatedRank(m.id)
   // ブロックした相手は、名前も監督名も伏せる。人数がずれるので一覧からは消さない。
   return (
     <div style={{
@@ -489,7 +496,7 @@ export function MemberRow({ m, canKick, isMe, friendState, onKick, onMenu, onOpe
               {m.blocked ? 'ブロック中の利用者' : m.teamName}
             </span>
             {/* ブロック中は名前ごと伏せているので紋章も出さない */}
-            {!m.blocked && <RankBadge rating={rank} size={17} />}
+            {!m.blocked && <RankBadge rating={rating} size={17} />}
             {m.role === 'owner' && <Pill color={C.gold}>会長</Pill>}
             {m.role === 'admin' && <Pill color={C.cyan}>副会長</Pill>}
           </div>
@@ -800,7 +807,7 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
 
   // 通信に失敗したとき用。原因が分かるようサーバーの文言もそのまま添える
   const failed = (e: unknown) =>
-    setNotice({ title: '通信できませんでした', message: offlineDetail(e) || undefined })
+    setNotice({ title: OFFLINE_TEXT.title, message: offlineDetail(e) || undefined })
 
   /**
    * 掲示板に書く。**伏せ字にしないで送る。**
@@ -894,7 +901,7 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
   const onBlock = async (post: ClubPost) => {
     setConfirmBlock(null)
     const ok = await blockUser(post.userId)
-    if (!ok) { setNotice({ title: '通信できませんでした' }); return }
+    if (!ok) { setNotice({ title: OFFLINE_TEXT.title }); return }
     invalidateFriendsCache('clubFeed', 'myClub', 'friends', 'received', 'sent')
     feed.reload()
     setNotice({ title: 'ブロックしました', message: 'この相手の書き込みは表示されません' })
@@ -1242,6 +1249,8 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
   // 加入申請は会長と副会長が見る
   const reqs = useFriendsQuery(() => (canEdit ? listClubRequests() : Promise.resolve([])), [canEdit], 'clubReqIn')
   const applicantRanks = useRatedRanks((reqs.data ?? []).map(a => a.id))
+  // ★段位は**一覧ぶんまとめて1回**（`MemberRow` の中で1行ずつ引かないこと）
+  const memberRanks = useRatedRanks(members.map(m => m.id))
   // 走友会のメンバーがフレンドかどうかを出し分けるため。置き場所はフレンド画面と同じ入れ物
   const friendsQ = useFriendsQuery(listFriends, [], 'friends')
   const sentQ = useFriendsQuery(listSent, [], 'sent')
@@ -1286,7 +1295,7 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
       friendsQ.reload(); sentQ.reload()
       setNotice(SEND_RESULT_TEXT[r])
     } catch (e) {
-      setNotice({ title: '通信できませんでした', message: offlineDetail(e) })
+      setNotice({ title: OFFLINE_TEXT.title, message: offlineDetail(e) })
     }
   }
 
@@ -1296,7 +1305,7 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
       const r = await leaveClub()
       if (r === 'disbanded') setNotice({ title: '解散しました', message: '最後の1人だったので走友会は無くなりました' })
       refresh()
-    } catch { setNotice({ title: '通信できませんでした' }) } finally { setBusy('') }
+    } catch { setNotice({ title: OFFLINE_TEXT.title }) } finally { setBusy('') }
   }
 
   // 副会長にする／やめる（会長だけ）
@@ -1314,20 +1323,20 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
           r === 'not_owner' ? '会長だけができます' :
           r === 'not_member' ? 'この人はもう走友会にいません' : '選べない役割です',
       })
-    } catch { setNotice({ title: '通信できませんでした' }) } finally { setBusy('') }
+    } catch { setNotice({ title: OFFLINE_TEXT.title }) } finally { setBusy('') }
   }
 
   const onKick = async (m: ClubMember) => {
     setConfirmKick(null); setBusy(m.id)
     try { await kickClubMember(m.id); refresh() }
-    catch { setNotice({ title: '通信できませんでした' }) } finally { setBusy('') }
+    catch { setNotice({ title: OFFLINE_TEXT.title }) } finally { setBusy('') }
   }
 
   const onBlock = async (m: ClubMember) => {
     setConfirmBlock(null); setBusy(m.id)
     try {
       const ok = await blockUser(m.id)
-      if (!ok) { setNotice({ title: '通信できませんでした' }); return }
+      if (!ok) { setNotice({ title: OFFLINE_TEXT.title }); return }
       invalidateFriendsCache('friends', 'received', 'sent', 'clubFeed')
       refresh()
       setNotice({ title: 'ブロックしました', message: 'この相手の名前と書き込みは表示されません' })
@@ -1338,7 +1347,7 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
     setBusy(m.id)
     try {
       const ok = await unblockUser(m.id)
-      if (!ok) { setNotice({ title: '通信できませんでした' }); return }
+      if (!ok) { setNotice({ title: OFFLINE_TEXT.title }); return }
       invalidateFriendsCache('friends', 'received', 'sent', 'clubFeed')
       refresh()
     } finally { setBusy('') }
@@ -1351,13 +1360,13 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
       else await rejectClubRequest(id)
       refresh()
     }
-    catch { setNotice({ title: '通信できませんでした' }) } finally { setBusy('') }
+    catch { setNotice({ title: OFFLINE_TEXT.title }) } finally { setBusy('') }
   }
 
   const onSave = async (f: ClubForm) => {
     setBusy('edit')
     try { await updateClub(f); setEditing(false); refresh() }
-    catch { setNotice({ title: '通信できませんでした' }) } finally { setBusy('') }
+    catch { setNotice({ title: OFFLINE_TEXT.title }) } finally { setBusy('') }
   }
 
   if (editing) {
@@ -1453,6 +1462,7 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
                 <MemberRow
                   key={m.id}
                   m={m}
+                  rating={memberRanks.get(m.id)}
                   canKick={canEdit && m.role !== 'owner' && !(myRole === 'admin' && m.role === 'admin')}
                   isMe={m.id === meId}
                   friendState={friendStateOf(m)}

@@ -91,7 +91,3 @@ export function withEventBest<T extends { eventBests?: Partial<Record<EventDistK
   return { ...p, eventBests: { ...p.eventBests, [key]: { timeSec, year } } }
 }
 
-/** 距離から種目キーへ。距離の分け方はここ1本 */
-export function eventDistKey(distance: number): EventDistKey {
-  return distance === 5000 ? 'd5000' : distance === 10000 ? 'd10000' : distance === 21097 ? 'half' : 'marathon'
-}

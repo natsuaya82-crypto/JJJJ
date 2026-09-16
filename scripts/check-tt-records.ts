@@ -14,7 +14,8 @@
  *   ・日本記録は JPN だけを見る（世界記録より遅いタイムが日本記録になる）
  *   ・ニュースは並んだ人ぶん出る
  */
-import { updateBestRecord, withEventBest, eventDistKey } from '../src/engine/timeTrialRecords'
+import { updateBestRecord, withEventBest } from '../src/engine/timeTrialRecords'
+import { eventDistKey } from '../src/utils/eventTime'
 import type { EventTimeRecord } from '../src/types'
 
 let failed = 0

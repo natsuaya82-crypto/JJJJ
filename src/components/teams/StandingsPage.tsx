@@ -8,7 +8,7 @@ import PageHeader from '../ui/PageHeader'
 import PillTabs from '../ui/PillTabs'
 import StandingsTable, { type StandRow } from './StandingsTable'
 import { C, FONT, F } from '../../styles/tokens'
-import { rankedStandings, divisionStandings, DIVISIONS, DIVISION_LABEL, divisionOf, PROMOTION_SLOTS } from '../../utils/league'
+import { rankedStandings, pointSeriesStandings, divisionStandings, DIVISIONS, DIVISION_LABEL, divisionOf, PROMOTION_SLOTS } from '../../utils/league'
 import type { Division } from '../../types'
 
 
@@ -65,9 +65,7 @@ export default function StandingsPage() {
         // 前は「今シーズンのECLは開催されません」だけで、毎年やらない大会に読めた
         empty: 'ECLは前年の各リーグ上位2チームで争います。1年目は前年の成績が無いため開催されません（2年目から毎年開催）。',
       }
-      const sorted = series.participants
-        .map(pt => ({ ...pt, points: series.points[pt.id] ?? 0 }))
-        .sort((a, b) => b.points - a.points)
+      const sorted = pointSeriesStandings(series.participants, series.points)
       return {
         eyebrow: `${currentSeason.year} ECL`, title: 'ECL 順位表', logoId: 'ecl',
         rows: sorted.map(s => ({

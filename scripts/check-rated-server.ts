@@ -35,6 +35,7 @@ import { ratedMatchCourse, ratedDateOf, ratedDayOf, SEG_MAX } from '../src/engin
 import { RANK_BANDS, GROUP_MAX, GROUP_MIN, rankOf } from '../src/engine/rating'
 import { buildRatingsForRank } from '../src/engine/playerGenerator'
 import { HOF_MAX, HOF_ENTRY_MIN } from '../src/utils/hofRoster'
+import { MIN_TEAMS } from '../src/lib/roomMachine'
 import { ovr } from '../src/utils/playerUtils'
 import type { HofPlayer, Player } from '../src/types'
 
@@ -73,6 +74,32 @@ console.log('[1] 参加資格の人数は1本（画面とサーバーで食い�
   //   点検そのものが例外で落ちて、ここまで到達しない（実際にそうなった）。
   check(`参加の線(${HOF_ENTRY_MIN}) が区間数の上限(${SEG_MAX})を下回っていない`,
     HOF_ENTRY_MIN >= SEG_MAX)
+
+  // ★**同じ選手を2区間に置けない、はサーバーも見ること。** 上の「下限は区間数の上限」は
+  //   その前提そのもので、画面（`LineupPhase`）は置き直しで入れ替える。
+  //   `rated_submit` が見ていないと、作り替えた端末から1人を全区間に置ける。
+  check('rated_submit が同じ選手の重複を弾く',
+    /rated_submit[\s\S]*?count\(distinct[\s\S]*?<>\s*r\.seg_count[\s\S]*?return 'bad'/.test(sql))
+}
+
+console.log('\n[1-b] 対戦を始められる最少チーム数は1本（画面とサーバーで食い違わない）')
+{
+  // ★この数も**2か所にある**。TS の `MIN_TEAMS`（ホストの「はじめる」が押せるか）と、
+  //   `all.sql` の `start_room`（サーバーが受けるか）。
+  //   ★以前サーバーは `v_count < 1` で、**ホスト1人でも 'started' を返して**いた
+  //     （`room_members` にはホストも入っている）。止めていたのは画面だけ。
+  const sql = readFileSync('supabase/all.sql', 'utf8')
+  const m = /create function public\.start_room[\s\S]*?v_count\s*<\s*(\d+)\s*then\s*return\s*'empty'/.exec(sql)
+  check('all.sql の start_room に人数の判定がある', !!m, m ? '' : '見つからない')
+  check(`サーバーの線が MIN_TEAMS と同じ（${MIN_TEAMS}）`,
+    !!m && Number(m[1]) === MIN_TEAMS, m ? `all.sql は ${m[1]}` : '')
+  check('1人では対戦にならない（線は2以上）', MIN_TEAMS >= 2, String(MIN_TEAMS))
+
+  // ★画面が自前の数を持たないこと（持った瞬間にまた割れる）
+  const lobby = readFileSync('src/components/online/RoomLobbyPage.tsx', 'utf8')
+  check('画面が MIN_TEAMS を手書きしていない', !/const\s+MIN_TEAMS\s*=/.test(lobby))
+  check('画面は lib/roomMachine から MIN_TEAMS を引いている',
+    /import\s*\{[^}]*\bMIN_TEAMS\b[^}]*\}\s*from\s*'\.\.\/\.\.\/lib\/roomMachine'/.test(lobby))
 }
 
 // ── 種を固定した世界 ────────────────────────────────────

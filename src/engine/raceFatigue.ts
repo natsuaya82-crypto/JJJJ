@@ -8,7 +8,7 @@
 // 乱数は使わない。
 import type { Player, Team } from '../types'
 import { withFatigue } from '../utils/condition'
-import { facilitiesOf } from '../utils/facilities'
+import { facilitiesOf, facilityMedFatigueMultiplier } from '../utils/facilities'
 
 export type RaceStrategy = 'aggressive' | 'conservative' | 'balanced'
 
@@ -31,7 +31,7 @@ export function applyRaceFatigue(params: {
     // 引退選手は能力値を消してセーブを軽くしてあるので、疲労計算の対象外
     if (!p.ratings || p.status === 'retired') return p
     if (racingIds.has(p.id)) {
-      const medMult = 1 - (medLvByTeam.get(p.teamId) ?? 0) * 0.08
+      const medMult = facilityMedFatigueMultiplier(medLvByTeam.get(p.teamId) ?? 0)
       // 回復力が高いほど溜まりにくい（50で標準・90で-12%）
       const recoveryMult = 1.0 - (p.ratings.recovery - 50) * 0.003
       const fatigueGain = Math.round(baseFatigueGain * medMult * Math.max(0.7, recoveryMult))

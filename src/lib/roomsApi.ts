@@ -4,7 +4,7 @@
 // 役割分担
 //   ・このファイル … 部屋を作る／入る／出る／キック／開始／結果確定（＝DBに残るもの）
 //   ・roomChannel.ts … 試合中のリアルタイムのやりとり（＝DBに残さないもの）
-import { supabase, ensureAuth } from './supabase'
+import { supabase, ensureAuth, OFFLINE_TEXT } from './supabase'
 import { profilesByIds, toFriend, type Friend } from './friendsApi'
 import type { MatchDetail } from './matchSim'
 
@@ -34,12 +34,12 @@ export class RoomsOffline extends Error {
   /** 元の失敗。Supabase の PostgrestError か、認証が取れなかったことを示す文字列 */
   readonly detail?: unknown
   constructor(where = '', detail?: unknown) {
-    super('通信できませんでした')
+    super(OFFLINE_TEXT.title)
     this.name = 'RoomsOffline'
     this.where = where
     this.detail = detail
     // 握りつぶさない。実機は Safari のWebインスペクタ／Xcode のコンソールで読める
-    console.warn('[rooms] 通信できませんでした:', where, detail ?? '(詳細なし)')
+    console.warn(`[rooms] ${OFFLINE_TEXT.title}:`, where, detail ?? '(詳細なし)')
   }
 }
 

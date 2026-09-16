@@ -659,7 +659,6 @@ export type Season = {
    */
   recordsFull?: boolean
   collegeRaces: Race[]
-  draftPool: CollegeRunner[]
   scoutPoints: number
   initialBudget?: number   // そのシーズンの開始予算（固定・収支表示用）。前季endSeasonで確定した来期予算。
   seasonGrant?: number     // そのシーズンのクラブ予算（＝格の年間予算。utils/clubTier.ts の tierBudget）
@@ -870,24 +869,6 @@ export type ArchivedSeason = Pick<Season,
 // 変わるので、文字列で見比べていると同じ用件の催促がログに積み上がっていた。
 // kind が付いている発言は、増やさずに文面だけ差し替える。
 export type ChatMessage = { from: 'player' | 'gm'; text: string; kind?: string }
-
-export type CollegeRunner = {
-  id: string
-  name: string
-  age: number
-  school: string
-  schoolType: 'univ' | 'high_school' | 'foreign'
-  publicRatings: Partial<Ratings>
-  trueRatings: Ratings
-  truePotential: number
-  scoutingGrade: number
-  expectedRound: number
-  expectedPick: number
-  collegeRaceHistory: { raceId: string; segmentRank: number; timeSeconds: number }[]
-  specialty: Specialty
-  nationality: Nationality
-  scoutedBy: string[]
-}
 
 export type DevProspect = {
   id: string

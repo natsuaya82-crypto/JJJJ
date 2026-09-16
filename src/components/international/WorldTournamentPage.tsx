@@ -16,6 +16,7 @@ import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { WA_EVENT_LABEL } from '../../engine/worldAthletics'
 import { formatRaceTime } from '../../utils/eventTime'
+import { pointSeriesStandings } from '../../utils/league'
 import { runWithLoading } from '../../store/loadingStore'
 import { C, alpha, rankColor, SAIRA, FONT, bottomStack, F } from '../../styles/tokens'
 import { useAdHeight } from '../layout/Layout'
@@ -84,14 +85,12 @@ export default function WorldTournamentPage() {
 
   const standRows: StandRow[] = useMemo(() => {
     if (!t) return []
-    return t.participants
-      .map(pt => ({ pt, points: t.points[pt.id] ?? 0 }))
-      .sort((a, b) => b.points - a.points)
-      .map(({ pt, points }) => ({
+    return pointSeriesStandings(t.participants, t.points)
+      .map(pt => ({
         id: pt.id, name: pt.name, shortName: pt.shortName,
         primary: pt.colors.primary, secondary: pt.colors.secondary, teamId: pt.id,
         flagCode: pt.nat,
-        points,
+        points: pt.points,
         recentForm: t.races.filter(r => r.results).map(r => r.results!.teamRankings.find(tr => tr.teamId === pt.id)?.rank ?? 99),
         isMe: pt.isPlayerTeam,
       }))

@@ -2,6 +2,7 @@
 // 見た目は既存の空状態（薄い箱＋中央テキスト）に合わせてある。
 import { useCallback, useEffect, useState } from 'react'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
+import { OFFLINE_TEXT } from '../../lib/supabase'
 
 
 export type QueryState<T> = {
@@ -80,8 +81,8 @@ export function LoadingBox({ label = '読み込み中…' }: { label?: string })
 export function ErrorBox({ onRetry }: { onRetry?: () => void }) {
   return (
     <div style={boxStyle}>
-      <div>通信できませんでした</div>
-      <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 4 }}>電波の良い場所で、もう一度お試しください</div>
+      <div>{OFFLINE_TEXT.title}</div>
+      <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 4 }}>{OFFLINE_TEXT.message}</div>
       {onRetry && (
         <button onClick={onRetry} className="btn-press" style={{
           marginTop: 12, padding: '8px 18px',cursor: 'pointer',

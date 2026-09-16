@@ -2,7 +2,7 @@
 
 import { type Facilities, type Player, type Team } from '../types'
 import { withMorale } from '../utils/condition'
-import { facilitiesOf } from '../utils/facilities'
+import { facilitiesOf, facilityTacticsStatBonus } from '../utils/facilities'
 import { type TieredTeam } from '../utils/clubTier'
 import { statCapOf } from '../utils/playerUtils'
 
@@ -24,7 +24,7 @@ export function withFacilityBoost(
   if (clubs.length === 0) return players
   const lvById = new Map(clubs.filter(c => c.id).map(c => [c.id!, facilitiesOf(c).tacticsRoom]))
   return players.map(p => {
-    const boost = lvById.get(p.teamId) ?? 0
+    const boost = facilityTacticsStatBonus(lvById.get(p.teamId) ?? 0)
     if (boost <= 0 || !p.ratings) return p
     return { ...p, ratings: {
       ...p.ratings,

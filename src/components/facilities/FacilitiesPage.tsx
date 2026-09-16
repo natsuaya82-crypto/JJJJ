@@ -5,7 +5,11 @@ import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import { JewelIcon } from '../icons/Icons'
 import { panelStyle } from '../ui/Panel'
 import GlassButton from '../ui/GlassButton'
-import { facilitiesOf, FACILITY_MAX_LEVEL, FACILITY_UPGRADE_COSTS } from '../../utils/facilities'
+import {
+  facilitiesOf, FACILITY_MAX_LEVEL, FACILITY_UPGRADE_COSTS,
+  facilityMedFatigueMultiplier, facilityScoutPoints, facilityScoutNegoBonus, facilityTacticsStatBonus,
+} from '../../utils/facilities'
+import { facilityExpMultiplier } from '../../engine/growth'
 
 
 function FacilityIconSVG({ facilityKey, color, size = 26 }: { facilityKey: FacilityKey; color: string; size?: number }) {
@@ -43,40 +47,50 @@ function FacilityIconSVG({ facilityKey, color, size = 26 }: { facilityKey: Facil
   )
 }
 
+// レベルの並び（Lv1〜上限）。上限は `utils/facilities` 1本
+const LEVELS = Array.from({ length: FACILITY_MAX_LEVEL }, (_, i) => i + 1)
+const pct = (v: number) => `${Math.round(v * 100)}%`
+
+// ★**効き目の数字を画面に書かないこと。** 実際に掛ける側から出す
+//   （合宿＝`engine/growth` の `facilityExpMultiplier`、ほか3つは `utils/facilities`）。
+//   以前はここに 'Lv1: 疲労-8%' のような文字列で焼いてあり、engine 側を変えても
+//   画面の数字だけが元のまま残る形だった。
 const FACILITY_META: {
   key: FacilityKey
   name: string
   desc: string
   color: string
-  effects: string[]
+  effect: (lv: number) => string
 }[] = [
   {
     key: 'trainingCamp',
     name: '合宿施設',
     desc: '選手のレース獲得経験値を底上げする育成環境',
     color: C.green,
-    effects: ['Lv1: レースEXP+6%', 'Lv2: +12%', 'Lv3: +18%', 'Lv4: +24%', 'Lv5: +30%'],
+    effect: lv => `${lv === 1 ? 'レースEXP+' : '+'}${pct(facilityExpMultiplier(lv) - 1)}`,
   },
   {
     key: 'medicalCenter',
     name: '医療センター',
     desc: 'ハイレベルなスポーツ医学でコンディション管理を強化',
     color: C.cyan,
-    effects: ['Lv1: 疲労-8%', 'Lv2: -16%', 'Lv3: -24%', 'Lv4: -32%', 'Lv5: -40%'],
+    effect: lv => `${lv === 1 ? '疲労-' : '-'}${pct(1 - facilityMedFatigueMultiplier(lv))}`,
   },
   {
     key: 'scoutOffice',
     name: 'スカウト拠点',
     desc: '有望選手を早期発掘し、獲得・移籍交渉を有利に運ぶ',
     color: C.orange,
-    effects: ['Lv1: PT+1・成立+2%', 'Lv2: +2・+4%', 'Lv3: +3・+6%', 'Lv4: +4・+8%', 'Lv5: +5・+10%'],
+    effect: lv => `${lv === 1 ? 'PT+' : '+'}${facilityScoutPoints(lv)}・${lv === 1 ? '成立+' : '+'}${pct(facilityScoutNegoBonus(lv))}`,
   },
   {
     key: 'tacticsRoom',
     name: '戦術分析室',
     desc: 'データ分析でレース中のペース配分とメンタルを最適化する',
     color: C.blue,
-    effects: ['Lv1: レース時ペース+1・メンタル+1', 'Lv2: +2', 'Lv3: +3', 'Lv4: +4', 'Lv5: +5'],
+    effect: lv => lv === 1
+      ? `レース時ペース+${facilityTacticsStatBonus(1)}・メンタル+${facilityTacticsStatBonus(1)}`
+      : `+${facilityTacticsStatBonus(lv)}`,
   },
 ]
 
@@ -153,13 +167,13 @@ export default function FacilitiesPage() {
               </div>
 
               <div style={{ padding: '8px 16px', borderTop: `1px solid ${C.border}`, display: 'flex', gap: '5px' }}>
-                {f.effects.map((eff, i) => (
-                  <div key={i} style={{
+                {LEVELS.map(lv => (
+                  <div key={lv} style={{
                     flex: 1, padding: '6px 3px', textAlign: 'center',
-                    background: currentLv > i ? alpha(f.color, 0.12) : C.surface,
-                    border: `1px solid ${currentLv > i ? alpha(f.color, 0.28) : C.border}`,
+                    background: currentLv >= lv ? alpha(f.color, 0.12) : C.surface,
+                    border: `1px solid ${currentLv >= lv ? alpha(f.color, 0.28) : C.border}`,
                   }}>
-                    <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: currentLv > i ? f.color : C.textGhost, fontWeight: '700', lineHeight: 1.35 }}>{eff}</div>
+                    <div style={{ fontFamily: SAIRA, fontSize: F.micro, color: currentLv >= lv ? f.color : C.textGhost, fontWeight: '700', lineHeight: 1.35 }}>{`Lv${lv}: ${f.effect(lv)}`}</div>
                   </div>
                 ))}
               </div>

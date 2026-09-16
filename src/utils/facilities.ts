@@ -51,6 +51,38 @@ export function facilityUpgradeCost(currentLv: number): number | null {
 }
 
 /**
+ * **施設の効き目。レベル1つあたりの数はここ1本**（合宿ぶんだけは成長の枝なので
+ * `engine/growth` の `facilityExpMultiplier`）。
+ *
+ * ★**画面（`components/facilities/FacilitiesPage`）が率を手書きしないこと。**
+ *   以前は「Lv1: 疲労-8%」「Lv1: PT+1・成立+2%」「Lv1: レース時ペース+1・メンタル+1」が
+ *   カードの説明として画面に**文字で**焼いてあり、実際に掛かる側
+ *   （`engine/raceFatigue` / `engine/raceBoosts` / `store/slices/marketSlice`）とは
+ *   何の繋がりもありませんでした。効き目を変えると**画面の数字だけが嘘**になります
+ *   （`raceBoosts` の `lineupChemistry` で実際に起きた形）。
+ */
+
+/** 医療センター Lv → 疲労の倍率（Lv1で 0.92 ＝ 疲労-8%） */
+export function facilityMedFatigueMultiplier(lv: number): number {
+  return 1 - lv * 0.08
+}
+
+/** スカウト拠点 Lv → 年始にもらうスカウトポイントの上乗せ */
+export function facilityScoutPoints(lv: number): number {
+  return lv * 1
+}
+
+/** スカウト拠点 Lv → 交渉の受諾ラインの緩和（Lv1で2%） */
+export function facilityScoutNegoBonus(lv: number): number {
+  return lv * 0.02
+}
+
+/** 戦術分析室 Lv → レース中のペース配分・メンタルの上乗せ */
+export function facilityTacticsStatBonus(lv: number): number {
+  return lv * 1
+}
+
+/**
  * 格からその年の施設レベルを出す（自チーム以外）。格1→Lv5、格20→Lv1。
  * 20段の格を5段のレベルへ落とすので、格4つぶんで1レベル動く。
  */

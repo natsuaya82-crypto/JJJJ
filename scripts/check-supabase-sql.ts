@@ -116,6 +116,25 @@ console.log('\n④ 数字の直書きが無い')
     hits.map(([l, i]) => `${ONLY}:${i + 1} — ${l.trim()}`).join('\n      ') +
     '\n      → public.club_member_cap() を呼ぶこと')
   check('club_member_cap() が1本ある', /create function public\.club_member_cap\(\)/.test(sql))
+
+  // 掲示板の「反応する」で押せる絵文字の数。**表は TS 側1本**
+  // （`src/lib/clubsApi.ts` の `CLUB_REACTIONS`。番号は配列の位置がそのまま入る）。
+  // ★サーバーは**範囲外を収める**こと——受けてしまうと画面は
+  //   `CLUB_REACTIONS[idx] ?? '?'` なので「?」だけの札が残り、付け替えも取り消しもできない。
+  // ★SQL は TS を import できないので、数はここで突き合わせる
+  //   （`HOF_ENTRY_MIN` と `rated_join` とまったく同じ形）。
+  const api = readFileSync('src/lib/clubsApi.ts', 'utf8')
+  const arr = /export const CLUB_REACTIONS = \[([^\]]*)\]/.exec(api)
+  const emojiCount = arr ? arr[1].split(',').filter(s => s.trim()).length : 0
+  const clamp = /react_club_post[\s\S]*?greatest\(0,\s*least\(coalesce\(p_emoji,\s*0\),\s*(\d+)\)\)/.exec(sql)
+  check(`CLUB_REACTIONS が読めた（${emojiCount}種類）`, emojiCount > 0)
+  check('react_club_post が絵文字の番号を範囲に収めている', !!clamp,
+    clamp ? '' : 'greatest(0, least(coalesce(p_emoji, 0), N)) が見つからない')
+  check(`サーバーの上限が CLUB_REACTIONS の数と同じ（0〜${emojiCount - 1}）`,
+    !!clamp && Number(clamp[1]) === emojiCount - 1,
+    clamp ? `all.sql は 0〜${clamp[1]}` : '')
+  check('react_club_post が生の p_emoji を保存していない',
+    !/insert into public\.club_reactions[\s\S]{0,120}values \(p_post, me, p_emoji\)/.test(sql))
 }
 
 console.log('\n⑤ アプリが呼ぶものが全部ある')

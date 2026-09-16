@@ -27,6 +27,19 @@ import { assignLineupByTerrain } from '../engine/raceEngine'
 import { courseToRace, type MatchCourse } from '../data/matchCourses'
 import type { Player } from '../types'
 
+/**
+ * **試合を始められる最少チーム数**（人だけで数える。CPU は含めない）。
+ *
+ * ★**この数は2か所にある。** ここ（ホストの「はじめる」が押せるか）と、
+ *   `supabase/all.sql` の `start_room`（サーバーが受けるか）。
+ *   SQL は TS を import できないので、`scripts/check-rated-server.ts` が突き合わせる
+ *   （`HOF_ENTRY_MIN` と `rated_join` とまったく同じ形）。
+ * ★以前サーバーは `v_count < 1` ＝**ホスト1人でも 'started' を返して**いて、
+ *   止めていたのは画面だけだった。CPU はホストの端末だけが足すもので、
+ *   サーバーは1人も知らないので、サーバー側の線も人の数で見る。
+ */
+export const MIN_TEAMS = 2
+
 /** 1レースぶんの提出内容（区間番号 → 選手ID） */
 export type Order = { lineup: Record<number, string> }
 

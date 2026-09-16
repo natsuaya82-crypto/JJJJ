@@ -5,6 +5,7 @@ import NoticeDialog from '../ui/NoticeDialog'
 import { useFriendsQuery, LoadingBox, ErrorBox } from '../friends/friendsUi'
 import { createRoom, joinRoom, myMatchStats, DEFAULT_RULES } from '../../lib/roomsApi'
 import { syncServerTime } from '../../lib/serverTime'
+import { OFFLINE_TEXT } from '../../lib/supabase'
 import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
 import GlassButton from '../ui/GlassButton'
 
@@ -26,7 +27,7 @@ export default function MatchEntryPage() {
       const room = await createRoom(DEFAULT_RULES, 20)
       navigate(`/online/room/${room.id}`)
     } catch {
-      setNotice({ title: '部屋を作れませんでした', message: '電波の良い場所で、もう一度お試しください' })
+      setNotice({ title: '部屋を作れませんでした', message: OFFLINE_TEXT.message })
     } finally { setBusy(null) }
   }
 
@@ -48,7 +49,7 @@ export default function MatchEntryPage() {
                                      '番号が違うか、部屋が閉じられた可能性があります。',
       })
     } catch {
-      setNotice({ title: '通信できませんでした', message: '電波の良い場所で、もう一度お試しください' })
+      setNotice({ ...OFFLINE_TEXT })
     } finally { setBusy(null) }
   }
 

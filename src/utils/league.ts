@@ -140,6 +140,27 @@ export function rankedStandings<T extends RankableRow>(rows: readonly T[] | unde
 }
 
 /**
+ * 累計ポイント制の大会（ECLの5戦シリーズ・世界選手権の3戦）の順位。**ここ1本。**
+ *
+ * 順位表を行として持っている部のリーグ（`rankedStandings`）と違い、こちらは
+ * 「出場者の一覧」と「id → 累計ポイント」が別々に置いてある。読む側が毎回
+ * `participants.map(pt => ({ ...pt, points: points[pt.id] ?? 0 })).sort((a, b) => b.points - a.points)`
+ * と書いていて、ECLだけで5か所（ECLページ・順位表・記録室・歴代優勝の判定・世界選手権）に
+ * 同じ式が写っていた。タイブレークを足すときに全部を直すことになる。
+ *
+ * 同点の扱いは `rankedStandings` と同じで「元の並び順のまま」（Array#sort は安定ソート）。
+ * 写しになっていた5か所も全部この挙動だったので、結果は変わらない。
+ */
+export function pointSeriesStandings<T extends { id: string }>(
+  participants: readonly T[] | undefined,
+  points: Readonly<Record<string, number>> | undefined,
+): (T & { points: number })[] {
+  const copy = (participants ?? []).map(pt => ({ ...pt, points: points?.[pt.id] ?? 0 }))
+  copy.sort((a, b) => b.points - a.points)
+  return copy
+}
+
+/**
  * そのチームの順位（1始まり）。順位表にいなければ 0。
  *
  * 呼び出し側で `.findIndex(...) + 1` と書くと、いなかったときに 0 になるのか

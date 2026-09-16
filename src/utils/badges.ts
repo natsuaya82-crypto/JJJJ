@@ -2,6 +2,7 @@
 // 選手詳細の1ページ目（最大5個）とロスター名前横（選択した1個）で使う。
 // 記録はすべて「現在の保持者」基準：他選手に抜かれたらパッチも自然に外れる。
 import type { Player, GameState, SegmentRecord, SeasonAward, EclHistoryEntry, EventDistKey, Nationality } from '../types'
+import { EVENT_DISTANCES, EVENT_LABEL } from './eventTime'
 import { DIVISION_LABEL } from './league'
 
 export type PlayerBadge = {
@@ -26,10 +27,9 @@ function awardDivLabel(a: SeasonAward): string {
   return a.division != null ? ` ${DIVISION_LABEL[a.division]}` : ''
 }
 
-const DIST_LABEL: Record<EventDistKey, string> = {
-  d5000: '5000m', d10000: '10000m', half: 'ハーフ', marathon: 'マラソン',
-}
-const DIST_KEYS: EventDistKey[] = ['d5000', 'd10000', 'half', 'marathon']
+// 距離の呼び名も並びも `utils/eventTime` 1本（ここに表を持たない）
+const DIST_LABEL = EVENT_LABEL
+const DIST_KEYS: EventDistKey[] = EVENT_DISTANCES
 
 export const BADGE_COLOR: Record<PlayerBadge['kind'], string> = {
   world: '#FF5C8A',    // 世界記録: ピンクレッド
@@ -140,9 +140,8 @@ export function getPlayerBadges(p: Player, src: BadgeSource, maxCount = 5): Play
     if (cur) {
       // 現役代表なので年は付けない（例: 「駅伝 [🇯🇵]代表」）。日本も他国も同じ
       if (cur.squad?.includes(p.id)) out.push({ key: `natcur-${cur.year}-駅伝`, label: `駅伝 `, flag: natCode, labelSuffix: '代表', kind: 'national' })
-      const EVL: Record<string, string> = { d5000: '5000m', d10000: '10000m', marathon: 'マラソン' }
       for (const ir of cur.individuals ?? []) {
-        if (ir?.placings?.some(pl => pl.playerId === p.id)) out.push({ key: `natcur-${cur.year}-${ir.event}`, label: `${EVL[ir.event] ?? ir.event} `, flag: natCode, labelSuffix: '代表', kind: 'national' })
+        if (ir?.placings?.some(pl => pl.playerId === p.id)) out.push({ key: `natcur-${cur.year}-${ir.event}`, label: `${DIST_LABEL[ir.event as EventDistKey] ?? ir.event} `, flag: natCode, labelSuffix: '代表', kind: 'national' })
       }
     }
   }

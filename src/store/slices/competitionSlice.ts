@@ -11,10 +11,10 @@ import { tradeValueCtxOf } from '../marketOps'
 import { ROSTER_MAX, rosterCapOf } from '../../data/rosterRules'
 import { type LoanResponse, type EclStanding, type ExpiredNegotiation, type GameState, type Player, type TransferRecord } from '../../types'
 import { findClub } from '../../utils/clubs'
-import { TOP_DIVISION, divisionStandings, rankedStandings } from '../../utils/league'
+import { TOP_DIVISION, divisionStandings, rankedStandings, pointSeriesStandings } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
 import { eclRaceHeadline, eclSeasonEndHeadline, segmentRecordHeadline, type NewsItem } from '../../utils/newsItems'
-import { keyPlayerStatus } from '../../utils/playerUtils'
+import { keyPlayerStatus } from '../../utils/transferDecision'
 import { belongsToClub } from '../../utils/rosterSync'
 import { segmentRecordsOf } from '../../utils/segmentRecords'
 import { resolveBid } from '../../utils/transferBid'
@@ -124,7 +124,8 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
       const r = resolveBid(bid, {
         players: state.players,
         listings: cs.transferListings ?? [],
-        currentSeason: { year: cs.year, races, eclSeries: cs.eclSeries },
+        teams: state.teams, foreignLeagues: state.foreignLeagues,
+        currentSeason: { ...cs, races },
         pastSeasons: state.pastSeasons,
         raceIndex: raceIdx })
       if (r.expired) {
@@ -148,7 +149,7 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
       //   2本に割れていて、本編の側だけ枠を `3` で直書きし、**在籍上限を1行も見ていません**でした
       //   （30人ちょうどで承諾されると31人になり、レンタル選手は解雇できないので戻せない）。
       for (const d of decideLoanRequests(state.players, playerTeamId, pendingLoanReqs, pl =>
-        keyPlayerStatus(pl, { year: cs.year, races, eclSeries: cs.eclSeries }, state.pastSeasons) === 'open')) {
+        keyPlayerStatus(pl, { players: state.players, teams: state.teams, foreignLeagues: state.foreignLeagues, currentSeason: cs, pastSeasons: state.pastSeasons }) === 'open')) {
         const ownerShort = findClub(state.teams, state.foreignLeagues, d.player.teamId)?.shortName
           ?? '相手クラブ'
         if (d.accepted) acceptedLoans.push({ playerId: d.player.id, ownerId: d.player.teamId, years: d.years })
@@ -281,10 +282,9 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
     let eclWon = false     // ECL優勝（優勝トロフィーの入手条件。最終戦でしか立たない）
 
     if (isFinal) {
-      // 最終順位＝累計ポイント降順
-      const finalStandings: EclStanding[] = series.participants
-        .map(pt => ({ ...pt, points: newPoints[pt.id] ?? 0 }))
-        .sort((a, b) => b.points - a.points)
+      // 最終順位＝累計ポイント降順。**並べ方は `utils/league` の `pointSeriesStandings` 1本**
+      // （ECLの順位表を出す4画面と歴代優勝の判定が同じここを通る）
+      const finalStandings: EclStanding[] = pointSeriesStandings(series.participants, newPoints)
       const champion = finalStandings[0]
       const myRank = finalStandings.findIndex(s => s.isPlayerTeam) + 1
       eclFinalRank = myRank

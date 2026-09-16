@@ -16,6 +16,7 @@ import { TeamLogoSVG, LeagueLogoSVG } from '../icons/Icons'
 import PlayerFace from '../player/PlayerFace'
 import StandingsTable, { type StandRow } from '../teams/StandingsTable'
 import { formatRaceTime } from '../../utils/eventTime'
+import { pointSeriesStandings } from '../../utils/league'
 import { useAdHeight } from '../layout/Layout'
 import { runWithLoading } from '../../store/loadingStore'
 import { C, alpha, rankColor, SAIRA, FONT, bottomStack, F } from '../../styles/tokens'
@@ -117,9 +118,7 @@ export default function EclPage() {
   // シリーズ順位（累計ポイント）
   const standings = useMemo(() => {
     if (!series) return []
-    return series.participants
-      .map(pt => ({ ...pt, points: series.points[pt.id] ?? 0 }))
-      .sort((a, b) => b.points - a.points)
+    return pointSeriesStandings(series.participants, series.points)
   }, [series])
 
   // 順位表の行データ（開催前プレビューとシリーズ概要で共用）

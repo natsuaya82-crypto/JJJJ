@@ -4,7 +4,7 @@ import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import type { GameStore } from '../../store/gameStore'
 import { liveName } from '../../utils/playerUtils'
-import { formatRaceTime } from '../../utils/eventTime'
+import { eventDistKey, eventLabelOf, formatRaceTime } from '../../utils/eventTime'
 import { makeIsDomestic } from '../../utils/domesticPlayers'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { gmCareerTitles, teamHistoryOf, titleRows } from '../../utils/teamHistory'
@@ -78,26 +78,20 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 // 選手行の長押しで選手詳細（PlayerSheet）を開く共通ハンドラ
 // 長押し=詳細の共有フックへ移行（../player/usePlayerLongPress）
 
-// 種目別記録の距離切替タブ（5000m/10000m/ハーフ/マラソン）
+// 種目別記録の距離切替タブ。呼び名もキーも `utils/eventTime` 1本（画面に表を持たない）
 type EvDist = 5000 | 10000 | 21097 | 42195
-const EV_DIST_TABS: { dist: EvDist; label: string }[] = [
-  { dist: 5000, label: '5000m' }, { dist: 10000, label: '10000m' },
-  { dist: 21097, label: 'ハーフ' }, { dist: 42195, label: 'マラソン' },
-]
-// EvDist → eventBests（選手ごとに永続する種目別自己ベスト）のキー
-type EvKey = 'd5000' | 'd10000' | 'half' | 'marathon'
-const EV_KEY: Record<EvDist, EvKey> = { 5000: 'd5000', 10000: 'd10000', 21097: 'half', 42195: 'marathon' }
+const EV_DISTS: EvDist[] = [5000, 10000, 21097, 42195]
 function EventDistTabs({ value, onChange }: { value: EvDist; onChange: (d: EvDist) => void }) {
   return (
     <div style={{ display: 'flex', gap: '2px', background: C.surface,padding: '3px', border: `1px solid ${C.border}`, margin: '4px 0 6px' }}>
-      {EV_DIST_TABS.map(({ dist, label }) => (
+      {EV_DISTS.map(dist => (
         <button key={dist} onClick={() => onChange(dist)} style={{
           flex: 1, padding: '7px 0', border: 'none', cursor: 'pointer',fontFamily: SAIRA,
           fontSize: F.label, fontWeight: value === dist ? 700 : 400,
           background: value === dist ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})` : 'none',
           color: value === dist ? '#5EC8B8' : C.textDim,
           boxShadow: value === dist ? `0 1px 4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)` : 'none',
-        }}>{label}</button>
+        }}>{eventLabelOf(dist)}</button>
       ))}
     </div>
   )
@@ -195,8 +189,8 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
 
   // 記録会 種目別記録（歴代・チームに永続）。在籍時に出した記録はチームに残る（選手が抜けても保持）。
   const [evDist, setEvDist] = useState<EvDist>(5000)
-  const myEventTops = EV_DIST_TABS.map(({ dist, label }) => {
-    const key = EV_KEY[dist]
+  const myEventTops = EV_DISTS.map(dist => {
+    const key = eventDistKey(dist)
     // 選手データが長期整理で削除されていても、記録に焼き込まれた名前で表示を続ける
     const rows = (myTeam?.eventRecords?.[key] ?? [])
       .map(rec => {
@@ -208,7 +202,7 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
       .filter((x): x is NonNullable<typeof x> => x != null)
       .sort((a, b) => a.t - b.t)
       .slice(0, 10)
-    return { dist, label, rows }
+    return { dist, label: eventLabelOf(dist), rows }
   })
 
   const champPanel = (

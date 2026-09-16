@@ -21,7 +21,7 @@ import { ResultsPhase } from './ResultsPhase'
 import { useAdHeight } from '../layout/Layout'
 import { buildCpuLineups, racingTeams } from '../../engine/raceEngine'
 import { audio } from '../../utils/audio'
-import { getDueIndividualEvent, formatRaceTime } from '../../utils/eventTime'
+import { getDueIndividualEvent, formatRaceTime, eventDistKey, eventLabelOf } from '../../utils/eventTime'
 import { C, CARD, alpha, SAIRA, TT_COLOR, bottomStack, F } from '../../styles/tokens'
 import {
   calcCpuTimesForSeg, calcSegOvr, calcNaturalDrain, calcFinalSegTime,
@@ -36,7 +36,6 @@ type Phase = 'lineup' | 'simulating' | 'results'
 // 天候の呼び名は `data/races` の `WEATHER_LABEL` 1本
 const weatherLabel: Record<string, string> = WEATHER_LABEL
 
-const TT_DIST_LABEL: Record<number, string> = { 5000: '5000m', 10000: '10000m', 21097: 'ハーフ', 42195: 'マラソン' }
 
 // 記録会画面: 未実施なら開催ボタン、実施済みなら結果を表示して次へ進む
 function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: {
@@ -66,9 +65,8 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
     return n
   })
   const done = !!event.results
-  const bestKey = event.distance === 5000 ? 'd5000' as const
-    : event.distance === 10000 ? 'd10000' as const
-    : event.distance === 21097 ? 'half' as const : 'marathon' as const
+  // 距離 → 種目キーは `utils/eventTime` の `eventDistKey` 1本
+  const bestKey = eventDistKey(event.distance)
   const playerName = (id: string) => findP(id)?.name ?? ''
   const topTen = (event.results ?? []).slice(0, 10)
   const myResults = (event.results ?? []).filter(r => r.teamId === playerTeamId)
@@ -77,7 +75,7 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
     <div style={{ fontFamily: "'Noto Sans JP', system-ui, sans-serif", paddingBottom: 100, minHeight: '100%' }}>
       <div style={{ borderBottom: `1px solid ${C.border}`, background: C.bg, position: 'sticky', top: 0, zIndex: 5 }}>
         <PageHeader
-          eyebrow={`記録会 — ${event.date.replace(/-/g, '/')} · ${TT_DIST_LABEL[event.distance]}${event.weather ? ` · ${WEATHER_LABEL[event.weather]}` : ''}`}
+          eyebrow={`記録会 — ${event.date.replace(/-/g, '/')} · ${eventLabelOf(event.distance)}${event.weather ? ` · ${WEATHER_LABEL[event.weather]}` : ''}`}
           title={event.name}
         />
       </div>

@@ -31,12 +31,20 @@ const check = (name: string, ok: boolean, detail = '') => {
 /** 自分のことしか出さない画面（他人の名前が並ばないので紋章は要らない） */
 const MINE_ONLY: Record<string, string> = {
   'src/components/dashboard/HeroCard.tsx': 'ホームの自チームの札。出るのは自分のGM名だけ',
-  'src/components/more/MorePage.tsx': '設定。自分のGM名の変更',
   'src/components/onboarding/Onboarding.tsx': '最初にGM名を決める画面。まだ誰とも繋がっていない',
   'src/components/team/TeamHub.tsx': '自チームのハブ。自分のGM名',
   'src/components/team/TeamManagement.tsx': '自チームの名簿。自分のGM名',
   'src/components/teams/TeamDetailPage.tsx': 'クラブ詳細。CPUクラブのGM名（実在の相手ではない）',
 }
+
+/**
+ * **コメントを外して読む。** 経緯の説明文に「1行ずつ `useRatedRank(m.id)` を
+ * 呼ばないこと」と書いてあるだけで落ちてしまうため（`check-morale` と同じ形）。
+ */
+const codeOf = (f: string) =>
+  readFileSync(f, 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n').filter(l => !l.trim().startsWith('//')).join('\n')
 
 const files: string[] = []
 const walk = (dir: string) => {
@@ -80,15 +88,35 @@ console.log('\n[2] 段位はまとめて1回で引いている')
   check('「もう持っている」の言い訳が全部いまも当たっている', staleHas.length === 0, staleHas.join(' / '))
 
   // ★**1行ずつ引かないこと。** 一覧の中で `useRatedRank(id)` を呼ぶと、
-  //   行の数だけフックが増えて通信も行の数だけ飛ぶ（`map` の中でフックは呼べないので
-  //   行を部品にすると通ってしまう＝`MemberRow` がその形。あちらは行が部品なので可）
+  //   行の数だけ通信が飛ぶ（`map` の中でフックは呼べないので、行を**部品**にすると
+  //   書けてしまう）。実際 `MemberRow`（走友会の名簿）と `RequestRow` / `TargetCard`
+  //   （申請・承認）がその形で、20人の名簿で20回引いていた。
+  //   いまは**行は段位をもらうだけ**で、引くのは親が `useRatedRanks` 1回。
   const lists = ['src/components/friends/FriendListPage.tsx',
     'src/components/online/RoomLobbyPage.tsx', 'src/components/online/FinishPanel.tsx',
-    'src/components/online/MatchHistoryPage.tsx']
+    'src/components/online/MatchHistoryPage.tsx', 'src/components/online/RacePanel.tsx',
+    'src/components/friends/FriendClubPage.tsx', 'src/components/friends/ClubViewPage.tsx',
+    'src/components/friends/FriendRequestsPage.tsx', 'src/components/more/MorePage.tsx']
   for (const f of lists) {
     const src = readFileSync(f, 'utf8')
     check(`${f.split('/').pop()} は一覧ぶんまとめて引く`, /useRatedRanks\(/.test(src))
   }
+
+  // ★**1人ぶんの `useRatedRank(id)` を使ってよい画面を名指しで持つ。**
+  //   上の `lists` は「その画面がまとめて引いているか」しか見ないので、
+  //   **同じ画面の中に1行ずつ引く部品を足す**と素通りする（`FriendRequestsPage` が
+  //   その形だった＝親は何も引かず、行の部品だけが1人ずつ引いていた）。
+  //   相手が1人しかいない画面だけを、理由を書いてここに入れる。
+  const SINGLE_OK: Record<string, string> = {
+    'src/components/friends/FriendDetailPage.tsx': 'フレンド1人の詳細。並ぶ相手がいない',
+  }
+  const singles = files.filter(f => /(?<!s)\buseRatedRank\(/.test(codeOf(f)))
+  const rowWise = singles.filter(f => !SINGLE_OK[f])
+  check('1行ずつ段位を引いている画面が無い', rowWise.length === 0,
+    `${rowWise.join(' / ')}\n      → 親で useRatedRanks(ids) を1回呼んで行へ渡すこと。` +
+    '相手が1人しかいない画面なら理由を SINGLE_OK に書くこと')
+  const staleSingle = Object.keys(SINGLE_OK).filter(f => !singles.includes(f))
+  check('「相手は1人」の言い訳が全部いまも当たっている', staleSingle.length === 0, staleSingle.join(' / '))
 }
 
 if (failed > 0) { console.log(`\n  → NG ${failed}件`); process.exit(1) }

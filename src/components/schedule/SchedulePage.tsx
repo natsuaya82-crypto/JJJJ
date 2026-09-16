@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
-import { formatRaceTime, getDueIndividualEvent } from '../../utils/eventTime'
+import { eventLabelOf, formatRaceTime, getDueIndividualEvent } from '../../utils/eventTime'
 import { hostForYear, qualHostForYear, WA_HOST_CITY, waRaceDate } from '../../engine/worldAthletics'
 import { NAT_LABEL } from '../../data/nationalities'
 import Flag from '../ui/Flag'
@@ -10,7 +10,6 @@ import { courseTypeOf } from '../../data/races'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
 
-const TT_LABEL: Record<number, string> = { 5000: '5000m', 10000: '10000m', 21097: 'ハーフ', 42195: 'マラソン' }
 
 function getCourseColor(type: string): string {
   if (type === '山岳') return C.red
@@ -189,7 +188,7 @@ export default function SchedulePage() {
                         <span style={{ fontSize: F.caption, fontWeight: '800', color: C.bg, padding: '1px 7px',backgroundColor: TT_COLOR, fontFamily: SAIRA, marginLeft: 6 }}>NEXT</span>
                       )}
                       <div style={{ fontSize: F.sub, fontWeight: '800', color: it.isDone ? C.textSub : C.text, lineHeight: 1.2, margin: '5px 0 3px' }}>{ev.name}</div>
-                      <div style={{ fontSize: F.label, color: C.textDim }}>{ev.date.replace(/-/g, '/')} · {TT_LABEL[ev.distance]}</div>
+                      <div style={{ fontSize: F.label, color: C.textDim }}>{ev.date.replace(/-/g, '/')} · {eventLabelOf(ev.distance)}</div>
                       {it.isDone && winnerPlayer && (
                         <div style={{ fontSize: F.caption, color: C.textDim, marginTop: '4px', lineHeight: 1.6 }}>
                           <span style={{ color: C.gold, fontWeight: 700 }}>優勝</span> {winnerPlayer.name} <span style={{ fontFamily: SAIRA }}>{formatRaceTime(winner!.timeSec)}</span>

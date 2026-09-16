@@ -11,7 +11,7 @@
 //   こちらは「その距離を実際に何秒で走ったか」の話なので OVR では代用できない。
 import type { Player, Nationality, Race, WECRacePlan } from '../types'
 import { natGeoRegion, NATIONALITY_META, HOME_NATION, type GeoRegion } from '../data/nationalities'
-import { formatRaceTime } from '../utils/eventTime'
+import { EVENT_LABEL, formatRaceTime } from '../utils/eventTime'
 import { ovr } from '../utils/playerUtils'
 
 import { runBackgroundRace } from './backgroundRace'
@@ -22,7 +22,7 @@ import { COURSE_REGION_BY_CONT } from '../data/courseNames'
 
 export type WAEvent = 'd5000' | 'd10000' | 'marathon'
 export const WA_EVENTS: WAEvent[] = ['d5000', 'd10000', 'marathon']
-export const WA_EVENT_LABEL: Record<WAEvent, string> = { d5000: '5000m', d10000: '10000m', marathon: 'マラソン' }
+export const WA_EVENT_LABEL: Record<WAEvent, string> = EVENT_LABEL   // 呼び名は記録会と同じ表（utils/eventTime）。写しを持たない
 
 // 参加標準記録（秒）。実際の世界選手権（東京2025）と同じ値。
 // 突破者が優先で、余った枠は持ちタイム（ランキング）順で補充する（実物と同じ選考方式）。

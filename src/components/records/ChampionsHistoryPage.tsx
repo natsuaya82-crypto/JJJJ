@@ -7,7 +7,7 @@ import { useClubIndex } from '../../lib/useClubIndex'
 import { clubRoutePath } from '../../utils/clubs'
 import { makeTeamIdAt } from '../../utils/gmTenure'
 import type { Division, Race } from '../../types'
-import { formatRaceTime } from '../../utils/eventTime'
+import { EVENT_LABEL, formatRaceTime } from '../../utils/eventTime'
 import { playerLabel } from '../../utils/playerUtils'
 import { TeamLogoSVG } from '../icons/Icons'
 import Flag from '../ui/Flag'
@@ -15,7 +15,7 @@ import { NAT_LABEL } from '../../data/nationalities'
 import type { Nationality } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { C, alpha, DIV_STAR, glassStyle, SAIRA, F } from '../../styles/tokens'
-import { DIVISION_LABEL, rankedStandings, seasonDivisionStandings } from '../../utils/league'
+import { DIVISION_LABEL, pointSeriesStandings, rankedStandings, seasonDivisionStandings } from '../../utils/league'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
 
@@ -29,7 +29,6 @@ const CAT_LABEL: Record<Category, string> = { jpel: 'JPEL', ecl: 'ECL', waqual: 
 // 各大会の確立カラーに合わせる（JPEL=金 / ECL=赤 / アジア予選=ピンク / 世界選手権=紫 / リザーブ=青 / 記録会=緑）
 const CAT_COLOR: Record<Category, string> = { jpel: C.gold, ecl: C.red, waqual: C.pink, wamain: C.purple, reserve: C.blue, tt: C.green }
 const GOLD = '#FFD700'
-const DIST_LABEL: Record<DistKey, string> = { d5000: '5000m', d10000: '10000m', half: 'ハーフ', marathon: 'マラソン' }
 const DIST_KEYS: DistKey[] = ['d5000', 'd10000', 'half', 'marathon']
 const DIST_TO_KEY: Record<number, DistKey> = { 5000: 'd5000', 10000: 'd10000', 21097: 'half', 42195: 'marathon' }
 
@@ -140,8 +139,8 @@ export default function ChampionsHistoryPage() {
       const es = ps.eclSeries
       // ECLシリーズが無い/一度もポイントが動いていない年は総合優勝なし
       if (!es || !es.participants.some(p => (es.points[p.id] ?? 0) > 0)) return []
-      return [...es.participants].sort((a, b) => (es.points[b.id] ?? 0) - (es.points[a.id] ?? 0))
-        .map((p, i) => ({ rank: i + 1, teamId: p.id, name: p.name, colors: p.colors, score: es.points[p.id] ?? 0, isMe: p.isPlayerTeam }))
+      return pointSeriesStandings(es.participants, es.points)
+        .map((p, i) => ({ rank: i + 1, teamId: p.id, name: p.name, colors: p.colors, score: p.points, isMe: p.isPlayerTeam }))
     }
     return []
   }
@@ -229,7 +228,7 @@ export default function ChampionsHistoryPage() {
                 : '世界選手権 — 種目を選択')
               : raceName === OVERALL ? (year != null ? `${year}年 ${cat ? CAT_LABEL[cat] : ''} 総合順位` : `${cat ? CAT_LABEL[cat] : ''} 総合優勝`)
               : cat === 'tt'
-              ? (ttDist != null ? `${DIST_LABEL[ttDist]} — 年度を選択` : '記録会 — 種目を選択')
+              ? (ttDist != null ? `${EVENT_LABEL[ttDist]} — 年度を選択` : '記録会 — 種目を選択')
               : year != null ? `${year}年 ${raceName} — 順位表`
               : raceName != null ? `${raceName} — 年度を選択`
               : cat != null ? `${CAT_LABEL[cat]} — 大会を選択`
@@ -371,7 +370,7 @@ export default function ChampionsHistoryPage() {
             const rows = ttByDist.get(d) ?? []
             return (
               <button key={d} onClick={() => setTtDist(d)} style={rowStyle(false, true)}>
-                <span style={{ fontSize: F.sub, fontWeight: 800, flex: 1 }}>{DIST_LABEL[d]}</span>
+                <span style={{ fontSize: F.sub, fontWeight: 800, flex: 1 }}>{EVENT_LABEL[d]}</span>
                 <span style={{ fontSize: F.caption, color: C.textDim, padding: '2px 8px',background: alpha(CAT_COLOR.tt, 0.12) }}>{rows.length}シーズン</span>
                 <span style={{ color: C.textGhost, fontSize: F.title }}>›</span>
               </button>
@@ -383,7 +382,7 @@ export default function ChampionsHistoryPage() {
       {/* 記録会 Level 2: 年度一覧（その年の1位付き） */}
       {cat === 'tt' && ttDist != null && year == null && (
         <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: CAT_COLOR.tt, paddingLeft: 2, marginBottom: 2 }}>{DIST_LABEL[ttDist]}</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: CAT_COLOR.tt, paddingLeft: 2, marginBottom: 2 }}>{EVENT_LABEL[ttDist]}</div>
           {(ttByDist.get(ttDist) ?? []).length === 0 ? (
             <div style={{ textAlign: 'center', color: C.textDim, fontSize: F.bodyLg, padding: '30px 0' }}>まだ記録がありません</div>
           ) : (ttByDist.get(ttDist) ?? []).map(({ year: y, top }) => {
@@ -422,7 +421,7 @@ export default function ChampionsHistoryPage() {
       {/* 記録会 Level 3: その年のシーズン記録（トップ10・1画面固定） */}
       {cat === 'tt' && ttDist != null && year != null && (
         <div style={{ padding: '0 14px' }}>
-          <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: CAT_COLOR.tt, paddingLeft: 2, marginBottom: 6 }}>{year}年 {DIST_LABEL[ttDist]}</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: CAT_COLOR.tt, paddingLeft: 2, marginBottom: 6 }}>{year}年 {EVENT_LABEL[ttDist]}</div>
           <div style={{overflow: 'hidden', border: `1px solid ${C.border}` }}>
             {((ttByDist.get(ttDist) ?? []).find(r => r.year === year)?.top ?? []).map((e, i, arr) => {
               const t = resolveClub(e.teamId)

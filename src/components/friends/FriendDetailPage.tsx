@@ -23,6 +23,7 @@ import { usePreviewStore } from '../../store/previewStore'
 import { ovr } from '../../utils/playerUtils'
 import { HOF_MAX } from '../../utils/hofRoster'
 import { SPECIALTIES } from '../../utils/squadNeeds'
+import { OFFLINE_TEXT } from '../../lib/supabase'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import { panelStyle } from '../ui/Panel'
 import PlayerList from '../player/PlayerList'
@@ -173,7 +174,7 @@ export default function FriendDetailPage() {
       await removeFriend(friend.id)
       invalidateFriendsCache('friends', `friend:${friend.id}`, `roster:${friend.id}`)
       navigate('/friends/list', { replace: true })
-    } catch { setNotice({ title: '通信できませんでした', message: '電波の良い場所で、もう一度お試しください' }) }
+    } catch { setNotice({ ...OFFLINE_TEXT }) }
   }
 
   // まだフレンドでない相手（走友会で見つけた人など）に申請を送る
@@ -183,14 +184,14 @@ export default function FriendDetailPage() {
       invalidateFriendsCache('friends', 'sent', 'received')
       friendsQ.reload(); sentQ.reload()
       setNotice(SEND_RESULT_TEXT[r])
-    } catch { setNotice({ title: '通信できませんでした', message: '電波の良い場所で、もう一度お試しください' }) }
+    } catch { setNotice({ ...OFFLINE_TEXT }) }
   }
 
   // ブロックするとフレンドも自動で解除されるので、そのまま一覧へ戻す
   const onBlock = async () => {
     setAskBlock(false)
     const ok = await blockUser(friend.id)
-    if (!ok) { setNotice({ title: '通信できませんでした', message: '電波の良い場所で、もう一度お試しください' }); return }
+    if (!ok) { setNotice({ ...OFFLINE_TEXT }); return }
     invalidateFriendsCache('friends', 'received', 'sent', 'clubFeed', 'myClub', `friend:${friend.id}`, `roster:${friend.id}`)
     navigate('/friends/list', { replace: true })
   }

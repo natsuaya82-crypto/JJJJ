@@ -18,9 +18,9 @@ import { applySettledTransfers } from '../../engine/applyTransfers'
 import { resolveLoanRequests } from '../../engine/loanRequests'
 import { generatePlayerWishes } from '../../engine/playerWishes'
 import { settleSaleAnswers } from '../marketOps'
-import { eventDistKey, updateBestRecord, withEventBest } from '../../engine/timeTrialRecords'
+import { updateBestRecord, withEventBest } from '../../engine/timeTrialRecords'
 import { TT_REST_RECOVERY, runTimeTrial, timeTrialBoosted, timeTrialFatigueGain, timeTrialRewardCards, timeTrialRunners, updateTeamEventRecords } from '../../engine/timeTrial'
-import { myDivSize } from '../../utils/league'
+import { eventDistKey } from '../../utils/eventTime'
 import { generateIndividualEvents } from '../../data/races'
 import { ACHIEVEMENT_JEWELS, checkRaceAchievements } from '../../engine/achievements'
 import { generateLoanOffers, generateTransferActivity } from '../../engine/cpuMarket'
@@ -32,7 +32,7 @@ import { generateDropCards } from '../../utils/cardCombo'
 import { allForeignClubs } from '../../utils/clubs'
 import { GM_REP_DEFAULT, withFatigue, withMorale } from '../../utils/condition'
 import { isLiveContract } from '../../utils/contractTalk'
-import { divisionOf, domesticThroughRank, segmentPrizeByTeam } from '../../utils/league'
+import { divisionOf, domesticThroughRank, myDivSize, segmentPrizeByTeam } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
 import { segmentPrizeHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
 import { playerConsentToMove, racesConsumed } from '../../utils/playerUtils'
@@ -287,7 +287,9 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
         (pid) => playRateOf(pid, playerTeamId, state.currentSeason, state.teams, state.foreignLeagues,
           prevSeasonOf(state.pastSeasons, state.currentSeason.year)),
         // 行き先の姿は store の destinationOf 1本（打診の関門が本人の判定をそのまま呼ぶ）
-        (clubId, player) => get().destinationOf(clubId, player))
+        (clubId, player) => get().destinationOf(clubId, player),
+        // 市場価値も store の marketValueOf 1本（出品の希望額と画面の表示が同じ額になる）
+        (player) => get().marketValueOf(player))
 
       // 相手からのレンタル打診（チャットで対応）
       const keptLoanOffers = (state.currentSeason.incomingLoanOffers ?? []).filter(o => o.expiresAtRace > nextClock && finalPlayers.some(p => p.id === o.playerId))

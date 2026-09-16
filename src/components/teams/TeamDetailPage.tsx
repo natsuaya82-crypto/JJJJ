@@ -598,7 +598,9 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '8px', paddingLeft: '4px', flexWrap: 'wrap' }}>
               <span style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: 900, color: CARD.text }}>ロスター</span>
               <span style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 800, color: CARD.gold }}>
-                {mainPlayers.length}<span style={{ fontSize: F.caption, color: CARD.textGhost }}>{isForeign ? '名' : `/${ROSTER_MAX}`}</span>
+                {/* 在籍上限は海外も同じ `ROSTER_MAX`（`rosterCapFor` が国内も海外も同じ数を返す）。
+                    ここに「海外だけ別」の枝を置くと、上限を動かしたときに画面だけが割れる */}
+                {mainPlayers.length}<span style={{ fontSize: F.caption, color: CARD.textGhost }}>/{ROSTER_MAX}</span>
               </span>
               <span style={{ fontSize: F.caption, color: CARD.textGhost }}>総年俸 <span style={{ color: CARD.textDim, fontWeight: 700, fontFamily: SAIRA }}>{fmtYen(teamSalary)}</span></span>
               {!isMyTeam && <span style={{ fontSize: F.micro, color: CARD.textGhost, marginLeft: 'auto' }}>タップ=交渉 / 長押し=詳細</span>}

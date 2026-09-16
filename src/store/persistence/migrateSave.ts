@@ -100,7 +100,7 @@ export const migrateSave = (persistedState: unknown, version: number) => {
       if (Array.isArray(s.pastSeasons)) {
         s.pastSeasons = (s.pastSeasons as Record<string, unknown>[]).map(ps => ({
           ...ps,
-          individualEvents: [], newsFeed: [], chatLogs: {}, scoutProspects: [], draftPool: [],
+          individualEvents: [], newsFeed: [], chatLogs: {}, scoutProspects: [],
           transferListings: [], incomingOffers: [], transferBids: [], contractRequests: [],
           acquisitionOffers: [], retirementRequests: [], transferRequests: [],
           scoutMissions: [], faVisits: [], pendingTradeOffers: [], scoutedOpponents: [] }))
