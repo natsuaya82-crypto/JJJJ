@@ -8,7 +8,7 @@ import { saleAnswers, keepSaleAnswers } from '../utils/saleAnswer'
 // 合意後に選手を動かし、チャットとニュースへ書く「実行役」だけを持つ。
 
 import { counterCeiling } from '../data/economy'
-import { ROSTER_MIN, teamRosterSize } from '../data/rosterRules'
+
 import { type GameState, type Player, type Team } from '../types'
 import { MAJOR_NEWS_OVR, allTieredClubs, isBigClub, isStepUp } from '../utils/clubTier'
 import { allForeignClubs, bigClub, findClub, leagueOfClub } from '../utils/clubs'
@@ -32,13 +32,7 @@ export function tradeValueCtxOf(state: { currentSeason: GameState['currentSeason
 }
 
 
-// 補強禁止中でも、ロスターが下限(15人)以下のときはFA獲得だけ通す。
-// 契約満了・引退で15人を割ると開幕できないのに、補強禁止中はドラフト(年2人)しか手段が無く、
-// シーズンが進まない＝収入も入らないので永久に抜け出せない詰みになるため。
-// 対象はFAのみ。引き抜き・移籍金・トレード・レンタル・海外獲得は禁止のまま。
-export function faAllowedDespiteBan(players: Player[], teamId: string): boolean {
-  return teamRosterSize(players, teamId) <= ROSTER_MIN
-}
+// `faAllowedDespiteBan` は `utils/bidGate` へ移しました（画面の「押せるか」も同じ門を通すため）。
 
 // レースのタイム計算に乗せる補正をまとめて適用した選手配列を返す。
 //   1) 戦術分析室：所属チームの施設Lvぶん「ペース配分」「メンタル」を強化

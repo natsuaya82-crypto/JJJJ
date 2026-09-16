@@ -2,7 +2,7 @@
 
 import { roundSalary } from '../../data/economy'
 import type { GameStore, SetGame } from '../gameStore'
-import { tradeValueCtxOf, faAllowedDespiteBan, willingFeeFor, finalizeSale } from '../marketOps'
+import { tradeValueCtxOf, willingFeeFor, finalizeSale } from '../marketOps'
 import { buildContractRequests } from '../../engine/contractRequests'
 import { judgeRenewalOffer } from '../../engine/renewalDecision'
 import { judgeSaleOffer, withSaleRefused } from '../../engine/saleOfferGate'
@@ -35,7 +35,7 @@ import { comparePlayers } from '../../utils/playerSort'
 import { squadRankOf } from '../../utils/squadNeeds'
 import { canAcceptOfferFor, canBePoached, canListForSale, canLoanOut, canTradeAway, ctxForTeam, eligibilityCtx, isLeavingClub } from '../../utils/transferEligibility'
 // 入札・レンタル申請を出せるか（画面の「押せるか」と同じ1本）
-import { bidBlockReason, loanBlockReason, LOAN_SLOTS } from '../../utils/bidGate'
+import { acquisitionBlockReason, bidBlockReason, loanBlockReason, LOAN_SLOTS } from '../../utils/bidGate'
 import { facilitiesOf } from '../../utils/facilities'
 
 type Slice = Pick<GameStore,
@@ -603,23 +603,19 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     set(state => {
       const player = state.players.find(p => p.id === playerId)
       if (!player) return state
-      if (source === 'fa' && player.teamId !== '') return state
-      if (source === 'scout' && (player.teamId === '' || player.teamId === state.playerTeamId)) return state
-      // 引き抜きは入札と同じ判定を通す（レンタル中・非売・海外挑戦承認済み・今季加入は対象外）
-      if (source === 'scout' && !canBePoached(player, { teamId: player.teamId, currentYear: state.currentSeason.year })) return state
-      // 自チームから移籍・FA流出した選手とは1年間交渉不可（移籍金オファーと同じロック）
-      if (player.transferLockedUntilYear != null && state.currentSeason.year < player.transferLockedUntilYear) return state
-      // 赤字ペナルティ中は新規補強(FA/引き抜き)不可（ドラフト・契約更新は可）。
-      // ただしロスター15人以下のときはFAだけ通す（開幕できず詰むのを防ぐ／引き抜きは禁止のまま）
-      const myTeam0 = state.teams.find(t => t.id === state.playerTeamId)
-      if (reinforcementBanned(myTeam0) && !(source === 'fa' && faAllowedDespiteBan(state.players, state.playerTeamId))) return state
       const offers = state.currentSeason.acquisitionOffers ?? []
-      const active = offers.find(o => o.playerId === playerId && (o.status === 'pending' || o.status === 'countered'))
-      if (active) return state
-      // 獲得失敗（相手/選手に拒否された）選手は同一シーズン中は再オファー不可（約1年ブロック）。
-      // 自主的な取り下げ(abandon)は rejectReason が無いので対象外。offers はシーズン開始で[]にリセットされる。
-      const failed = offers.find(o => o.playerId === playerId && o.status === 'rejected' && !!o.rejectReason)
-      if (failed) return state
+      // ★**関門は `utils/bidGate` の `acquisitionBlockReason` 1本**（画面の「押せるか」と同じ）。
+      //   ここには**何も返さずに `state` を返す枝が7つ**あり、画面はその場でチャットへ
+      //   飛ばすので、**札が1枚もできていないのにチャットが開く**＝「出したのに返事が
+      //   来ない」になっていました（`submitTransferBid` とまったく同じ事故）。
+      if (acquisitionBlockReason(player, source, {
+        currentSeason: state.currentSeason,
+        myTeam: state.teams.find(t => t.id === state.playerTeamId),
+        myTeamId: state.playerTeamId,
+        bidsOnPlayer: [],
+        players: state.players,
+        offersOnPlayer: offers.filter(o => o.playerId === playerId),
+      }) !== null) return state
       // ★取り合いの数は持たない。獲得オファーは submitAcquisitionOffer が**その場で**
       //   合否を出す（相手クラブが割り込む仕組みも、待つレースも無い）。
       //   数だけ焼き込んで会話に出していたので「17クラブから話が来ています。
@@ -1128,7 +1124,11 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       myTeam: st.teams.find(t => t.id === st.playerTeamId),
       myTeamId: st.playerTeamId,
       bidsOnPlayer: [],
-      loanSlotsUsed: st.players.filter(p => p.teamId === st.playerTeamId && p.loan && p.loan.ownerTeamId !== st.playerTeamId).length,
+      // 借りている人数は `utils/rosterSync` の `loanedInCount` 1本（`belongsToClub` を通る）。
+      // ここだけ `teamId` 一致で手書きしていたので、**画面の「押せるか」と
+      // `loanInPlayer` の「受け付けるか」で枠の残りが食い違い**ました
+      // （同じファイルの 40行上は `loanedInCount` を使っている）。
+      loanSlotsUsed: loanedInCount(st.players, st.playerTeamId),
       loanRequested: (st.currentSeason.loanRequests ?? []).some(r => r.playerId === playerId) })
     if (loanReason) return false
     const yrs = Math.max(1, Math.min(2, years))

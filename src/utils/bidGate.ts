@@ -27,6 +27,7 @@
  *   ボタンの見出しにそのまま出せます。
  */
 import type { Player } from '../types'
+import { ROSTER_MIN, teamRosterSize } from '../data/rosterRules'
 import { reinforcementBanned } from '../data/economy'
 import { canBePoached, eligibilityCtx, isTransferLocked } from './transferEligibility'
 
@@ -82,6 +83,62 @@ export function bidBlockReason(p: Player, ctx: BidGateCtx): string | null {
     return '交渉できない選手'
   }
   if (ctx.bidsOnPlayer.length >= MAX_BIDS_PER_PLAYER) return `今季の入札は${MAX_BIDS_PER_PLAYER}回まで`
+  return null
+}
+
+/**
+ * 補強禁止中でも、ロスターが下限(15人)以下のときはFA獲得だけ通す。
+ *
+ * 契約満了・引退で15人を割ると開幕できないのに、補強禁止中はドラフト(年2人)しか手段が無く、
+ * シーズンが進まない＝収入も入らないので永久に抜け出せない詰みになるため。
+ * 対象はFAのみ。引き抜き・移籍金・トレード・レンタル・海外獲得は禁止のまま。
+ *
+ * ★`store/marketOps` から**ここへ移しました**——画面の「押せるか」も同じ門を通す必要が
+ *   あるのに、`utils` からは `store` を import できない（`check-layers`）ためです。
+ */
+export function faAllowedDespiteBan(players: readonly Player[], teamId: string): boolean {
+  return teamRosterSize(players as Player[], teamId) <= ROSTER_MIN
+}
+
+/**
+ * **契約オファー（FAの獲得・他クラブからの引き抜き）を出せない理由。出せるなら null。**
+ *
+ * ★**画面の「押せるか」と store の「受け付けるか」を同じここから出すこと**
+ *   （`bidBlockReason` / `trophyBlockReason` / `myPlayerBlockReason` と同じ形）。
+ *   `startAcquisitionOffer` には**何も返さずに `state` を返す枝が7つ**あり、画面は
+ *   その場でチャットへ飛ばすので、**札が1枚もできていないのにチャットが開く**
+ *   ＝「出したのに返事が来ない」になっていました（`submitTransferBid` と同じ事故）。
+ *
+ * ★門が2か所に割れていたのも直しています。赤字ペナルティ中でも
+ *   **在籍が下限以下ならFAだけ通す**という詰み救済（`faAllowedDespiteBan`）が
+ *   store 側にはあったのに、画面は「赤字なら押せない」だけを見ていたので、
+ *   **救済の道にボタンからは入れません**でした。
+ */
+export function acquisitionBlockReason(
+  p: Player,
+  source: 'fa' | 'scout',
+  ctx: BidGateCtx & { players: readonly Player[]; offersOnPlayer: readonly { status: string; rejectReason?: string }[] },
+): string | null {
+  if (source === 'fa' && p.teamId !== '') return 'FAではない選手'
+  if (source === 'scout' && p.teamId === '') return 'FAなので契約オファーで獲得'
+  if (source === 'scout' && p.teamId === ctx.myTeamId) return '自チームの選手'
+  const el = eligibilityCtx(ctx.currentSeason, p.teamId)
+  if (source === 'scout' && !canBePoached(p, el)) {
+    if (p.loan) return 'レンタル中の選手'
+    if (p.noSale) return '非売の選手'
+    if (p.overseasListed) return '海外挑戦中の選手'
+    if (p.pendingRetirementYear != null) return '引退が決まっている選手'
+    if (isTransferLocked(p, el.currentYear)) return '移籍したばかりで交渉不可'
+    return '交渉できない選手'
+  }
+  if (p.transferLockedUntilYear != null && (el.currentYear ?? 0) < p.transferLockedUntilYear) {
+    return '退団直後・来季まで交渉不可'
+  }
+  // 赤字ペナルティ。ただし在籍が下限以下のときはFAだけ通す（開幕できず詰むのを防ぐ）
+  if (reinforcementBanned(ctx.myTeam)
+    && !(source === 'fa' && faAllowedDespiteBan(ctx.players, ctx.myTeamId))) return '赤字で補強不可'
+  if (ctx.offersOnPlayer.some(o => o.status === 'pending' || o.status === 'countered')) return '交渉中'
+  if (ctx.offersOnPlayer.some(o => o.status === 'rejected' && !!o.rejectReason)) return '今季は再オファー不可'
   return null
 }
 

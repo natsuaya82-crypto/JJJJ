@@ -128,7 +128,11 @@ console.log('\n[7] 枝分かれした移籍の入口が全部この判定を通�
 // 「p.teamId === playerTeamId」しか見ていなかった。借りている選手を売る・貸す・
 // 契約更新する、が全部できてしまっていたので、入口ごとに関数名で確かめる
 // 実装の切り出しは scripts/storeSource の actionBody 1本（型の宣言と実装の見分けもそこ）
-const has = (fn: string, needle: string) => actionBody(store, fn).includes(needle)
+// ★**コメントを外してから見ること**（`check-morale` / `check-trade-value` と同じ形）。
+//   「関門は `acquisitionBlockReason` 1本」と**コメントに書いただけで緑**になっていました
+//   ＝呼び出しを丸ごと消しても、説明文が残っていれば通ってしまう形です。
+const noComment = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1')
+const has = (fn: string, needle: string) => noComment(actionBody(store, fn)).includes(needle)
 // 入札は utils/bidGate の bidBlockReason 経由で canBePoached を通る。
 // ★**理由を返させるため**に一段はさんである（黙って捨てると「出したのに返事が来ない」に
 //   なる・2026-08-16）。中で canBePoached を呼んでいることは check-bid-gate が見る
@@ -148,7 +152,20 @@ check('契約更新（initiateContractRenewal）が canOfferRenewal を通る', 
 const contractRequestsBody = readFileSync(join('src', 'engine', 'contractRequests.ts'), 'utf-8')
 check('契約要求の生成（buildContractRequests）が isOwnedBy を通る', contractRequestsBody.includes('isOwnedBy'))
 check('  store 側はその1本を呼ぶだけ', has('generateContractRequests', 'buildContractRequests'))
-check('スカウト（startAcquisitionOffer）が canBePoached を通る', has('startAcquisitionOffer', 'canBePoached'))
+// ★**関門は `utils/bidGate` の `acquisitionBlockReason` 1本**へ寄せました
+//   （画面の「押せるか」と store の「受け付けるか」を同じところから出すため）。
+//   ここは `startAcquisitionOffer` の本文に `canBePoached` の字があるかを見ていたので、
+//   **1本へ寄せた瞬間に落ちます**。見るのは「その1本を通っているか」と
+//   「その1本が `canBePoached` を通っているか」の2つ。
+check('スカウト（startAcquisitionOffer）が acquisitionBlockReason を通る',
+  has('startAcquisitionOffer', 'acquisitionBlockReason'))
+{
+  const gate = readFileSync(join('src', 'utils', 'bidGate.ts'), 'utf-8')
+  check('  その acquisitionBlockReason が canBePoached を通る',
+    /export function acquisitionBlockReason[\s\S]*?canBePoached\(/.test(gate))
+  check('  画面（TransferPage）も同じ1本を通る',
+    readFileSync(join('src', 'components', 'transfer', 'TransferPage.tsx'), 'utf-8').includes('acquisitionBlockReason('))
+}
 const market = readFileSync(join('src', 'components', 'transfer', 'TransferPage.tsx'), 'utf-8')
 check('移籍市場の一覧も同じ判定で絞っている', market.includes('canBePoached'))
 // チャット画面も分割中（ChatPage.tsx + chat/ 配下）。本文は scripts/uiSource の1本から取る

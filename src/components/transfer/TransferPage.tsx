@@ -21,10 +21,10 @@ import LoanSheet from './LoanSheet'
 import { getMarketFilters, saveMarketFilters } from '../../utils/marketFilters'
 import { canBePoached, ctxForTeam, eligibilityCtx } from '../../utils/transferEligibility'
 // 入札・レンタルを出せるか（store が受け付けるかと同じ1本）
-import { bidBlockReason, loanBlockReason } from '../../utils/bidGate'
+import { bidBlockReason, loanBlockReason, acquisitionBlockReason } from '../../utils/bidGate'
 import { useOfferResults } from './useOfferResults'
 import { OfferResultList } from './OfferResultList'
-import { draftPickValue, reinforcementBanned, roundFee, COUNTER_OFFER_CAP } from '../../data/economy'
+import { draftPickValue, roundFee, COUNTER_OFFER_CAP } from '../../data/economy'
 import { NAT_LABEL as NAT_LABELS } from '../../data/nationalities'
 import { SPECIALTIES } from '../../utils/squadNeeds'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
@@ -135,9 +135,7 @@ export default function TransferPage() {
   const myTeam = teams.find(t => t.id === playerTeamId)
   if (!myTeam) return null
 
-  // 補強不可は data/economy の reinforcementBanned 1本。**同じ式をここに書き写さないこと**
-  // （写しがあったせいで、入札の枝だけ赤字ペナルティを見ていなかった）
-  const signingBanned = reinforcementBanned(myTeam)
+  // 補強不可の判定は `utils/bidGate` の各 `*BlockReason` の中（`data/economy` の `reinforcementBanned` 1本）。**同じ式をここに書き写さないこと**
 
   // 移籍市場カードの押下：タップ＝メニュー / 長押し(450ms)＝選手詳細。
   const rowHandlers = (pid: string) => ({
@@ -413,7 +411,6 @@ export default function TransferPage() {
               const mp = menuPlayerId ? players.find(x => x.id === menuPlayerId) : undefined
               if (!mp) return null
               const isFA = mp.teamId === ''
-              const mLocked = mp.transferLockedUntilYear != null && currentSeason.year < mp.transferLockedUntilYear
               // 出せるかどうかは utils/bidGate 1本（store が受け付けるかと同じもの）。
               // ★以前はここが「入札中・移籍直後」しか見ておらず、**赤字ペナルティは
               //   FA の枝にしか無かった**ので、入札は押せるのに黙って捨てられていた
@@ -427,10 +424,17 @@ export default function TransferPage() {
               }
               const bidNg = bidBlockReason(mp, gate)
               const loanNg = loanBlockReason(mp, gate)
+              // ★**契約オファーの「押せるか」も store と同じ関門から出す**（`bidGate` 1本）。
+              //   ここは「赤字なら押せない」だけを見ていたので、赤字でも在籍が下限以下なら
+              //   FAだけ通すという**詰み救済（`faAllowedDespiteBan`）の道にボタンから
+              //   入れません**でした。逆に、store 側の他の6つの関門は画面が見ておらず、
+              //   押すと札ができないままチャットへ飛んでいました。
+              const acqNg = acquisitionBlockReason(mp, 'fa', {
+                ...gate, players, offersOnPlayer: (currentSeason.acquisitionOffers ?? []).filter(o => o.playerId === mp.id) })
               const mVal = calcTransferValue(mp)
               const isStarred = starredOpponents.includes(mp.id)
               const items: { label: string; disabled?: boolean; color?: string; onClick: () => void }[] = isFA ? [
-                { label: signingBanned ? '赤字で補強不可' : mLocked ? '退団直後・来季まで交渉不可' : '契約オファー', disabled: signingBanned || mLocked, color: C.green, onClick: () => { setMenuPlayerId(null); startAcquisitionOffer(mp.id, 'fa'); navigate(`/team/chat?player=${mp.id}`) } },
+                { label: acqNg ?? '契約オファー', disabled: !!acqNg, color: C.green, onClick: () => { setMenuPlayerId(null); startAcquisitionOffer(mp.id, 'fa'); navigate(`/team/chat?player=${mp.id}`) } },
                 { label: isStarred ? 'ウォッチリストから外す' : 'ウォッチリストに追加', onClick: () => { toggleStarOpponent(mp.id); setMenuPlayerId(null) } },
               ] : [
                 { label: bidNg ?? '入札して獲得', disabled: !!bidNg, color: C.gold, onClick: () => { setMenuPlayerId(null); setBidTarget(mp.id) } },

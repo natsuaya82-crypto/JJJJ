@@ -241,14 +241,16 @@ export function runCpuLoans(
   const loanedIds = ctx.excludeIds
   const loanYear = ctx.year + 1
   const cpuIds = marketClubIds(players, world.teams, ctx.playerTeamId, ctx.foreignLeagues)
-  const mainCount = (teamId: string) =>
-    (clubIndexOf(players).get(teamId) ?? []).filter(p => p.status === 'active' && !p.loan).length
+  // ★**借り手の上限も、下の下限（`rosterSize`）と同じ数え方にすること。**
+  //   ここは `status === 'active' && !p.loan` で**怪我人と借りている選手を落として**いたので、
+  //   同じループの中で上限と下限が別の population を見ていました
+  //   （怪我人が2人いるクラブは30人でも借り入れが通る）。数え方は下の `rosterSize` 1本。
   /**
    * **その時点の在籍人数**。`data/rosterRules` の `teamRosterSize` とまったく同じ population
    * （`utils/rosterSync` の `belongsToClub` ＝ 引退していない人は全員。怪我も借り物も入る）を、
    * クラブ索引から引いているだけです——`teamRosterSize` は毎回6,000人を走査するので、
    * 231×231 の総当たりの中では使えません（`playersByClub` の分け方が `belongsToClub` そのもの
-   * なので、答えは必ず一致します。`check-one-rule` の⑦が世界を作って突き合わせます）。
+   * なので、答えは必ず一致します）。
    */
   const rosterSize = (teamId: string) => (clubIndexOf(players).get(teamId) ?? []).length
   const givenLoan: Record<string, number> = {}
@@ -266,7 +268,7 @@ export function runCpuLoans(
   let lent = 0
   for (const receiver of cpuIds) {
     if (ctx.maxLoans != null && lent >= ctx.maxLoans) break
-    if ((receivedLoan[receiver] ?? 0) >= 1 || mainCount(receiver) >= ROSTER_MAX) continue
+    if ((receivedLoan[receiver] ?? 0) >= 1 || rosterSize(receiver) >= ROSTER_MAX) continue
     const myRoster = rosterOf(receiver)
     let candidate: Player | undefined
     let senderId = ''

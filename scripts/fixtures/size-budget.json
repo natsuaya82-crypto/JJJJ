@@ -1,6 +1,6 @@
 {
  "src/engine/cpuMarket.ts": 683,
- "src/engine/cpuOffseason.ts": 570,
+ "src/engine/cpuOffseason.ts": 572,
  "src/engine/growth.ts": 306,
  "src/engine/interactiveRace.ts": 818,
  "src/engine/playerGenerator.ts": 1598,
@@ -9,7 +9,7 @@
  "src/engine/transferMarket.ts": 410,
  "src/engine/worldAthletics.ts": 730,
  "src/store/gameStore.ts": 724,
- "src/store/marketOps.ts": 219,
+ "src/store/marketOps.ts": 213,
  "src/store/persistence/migrateSave.ts": 637,
  "src/store/persistence/normalizeSave.ts": 201,
  "src/store/saveStorage.ts": 727,
