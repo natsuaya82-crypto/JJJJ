@@ -19,7 +19,7 @@ import { generateSeasonRaces } from '../src/data/races'
 import { ROSTER_MIN, ROSTER_MAX, RUNNING_SLOTS, CPU_SELL_FLOOR } from '../src/data/rosterRules'
 import { isSurplus } from '../src/utils/transferDecision'
 import { tierOf } from '../src/utils/clubTier'
-import { ovr, retirementAgeOf, calcTransferValue, perfOf } from '../src/utils/playerUtils'
+import { ovr, retirementAgeOf, calcTransferValue, marketValueOf } from '../src/utils/playerUtils'
 import { POACH_PREMIUM } from '../src/data/economy'
 import type { SeasonStanding, Team, Player } from '../src/types'
 
@@ -194,11 +194,15 @@ console.log('[7] 「余剰か」の枝が両方とも生きているか')
   //   見る（`calcTransferValue` の第2引数）ので、素の `calcTransferValue(p)` と比べると
   //   割増1.4倍が実績倍率0.7で打ち消されて「素の額」に見えます（実測で割増が0件になった）
   const done = after.pastSeasons[after.pastSeasons.length - 1]
-  const teamRaces = (done?.races ?? []).filter(r => r.results).length
+  // ★**値段は `playerUtils.marketValueOf` 1本**（市場が使ったのとまったく同じ材料）。
+  //   ここで `calcTransferValue(p, perfOf(...))` を組み立て直すと、材料が1つでも違った
+  //   ときに「割増が0件」に見えて、直したのは点検のほうだった、が起きます
+  const perfWorld = { players: after.players, teams: after.teams,
+    foreignLeagues: after.foreignLeagues, currentSeason: done }
   let plain = 0, premium = 0, other = 0
   for (const r of recs) {
     const p = byId.get(r.playerId); if (!p) continue
-    const v = done ? calcTransferValue(p, perfOf(done, p.id, teamRaces)) : calcTransferValue(p)
+    const v = done ? marketValueOf(p, perfWorld as never) : calcTransferValue(p)
     if (v <= 0) continue
     const ratio = (r.fee ?? 0) / v
     // 移籍後は年齢も契約年数も動くので、素の額とぴったりは一致しない。帯で見る

@@ -22,9 +22,6 @@
    "$len": 0
   },
   "currentRaceIndex": "number",
-  "draftPool": {
-   "$len": 0
-  },
   "events": {
    "$len": 0
   },

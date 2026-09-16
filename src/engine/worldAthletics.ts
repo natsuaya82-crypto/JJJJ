@@ -11,7 +11,7 @@
 //   こちらは「その距離を実際に何秒で走ったか」の話なので OVR では代用できない。
 import type { Player, Nationality, Race, WECRacePlan } from '../types'
 import { natGeoRegion, NATIONALITY_META, HOME_NATION, type GeoRegion } from '../data/nationalities'
-import { EVENT_LABEL, formatRaceTime } from '../utils/eventTime'
+import { EVENT_LABEL } from '../utils/eventTime'
 import { ovr } from '../utils/playerUtils'
 
 import { runBackgroundRace } from './backgroundRace'

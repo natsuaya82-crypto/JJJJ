@@ -3,11 +3,11 @@
  "adsRemoved": "fcbcf165908dd18a (5B)",
  "adsWatchedToday": "eb045d78d2731073 (9B)",
  "balancePatch": "6b86b273ff34fce1 (1B)",
- "currentSeason": "16826f6a384da2a3 (172254B)",
+ "currentSeason": "5758eb972ea5eb68 (172239B)",
  "deficitRescue": "6b86b273ff34fce1 (1B)",
  "draftState": "74234e98afe7498f (4B)",
  "eventSeasonTops": "4f53cda18c2baa0c (2B)",
- "foreignLeagues": "1312820a2b913fa6 (33422B)",
+ "foreignLeagues": "96353b82519f93bf (33413B)",
  "giftGivenVersions": "4f53cda18c2baa0c (2B)",
  "gmOffers": "81b392888935fece (231B)",
  "gmRep": "31489056e0916d59 (2B)",
@@ -29,7 +29,7 @@
  "pendingGmMove": "74234e98afe7498f (4B)",
  "playerCreateGrants": "82678b87fb5a1381 (5B)",
  "playerTeamId": "6e7823b6e67138d4 (7B)",
- "players": "5e5b5f32d124e6f0 (4073702B)",
+ "players": "37e8ccd012c695a1 (4073768B)",
  "raceDroppedCards": "4f53cda18c2baa0c (2B)",
  "raceLineup": "44136fa355b3678a (2B)",
  "raceStrategy": "61eb5aa337d3a2d3 (10B)",
@@ -53,5 +53,5 @@
  "worldRecords": "44136fa355b3678a (2B)",
  "worldRepresentatives": "9c2b56a922e3eac0 (48223B)",
  "worldTournament": "eb045d78d2731073 (9B)",
- "$all": "e84e8090c915ba4d (4713331B)"
+ "$all": "619ee26cef800e65 (4713373B)"
 }

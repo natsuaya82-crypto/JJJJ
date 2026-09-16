@@ -15,7 +15,7 @@ import { pickCpuFreeAgents } from './cpuMarket'
 import { findClub } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
 import { type NewsItem, cpuSignedHeadline } from '../utils/newsItems'
-import { faMarketSalary, ovr, perfOf, newContractYears } from '../utils/playerUtils'
+import { faMarketSalary, ovr, newContractYears } from '../utils/playerUtils'
 
 export function signInSeasonFreeAgents(params: {
   players: Player[]
@@ -74,7 +74,7 @@ export function signInSeasonFreeAgents(params: {
       date: raceDate,
       kind: 'free',
       myTeamId: playerTeamId,
-      contract: { yearsLeft: newContractYears(before, currentSeason.year), annualSalary: faMarketSalary(before, perfOf(currentSeason, sg.playerId)), contractType: 'standard' } })
+      contract: { yearsLeft: newContractYears(before, currentSeason.year), annualSalary: faMarketSalary(before), contractType: 'standard' } })
     if (!m.ok) continue
     players = m.players
     teams = m.teams

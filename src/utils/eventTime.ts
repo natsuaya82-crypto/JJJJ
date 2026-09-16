@@ -2,7 +2,7 @@
 // （実際の記録会のタイム計算＝コンディション込みは gameStore の simulateIndividualTime）
 export type EventDistance = 'd5000' | 'd10000' | 'half' | 'marathon'
 export const EVENT_DISTANCES: EventDistance[] = ['d5000', 'd10000', 'half', 'marathon']
-export const EVENT_LABEL: Record<EventDistance, string> = { d5000: '5000m', d10000: '10000m', half: 'ハーフ', marathon: 'マラソン' }
+export const EVENT_LABEL: Record<EventDistance, string> = { d5000: '5000m', d10000: '10000m', half: 'ハーフマラソン', marathon: 'マラソン' }
 
 /**
  * 距離(m)から種目キーへ。**距離の分け方はここ1本**（`engine/timeTrialRecords` から移した）。

@@ -275,7 +275,8 @@ console.log('\n[17] 累計ポイント制の順位（ECL・世界選手権）は
 console.log('\n[18] 記録会の距離の呼び名とキーは utils/eventTime 1本')
 {
   // 戻し方：Dashboard / SchedulePage / RacePage / RecordsPage / ChampionsHistoryPage / badges の
-  //        どれかに `{ d5000: '5000m', d10000: '10000m', half: 'ハーフ', marathon: 'マラソン' }` を書き戻す
+  //        どれかに `{ d5000: '5000m', d10000: '10000m', half: 'ハーフマラソン', … }` を書き戻す／
+  //        `newsItems` に距離ごとの表を書き戻す
   // ★キーで持つ形（`EVENT_LABEL` の写し）と距離の数で持つ形（`21097: 'ハーフ'`）の
   //   2通りに割れたまま、合わせて6か所に手書きされていた。世界選手権の
   //   `WA_EVENT_LABEL` も同じ3件を別に持っていた（いまは `EVENT_LABEL` そのもの）。
@@ -287,6 +288,12 @@ console.log('\n[18] 記録会の距離の呼び名とキーは utils/eventTime 1
   check('距離の分け方も1つだけ', splits === 1, `${splits}か所`)
   const numTables = (code.match(/21097: 'ハーフ'/g) ?? []).length
   check('距離の数で引く表を画面に持っていない', numTables === 0, `${numTables}か所`)
+  // ★呼び名は「ハーフマラソン」1つ（オーナー・2026-09-16）。ニュースの見出しだけ
+  //   別の呼び名を持っていた（`newsItems.distanceLabel` が2本目の表だった）
+  const halfWords = (code.match(/'ハーフマラソン'/g) ?? []).length
+  check('「ハーフマラソン」の字も1つだけ', halfWords === 1, `${halfWords}か所`)
+  check('`distanceLabel` は eventLabelOf を通る',
+    /export function distanceLabel\(distance: number\): string \{\s*return eventLabelOf\(distance\)/.test(code))
 }
 
 console.log('\n[19] 施設の効き目は、実際に掛ける側から出す')
@@ -325,6 +332,17 @@ console.log('\n[20] 「その選手はいくらか」の材料も1本（今季�
     .filter(l => !l.includes('marketValueOf') && !SORT_ONLY.some(k => l.includes(k)))
   check('額を出すところで `calcTransferValue` を引数なしで呼んでいない',
     bare.length === 0, bare.join(' / ').slice(0, 200))
+
+  // ★**今季の出場を数えるのも1本**（`perfOf`）。数えるのは「そのクラブが走った日程」で、
+  //   `currentSeason.races`＝自分の部の日程だけを見ると、2部・3部・海外の選手が
+  //   全員「1戦も走っていない」と読まれ、年俸も移籍金もちょうど1.8倍安くなる。
+  // 戻し方：`perfOf` の中を `seasonPerfProfile(p.id, w.currentSeason.races ?? [], …)` に戻す
+  check('`perfOf` は clubSeasonRaces を通る',
+    /export function perfOf\([\s\S]{0,400}clubSeasonRaces\(/.test(code))
+  check('`perfOf` が自分の部の日程で数えていない',
+    !/export function perfOf\([\s\S]{0,400}seasonPerfProfile\([^)]*currentSeason\.races/.test(code))
+  const perfCallers = (code.match(/(?<!function )perfOf\(/g) ?? []).length
+  check('`perfOf` を呼ぶのは7か所', perfCallers === 7, `${perfCallers}か所`)
 }
 
 console.log('')

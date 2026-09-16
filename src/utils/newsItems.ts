@@ -19,7 +19,7 @@
 import type { Division, Team } from '../types'
 import { divisionOf, DIVISION_LABEL, DIVISION_SIZE } from './league'
 import { fmtYen } from './money'
-import { formatRaceTime } from './eventTime'
+import { eventLabelOf, formatRaceTime } from './eventTime'
 
 /** ニュース1件。gameStore の newsFeed に入る形と同じ */
 export type NewsItem = {
@@ -340,13 +340,14 @@ export function eclSeasonEndHeadline(a: { won: boolean; championName: string; my
 // ── 世界選手権・記録 ─────────────────────────────────────────
 
 /**
- * 距離の呼び名。以前は同じ画面の中で 21097 が「ハーフ」と「ハーフマラソン」に割れていた。
+ * 距離の呼び名。**中身は `utils/eventTime` の `EVENT_LABEL` 1本**。
+ *
+ * ★以前ここが2本目の表で、21097 が記録会の画面では「ハーフ」・ニュースの見出しでは
+ *   「ハーフマラソン」と割れていました。**「ハーフマラソン」にそろえました**
+ *   （オーナー・2026-09-16「ハーフマラソンに合わせて」）。
  */
 export function distanceLabel(distance: number): string {
-  if (distance === 5000) return '5000m'
-  if (distance === 10000) return '10000m'
-  if (distance === 42195) return 'マラソン'
-  return 'ハーフマラソン'
+  return eventLabelOf(distance)
 }
 
 /** 世界選手権での自チーム選手の成績 */

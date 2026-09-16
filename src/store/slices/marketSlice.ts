@@ -662,7 +662,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       const isQuality = ovr(player) >= 68 || playingStatus({ fraction: playFraction, teamRaces }) === 'playing'
       if (contractType !== 'standard' && isQuality) return rejectWith('demotion')
 
-      const desired = acquisitionDesiredSalary(player, offer.source, playFraction, teamRaces, perfOf(state.currentSeason, player.id, teamRaces))
+      const desired = acquisitionDesiredSalary(player, offer.source, playFraction, teamRaces, perfOf(player, state))
       const ratio = desired > 0 ? salary / desired : 2
       const personality = player.personality ?? 'salary'
       // スカウト（未視察は慎重）は廃止。全選手が最初から開示されているため常に0
@@ -703,7 +703,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
         const srcTierAcq = offer.source === 'scout'
           ? tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues))
           : undefined
-        const marketAcq = faMarketSalary(player, perfOf(state.currentSeason, player.id, teamRaces))
+        const marketAcq = faMarketSalary(player, perfOf(player, state))
         const consentAcq = playerConsentToMove(
           player, get().destinationOf(state.playerTeamId, player), srcTierAcq,
           playFraction, teamRaces,
@@ -1232,7 +1232,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     const scoutLvT = facilitiesOf(myTeam).scoutOffice
     // 相場を大きく上回る年俸は本人の説得材料になる。式は playerUtils の salaryAppealBonus 1本
     // （獲得オファー側にも同じ説得材料が要るので、手書きを2つに増やさない）
-    const marketSalary = faMarketSalary(player, perfOf(state.currentSeason, player.id))
+    const marketSalary = faMarketSalary(player, perfOf(player, state))
     const salaryBonus = salaryAppealBonus(salary, marketSalary)
     // クラブ間で移籍金が合意済み＝クラブ公認の移籍。「主力だから残りたい」の減点は完全になし
     // （断られるのは愛着の強い選手・順位の低いチームへの誘いくらい）
@@ -1595,8 +1595,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     const signRoster = state.players.filter(p => p.teamId === player.teamId && p.status === 'active')
       .sort(comparePlayers('ovr'))
     const signSurplus = isSurplus({ squadRank: squadRankOf(signRoster, player) })
-    const signPerf = perfOf(state.currentSeason, player.id,
-      playRateOf(player.id, player.teamId, state.currentSeason, state.teams, state.foreignLeagues).teamRaces)
+    const signPerf = perfOf(player, state)
     const transferFee = transferFeeFor(player, signSurplus, signPerf)
     if (myTeam.finance.budget < transferFee) return false
 

@@ -5,10 +5,9 @@ import { type ClubTier } from './clubTier'
 import { appraiseMove, CONSENT_LINE, moveDeclineText, playingStatus, PLAY_SAMPLE_RACES, type Destination } from './transferDecision'
 import { strHash } from './hash'
 import { POACH_PREMIUM, roundSalary } from '../data/economy'
-import { type Race } from '../types'
 import { MORALE_DEFAULT } from './condition'
 import { lerpAnchors } from './anchors'
-import { clubSeasonRaces, playRateOf, prevSeasonOf, type PlayRateWorld } from './playRate'
+import { clubSeasonRaces, racesDone, type PlayRateWorld } from './playRate'
 
 /**
  * 記録や結果に「焼き込まれた名前」ではなく、いまの名前を返す。
@@ -605,22 +604,7 @@ export function newContractYears(p: Pick<Player, 'id' | 'age'>, year: number): n
  *   `transferFeeFor` は出場を見るので、**表示・受諾ライン・請求額の3つが別の数**でした。
  */
 export function marketValueOf(p: Player, w: PlayRateWorld): number {
-  const { teamRaces } = playRateOf(p.id, p.teamId, w.currentSeason, w.teams, w.foreignLeagues,
-    prevSeasonOf(w.pastSeasons, w.currentSeason.year))
-  // ★**分からないうちは出場で値引きしないこと**（`playingStatus` の `'unknown'` と同じ扱い。
-  //   線も同じ `PLAY_SAMPLE_RACES`）。`salaryPerfFactor` は出場0を **0.6倍**と読むので、
-  //   まだ走っていないだけの選手が**4割引**で出品されます——開幕直後は世界中の出品が、
-  //   そして日程を引けないクラブの選手は一年中そうなります（実測：開幕1戦目の出品231件が
-  //   全部 5100万→3000万 のように下がりました）。
-  // ★**数えるのは「そのクラブが走った日程」**（`utils/playRate` の `clubSeasonRaces` 1本）。
-  //   `currentSeason.races` は**自分の部の日程だけ**なので、他の部・海外の選手は
-  //   出場0と数えられ、`salaryPerfFactor` の 0.6倍が丸ごと乗ります
-  //   （実測：最終戦の出品51件が 3900万→2200万 のように下がりました）。
-  const perf = teamRaces >= PLAY_SAMPLE_RACES
-    ? perfOf({ ...w.currentSeason, races: clubSeasonRaces(w.currentSeason, p.teamId, w.teams, w.foreignLeagues) },
-      p.id, teamRaces)
-    : undefined
-  return calcTransferValue(p, perf)
+  return calcTransferValue(p, perfOf(p, w))
 }
 
 export function transferFeeFor(p: Player, surplus: boolean, perf?: PerfProfile): number {
@@ -705,10 +689,37 @@ export function ratingColor(v: number, maxed = false): string {
   return '#4A4658'                // ブラック（40以下）
 }
 
-/** その選手の今季の出場実績。海外にいる選手は海外の出場記録から、国内はレース結果から作る。
- *  置き場所が違うだけなので読む側は区別しない（playRate と同じ思想）。gameStore から移設 */
-export function perfOf(season: { races?: Race[]; currentRaceIndex?: number; foreignAppearances?: Record<string, { clubId: string; races: number; wins: number; rankSum?: number; rankedRaces?: number }>; foreignRaceIndex?: number }, playerId: string, teamRaces?: number): PerfProfile | undefined {
-  const fa = season.foreignAppearances?.[playerId]
-  if (fa && fa.races > 0) return foreignPerfProfile(fa, season.foreignRaceIndex ?? fa.races)
-  return seasonPerfProfile(playerId, season.races ?? [], teamRaces ?? season.currentRaceIndex ?? 0)
+/** `perfOf` に渡す世界。出場率（`playRateOf`）とまったく同じ材料＋海外の出場記録 */
+export type PerfWorld = PlayRateWorld & {
+  currentSeason: {
+    foreignAppearances?: Record<string, { clubId: string; races: number; wins: number; rankSum?: number; rankedRaces?: number }>
+    foreignRaceIndex?: number
+  }
+}
+
+/**
+ * **その選手の今季の出場実績。年俸（`faMarketSalary`）と移籍金（`calcTransferValue`）に
+ * 効かせる材料はここ1本。**
+ *
+ * ★**数えるのは「そのクラブが走った日程」**（`utils/playRate` の `clubSeasonRaces`）。
+ *   以前ここは `season.races`＝**自分の部の日程だけ**を見ていました。2部・3部・海外の
+ *   選手はそこに1本も載らないので**全員「今季1戦も走っていない」**と読まれ、
+ *   実績倍率（`salaryPerfFactor`）が **×0.686 に固定**されていました（実際に走っていれば
+ *   ×1.237）。つまり**他の部と海外の主力は、年俸も移籍金もちょうど1.8倍安かった**
+ *   （実測：OVR80 で 2050万→3700万・1.01億→1.82億。どのOVRでも一律1.8倍）。
+ *   CLAUDE.md が `playRate.ts` の行で名指しで禁じている
+ *   「`currentSeason.races` で数えないこと」そのものです。
+ *
+ * ★**分からないうちは値引きしないこと**（`PLAY_SAMPLE_RACES` 未満は `undefined` を返す）。
+ *   `salaryPerfFactor` は出場0を **0.6倍**と読むので、開幕直後と、**日程を引けない選手**
+ *   （無所属＝クラブが無いので分母がそもそも無い）が一律4割引になります。
+ *   `transferDecision` の `playingStatus` が `'unknown'` を返すのとまったく同じ扱いです。
+ */
+export function perfOf(p: Pick<Player, 'id' | 'teamId'>, w: PerfWorld): PerfProfile | undefined {
+  const fa = w.currentSeason.foreignAppearances?.[p.id]
+  if (fa && fa.races > 0) return foreignPerfProfile(fa, w.currentSeason.foreignRaceIndex ?? fa.races)
+  const list = clubSeasonRaces(w.currentSeason, p.teamId, w.teams, w.foreignLeagues)
+  const teamRaces = racesDone(list)
+  if (teamRaces < PLAY_SAMPLE_RACES) return undefined
+  return seasonPerfProfile(p.id, list, teamRaces)
 }

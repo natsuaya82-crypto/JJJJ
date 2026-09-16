@@ -16,7 +16,7 @@ import { effectiveOvr } from '../utils/foreignClubProfile'
 import { DIVISION_SIZE } from '../utils/league'
 import { playRateOf } from '../utils/playRate'
 import { comparePlayers } from '../utils/playerSort'
-import { faMarketSalary, ovr, perfOf } from '../utils/playerUtils'
+import { faMarketSalary, ovr } from '../utils/playerUtils'
 import { roundRobin } from '../utils/roundRobin'
 import { saleAnsweredIds } from '../utils/saleAnswer'
 import { needsPlayer, squadRankOf, thinSpecialties, wouldMakeLineup } from '../utils/squadNeeds'
@@ -147,7 +147,11 @@ export function pickCpuFreeAgents(a: {
         : availableFAs }
   })
   type FaCtx = typeof faCtxList[number]
-  const estCost = (fa: Player) => faMarketSalary(fa, perfOf(a.season, fa.id))
+  // ★**無所属には今季の出場を渡しません。** クラブが無い＝日程が無いので分母が作れず、
+  //   `perfOf` は `undefined` を返します（`PLAY_SAMPLE_RACES` 未満と同じ「分からない」扱い）。
+  //   以前は `season.races`＝自分の部の日程を分母にしていて、**他の部から出たFAだけ**が
+  //   「1戦も走っていない」と読まれて4割引になっていました
+  const estCost = (fa: Player) => faMarketSalary(fa)
   const doSignFA = (c: FaCtx, fa: Player) => {
     signedFAIds.add(fa.id); cpuSignings.push({ playerId: fa.id, clubId: c.team.id })
     c.signed++; c.spent += estCost(fa)

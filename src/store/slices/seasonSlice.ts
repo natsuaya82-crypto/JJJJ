@@ -273,7 +273,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // CPUチーム：予算ベースの契約更新（今季満了の主力を予算内で延長）
       // CPUの契約更新も自チームと同じ市場カーブ（faMarketSalary）で。
       // 旧式(ovr×110000)は約1000万で頭打ちになり、OVR90の主力が激安になる不具合があった。
-      const cpuRenewalSalary = (p: Player) => faMarketSalary(p, perfOf(state.currentSeason, p.id))
+      const cpuRenewalSalary = (p: Player) => faMarketSalary(p, perfOf(p, state))
       const cpuRenewIds = new Set<string>()
       {
         // 格を引くクラブ一覧は**国内52＋海外180**（`allTieredClubs`）。

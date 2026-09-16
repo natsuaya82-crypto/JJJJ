@@ -63,8 +63,6 @@ export function gmInviteFeeFor(ctx: GmInviteCtx, playerId: string): number | nul
   //   （実測：12人に声をかけると1人がここに落ちて、置き去りになっていた）
   if (p.teamId === '') return 0
   if (p.teamId !== ctx.fromTeamId) return null
-  const { teamRaces: ranRaces } = playRateOf(
-    p.id, ctx.fromTeamId, ctx.currentSeason, ctx.teams, ctx.foreignLeagues)
   const oldRoster = ctx.players
     .filter(x => x.teamId === ctx.fromTeamId && x.status === 'active')
     .sort(comparePlayers('ovr'))
@@ -73,7 +71,7 @@ export function gmInviteFeeFor(ctx: GmInviteCtx, playerId: string): number | nul
   //   同OVRのとき、同じ選手が「余剰」と「主力」に割れます＝`POACH_PREMIUM`(1.4) が
   //   **監督について行く経路だけ**他と違う額になります。
   const surplus = isSurplus({ squadRank: squadRankOf(oldRoster, p) })
-  return transferFeeFor(p, surplus, perfOf(ctx.currentSeason, p.id, ranRaces))
+  return transferFeeFor(p, surplus, perfOf(p, ctx))
 }
 
 /** その選手が監督について行くか。声をかけられない相手（他クラブ・引退等）は null */
