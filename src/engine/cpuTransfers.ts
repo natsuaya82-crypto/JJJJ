@@ -17,7 +17,7 @@ import type { ForeignLeague, Player, Season, Team } from '../types'
 import type { ClubTier } from '../utils/clubTier'
 import { ROSTER_MAX } from '../data/rosterRules'
 import { MAJOR_NEWS_OVR, allTieredClubs, tierOfPlayerClub } from '../utils/clubTier'
-import { bigClub } from '../utils/clubs'
+import { bigClub, allForeignClubs } from '../utils/clubs'
 import { type NewsItem, clubLabel, transferHeadline } from '../utils/newsItems'
 import { ovr } from '../utils/playerUtils'
 import { appraiseMove, type Destination } from '../utils/transferDecision'
@@ -45,6 +45,12 @@ export function settleCpuTransfers(params: {
 }): { txList: CpuTx[]; settledListingIds: Set<string>; news: NewsItem[] } {
   const { players, teams, foreignLeagues, currentSeason, pastSeasons, playerTeamId, raceDate, retiringWishIds, destinationOf, playerTierOf, rng = Math.random } = params
     type CpuTx = { playerId: string; fromTeamId: string; toTeamId: string; playerName: string; playerOvr: number; fromShort: string; toShort: string; fee: number }
+  // ★**クラブは国内52＋海外180を1つの索引で引く**（オーナー・2026-09-16「1は海外国内は一緒」）。
+  //   売り手・買い手・ニュースのクラブ名が全部ここを通る。
+  const foreignList = allForeignClubs(foreignLeagues ?? [])
+  const clubById = new Map(
+    [...teams, ...foreignList].map(c => [c.id, c as { id: string; shortName: string; finance?: { budget: number } }]))
+  const foreignById = new Map(foreignList.map(c => [c.id, { id: c.id, shortName: c.shortName }]))
   const cpuTxList: CpuTx[] = []
   const cpuTxListingIds = new Set<string>()
   {
@@ -65,8 +71,12 @@ export function settleCpuTransfers(params: {
       if (rng() >= 0.5) continue
       const buyerTeamId = listing.competingTeams[Math.floor(rng() * listing.competingTeams.length)]
       const p = players.find(pl => pl.id === listing.playerId)
-      const seller = teams.find(t => t.id === listing.fromTeamId)
-      const buyer = teams.find(t => t.id === buyerTeamId)
+      // ★**売り手も買い手も国内52＋海外180から引く**（オーナー・2026-09-16「1は海外国内は一緒」）。
+      //   `teams.find(...)` だけだと海外クラブに `undefined` が返り、次の行の
+      //   `continue` で**黙って落ちて**いました＝海外がらみの出品は一度も成立しません。
+      //   移籍金の海外側は `engine/applyTransfers` が `settleForeignFee` で精算します。
+      const seller = clubById.get(listing.fromTeamId)
+      const buyer = clubById.get(buyerTeamId)
       if (!p || !seller || !buyer) continue
       // 出品後に選手が移籍していた古い出品は成立させない（現所属と出品元が一致するときのみ）。
       // レンタル中・非売品・海外挑戦を承認済み・今季加入の除外は canBePoached が見る。
@@ -76,7 +86,7 @@ export function settleCpuTransfers(params: {
         continue
       }
       // 買い手が満杯（30人以上）または予算不足なら今回は見送り（出品は残す）
-      if ((rosterCount.get(buyerTeamId) ?? 0) >= ROSTER_MAX || buyer.finance.budget < listing.askingPrice) continue
+      if ((rosterCount.get(buyerTeamId) ?? 0) >= ROSTER_MAX || (buyer.finance?.budget ?? 0) < listing.askingPrice) continue
       // 出品していても、行き先に納得しなければ本人は行かない（承諾・逆提示・買う側と同じゲート）。
       // ここは自動成立なので断られても札は消さず、別のクラブ・別のレースで話が来るのを待つ
       // ★出場率は `utils/playRate` 1本。ベタ書きの 0.5 / 0戦 に戻さないこと——
@@ -100,7 +110,9 @@ export function settleCpuTransfers(params: {
     // ニュースだけで追えるようにする
     headline: transferHeadline({
       playerName: tx.playerName, playerOvr: tx.playerOvr, fee: tx.fee,
-      fromLabel: clubLabel(tx.fromTeamId, teams), toLabel: clubLabel(tx.toTeamId, teams) }),
+      // クラブ名は国内・海外どちらも引く（`clubLabel` の第3引数に海外クラブを渡す）
+      fromLabel: clubLabel(tx.fromTeamId, teams, foreignById.get(tx.fromTeamId)),
+      toLabel: clubLabel(tx.toTeamId, teams, foreignById.get(tx.toTeamId)) }),
     category: 'trade' as const,
     relatedIds: [tx.playerId],
     // 大ニュースはOVR85以上か格1のクラブが絡んだとき（utils/clubTier 1本）

@@ -235,7 +235,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
       // CPUからのトレード打診（低頻度・1件まで）。engine/aiTradeOffer 1本
       const newTradeOffers = generateAiTradeOffers({
-        players: state.players, teams: state.teams, playerTeamId,
+        players: state.players, teams: state.teams, foreignLeagues: state.foreignLeagues, playerTeamId,
         currentSeason: state.currentSeason, raceIndex,
         hasExistingOffer: existingTrades.length > 0 })
 

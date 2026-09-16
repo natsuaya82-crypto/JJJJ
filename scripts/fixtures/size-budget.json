@@ -1,5 +1,5 @@
 {
- "src/engine/cpuMarket.ts": 665,
+ "src/engine/cpuMarket.ts": 683,
  "src/engine/cpuOffseason.ts": 542,
  "src/engine/growth.ts": 306,
  "src/engine/interactiveRace.ts": 818,
@@ -19,8 +19,8 @@
  "src/store/slices/draftSlice.ts": 710,
  "src/store/slices/draftSlice.ts::advanceDraft": 83,
  "src/store/slices/draftSlice.ts::beginSeasonDraft": 228,
- "src/store/slices/marketSlice.ts": 1655,
- "src/store/slices/marketSlice.ts::acceptTradeOffer": 73,
+ "src/store/slices/marketSlice.ts": 1660,
+ "src/store/slices/marketSlice.ts::acceptTradeOffer": 78,
  "src/store/slices/marketSlice.ts::finalizeTransfer": 62,
  "src/store/slices/marketSlice.ts::proposeTrade": 69,
  "src/store/slices/marketSlice.ts::submitAcquisitionOffer": 112,

@@ -342,7 +342,23 @@ export function generateTransferActivity(
   const listedPlayerIds = new Set(validListings.map(l => l.playerId))
   const newListings: TransferListing[] = []
   const newIncoming: IncomingOffer[] = []
-  const aiTeams = teams.filter(t => t.id !== playerTeamId)
+  // ★**この関数が相手にするクラブは、国内52＋海外180から自チームを抜いた全部**
+  //   （オーナー・2026-09-16「1は海外国内は一緒」）。出品するのも、買い手の抽選
+  //   （`competingTeams`）に入るのも、自チームの出品へ入札してくるのも、
+  //   契約満了間近の選手に接触してくるのも、全部この1本の並びです。
+  //   以前は `teams`（国内52）だけだったので、CPU同士の移籍（`engine/transferMarket`）は
+  //   1本化されているのに**シーズン中の出品だけ国内に閉じて**いました＝海外の選手は
+  //   移籍リストに一度も並ばず、海外クラブは買い手にもなれませんでした。
+  // ★**並びはシャッフルすること。** 下の `competingTeams` は「先頭から3つ」を取るので、
+  //   国内52を先に並べると海外180には順番が一度も回りません（打診のループが
+  //   シャッフルしているのと同じ理由）。
+  // ★どちらのクラブかは**IDの集合で判定する**。`'leagueId' in club` では見分けられない
+  //   （`Team` にも `leagueId?` があり、国内は 'jpel' が入りうる。型だけ見て分けると、
+  //     セーブによって国内の打診に fromForeign が付く）
+  const foreignClubIds = new Set(foreignClubs.map(c => c.id))
+  const aiTeams: (Team | ForeignClub)[] = [...teams, ...foreignClubs]
+    .filter(t => t.id !== playerTeamId)
+    .sort(() => Math.random() - 0.5)
 
   for (const team of aiTeams) {
     // 出品できるのは保有権のある選手だけ。ここが抜けていたため、他クラブから借りている選手が
@@ -468,14 +484,9 @@ export function generateTransferActivity(
   //   必ず `scripts/measure-incoming-offers.ts` で1年の件数を数えてから決めること。
   const MAX_NEW_OFFERS_PER_RACE = 1
 
-  // ★並びをシャッフルする。国内52を先に、海外180をあとに並べると、上限2件で打ち切るので
-  //   海外クラブには順番が一度も回ってきません（「同じ1つの市場」にならない）
-  // ★どちらのクラブかは**IDの集合で判定する**。`'leagueId' in club` では見分けられない
-  //   （`Team` にも `leagueId?` があり、国内は 'jpel' が入りうる。型だけ見て分けると、
-  //     セーブによって国内の打診に fromForeign が付く）
-  const foreignClubIds = new Set(foreignClubs.map(c => c.id))
-  const offerClubs: (Team | ForeignClub)[] = raceIndex < OFFER_START_RACE ? []
-    : [...aiTeams, ...foreignClubs].sort(() => Math.random() - 0.5)
+  // 打診が来るのは `aiTeams`（国内52＋海外180・シャッフル済み）そのまま。
+  // ここで海外をもう一度混ぜないこと——同じクラブが2回並んで確率が倍になります
+  const offerClubs: (Team | ForeignClub)[] = raceIndex < OFFER_START_RACE ? [] : aiTeams
 
   // ★**声を掛けていいのは、本人が「行く」と答えるクラブだけ**（`appraiseMove` 1本）。
   //
@@ -588,7 +599,6 @@ export function generateTransferActivity(
       fromTeamId: club.id, playerId: target.id,
       offeredPrice: roundFee(tv * ratio, 1_000_000),
       expiresAtRace: raceIndex + 5, round: 1,
-      ...(fromForeign ? { fromForeign: true } : {}),
     })
     offerTargets.add(target.id)
     offeringTeams.add(club.id)
@@ -654,7 +664,15 @@ export function generateTransferActivity(
     offeringTeams.add(suitor.id)
   }
 
-  return { listings: [...validListings, ...newListings], incomingOffers: [...validIncoming, ...newIncoming] }
+  // ★**「海外クラブからの打診か」の印は、ここ1か所で押します**（`foreignClubIds` 1本）。
+  //   この関数が作る打診は3種類（飛び込み `inc-`／自チームの出品への入札 `inc-lst-`／
+  //   契約満了間近への接触 `inc-free-`）あり、以前は飛び込みだけが押していました。
+  //   印が無いと `marketSlice` の受け口が「国内に居ないクラブ＝不正」として**黙って捨てる**ので、
+  //   海外クラブの入札は承諾した瞬間に消えます。**押す場所を増やさないこと。**
+  const withOrigin = (o: IncomingOffer): IncomingOffer =>
+    foreignClubIds.has(o.fromTeamId) ? { ...o, fromForeign: true } : o
+
+  return { listings: [...validListings, ...newListings], incomingOffers: [...validIncoming, ...newIncoming.map(withOrigin)] }
 }
 
 

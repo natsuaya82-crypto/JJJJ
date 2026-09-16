@@ -48,7 +48,7 @@ import { comparePlayers } from '../src/utils/playerSort'
 import { wouldMakeLineup } from '../src/utils/squadNeeds'
 import { TIER_FALL_LIMIT, playerTierOf, tierLines } from '../src/utils/playerTier'
 import { appraiseMove, buildDestination, regionOfLeague } from '../src/utils/transferDecision'
-import type { ForeignClub, IncomingOffer, Player, Team } from '../src/types'
+import type { ForeignClub, IncomingOffer, Player, Team, TransferListing } from '../src/types'
 
 let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
@@ -79,6 +79,8 @@ const foreignIds = new Set(foreignClubs.map(c => c.id))
 
 type Run = { fresh: IncomingOffer[]; raceIndex: number; run: number }
 const rounds: Run[] = []
+/** 出品（`transferListings`）。**誰が出品して、誰が買い手の抽選に入ったか**を見る（下の [7]） */
+const listingRounds: TransferListing[][] = []
 // ★選手IDは世界ごとに使い回されるので、値段を突き合わせるときは**同じ世界の名簿**だけを見る
 //   （run 0 の名簿で run 5 の打診を割ると、別人の相場で割って6倍などになる）
 const players0 = [...generateCpuRosters(teams, YEAR).cpuPlayers, ...foreignPlayers]
@@ -102,13 +104,17 @@ for (let run = 0; run < RUNS; run++) {
     myRoster: players.filter(p => p.teamId === MY && p.status === 'active').sort(comparePlayers('ovr')),
   }
   let live: IncomingOffer[] = []
+  // ★出品も前のレースぶんを渡して繋ぐ（本番と同じ。1クラブ3件までの上限はこれが無いと効かない）
+  let liveL: TransferListing[] = []
   for (let i = 0; i < races.length; i++) {
     const r = generateTransferActivity(
-      players, teams, MY, i, [], live, [], new Set(), YEAR, races.length, foreignClubs,
+      players, teams, MY, i, liveL, live, [], new Set(), YEAR, races.length, foreignClubs,
       // この点検の世界はレース結果を持たないので「まだ分からない」を返す＝序列で見る
       () => ({ fraction: 0, teamRaces: 0 }), destOf(players))
     rounds.push({ fresh: r.incomingOffers.filter(o => !live.some(l => l.id === o.id)), raceIndex: i, run })
     live = r.incomingOffers
+    liveL = r.listings
+    if (run === 0) listingRounds.push(r.listings)
   }
 }
 
@@ -290,5 +296,41 @@ console.log('[7] **断られると分かっている相手には声を掛けな�
 }
 
 console.log('')
+console.log('[8] シーズン中の出品も1本（国内52＋海外180が同じ市場に出品し、同じ市場が買う）')
+{
+  // ★**この節が守るもの**（オーナー・2026-09-16「1は海外国内は一緒」）
+  //   CPU同士の移籍（`engine/transferMarket`）は1本化されているのに、**シーズン中の出品だけ**が
+  //   `teams`（国内52）に閉じていました。海外の選手は移籍市場に一度も並ばず、
+  //   海外クラブは買い手の抽選（`competingTeams`）にも入れませんでした。
+  const last = listingRounds[listingRounds.length - 1] ?? []
+  const fromF = last.filter(l => foreignIds.has(l.fromTeamId)).length
+  const fromD = last.length - fromF
+  check('そもそも出品がある（空振りの緑ではない）', last.length > 0, `${last.length}件`)
+  check('国内クラブが出品している', fromD > 0, `${fromD}件`)
+  check('**海外クラブも出品している**', fromF > 0, `${fromF}件`)
+  check('海外の割合がクラブ数に見合っている（4割以上）',
+    last.length > 0 && fromF / last.length >= 0.40, `${((fromF / Math.max(1, last.length)) * 100).toFixed(0)}%`)
+
+  // 買い手の抽選。`competingTeams` は**先頭から3つ**を取るので、国内を先に並べると
+  // 海外には順番が一度も回りません（打診のループをシャッフルしているのと同じ理由）
+  const buyers = last.flatMap(l => l.competingTeams)
+  const buyF = buyers.filter(id => foreignIds.has(id)).length
+  check('買い手の抽選がある（空振りの緑ではない）', buyers.length > 0, `${buyers.length}件`)
+  check('**買い手にも海外クラブが入っている**', buyF > 0, `${buyF}件`)
+  check('買い手の海外比率もクラブ数に見合っている（4割以上）',
+    buyers.length > 0 && buyF / buyers.length >= 0.40, `${((buyF / Math.max(1, buyers.length)) * 100).toFixed(0)}%`)
+
+  // 「海外の打診か」の印を押すのは1か所だけ（3種類の打診が全部そこを通る）
+  // 「海外の打診か」の印を押すのは1か所だけ（飛び込み `inc-`／出品への入札 `inc-lst-`／
+  // 契約満了間近への接触 `inc-free-` の3種類が全部そこを通る）。印が無い打診は
+  // `marketSlice` の受け口が「国内に居ないクラブ＝不正」として黙って捨てます。
+  // ★数えるのは `generateTransferActivity` の中だけ（貸出の打診は別の型・別の関数）
+  const src = readFileSync('src/engine/cpuMarket.ts', 'utf8')
+  const fn = src.slice(src.indexOf('export function generateTransferActivity'))
+  const stamps = (fn.match(/fromForeign: true/g) ?? []).length
+  check('fromForeign を押すのは1か所だけ', stamps === 1, `${stamps}か所`)
+  check('出品の相手を `teams` だけに戻していない', !/const aiTeams = teams\.filter/.test(fn))
+}
+
 console.log(failed === 0 ? '\n✓ 自チームへの打診は国内も海外も1本（上限も1つ）\n' : `\n✗ ${failed}件\n`)
 process.exit(failed === 0 ? 0 : 1)

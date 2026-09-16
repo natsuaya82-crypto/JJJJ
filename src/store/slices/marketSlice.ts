@@ -31,7 +31,7 @@ import { withSaleAnswer } from '../../utils/saleAnswer'
 import { STALE_TRADE_MSG } from '../../utils/talkSync'
 import { TRADE_HARD_NO_RATIO, TRADE_MIN_RATIO, TRADE_OK_RATIO, priceOf, tradeBalance, tradeNotLopsided, tradeValues } from '../../utils/tradeValue'
 import { type Appraisal, type Destination, appraiseMove, buildDestination, rankOffers, regionOfLeague } from '../../utils/transferDecision'
-import { canAcceptOfferFor, canBePoached, canListForSale, canLoanOut, canTradeAway, eligibilityCtx, isLeavingClub } from '../../utils/transferEligibility'
+import { canAcceptOfferFor, canBePoached, canListForSale, canLoanOut, canTradeAway, ctxForTeam, eligibilityCtx, isLeavingClub } from '../../utils/transferEligibility'
 // 入札・レンタル申請を出せるか（画面の「押せるか」と同じ1本）
 import { bidBlockReason, loanBlockReason, LOAN_SLOTS } from '../../utils/bidGate'
 import { facilitiesOf } from '../../utils/facilities'
@@ -180,7 +180,9 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       const brokenId =
         offer.offeredPlayerIds.find(pid => {
           const p = state.players.find(pl => pl.id === pid)
-          return !p || !canBePoached(p, { teamId: offer.fromTeamId, currentYear: state.currentSeason.year })
+          // 材料は上の `offerCtx` を相手クラブへ持ち替える（`utils/transferEligibility` の
+          // `ctxForTeam` 1本）。手書きの `{ teamId, currentYear }` だと `retiringIds` が落ちる
+          return !p || !canBePoached(p, ctxForTeam(offerCtx, offer.fromTeamId))
         })
         ?? offer.requestedPlayerIds.find(pid => {
           const p = state.players.find(pl => pl.id === pid)
@@ -213,7 +215,10 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       const tradeRecords = moved.records
       const tradeNotices = moved.notices
 
-      const fromTeamName = teams.find(t => t.id === offer.fromTeamId)?.shortName ?? ''
+      // 打診してくるのは国内52＋海外180の全部なので、クラブ名は `findClub` 1本で引く
+      // （`teams.find` だと海外クラブが見つからず、見出しが「◯◯とのトレードが成立」の
+      //   クラブ名だけ空になる）
+      const fromTeamName = findClub(teams, state.foreignLeagues, offer.fromTeamId)?.shortName ?? ''
       const tradeNews = {
         date: tradeDate ?? `${state.currentSeason.year}-06-01`,
         headline: tradeAcceptedHeadline(fromTeamName),

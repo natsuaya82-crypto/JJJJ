@@ -281,9 +281,12 @@ export function collectNotifications(input: NotifInput) {
   // CPUからのトレード打診。対象選手が移籍・引退した古い打診は出さない。
   // 相手クラブが分からない打診と、選手が片側に1人も居ない打診は通知ページでカードを
   // 作れずに消えるので、ベルにも数えない（ベル+1・カード0枚のズレの原因だった）
+  // ★**`teams.some(...)` で絞らないこと**（2026-09-16）。「相手クラブが分からない打診は
+  //   カードを作れないので数えない」という意図でしたが、`teams`（国内52）に居ないこと＝
+  //   不明ではありません。**海外クラブからの打診だけベルに出ない**形でした。
+  //   クラブが実在するかは選手の所属で分かる（下の `offeredPlayerIds.every(...)`）。
   const tradeOffers = (currentSeason.pendingTradeOffers ?? []).filter(o =>
-    teams.some(t => t.id === o.fromTeamId)
-    && o.offeredPlayerIds.length > 0 && o.requestedPlayerIds.length > 0
+    o.offeredPlayerIds.length > 0 && o.requestedPlayerIds.length > 0
     && o.offeredPlayerIds.every(pid => players.some(p => p.id === pid && p.teamId === o.fromTeamId && p.status !== 'retired'))
     && o.requestedPlayerIds.every(pid => isMine(pid)))
 
