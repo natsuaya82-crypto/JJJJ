@@ -88,8 +88,15 @@ console.log('[3] 日本記録は JPN だけを見る')
   const j = japan(undefined, ranked)
   check('世界記録は全体の1位', w.record?.playerId === 'b')
   check('日本記録はJPNで一番速い人（世界記録より遅い）', j.record?.playerId === 'a' && j.record?.timeSec === 1700)
-  check('  外国籍は共同保持者にもならない',
-    (j.record?.coHolders ?? []).every(x => JPN.has(x.playerId)))
+  // ★**この世界では同着が起きないので、上の形の `every` は絶対に落ちません**
+  //   （`coHolders` は同着でしか生まれず、b:1680 / a:1700 / c:1710 に同着は無い）。
+  //   **外国籍と日本人が同着する世界を作って**確かめます。
+  {
+    const mixTie = japan(undefined, [{ playerId: 'b', timeSec: 1700 }, { playerId: 'a', timeSec: 1700 }, { playerId: 'c', timeSec: 1710 }])
+    const co = (mixTie.record?.coHolders ?? []).map(x => x.playerId)
+    check('  日本記録の保持者は日本人（外国籍と同着でも入れ替わらない）', mixTie.record?.playerId === 'a', String(mixTie.record?.playerId))
+    check('  外国籍は共同保持者にもならない', co.every(id => JPN.has(id)), co.join(','))
+  }
 
   // JPN同士で並ぶ
   const tie = japan(undefined, [{ playerId: 'b', timeSec: 1680 }, { playerId: 'a', timeSec: 1700 }, { playerId: 'c', timeSec: 1700 }])

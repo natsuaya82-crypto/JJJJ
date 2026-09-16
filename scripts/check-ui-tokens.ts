@@ -58,6 +58,9 @@ const read = (f: string) => readFileSync(f, 'utf8')
  *   称号の色は**識別のためのデータ**で、見た目の段の話ではない。
  */
 const screens = files.filter(f => f.endsWith('.tsx'))
+// ★**空振り除け。** `screens` が空だと下の3節は `counts={}` → `grew=[]` で全部緑になります
+//   （ディレクトリが動いた・拡張子が変わった、で黙って何も守らなくなる）。
+check('画面を実際に数えている（空振りの緑ではない）', screens.length > 20, `${screens.length}ファイル`)
 
 // ── 色を数える道具 ────────────────────────────────────
 type RGB = [number, number, number]
@@ -194,7 +197,13 @@ console.log('\n⑤ 画面に直書きした色の数が、今日より増えて�
     if (n > 0) counts[f] = n
   }
   const FIX = 'scripts/fixtures/ui-color-budget.json'
-  if (process.env.UPDATE_GOLDEN === '1' || !existsSync(FIX)) {
+  // ★**fixture が無いときに黙って焼き直さないこと**（`check-size` と同じ形）。
+  //   `|| !existsSync(FIX)` が入っていたので、**fixture を1本消すだけで
+  //   次の `npm run check` が新しい基準を焼いて緑で通り**、NG も「減りました」も出ませんでした
+  //   ＝許可が要る見張りが、ファイルを消すだけで再ベースラインできる形でした。
+  if (!existsSync(FIX) && process.env.UPDATE_GOLDEN !== '1') {
+    check(`${FIX} が無い`, false, 'この点検だけを UPDATE_GOLDEN=1 で走らせて生成し、コミットすること')
+  } else if (process.env.UPDATE_GOLDEN === '1') {
     writeFileSync(FIX, JSON.stringify(counts, null, 1) + '\n')
     console.log(`  -- 引き直しました（${Object.keys(counts).length}ファイル / 合計 ${Object.values(counts).reduce((a, b) => a + b, 0)}件）`)
   } else {
@@ -243,7 +252,13 @@ console.log('\n⑥ 押すボタンを画面で手書きしていない（今日�
   }
   const FIX = 'scripts/fixtures/ui-button-budget.json'
   const total = Object.values(counts).reduce((a, b) => a + b, 0)
-  if (process.env.UPDATE_GOLDEN === '1' || !existsSync(FIX)) {
+  // ★**fixture が無いときに黙って焼き直さないこと**（`check-size` と同じ形）。
+  //   `|| !existsSync(FIX)` が入っていたので、**fixture を1本消すだけで
+  //   次の `npm run check` が新しい基準を焼いて緑で通り**、NG も「減りました」も出ませんでした
+  //   ＝許可が要る見張りが、ファイルを消すだけで再ベースラインできる形でした。
+  if (!existsSync(FIX) && process.env.UPDATE_GOLDEN !== '1') {
+    check(`${FIX} が無い`, false, 'この点検だけを UPDATE_GOLDEN=1 で走らせて生成し、コミットすること')
+  } else if (process.env.UPDATE_GOLDEN === '1') {
     writeFileSync(FIX, JSON.stringify(counts, null, 1) + '\n')
     console.log(`  -- 引き直しました（${Object.keys(counts).length}ファイル / 合計 ${total}件）`)
   } else {
@@ -273,7 +288,13 @@ console.log('\n⑦ 見出し（戻る＋タイトル）を画面で手書きし�
   }
   const FIX = 'scripts/fixtures/ui-header-budget.json'
   const total = Object.values(counts).reduce((a, b) => a + b, 0)
-  if (process.env.UPDATE_GOLDEN === '1' || !existsSync(FIX)) {
+  // ★**fixture が無いときに黙って焼き直さないこと**（`check-size` と同じ形）。
+  //   `|| !existsSync(FIX)` が入っていたので、**fixture を1本消すだけで
+  //   次の `npm run check` が新しい基準を焼いて緑で通り**、NG も「減りました」も出ませんでした
+  //   ＝許可が要る見張りが、ファイルを消すだけで再ベースラインできる形でした。
+  if (!existsSync(FIX) && process.env.UPDATE_GOLDEN !== '1') {
+    check(`${FIX} が無い`, false, 'この点検だけを UPDATE_GOLDEN=1 で走らせて生成し、コミットすること')
+  } else if (process.env.UPDATE_GOLDEN === '1') {
     writeFileSync(FIX, JSON.stringify(counts, null, 1) + '\n')
     console.log(`  -- 引き直しました（${Object.keys(counts).length}ファイル / 合計 ${total}件）`)
   } else {

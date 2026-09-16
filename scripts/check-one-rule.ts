@@ -116,9 +116,11 @@ console.log('\n[8] 名簿を減らす経路は、どれも同じ下限（CPU_SEL
   // ★名簿が減るのは3つ（現金の移籍 engine/transferMarket／解雇 runCpuReleases／
   //   レンタルで貸す runCpuLoans）。**下限を見ていたのは2つだけ**で、しかも解雇の中でも
   //   「払える年俸」の枝だけが見ていて「衰えた選手」の枝は何人でも切れた。
-  const floors = (code.match(/CPU_SELL_FLOOR/g) ?? []).length
+  // ★**出現回数を数えないこと。** ここは `floors >= 4` で `CPU_SELL_FLOOR` の
+  //   **字が何回出るか**を見ていましたが、それは経路と対応していません
+  //   （コメントに1回増やすだけで通る／4本目の経路を下限なしで足しても通る）。
+  //   下の3行が経路を1本ずつ名指しで釘打ちするので、この行は「定義が居るか」だけにします。
   check('CPU_SELL_FLOOR が居る', /export const CPU_SELL_FLOOR/.test(code))
-  check('下限を見ている経路が3つある', floors >= 4, `定義を含めて ${floors} 箇所`)
   check('解雇は理由ごとに線を持たず1本で止める', /const canLeave = Math\.max\(0, roster\.length - CPU_SELL_FLOOR\)/.test(code))
   check('貸す側も下限を見る', /rosterSize\(sid\) <= CPU_SELL_FLOOR/.test(code))
   check('現金の移籍も下限を見る', /sellRoster\.length <= CPU_SELL_FLOOR/.test(code))

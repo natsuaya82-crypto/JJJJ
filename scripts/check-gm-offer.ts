@@ -61,8 +61,28 @@ for (const kind of ['promotion', 'rebuild', 'comeback'] as const) {
   const c = offerCandidates(kind, teams.map(t => t.id), me.id, tierNow, tierSeed)
   const label = { promotion: '栄転（格上）', rebuild: '名門再建（もとの格から4段以上落ちた）', comeback: '再起（格下）' }[kind]
   console.log(`  ${label}  ${c.length}クラブ`)
+  // ★**母数を先に確かめること。** `c` が空だと `every` は常に true なので、
+  //   候補が1件も出なくなっても緑のまま通ります（上の「1件以上届く」は種類を問わない
+  //   合計なので、別の種類が届いていれば通ってしまう）。
+  if (kind !== 'rebuild') check(`  ${label} の候補が1件以上ある（空振りの緑ではない）`, c.length > 0, `${c.length}クラブ`)
   if (kind === 'promotion') check('栄転の候補は全部いまより格上', c.every(id => tierNow(id) < tierNow(me.id)))
   if (kind === 'comeback') check('再起の候補は全部いまより格下', c.every(id => tierNow(id) > tierNow(me.id)))
+}
+
+// ★**名門再建だけは、この世界では候補が0件**です（`tierNow` と `tierSeed` が同じ＝
+//   まだ誰も落ちぶれていない）。母数を要求すると落ちてしまうので、**そのための世界を
+//   1件だけ作って**確かめます。0件のまま `every` を見ていたころは、
+//   この枝を1行も通っていませんでした。
+console.log('')
+console.log('[名門再建：もとの格から落ちたクラブを1つ作った世界]')
+{
+  const fallen = teams.filter(t => divisionOf(t) === 3)[0]
+  // もとは格3の名門だったが、いまは3部（格20付近）まで落ちた、という世界
+  const seedFallen = (id: string) => (id === fallen.id ? 3 : tierOfClubId(id))
+  const c = offerCandidates('rebuild', teams.map(t => t.id), me.id, tierNow, seedFallen)
+  check('落ちぶれた名門が候補に出る（空振りの緑ではない）', c.length > 0, `${c.length}クラブ`)
+  check('出るのはその1クラブだけ', c.length === 1 && c[0] === fallen.id, c.join(','))
+  check('もとの格から離れていないクラブは出ない', !c.some(id => id !== fallen.id))
 }
 
 console.log('')

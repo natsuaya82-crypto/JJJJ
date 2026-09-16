@@ -102,6 +102,11 @@ try { budget = JSON.parse(readFileSync(FILE, 'utf8')) } catch {
   process.exit(1)
 }
 
+// ★**空振り除け。** `measured` が空だと `grew` も `born` も空＝両方緑で、
+//   「減りました」は `console.log` するだけなので exit にも効きません。
+//   このファイル自身が「字下げを決め打ちした点検が空振りした」経緯を上に書いているのと同じ形です。
+check('測れている（空振りの緑ではない）', keys.length > 20, `${keys.length}件`)
+
 const grew = keys.filter(k => budget[k] !== undefined && measured[k] > budget[k])
   .map(k => `${k} ${budget[k]}→${measured[k]}行`)
 const born = keys.filter(k => budget[k] === undefined)

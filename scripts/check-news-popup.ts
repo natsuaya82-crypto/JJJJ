@@ -75,10 +75,20 @@ console.log('\n[3] 選ぶ判定は nextNewsPopup 1本')
   const first = NEWS_POPUPS.find(n => (!n.from || n.from <= TODAY) && (!n.until || n.until >= TODAY))!
   check('まだ見ていなければ出る', nextNewsPopup([], TODAY)?.id === first.id, String(nextNewsPopup([], TODAY)?.id))
   check('一度見たら出ない', nextNewsPopup(NEWS_POPUPS.map(n => n.id), TODAY) === null)
-  // ★空振り除け。期限切れの1件だけの世界を作って、確かに出ないことを見る
-  check('期限を過ぎたものは出ない',
-    NEWS_POPUPS.every(n => !n.until || n.until >= '2026-08-16'),
-    '期限切れのお知らせが残っています（配列から消すこと）')
+  // ★**`nextNewsPopup` を実際に呼ぶこと。** ここはコメントに「期限切れの世界を作って
+  //   確かに出ないことを見る」と書いてあるのに、**配列に期限切れの行が無いことを
+  //   見ているだけ**で `nextNewsPopup` を1回も呼んでいませんでした
+  //   ＝選ぶ側から `until` の絞り込みを丸ごと消しても緑のまま通ります。
+  //   基準日も 2026-08-16 のベタ書きだったので、そこから先に期限が切れた行は素通りでした。
+  {
+    const allUntil = NEWS_POPUPS.map(n => n.until).filter((u): u is string => !!u)
+    check('期限つきのお知らせがある（空振りの緑ではない）', allUntil.length > 0, `${allUntil.length}件`)
+    // いちばん遅い期限の翌日から見れば、期限つきのものは1件も出ないはず
+    const after = allUntil.slice().sort().pop()!
+    const dayAfter = new Date(Date.parse(after + 'T00:00:00Z') + 86400_000).toISOString().slice(0, 10)
+    const left = nextNewsPopup([], dayAfter)
+    check('期限を過ぎたものは出ない', left === null || !left.until, `${dayAfter} に ${left?.id ?? 'なし'} が出た`)
+  }
   check('画面が配列を自分で絞っていない', !/NEWS_POPUPS/.test(news) && !/NEWS_POPUPS/.test(app))
   check('App.tsx が nextNewsPopup を通る', /nextNewsPopup\(/.test(app))
 }

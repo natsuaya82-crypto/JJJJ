@@ -168,16 +168,23 @@ console.log('\n[4] CLAUDE.md に書いた数字が、コードの定数と合っ
   }
   walkTs('src')
   const all = src.join('\n')
+  // ★**何件突き合わせたかを数えること。** ここは CLAUDE.md からその定数名を1語消すだけで
+  //   黙ってスキップする形で、**12件全部が対象外になっても `→ OK`** と出ていました。
+  let matched = 0
+  const skipped: string[] = []
   for (const { name, as } of NUMS) {
     const m = all.match(new RegExp(`export const ${name}\\s*(?::[^=]+)?=\\s*([0-9_.]+)`))
     if (!m) { check(`${name} が src にある`, false, '定数が見つからない（名前が変わった？）'); continue }
     const v = Number(m[1].replace(/_/g, ''))
     const want = as ? as(v) : [String(v)]
     const lines = claude.filter(l => l.includes(name))
-    if (lines.length === 0) continue                       // CLAUDE.md が触れていない定数は対象外
+    if (lines.length === 0) { skipped.push(name); continue }
+    matched++
     const ok = lines.some(l => want.some(w => l.includes(w)))
     check(`${name} = ${m[1]}`, ok, `CLAUDE.md の説明に ${want.join(' か ')} が出てこない（値を変えたら説明も直すこと）`)
   }
+  check(`CLAUDE.md と突き合わせた定数が ${NUMS.length} 件中 ${matched} 件`, skipped.length === 0,
+    `CLAUDE.md がこの名前に触れていないので素通りしました: ${skipped.join(' / ')}（触れるか、NUMS から外すこと）`)
 }
 
 if (failed > 0) { console.log(`\n  → NG ${failed}件`); process.exit(1) }

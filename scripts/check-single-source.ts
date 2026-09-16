@@ -24,6 +24,16 @@ type Rule = {
   pattern: RegExp
   /** そこに在ってよいファイル（唯一の決まりの置き場所） */
   allow: string[]
+  /**
+   * **どこにも無いのが正しいルール**の理由（廃止した字・二度と書かせない字）。
+   *
+   * ★これが無いルールは「置き場所（`allow`）でいまも当たる」ことを下で確かめます。
+   *   当たらなくなったら、決まりが動いたのに網だけ旧い字面で固まっている＝
+   *   **何を書いても緑**になるので落とします。
+   * ★逆に、正が名前付きの定数になった等で**literal がどこにも出てこないのが正しい**
+   *   ルールは、ここに理由を書いて印を付けること（「漏れた」と「あえて」を区別する）。
+   */
+  neverAppears?: string
   /** ここで始まるファイルだけを見る（省略すると src 全部） */
   only?: string
   /** 直し方 */
@@ -50,6 +60,7 @@ const RULES: Rule[] = [
     // BidSheet は**入札**の同意（clubBlessed=true・スカウト施設の下駄・年俸で
     // どこまで説得できるかの段階表示）で、トレードとは別の決まり。混ぜないこと
     allow: ['src/engine/tradeConsent.ts', 'src/components/transfer/BidSheet.tsx'],
+    neverAppears: 'トレードの同意は `engine/tradeConsent` 1本で、判定そのものは `check-consent-single` が見張る。ここが探していた `0.5, 0,` という引数の並びは廃止済み',
     fix: 'engine/tradeConsent.ts の tradeRefuser / tradeConsentBonus を使う',
   },
   {
@@ -59,6 +70,7 @@ const RULES: Rule[] = [
     name: 'トレードの説得の下駄を直書きしている',
     pattern: /ratio\s*>=\s*1\.2|cpuGain\s*\/\s*cpuLoss\s*>=\s*1\.2/,
     allow: ['src/engine/tradeConsent.ts'],
+    neverAppears: '正は `TRADE_SWEET_RATIO`(1.2) / `TRADE_SWEET_BONUS`(0.15) の名前付き定数。数字がどこにも出てこないのが正しい',
     fix: 'engine/tradeConsent.ts の tradeConsentBonus(ratio) を使う',
   },
   {
@@ -86,6 +98,7 @@ const RULES: Rule[] = [
     name: '出場率を自分の部の日程だけで数えている',
     pattern: /seasonAppearances\([^)]*(currentSeason\.races|currentRaceIndex)|seasonAppearances\(\w+,\s*races\)\s*\/\s*raceIndex/,
     allow: ['src/utils/playRate.ts'],
+    neverAppears: '正は `utils/playRate` の `playRateOf`。自分の部の `races` だけで割る形はどこにも無いのが正しい',
     fix: 'utils/playRate.ts の playRateOf を使う（そのクラブが走っている日程で数える）',
   },
   {
@@ -112,7 +125,7 @@ const RULES: Rule[] = [
   },
   {
     name: 'ロスター上限の数え直し',
-    pattern: /ROSTER_MAX\s*-\s*\(/,
+    pattern: /ROSTER_MAX\s*-\s*Math\.max\(0,\s*\w*[Pp]ending/,
     allow: ['src/data/rosterRules.ts'],
     fix: 'rosterRules.ts の rosterCapOf を使う',
   },
@@ -120,12 +133,14 @@ const RULES: Rule[] = [
     name: '「そのクラブで何番手か」の数え直し',
     pattern: /filter\(\s*\w+\s*=>\s*ovr\(\w+\)\s*>\s*(ovr\(|my)/,
     allow: ['src/utils/squadNeeds.ts'],
+    neverAppears: '正は `squadRankOf` の二分探索。`filter(x => ovr(x) > …)` で数え直す形はどこにも無いのが正しい',
     fix: 'squadNeeds.ts の squadRankOf を使う',
   },
   {
     name: '移籍金の上限の式',
     pattern: /TRANSFER_BUDGET_SHARE\s*\)|\*\s*TRANSFER_BUDGET_SHARE/,
     allow: ['src/data/economy.ts'],
+    neverAppears: '割合の蓋（`TRANSFER_BUDGET_SHARE`）は 2026-08-21 に撤廃。二度と出てこないのが正しい',
     fix: 'economy.ts の transferCapOf を使う',
   },
   {
@@ -162,7 +177,7 @@ const RULES: Rule[] = [
   },
   {
     name: '海外クラブの総なめ',
-    pattern: /flatMap\(\s*l\s*=>\s*l\.clubs\s*\)/,
+    pattern: /flatMap\(\s*\w+\s*=>\s*\w+\??\.clubs\s*(\?\?|\))/,
     allow: ['src/utils/clubs.ts'],
     fix: 'clubs.ts の allForeignClubs を使う',
   },
@@ -177,12 +192,14 @@ const RULES: Rule[] = [
     name: '画面の中の自前シート（実機で下タブに食われる）',
     pattern: /position:\s*'fixed'[^}]*bottom:\s*0/,
     allow: ['src/components/ui/BottomSheet.tsx', 'src/components/ui/ActionSheet.tsx', 'src/components/layout/Layout.tsx'],
+    neverAppears: '`BottomSheet` / `ScreenPortal` / `ScreenCover` へ寄せ済み。画面に `position: fixed; bottom: 0` を書かないのが正しい',
     fix: 'components/ui/BottomSheet を通す（createPortal で body に出す）',
   },
   {
     name: '人数上限の直書き（30）',
     pattern: /(roster|Roster)\w*\.length\s*[<>]=?\s*30\b/,
     allow: ['src/data/rosterRules.ts'],
+    neverAppears: '正は `teamRosterSize` と `ROSTER_MAX`。人数を 30 と直に比べる形はどこにも無いのが正しい',
     fix: 'rosterRules.ts の ROSTER_MAX を使う',
   },
 ]
@@ -202,6 +219,7 @@ RULES.push({
   name: '記録の有無の判定を自分で書いている',
   pattern: /recordsFull\s*(===|!==|\?\?|&&|\|\|)|\.recordsFull\b(?!\s*=[^=])/,
   allow: ['src/utils/raceRecord.ts', 'src/types/index.ts'],
+    neverAppears: '`recordsFull` は廃止済みの項目。二度と出てこないのが正しい',
   fix: 'raceRecord.ts の seasonHasFullRecords を使う',
 })
 
@@ -212,6 +230,7 @@ RULES.push({
   name: '部ごとの順位表を平らにしている',
   pattern: /Object\.values\([^)]*[Ss]tandings\s*\)|DIVISIONS\.flatMap\([^)]*standings/,
   allow: ['src/utils/league.ts', 'scripts/check-division-rank.ts'],
+    neverAppears: '順位表は部ごとに分けて持つ。平らにする形はどこにも無いのが正しい',
   fix: 'league.ts の divisionStandings / seasonDivisionStandings で部ごとに取り出す',
 })
 
@@ -361,6 +380,7 @@ RULES.push({
   name: 'イベントの数字を画面に直書きしている',
   pattern: /Math\.random\(\)\s*<\s*0\.05/,
   allow: ['src/data/events.ts'],
+    neverAppears: '正は `data/events` の `GREAT_SUCCESS_CHANCE`。確率の数字が画面に出てこないのが正しい',
   fix: 'data/events.ts の greatSuccessChance() を呼ぶ（イベント中は自動で100%になる）',
 })
 
@@ -390,6 +410,7 @@ RULES.push({
   name: '空のロスターから行き先を作っている（判定が行き先を見なくなる）',
   pattern: /buildDestination\([^;\n]*?\[\s*\]/,
   allow: ['src/utils/transferDecision.ts'],
+    neverAppears: '行き先は必ず名簿つきで作る。空配列を渡す形はどこにも無いのが正しい',
   fix: 'store の destinationOf(clubId, player) を使う。格だけで判定しない',
 })
 
@@ -406,6 +427,7 @@ RULES.push({
   name: '金額を自分で「億」に直している',
   pattern: /\/\s*100[_0]{6,}\s*\)?\s*\.toFixed/,
   allow: ['src/utils/money.ts'],
+    neverAppears: '正は `utils/money` の `fmtYen`。割り算で「億」に直す形はどこにも無いのが正しい',
   fix: 'utils/money.ts の fmtYen を使う',
 })
 
@@ -453,6 +475,7 @@ RULES.push({
   name: 'クラブ側に名簿を持たせている',
   pattern: /roster:\s*\{\s*main|\.roster\.main|\.roster\?\.main|rebuildRosters/,
   allow: ['src/utils/rosterSync.ts', 'src/store/gameStore.ts'],
+    neverAppears: '所属は `player.teamId` 1本（`utils/rosterSync`）。クラブ側の名簿は廃止済みで、二度と出てこないのが正しい',
   fix: 'utils/rosterSync の squadIdsOf / squadPlayersOf で player.teamId から引く',
 })
 
@@ -524,7 +547,8 @@ RULES.push({
 RULES.push({
   name: 'セーブ形式の版の直書き',
   pattern: /version:\s*\d\d\s*,/,
-  allow: ['src/store/gameStore.ts'],   // SAVE_VERSION の定義とその使用のみ
+  allow: ['src/store/gameStore.ts'],
+    neverAppears: '版は名前付きの定数から出す。`version: 42,` のような直書きはどこにも無いのが正しい',   // SAVE_VERSION の定義とその使用のみ
   fix: 'gameStore.ts の SAVE_VERSION を使う',
 })
 
@@ -541,7 +565,7 @@ RULES.push({
 })
 RULES.push({
   name: '引退年齢の式の写し',
-  pattern: /32\s*\+\s*\([^)]*%\s*7\)/,
+  pattern: /RETIRE_AGE_MIN\s*\+\s*\(/,
   allow: ['src/utils/playerUtils.ts'],
   fix: 'playerUtils.ts の retirementAgeOf を使う',
 })
@@ -561,6 +585,7 @@ RULES.push({
   name: '士気・疲労の上下限の直書き',
   pattern: /(morale|fatigue):\s*Math\.(min|max)\(/,
   allow: ['src/utils/condition.ts'],
+    neverAppears: '正は `utils/condition` の `withMorale` / `withFatigue`（中は `clamp01to100`）。`morale: Math.min(` の形はどこにも無いのが正しい',
   fix: 'utils/condition.ts の withMorale / withFatigue を使う',
 })
 RULES.push({
@@ -608,6 +633,7 @@ RULES.push({
   name: '契約年数の下駄を手書きしている',
   pattern: /Math\.max\(\s*\w+\.contract\.yearsLeft\s*,/,
   allow: ['src/utils/playerUtils.ts'],
+    neverAppears: '正は `newContractYears`。`Math.max(p.contract.yearsLeft, …)` の形はどこにも無いのが正しい',
   fix: 'playerUtils.ts の newContractYears を使う',
 })
 RULES.push({
@@ -643,6 +669,7 @@ RULES.push({
   name: '評判の上下限を手書きしている',
   pattern: /gmRep\s*[+-]|Math\.(min|max)\([^)]*gmRep/,
   allow: ['src/utils/condition.ts', 'src/engine/eventEffects.ts', 'src/engine/seasonObjectives.ts'],
+    neverAppears: '正は `utils/condition` の `withGmRep`。`gmRep` を直に足し引きする形はどこにも無いのが正しい',
   fix: 'utils/condition.ts の withGmRep(cur, delta) を使う',
 })
 // オフシーズンの4つの処理（解雇・CPU間移籍・トレード・レンタル）が
@@ -651,6 +678,7 @@ RULES.push({
   name: '国内CPUクラブの集め方を手書きしている',
   pattern: /!==\s*'__pool__'[^\n]*domesticTeamIdSet|domesticTeamIdSet[^\n]*!==\s*'__pool__'/,
   allow: ['src/utils/clubs.ts'],
+    neverAppears: '正は `utils/clubs` の `domesticCpuTeamIds`。集め方を写す形はどこにも無いのが正しい',
   fix: "utils/clubs.ts の domesticCpuTeamIds(players, teams, playerTeamId) を使う",
 })
 // 人数を減らすときに先に切る順。1軍23人ぶんと総在籍の上限ぶんで同じ式を書いていた。
@@ -658,6 +686,7 @@ RULES.push({
   name: '解雇の優先順位（年齢ペナルティ）を手書きしている',
   pattern: /age\s*>\s*3[03]\s*\?\s*8\s*:\s*0/,
   allow: ['src/engine/cpuOffseason.ts'],
+    neverAppears: '正は `effectiveOvr`（33歳から-3）1本。`age > 30 ? 8 : 0` の2本目の式は 2026-09-15 に撤去済み',
   fix: 'engine/cpuOffseason.ts の byReleasePriority を使う',
 })
 RULES.push({
@@ -765,9 +794,54 @@ for (const rule of RULES) {
   }
 }
 
-if (violations === 0) {
-  console.log(`一本化の点検：${RULES.length}件のルール、違反なし`)
+// ─────────────────────────────────────────────────────────────────────────────
+// ★**ルールがまだ生きているかを数える（この点検自身の見張り）。**
+//
+//   `allow` に「唯一の決まりの置き場所」を書いたルールは、**その置き場所でいまも
+//   当たる**はずです。当たらなくなったら、決まりのほうが動いた（名前が変わった・
+//   式が変わった・ファイルが移った）のに**網だけ旧い字面のまま固まっている**状態で、
+//   そのルールは**何を書いても緑**になります。
+//
+//   実測（2026-09-16）で、`allow` を持つルールのうち**9本がこの状態**でした。
+//   例：引退年齢の網が `32 + (… % 7)` を探していたが、正は `RETIRE_AGE_MIN + (… % 5)`。
+//   どこかに `30 + (strHash(p.id) % 5)` を写しても緑のまま通っていました。
+//
+//   それまで、当たるルールが1本でも70本でも同じ「70件のルール、違反なし」と出ていて、
+//   **死んだ網に誰も気づけませんでした。**
+//
+//   ★「もう二度と書くな」（廃止したものの字が二度と出てこないこと）を見るルールは、
+//     置き場所が無いので `allow: []` にしてあります。それらはここの対象外です。
+// ─────────────────────────────────────────────────────────────────────────────
+const dead: string[] = []
+let liveChecked = 0
+const hitsInAllow = (rule: Rule) =>
+  files.filter(f => rule.allow.some(a => f === a || f.endsWith(a)))
+    .some(f => readFileSync(f, 'utf8').split('\n').some(line => {
+      const t = line.trim()
+      if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return false
+      return rule.pattern.test(line)
+    }))
+for (const rule of RULES) {
+  if (rule.allow.length === 0) continue
+  if (rule.neverAppears) {
+    // ★印のほうも見る。「どこにも無いのが正しい」と書いたのに置き場所で当たるなら、
+    //   印が嘘＝本当は生きているルールに「当たらなくていい」と免罪符を貼った状態。
+    if (hitsInAllow(rule)) dead.push(`  ${rule.name}  → neverAppears と書いてあるのに ${rule.allow.join(' / ')} で当たる（印が嘘）`)
+    continue
+  }
+  liveChecked++
+  if (!hitsInAllow(rule)) dead.push(`  ${rule.name}  → 置き場所 ${rule.allow.join(' / ')} で1行も当たらない`)
+}
+if (dead.length > 0) {
+  console.log(`\n✗ 網が死んでいるルール（${dead.length}件）`)
+  console.log('  唯一の決まりが動いたのに、探す字が旧いままです。**そのルールは何を書いても緑になります。**')
+  console.log('  いまの式に合わせて pattern を直すか、決まりごと無くなったならルールを消すこと。')
+  console.log(dead.join('\n'))
+}
+
+if (violations === 0 && dead.length === 0) {
+  console.log(`一本化の点検：${RULES.length}件のルール、違反なし（置き場所でいまも当たることを確かめたのは ${liveChecked}件／「どこにも無いのが正しい」と印を付けたのは ${RULES.filter(r => r.neverAppears).length}件）`)
   process.exit(0)
 }
-console.log(`\n一本化の点検：合計 ${violations} 件の後付けが見つかりました`)
+console.log(`\n一本化の点検：後付け ${violations} 件 ／ 死んでいる網 ${dead.length} 件`)
 process.exit(1)
