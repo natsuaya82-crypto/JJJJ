@@ -43,7 +43,7 @@ import { faMarketSalary, newContractYears, ovr, packForeignApps, perfOf, transfe
 import { playRateOf } from '../../utils/playRate'
 import { movePlayer } from '../../utils/movePlayer'
 import { squadIdsOf, clubIndexOf } from '../../utils/rosterSync'
-import { needsPlayer } from '../../utils/squadNeeds'
+import { needsPlayer, squadRankOf } from '../../utils/squadNeeds'
 import { teamHistoryOf } from '../../utils/teamHistory'
 import { appraiseMove, hasNoPlayingTime, isSurplus } from '../../utils/transferDecision'
 import { writeSeasonArchive } from '../seasonArchive'
@@ -306,7 +306,9 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
           const expiring = renewRoster.filter(p => p.contract.yearsLeft === 1)
             .sort(comparePlayers('ovr'))
           for (const p of expiring) {
-            const renewRank = renewRoster.findIndex(x => x.id === p.id) + 1
+            // 序列は `utils/squadNeeds` の `squadRankOf` 1本（すぐ下の `needsPlayer` と同じ物差し）。
+            // `findIndex` で数え直すと、同じOVRが並んだときに答えが割れる
+            const renewRank = squadRankOf(renewRoster, p)
             if (hasNoPlayingTime(renewRank) && !needsPlayer(renewRoster, p)) continue
             const sal = cpuRenewalSalary(p)
             if (budget < sal) continue

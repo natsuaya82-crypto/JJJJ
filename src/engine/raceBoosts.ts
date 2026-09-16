@@ -33,6 +33,36 @@ export function withFacilityBoost(
   })
 }
 
+/**
+ * **国籍のそろい具合（士気のボーナス）。ここ1本。**
+ *
+ * 同じ国籍が `CHEMISTRY_TIERS` の人数そろうと、その国籍の走者だけ士気が上がります。
+ *
+ * ★**実際に掛ける側（`applyRaceBoosts`）と、画面に出す側（`components/race/LineupPhase`）が
+ *   同じここを通すこと。** 以前は `maxNatCount >= 9 ? 10 : maxNatCount >= 7 ? 6 : 0` が
+ *   両方に手書きされていて、**数を変えると画面の表示だけが嘘になる**形でした
+ *   （「日本 士気+6」と出しているのに、掛かるのは別の値）。
+ * ★人数と効き目は `CHEMISTRY_TIERS` の表1つ。**条件式を書き足さないこと。**
+ */
+export const CHEMISTRY_TIERS: readonly { count: number; bonus: number }[] = [
+  { count: 9, bonus: 10 },
+  { count: 7, bonus: 6 },
+]
+
+export function lineupChemistry(
+  lineupPlayers: readonly (Pick<Player, 'nationality'> | undefined)[],
+): { nat: string; bonus: number } {
+  const counts: Record<string, number> = {}
+  for (const p of lineupPlayers) {
+    if (!p) continue
+    counts[p.nationality] = (counts[p.nationality] ?? 0) + 1
+  }
+  const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]
+  if (!top) return { nat: '', bonus: 0 }
+  const [nat, n] = top
+  return { nat, bonus: CHEMISTRY_TIERS.find(t => n >= t.count)?.bonus ?? 0 }
+}
+
 export function applyRaceBoosts(
   players: Player[], teams: Team[], playerTeamId: string, lineup: Record<number, string>,
 ): Player[] {
@@ -41,29 +71,12 @@ export function applyRaceBoosts(
   const lineupPlayerIds = Object.values(lineup).filter(Boolean)
   if (lineupPlayerIds.length === 0) return boosted
   const lineupIdSet = new Set(lineupPlayerIds)
-  const natCounts: Record<string, number> = {}
-  for (const id of lineupPlayerIds) {
-    const lp = boosted.find(p => p.id === id)
-    if (lp) natCounts[lp.nationality] = (natCounts[lp.nationality] ?? 0) + 1
-  }
-  const maxNatCount = Math.max(0, ...Object.values(natCounts))
-  const chemBonus = maxNatCount >= 9 ? 10 : maxNatCount >= 7 ? 6 : 0
+  const { nat: dominantNat, bonus: chemBonus } =
+    lineupChemistry(lineupPlayerIds.map(id => boosted.find(p => p.id === id)))
   if (chemBonus <= 0) return boosted
 
-  const dominantNat = Object.entries(natCounts).sort((a, b) => b[1] - a[1])[0]?.[0]
   return boosted.map(p => {
     if (p.teamId !== playerTeamId || !lineupIdSet.has(p.id) || p.nationality !== dominantNat) return p
     return withMorale(p, chemBonus)
   })
 }
-
-// 自クラブの選手を売る（承諾でも逆提示でも、国内でも海外でも）ときの移動。
-// 移籍金の受け取り・名簿からの除外・移籍履歴・退団のお知らせ・1年間の再交渉禁止まで、
-// 全部 movePlayer に任せて同じ後始末になるようにする。
-// 海外クラブは teams に居ないので、買い手側の出金は自動的に起きない（そのままでいい）。
-/**
- * そのクラブが移籍金の逆提示に応じられる上限。
- * 上限そのものは data/economy.ts の counterCeiling（市場価値×1.15 か 提示額×1.3 の高い方）。
- * 国内クラブはさらに手元の予算で頭打ち。海外クラブは teams に居ないので予算を見ない。
- * ★単発の逆提示と全クラブへの一斉提示で同じ判定を使う（片方だけ緩いと辻褄が合わない）
- */

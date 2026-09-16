@@ -202,13 +202,13 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       //   一度も起きていなかった。判断は pickCpuFreeAgents 1本（ドラフト前と同じ）
       {
         // ドラフトは終わっているので空けておく枠は無い。数え方は同じ rosterCapOf
-        const capForPost = () => rosterCapOf(0)
         const postForeign = allForeignClubs(state.foreignLeagues)
-        const postForeignIds = new Set(postForeign.map(c => c.id))
         const postSignings = pickCpuFreeAgents({
           players: updatedPlayers, clubs: [...state.teams, ...postForeign],
           playerTeamId: state.playerTeamId, season: state.currentSeason,
-          capFor: (id) => (postForeignIds.has(id) ? ROSTER_MAX : capForPost()),
+          // 上限は `rosterCapOf` 1本（海外だけ `ROSTER_MAX` にする三項は、
+          // `rosterCapOf(0) === ROSTER_MAX` なので**両側とも同じ数**の残骸だった）
+          capFor: () => rosterCapOf(0),
           // ④本人が行くか。**ここだけ聞いていなかった**（ドラフト後の拾い直し）。
           // 同じFAでも、ドラフト前の一括処理では聞いていて、ここでは聞いていない
           // ＝経路で判断が割れている状態だった（A-9）
@@ -619,12 +619,14 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     //   「在籍20人を割ったクラブの救済」しか見ていなかった（必要かどうかを見ていない）。
     //   海外クラブのロスター上限も国内と同じ ROSTER_MAX
     const foreignClubsForFa = allForeignClubs(state.foreignLeagues)
-    const foreignIdSet = new Set(foreignClubsForFa.map(c => c.id))
     const cpuSignings = pickCpuFreeAgents({
       players: playersAfterCpuTransfer,
       clubs: [...teamsAfterCpuTransfer, ...foreignClubsForFa],
       playerTeamId: state.playerTeamId, season: state.currentSeason,
-      capFor: (id) => (foreignIdSet.has(id) ? ROSTER_MAX : rosterCapFor(id)),
+      // 上限は `rosterCapFor` 1本。海外クラブはドラフトの指名権を持たないので
+      // `rosterCapOf(0) === ROSTER_MAX` になり、**分けても答えは同じ**です
+      // （「海外は別扱い」に見えるだけの三項を残すと、片方だけ動いたときに割れる）
+      capFor: (id) => rosterCapFor(id),
       // ④本人が行くか（現金の移籍・トレードと同じ入口）。
       // 無所属は「クラブが無い」状態と較べるので基本は断らないが、
       // 憧れの地域と出番の良し悪しはここで効く

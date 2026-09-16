@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { clubSalaryTotal } from '../../utils/clubMoney'
 import { useStickyTab } from '../../lib/useStickyTab'
 import { comparePlayers } from '../../utils/playerSort'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
@@ -183,7 +184,9 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   // ロスター（1軍/2軍の区別なし）。国内チームも海外クラブも判定は同じ
   const mainPlayers = players.filter(p => belongsToClub(p, id))
     .sort(comparePlayers('ovr'))
-  const teamSalary = mainPlayers.reduce((s, p) => s + p.contract.annualSalary, 0)
+  // 総年俸は `utils/clubMoney` の `clubSalaryTotal` 1本（予算の請求・CPUの使える枠と同じ数え方。
+  // 借りている選手のぶんは借りた側が払う）。画面で足し直すと「見えている額と引かれる額が違う」になる
+  const teamSalary = clubSalaryTotal(players, id)
 
   // 現在順位・ポイント・直近フォーム。**引き方は utils/clubStanding の1本**（国内も海外も同じ）。
   // 順位表の置き場所は国内(standings)と海外(foreignStandings)で分かれているが、

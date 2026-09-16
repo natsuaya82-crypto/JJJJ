@@ -10,7 +10,7 @@
 // ★自チームが交渉中だったFAを先に獲られたときは、黙って消さず理由を残す
 //   （札の片付けそのものは utils/talkSync の reconcileTalks の仕事）。
 import type { ExpiredNegotiation, ForeignClub, ForeignLeague, Player, Race, Season, Team, TransferRecord } from '../types'
-import { ROSTER_MAX, rosterCapOf } from '../data/rosterRules'
+import { rosterCapOf } from '../data/rosterRules'
 import { pickCpuFreeAgents } from './cpuMarket'
 import { findClub } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
@@ -45,13 +45,17 @@ export function signInSeasonFreeAgents(params: {
   //   前年俸のまま即加入できていた（「必要な選手ならFAでも取るだろ」）。
   //   頭数合わせ（③）はオフシーズンだけ・1クラブ1レース1人までなので、
   //   1レースで市場が空になることはない。
-  const inSeasonForeignIds = new Set(foreignClubs.map(c => c.id))
   const faSignings = pickCpuFreeAgents({
     players: players,
     clubs: [...teams, ...foreignClubs],
     playerTeamId,
     season: { ...currentSeason, races: races },
-    capFor: (id) => (inSeasonForeignIds.has(id) ? ROSTER_MAX : rosterCapOf(0)),
+    // ★**在籍上限は `data/rosterRules` の `rosterCapOf` 1本。海外だけ別の数にしないこと。**
+    //   ここには `海外 ? ROSTER_MAX : rosterCapOf(0)` という三項が書いてありましたが、
+    //   `rosterCapOf(0)` は `ROSTER_MAX - 0` なので**両側とも同じ数**でした＝
+    //   「海外は別扱い」に見えるだけの残骸です。残しておくと、`ROSTER_MAX` と
+    //   `rosterCapOf` の片方を動かしたときに**国内と海外で上限が割れます。**
+    capFor: () => rosterCapOf(0),
     // ④本人が行くか（オフの一括処理とまったく同じ関門）
     consents: params.consents })
   const faSignNews: NewsItem[] = []

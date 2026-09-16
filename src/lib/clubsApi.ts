@@ -1,4 +1,4 @@
-// 走友会（所属のみ）のサーバー窓口。supabase/clubs.sql と対になっている。
+// 走友会（所属のみ）のサーバー窓口。サーバー側は supabase/all.sql 1本（clubs.sql は廃止）。
 // 探して入る形。対抗戦などの競技要素はここには無い。
 import { supabase, ensureAuth } from './supabase'
 import {
@@ -12,7 +12,7 @@ import { normalizeClubLogoId } from '../data/clubLogos'
 import { remoteLogoId } from '../data/logoPresets'
 import type { CardStatKey, TrainingCard } from '../types'
 
-/** 走友会の人数上限。clubs.sql の 30 とそろえること（DB側の関数も30に更新が必要） */
+/** 走友会の人数上限。`supabase/all.sql` の `club_member_cap` とそろえること */
 export const CLUB_MAX = 30
 
 /** 参加タイプ。誰でも歓迎 / 承認制 / 募集停止 */
@@ -42,7 +42,7 @@ export type Club = ClubBrief & { ownerId: string }
 /** 走友会での役割。owner＝会長 / admin＝副会長 / member＝一般 */
 export type ClubRole = 'owner' | 'admin' | 'member'
 
-/** 副会長の人数の上限。clubs_roles.sql の 3 とそろえること */
+/** 副会長の人数の上限。`supabase/all.sql` 側とそろえること（clubs_roles.sql は廃止） */
 export const CLUB_ADMIN_MAX = 3
 
 /** メンバー1人ぶん。表示に必要なものはフレンドと同じなので Friend を土台にする */

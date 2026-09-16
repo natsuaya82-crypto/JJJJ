@@ -9,6 +9,7 @@
  *   ブラウザは localStorage が5MBで1シーズン回せないので、ここで直接回す。
  */
 import { useGameStore } from '../src/store/gameStore'
+import { runCpuReleases } from '../src/engine/cpuOffseason'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
@@ -213,6 +214,45 @@ console.log('[7] 「余剰か」の枝が両方とも生きているか')
   //   解雇→FA（0円）かレンタルで動きます。実測でも国内97件・海外30件すべてが割増でした。
   //   ここは数を見張らず、出た数をそのまま書き出すだけにします（`docs/BACKLOG.md` A-10）。
   if (plain === 0) console.log('  （余剰の売買は0件。15番手以降に移籍金を払う買い手は現れない＝解雇かレンタルで動く）')
+}
+
+console.log('')
+console.log('[9] 解雇の下限は1本（理由ごとに線を持たない）')
+{
+  // ★**世界を1つ作って流す形（上の [1]〜[8]）では、この枝は運まかせでした。**
+  //   下限にぶつかるクラブが偶然できた回にしか当たらず、わざと壊しても
+  //   6回に1回しか落ちません（＝ほとんど何も守っていない）。
+  //   切る理由は2つ（衰えた選手／払える年俸に収まらない）ありますが、**下限は1つ**です。
+  //   以前は「年俸」のループだけが `CPU_SELL_FLOOR` を見ていて、「衰えた選手」は
+  //   何人でも切れました。ここは**そのための世界を1件だけ作って**確かめます。
+  const THIN = 'thin-club'
+  const thinTeam = { ...(base[0] as Team), id: THIN, shortName: '検証', name: '検証クラブ' } as Team
+  // 在籍ちょうど CPU_SELL_FLOOR 人。うち5人は「平均より大きく劣り、契約も切れる」＝
+  // 衰えた選手の枝に必ず当たる。年俸は0なので「払える年俸」の枝は1人も切らない
+  const mk = (i: number, weak: boolean): Player => ({
+    ...(players.find(x => x.status !== 'retired')!),
+    id: `thin-${i}`, teamId: THIN, age: 25, status: 'active', loan: undefined,
+    ratings: { speed: weak ? 40 : 80, stamina: weak ? 40 : 80, pacing: weak ? 40 : 80,
+      climbing: weak ? 40 : 80, descending: weak ? 40 : 80, sprint: weak ? 40 : 80, mental: weak ? 40 : 80 },
+    contract: { annualSalary: 0, yearsLeft: weak ? 1 : 3 },
+  } as Player)
+  const thinRoster = Array.from({ length: CPU_SELL_FLOOR }, (_, i) => mk(i, i < 5))
+  const out = runCpuReleases(
+    { players: thinRoster, teams: [thinTeam], foreignLeagues: [] },
+    { playerTeamId: MY, year: YEAR, rosterCapFor: () => ROSTER_MAX })
+  const left = out.players.filter(p => p.teamId === THIN && p.status !== 'retired').length
+  // 空振りの緑よけ：この世界で「衰えた選手」の枝が本当に当たることを先に確かめる
+  const weakOnes = thinRoster.filter(p => ovr(p) < 60 && p.contract.yearsLeft <= 1).length
+  check('衰えた満了選手がいる世界になっている（空振りの緑ではない）', weakOnes === 5, `${weakOnes}人`)
+  check(`ちょうど ${CPU_SELL_FLOOR} 人のクラブからは1人も切らない`, left === CPU_SELL_FLOOR, `${left}人`)
+
+  // もう1件：下限より1人多いクラブは、切れるのは1人だけ
+  const oneOver = [...thinRoster, mk(99, true)]
+  const out2 = runCpuReleases(
+    { players: oneOver, teams: [thinTeam], foreignLeagues: [] },
+    { playerTeamId: MY, year: YEAR, rosterCapFor: () => ROSTER_MAX })
+  const left2 = out2.players.filter(p => p.teamId === THIN && p.status !== 'retired').length
+  check(`${CPU_SELL_FLOOR + 1} 人なら1人だけ切って下限で止まる`, left2 === CPU_SELL_FLOOR, `${left2}人`)
 }
 
 console.log('')

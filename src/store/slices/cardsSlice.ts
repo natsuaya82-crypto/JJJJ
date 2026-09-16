@@ -1,6 +1,7 @@
 // cards ドメインのアクション（gameStore から分割）。
 
 import type { GameStore, SetGame } from '../gameStore'
+import { withFatigue } from '../../utils/condition'
 import { CARD_UNIT_EXP, CARD_UNIT_PRICE } from '../../data/cardShop'
 import { applyGrowth } from '../../engine/growth'
 import { type CardRarity, type CardStatKey, type Player, type TrainingCard } from '../../types'
@@ -114,8 +115,12 @@ export const createCardsSlice = (set: SetGame, get: () => GameStore): Slice => (
         baseGains: combo.statDeltas as Partial<Record<CardStatKey, number>>,
         bonusMultiplier: multiplier })
       // 疲労回復（完全休養／超回復）。大成功倍率(multiplier)も疲労に掛ける。
+      // ★**上下限は `utils/condition` の `withFatigue` 1本**（0〜100・既定値もあちら）。
+      //   `Math.max(0, …)` と書くと、`fatigue: Math.min(` を見ている `check-morale` の網に
+      //   1文字も当たらないまま2本目のクランプになります（士気の下限が
+      //   1年以上ずっと10だったのとまったく同じ形）。
       const fatigueRecovered = combo.fatigueDelta ? Math.round(combo.fatigueDelta * multiplier) : 0
-      const newFatigue = Math.max(0, (player.fatigue ?? 0) - fatigueRecovered)
+      const newFatigue = withFatigue(player, -fatigueRecovered).fatigue
       const remaining = (state.trainingCards ?? []).filter(c => !cardIds.includes(c.id))
       return {
         trainingCards: remaining,

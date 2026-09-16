@@ -144,19 +144,32 @@ export function runCpuReleases(
     //   並べ替え（`byReleasePriority`）は既に `effectiveOvr` を通っているので、
     //   切る理由と切る順番で物差しが違う状態でもありました。
     const avgOvr = roster.length > 0 ? roster.reduce((s, x) => s + effectiveOvr(x), 0) / roster.length : 60
+    // ★**そのクラブから出せる人数を、先に1つ決める**（`data/rosterRules` の `CPU_SELL_FLOOR`）。
+    //   切る理由は2つ（衰えた選手／払える年俸に収まらない）ありますが、**下限は1本**です。
+    //   以前は下の「年俸」のループだけが `left <= CPU_SELL_FLOOR` を見ていて、
+    //   上の「衰えた選手」は**何人でも切れて**いました。16人のクラブに
+    //   「平均より6低くて契約も切れる」選手が1人いると15人になり `ROSTER_MIN` を割ります
+    //   （`check-offseason` が12回に3回落ちていたのがこれ）。**理由ごとに線を持たないこと。**
+    let leaving = 0
+    const canLeave = Math.max(0, roster.length - CPU_SELL_FLOOR)
+    const release = (p: Player): boolean => {
+      if (releaseSet.has(p.id)) return true
+      if (leaving >= canLeave) return false
+      releaseSet.add(p.id); leaving++
+      return true
+    }
     // 衰えた選手（チーム平均より6以上低く、契約も切れる）
     for (const p of roster) {
-      if (effectiveOvr(p) < avgOvr - 6 && p.contract.yearsLeft <= 1) releaseSet.add(p.id)
+      if (effectiveOvr(p) < avgOvr - 6 && p.contract.yearsLeft <= 1) release(p)
     }
-    // 払える年俸に収まるまで切る（人数の線ではなくお金で止める）。
-    // **下限（`CPU_SELL_FLOOR`）を割ってまでは切らない**——名簿が溶けるほうが害が大きい
+    // 払える年俸に収まるまで切る（人数の線ではなくお金で止める）
     const payCap = tierBudget(clubById.get(teamId)) * SALARY_ROOM
     const remaining = [...roster.filter(p => !releaseSet.has(p.id))].sort(byReleasePriority)
     let pay = remaining.reduce((sum, p) => sum + p.contract.annualSalary, 0)
-    let left = remaining.length
     for (const p of remaining) {
-      if (pay <= payCap || left <= CPU_SELL_FLOOR) break
-      releaseSet.add(p.id); pay -= p.contract.annualSalary; left--
+      if (pay <= payCap) break
+      if (!release(p)) break
+      pay -= p.contract.annualSalary
     }
     // 総在籍（1軍+2軍・引退除く）の上限の超過ぶん。既に膨らんだセーブもここを通れば毎年是正される
     const cpuCap = ctx.rosterCapFor(teamId)
@@ -230,6 +243,14 @@ export function runCpuLoans(
   const cpuIds = marketClubIds(players, world.teams, ctx.playerTeamId, ctx.foreignLeagues)
   const mainCount = (teamId: string) =>
     (clubIndexOf(players).get(teamId) ?? []).filter(p => p.status === 'active' && !p.loan).length
+  /**
+   * **その時点の在籍人数**。`data/rosterRules` の `teamRosterSize` とまったく同じ population
+   * （`utils/rosterSync` の `belongsToClub` ＝ 引退していない人は全員。怪我も借り物も入る）を、
+   * クラブ索引から引いているだけです——`teamRosterSize` は毎回6,000人を走査するので、
+   * 231×231 の総当たりの中では使えません（`playersByClub` の分け方が `belongsToClub` そのもの
+   * なので、答えは必ず一致します。`check-one-rule` の⑦が世界を作って突き合わせます）。
+   */
+  const rosterSize = (teamId: string) => (clubIndexOf(players).get(teamId) ?? []).length
   const givenLoan: Record<string, number> = {}
   const receivedLoan: Record<string, number> = {}
   // クラブの名簿は索引から引く（クラブの数だけ全選手を走査しない・utils/rosterSync）
@@ -251,6 +272,13 @@ export function runCpuLoans(
     let senderId = ''
     for (const sid of cpuIds) {
       if (sid === receiver || (givenLoan[sid] ?? 0) >= 1) continue
+      // ★**貸す側の下限も見る**（`data/rosterRules` の `CPU_SELL_FLOOR` 1本）。
+      //   貸すと `movePlayer` が `teamId` を借り手へ移すので、**出した側の在籍は1人減ります**。
+      //   名簿を減らす経路は3つ（現金の移籍 `engine/transferMarket`／解雇 `runCpuReleases`／
+      //   ここ）あるのに、**下限を見ていたのは2つだけ**でした。16人のクラブが1人貸すと
+      //   15人になり `ROSTER_MIN` を割るので、`check-offseason` が12回に3回落ちていました
+      //   （実測で14人まで落ちた回あり）。**新しい線を引かないこと。**
+      if (rosterSize(sid) <= CPU_SELL_FLOOR) continue
       const found = rosterOf(sid).find((p, i) =>
         hasNoPlayingTime(i + 1) && p.age <= LOAN_MAX_AGE
         // ★レンタルは `isTransferLocked` の対象外（オーナー・2026-08-14「レンタルのみ」）。

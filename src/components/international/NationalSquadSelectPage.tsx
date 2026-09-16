@@ -116,8 +116,11 @@ export default function NationalSquadSelectPage() {
     if (!teamId) return { name: '未所属' }
     const c = clubIndex.byId(teamId)
     if (!c) return { name: '-' }
-    // ロゴは今までどおり国内チームのみ（海外クラブは名前だけ）
-    return { name: c.shortName || c.name, team: c.isDomestic ? c : undefined }
+    // ★**国内も海外も同じ**（`teamId` からロゴを引くのは `TeamLogoSVG` の仕事で、
+    //   専用ロゴを持たない海外クラブはクラブ色＋ハッシュの紋章に落ちる＝順位表や
+    //   クラブ詳細と同じ絵になる）。以前ここだけ `isDomestic` で伏せていたので、
+    //   **同じクラブが順位表では紋章つき・代表選考では名前だけ**になっていた
+    return { name: c.shortName || c.name, team: c }
   }
   const clubBadge = (teamId: string) => {
     const c = clubOf(teamId)

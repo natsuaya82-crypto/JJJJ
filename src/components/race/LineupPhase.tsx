@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { lineupChemistry } from '../../engine/raceBoosts'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import BackButton from '../ui/BackButton'
@@ -209,11 +210,9 @@ export function LineupPhase({
   const avgDown = Math.round(profile.avgDown)
 
   const assignedPlayers = Object.values(raceLineup).filter(Boolean).map(id => mainPlayers.find(p => p.id === id)).filter((p): p is Player => !!p)
-  const lineupNatCounts: Record<string, number> = {}
-  for (const p of assignedPlayers) lineupNatCounts[p.nationality] = (lineupNatCounts[p.nationality] ?? 0) + 1
-  const maxNatCount = assignedPlayers.length > 0 ? Math.max(...Object.values(lineupNatCounts)) : 0
-  const dominantNat = Object.entries(lineupNatCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? ''
-  const chemBonus = maxNatCount >= 9 ? 10 : maxNatCount >= 7 ? 6 : 0
+  // 国籍のそろい具合は `engine/raceBoosts` の `lineupChemistry` 1本
+  // （**実際に掛ける側と同じ関数**。手書きすると表示だけが嘘になる）
+  const { nat: dominantNat, bonus: chemBonus } = lineupChemistry(assignedPlayers)
   // アジア/外国人の配置枠は廃止したためカウントは持たない（誰でも起用可）
 
   const pickerSegData = pickerSeg !== null ? segments.find(s => s.index === pickerSeg) : null

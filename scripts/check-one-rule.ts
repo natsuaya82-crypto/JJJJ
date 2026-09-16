@@ -96,6 +96,43 @@ console.log('\n[6] 下限の救済は全クラブに効く（自チームだけ�
   check('1クラブぶんだけ埋める旧API（fillRosterToMin）が残っていない', !/fillRosterToMin\(/.test(code))
 }
 
+console.log('\n[7] 国籍のそろい具合（士気のボーナス）は lineupChemistry 1本')
+{
+  // 戻し方：LineupPhase に `maxNatCount >= 9 ? 10 : maxNatCount >= 7 ? 6 : 0` を書き戻す
+  // ★**実際に掛ける側（engine/raceBoosts）と画面に出す側（LineupPhase）の両方**が通ること。
+  //   以前は同じ三項が両方に手書きされていて、数を変えると**画面の表示だけが嘘**になった
+  //   （「日本 士気+6」と出しているのに掛かるのは別の値）。
+  check('lineupChemistry が居る', /export function lineupChemistry\(/.test(code))
+  const callers = (code.match(/(?<!function )lineupChemistry\(/g) ?? []).length
+  check('呼んでいるのは2か所（掛ける側と画面）', callers === 2, `${callers}か所`)
+  check('人数と効き目を三項で手書きしていない', !/maxNatCount\s*>=\s*\d/.test(code))
+  check('人数と効き目は表1つ', /const CHEMISTRY_TIERS/.test(code))
+}
+
+console.log('\n[8] 名簿を減らす経路は、どれも同じ下限（CPU_SELL_FLOOR）を通る')
+{
+  // 戻し方：cpuOffseason の canLeave を消して releaseSet.add を直に呼ぶ／
+  //         runCpuLoans の `rosterSize(sid) <= CPU_SELL_FLOOR` を消す
+  // ★名簿が減るのは3つ（現金の移籍 engine/transferMarket／解雇 runCpuReleases／
+  //   レンタルで貸す runCpuLoans）。**下限を見ていたのは2つだけ**で、しかも解雇の中でも
+  //   「払える年俸」の枝だけが見ていて「衰えた選手」の枝は何人でも切れた。
+  const floors = (code.match(/CPU_SELL_FLOOR/g) ?? []).length
+  check('CPU_SELL_FLOOR が居る', /export const CPU_SELL_FLOOR/.test(code))
+  check('下限を見ている経路が3つある', floors >= 4, `定義を含めて ${floors} 箇所`)
+  check('解雇は理由ごとに線を持たず1本で止める', /const canLeave = Math\.max\(0, roster\.length - CPU_SELL_FLOOR\)/.test(code))
+  check('貸す側も下限を見る', /rosterSize\(sid\) <= CPU_SELL_FLOOR/.test(code))
+  check('現金の移籍も下限を見る', /sellRoster\.length <= CPU_SELL_FLOOR/.test(code))
+}
+
+console.log('\n[9] 在籍上限に「海外だけ別」の枝を置かない')
+{
+  // 戻し方：inSeasonFa / draftSlice の capFor を `海外 ? ROSTER_MAX : rosterCapOf(0)` に戻す
+  // ★`rosterCapOf(0)` は `ROSTER_MAX - 0` なので、この三項は**両側とも同じ数**でした＝
+  //   「海外は別扱い」に見えるだけの残骸。残すと片方だけ動かしたときに国内と海外で割れます。
+  const ternaries = (code.match(/\?\s*ROSTER_MAX\s*:\s*rosterCap/g) ?? []).length
+  check('capFor に海外だけの三項が残っていない', ternaries === 0, `${ternaries}か所`)
+}
+
 console.log('')
 if (failed > 0) { console.log(`✗ 同じ問いに物差しが2本あります（${failed}件）`); process.exit(1) }
 console.log('✓ 引退・年齢込みの強さ・在籍人数・在籍上限・下限の救済は、どれも1本')

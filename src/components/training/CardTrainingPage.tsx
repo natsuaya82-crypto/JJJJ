@@ -255,7 +255,8 @@ export default function CardTrainingPage() {
       })()}
       {limitBreakStat && (() => {
         const cap = (getStatPotentials(targetPlayer) as Record<string, number>)[limitBreakStat]
-        if (cap >= 99) return null
+        // 天井の数は `utils/playerUtils` の `STAT_CAP` 1本（すぐ下の `cap < STAT_CAP` と同じ数）
+        if (cap >= STAT_CAP) return null
         const cost = limitBreakCost(cap + 1)
         const enough = (jewels ?? 0) >= cost
         return (
