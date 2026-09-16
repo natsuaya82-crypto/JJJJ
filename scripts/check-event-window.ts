@@ -16,7 +16,7 @@
  */
 import { greatSuccessChance, activeEvents, EVENTS, GREAT_SUCCESS_CHANCE, GREAT_SUCCESS_EVENT_CHANCE } from '../src/data/events'
 import { NEWS_POPUPS } from '../src/data/newsPopups'
-import { CHANGELOG, APP_VERSION } from '../src/data/appMeta'
+import { CHANGELOG } from '../src/data/appMeta'
 import { jstGameDayISO } from '../src/utils/jstDate'
 import { requiredExpForLevel } from '../src/engine/growth'
 import { RARITY_EXP } from '../src/utils/cardCombo'
@@ -79,11 +79,18 @@ console.log('\n[2-b] ポップとお知らせの日付が、イベントの期�
     const line = `${jp(ev.from)}10:00から${jp(endDay)}9:59まで`
     // ★**配信し終えたエントリは書き換えないこと**（CLAUDE.md）。期間を動かしたら、
     //   古いほうはそのままにして**いまのバージョンのエントリ**に新しい期間を書く。
-    //   だからここは `APP_VERSION` のエントリを見る（版を固定で書かない）。
-    const cur = CHANGELOG.find(c => c.version === APP_VERSION)
-    check(`${APP_VERSION} のお知らせがある`, !!cur)
-    check(`お知らせの本文が期間と同じ（${line}）`, !!cur && cur.body.includes(line),
-      `${APP_VERSION} の本文に無い`)
+    //   だから見るのは「このイベントに触れているエントリのうち、いちばん新しいもの」。
+    //   ★**`APP_VERSION` のエントリを見る形に戻さないこと。** それだと、終わった
+    //   イベントを**版を上げるたびに書き写す**ことになります（実際に v2.0.8 へ上げた
+    //   ときに落ちました）。お知らせは遊ぶ人が読むもので、App Store の「最新情報」に
+    //   そのまま出るので、**終わったイベントの期間が毎回載る＝嘘が載る**形でした。
+    //   期間を動かしたときは、いまのバージョンのエントリに書けばそこが最新になるので、
+    //   守りたいもの（新しい期間がどこにも書かれないまま配信される）はそのまま守れます。
+    const MARK = 'カード合成の大成功'
+    const cur = CHANGELOG.find(c => c.body.includes(MARK))
+    check(`このイベントに触れているお知らせがある`, !!cur, `「${MARK}」がどのエントリにも無い`)
+    check(`いちばん新しいお知らせの期間が同じ（${line}）`, !!cur && cur.body.includes(line),
+      `${cur?.version ?? '該当なし'} の本文に無い`)
   }
 }
 

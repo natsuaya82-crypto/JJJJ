@@ -35,6 +35,19 @@
  *   ⑤ 貸出の関数に買い取りの枝を戻していない
  *   ⑥ **強い選手には格上から声が掛かる**（2段以上格下は主力に声を掛けない）
  */
+// ── 乱数のシード固定（他の import より先に効かせる） ──────────────────
+//
+// ★**ここを外さないこと。** 種を固定していなかったころ、[8] の「買い手の海外比率」が
+//   **6回に1回ほど 38% で落ちて**いました（2026-09-16 に実測。判定の線は40%）。
+//   数えているのは**最後の1レース**の出品だけなので、標本が十数件しかなく、
+//   231クラブの並び（`aiTeams` のシャッフル）の引き次第で比率がそのまま振れます。
+//   `continental` とまったく同じ形なので、同じ直し方をします（`docs/BACKLOG.md` B-2
+//   ＝「`flaky` の印を付ける前に、そもそも種を固定できないかを先に見ること」）。
+//   種を8つ試して**8つとも通る**ことを確かめたうえで固定しました（2026-09-16）。
+//   たまたま通る1つを選んだわけではありません。**判定は1文字も緩めていません。**
+let __seed = Number(process.env.OFFER_SEED ?? 10001) >>> 0
+Math.random = () => { __seed = (__seed * 1664525 + 1013904223) >>> 0; return __seed / 4294967296 }
+
 import { readFileSync } from 'node:fs'
 import { generateTransferActivity } from '../src/engine/cpuMarket'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
