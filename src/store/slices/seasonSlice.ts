@@ -42,7 +42,7 @@ import { comparePlayers } from '../../utils/playerSort'
 import { faMarketSalary, newContractYears, ovr, packForeignApps, perfOf, transferFeeFor } from '../../utils/playerUtils'
 import { playRateOf } from '../../utils/playRate'
 import { movePlayer } from '../../utils/movePlayer'
-import { squadIdsOf } from '../../utils/rosterSync'
+import { squadIdsOf, clubIndexOf } from '../../utils/rosterSync'
 import { needsPlayer } from '../../utils/squadNeeds'
 import { teamHistoryOf } from '../../utils/teamHistory'
 import { appraiseMove, hasNoPlayingTime, isSurplus } from '../../utils/transferDecision'
@@ -277,6 +277,14 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const cpuRenewalSalary = (p: Player) => faMarketSalary(p, perfOf(state.currentSeason, p.id))
       const cpuRenewIds = new Set<string>()
       {
+        // 格を引くクラブ一覧は**国内52＋海外180**（`allTieredClubs`）。
+        // ★以前ここは `state.teams.find(...)` で引いていて、**海外クラブには必ず
+        //   `undefined` が返り**、`tierOf(undefined)` が最下位の格（20）に落ちていました。
+        //   下のループは選手の `teamId` から作るので海外180クラブも入っているのに、
+        //   **海外は全部 4.2億（格20）で更新判定**＝本来 21.1億の格1が1/5の原資で、
+        //   満了した主力が更新されずFAへ流れていました。
+        const renewalClubs = allTieredClubs(state.teams, state.foreignLeagues)
+        const renewalClubById = new Map(renewalClubs.map(c => [c.id, c]))
         const cpuTeamIdsRenewal = [...new Set(
           state.players
             .filter(p => p.teamId && p.teamId !== '' && p.teamId !== '__pool__' && p.teamId !== state.playerTeamId && p.status === 'active')
@@ -287,14 +295,15 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
           // 「穴が空いているか」（squadNeeds の needsPlayer）だけ。
           // 以前はここに平均OVRから作った下限表（72/65/58）があり、格とは別の物差しだった。
           // 下限はクラブの平均に連動するので、弱いクラブほど下限も下がって実質全員が通っていた
-          const renewRoster = [...state.players.filter(p => p.teamId === teamId && p.status === 'active')].sort(comparePlayers('ovr'))
-          const ongoingCommitted = state.players
-            .filter(p => p.teamId === teamId && p.status === 'active' && p.contract.yearsLeft > 1)
+          // 在籍の数え方は `utils/rosterSync` の索引1本（引退していない人は全員＝怪我も在籍）。
+          // 以前は `status === 'active'` で怪我人が落ち、原資からその年俸が抜けていた
+          const renewRoster = [...(clubIndexOf(state.players).get(teamId) ?? [])].sort(comparePlayers('ovr'))
+          const ongoingCommitted = renewRoster
+            .filter(p => p.contract.yearsLeft > 1)
             .reduce((s, p) => s + p.contract.annualSalary, 0)
           // 更新に使える原資も「格ぶんの予算 − 既存の年俸」。順位ではない
-          let budget = Math.max(0, tierBudget(state.teams.find(t => t.id === teamId)) - ongoingCommitted)
-          const expiring = state.players
-            .filter(p => p.teamId === teamId && p.contract.yearsLeft === 1 && p.status === 'active')
+          let budget = Math.max(0, tierBudget(renewalClubById.get(teamId)) - ongoingCommitted)
+          const expiring = renewRoster.filter(p => p.contract.yearsLeft === 1)
             .sort(comparePlayers('ovr'))
           for (const p of expiring) {
             const renewRank = renewRoster.findIndex(x => x.id === p.id) + 1

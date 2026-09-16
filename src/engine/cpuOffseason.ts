@@ -28,9 +28,9 @@ import { movePlayer } from '../utils/movePlayer'
 import { calcTransferValue, ovr, playerConsentToMove } from '../utils/playerUtils'
 import { clubLabel, loanHeadline, type NewsItem } from '../utils/newsItems'
 import { needsPlayer } from '../utils/squadNeeds'
-import { DOMESTIC_BOTTOM_TIER, allTieredClubs, tierOf, tierOfPlayerClub } from '../utils/clubTier'
+import { DOMESTIC_BOTTOM_TIER, allTieredClubs, tierOf, tierOfPlayerClub, tierBudget } from '../utils/clubTier'
 import { runTransferMarket } from './transferMarket'
-import { ROSTER_MAX } from '../data/rosterRules'
+import { ROSTER_MAX, CPU_SELL_FLOOR } from '../data/rosterRules'
 import type { ArchivedSeason, ForeignLeague, Player, Season, Team, TransferRecord } from '../types'
 
 /**
@@ -62,8 +62,25 @@ function marketClubIds(
   return ids
 }
 
-/** 1軍の登録上限。**解雇で超過ぶんを切るときだけ**使う（元は 23 の直書き） */
-const FIRST_SQUAD_MAX = 23
+/**
+ * **人数が上限に張り付かないようにする歯止めは「払える年俸か」1本。**
+ *
+ * ★以前ここに `FIRST_SQUAD_MAX = 23`（1軍の登録上限）がありました。1軍/2軍の区分は
+ *   `data/rosterRules` が「廃止済み・総在籍だけで管理する」と書いているのに残っていて、
+ *   23 < `ROSTER_MAX`(30) なので**`rosterCapOf` は一度も効かず**、全CPUが毎オフ
+ *   きっちり23人に切り揃えられていました（`CPU_SELL_FLOOR`(16) も飾り）。
+ *   実害の記録も残っています——「1軍上限23人に揃えるので**51クラブ全部がちょうど23人**に
+ *   なり、買い手が1クラブも残らなかった」（下の `runCpuTrades` の注意書き）。
+ *
+ * ★**上限を30にするだけだと、今度は全クラブが30に張り付きます**
+ *   （オーナー・2026-09-15「最大30でいいけど、30に張り付いたままになる対策で23にしてたと思う」）。
+ *   人数の線をもう1本引くのではなく、**お金で止めます**——総年俸（`clubSalaryTotal`）が
+ *   格ぶんの年間予算（`tierBudget`）の `SALARY_ROOM` を超えていたら、超えたぶんだけ
+ *   切る順（`byReleasePriority`）に切る。格が高いクラブほど多く抱えられ、
+ *   **クラブごとに落ち着く人数が変わる**ので一律には張り付きません。
+ *   数字は1つだけ（`SALARY_ROOM`）で、人数の線は `ROSTER_MAX` のまま動かしません。
+ */
+const SALARY_ROOM = 0.85
 /** 売り手の上位何人を保護するか（エース級は出さない） */
 const TRADE_SELLER_PROTECTED = 3
 /** 貸し出されるのはここまでの年齢（走らせて育てる相手なので） */
@@ -112,15 +129,25 @@ export function runCpuReleases(
     //   以前は `status === 'active'` で怪我人が落ち、下の `ctx.rosterCapFor` と
     //   **違う population で上限を見て**いました（`teamRosterSize` は怪我人を数える）
     const roster = (clubIndexOf(world.players).get(teamId) ?? []).filter(x => !isLoanedIn(x, teamId))
-    const avgOvr = roster.length > 0 ? roster.reduce((s, x) => s + ovr(x), 0) / roster.length : 60
-    // 衰えたベテラン（チーム平均より6以上低く、契約も切れる）
+    // ★**強さは `effectiveOvr`（年齢込み）1本、絶対年齢の蓋は置かない**
+    //   （オーナー・2026-09-15「4合わせていい」）。以前は生の `ovr` で「平均より6低い」を
+    //   見たうえで `p.age > 30` の蓋を別に持っていたので、**年齢を2回**見ていました。
+    //   並べ替え（`byReleasePriority`）は既に `effectiveOvr` を通っているので、
+    //   切る理由と切る順番で物差しが違う状態でもありました。
+    const avgOvr = roster.length > 0 ? roster.reduce((s, x) => s + effectiveOvr(x), 0) / roster.length : 60
+    // 衰えた選手（チーム平均より6以上低く、契約も切れる）
     for (const p of roster) {
-      if (p.age > 30 && ovr(p) < avgOvr - 6 && p.contract.yearsLeft <= 1) releaseSet.add(p.id)
+      if (effectiveOvr(p) < avgOvr - 6 && p.contract.yearsLeft <= 1) releaseSet.add(p.id)
     }
-    // 1軍登録上限（23人）の超過ぶん
-    const remaining = roster.filter(p => !releaseSet.has(p.id))
-    if (remaining.length > FIRST_SQUAD_MAX) {
-      [...remaining].sort(byReleasePriority).slice(0, remaining.length - FIRST_SQUAD_MAX).forEach(p => releaseSet.add(p.id))
+    // 払える年俸に収まるまで切る（人数の線ではなくお金で止める）。
+    // **下限（`CPU_SELL_FLOOR`）を割ってまでは切らない**——名簿が溶けるほうが害が大きい
+    const payCap = tierBudget(world.teams.find(t => t.id === teamId)) * SALARY_ROOM
+    const remaining = [...roster.filter(p => !releaseSet.has(p.id))].sort(byReleasePriority)
+    let pay = remaining.reduce((sum, p) => sum + p.contract.annualSalary, 0)
+    let left = remaining.length
+    for (const p of remaining) {
+      if (pay <= payCap || left <= CPU_SELL_FLOOR) break
+      releaseSet.add(p.id); pay -= p.contract.annualSalary; left--
     }
     // 総在籍（1軍+2軍・引退除く）の上限の超過ぶん。既に膨らんだセーブもここを通れば毎年是正される
     const cpuCap = ctx.rosterCapFor(teamId)

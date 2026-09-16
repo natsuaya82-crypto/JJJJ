@@ -1,5 +1,5 @@
 import type { Player, CardStatKey, Ratings } from '../types'
-import { peakAgeOf, getStatPotentials, STAT_CAP } from '../utils/playerUtils'
+import { peakAgeOf, getStatPotentials, STAT_CAP, retirementAgeOf } from '../utils/playerUtils'
 import { tierGrowthRate, ANNUAL_BASE_EXP, type ClubTier } from '../utils/clubTier'
 
 // ── EXP システム（設計書準拠） ─────────────────────────────────────────────
@@ -241,13 +241,22 @@ export function growPlayer(p: Player): Player {
   //   1年ぶんが二重に入ります。この関数がやるのは加齢と衰えだけです。
   const expOut: Partial<Record<CardStatKey, number>> = { ...(p.exp ?? {}) }
 
-  // 衰え。35歳以降は絶対年齢で急激に落とす（37歳で85バリバリを防ぐ）。身体系を大きく、経験系はやや。
+  // 衰え。身体系を大きく、経験系はやや。
+  //
+  // ★**急に落ち始める歳は「その選手が引退する歳」から決めます**
+  //   （`utils/playerUtils` の `retirementAgeOf` 1本。オーナー・2026-09-15
+  //   「5これも合わせて引退の方に」）。以前は `37` と `35` の**絶対年齢**でしたが、
+  //   引退年齢を 32〜40 から **30〜36**（`RETIRE_AGE_MIN`〜`RETIRE_AGE_MAX`）へ下げた
+  //   ときに追随しておらず、**37の枝は誰も通らず**（そこまで生きている選手が居ない）、
+  //   35の枝も「引退の1年前」の意味だったのが選手によって0〜5年前にずれていました。
+  //   引退から逆算すれば、**早熟でも晩成でも「最後の1〜2年で落ちる」**が揃います。
+  const retireAt = retirementAgeOf(p)
   const PHYS: RatingsKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'recovery']
-  if (nextAge >= 37) {
+  if (nextAge >= retireAt) {
     for (const s of PHYS) ratings[s] = Math.max(20, ratings[s] - rnd(3, 6))
     ratings.mental = Math.max(20, ratings.mental - rnd(1, 3))
     ratings.pacing = Math.max(20, ratings.pacing - rnd(1, 3))
-  } else if (nextAge >= 35) {
+  } else if (nextAge >= retireAt - 1) {
     for (const s of PHYS) ratings[s] = Math.max(20, ratings[s] - rnd(2, 4))
     ratings.mental = Math.max(20, ratings.mental - rnd(0, 2))
     ratings.pacing = Math.max(20, ratings.pacing - rnd(0, 2))

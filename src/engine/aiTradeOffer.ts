@@ -7,6 +7,7 @@
 //   以前はここだけ非売しか見ておらず、海外挑戦を承認した選手にも打診が来ていた。
 // ★乱数は引数で受ける（既定は Math.random）。呼ぶ順は切り出し前と同じで、
 //   「既に打診があるなら抽選もしない」短絡もそのまま。
+import { effectiveOvr } from '../utils/foreignClubProfile'
 import type { AITradeOffer, Player, Season, Team } from '../types'
 import { AI_OFFER_GAIN_MAX, AI_OFFER_GAIN_MIN } from '../utils/tradeValue'
 import { canBePoached, eligibilityCtx } from '../utils/transferEligibility'
@@ -49,7 +50,8 @@ export function generateAiTradeOffers(params: {
         .map(p => ovr(p)).sort((a, b) => b - a)
       const lineupBar = myMainOvrs[Math.min(9, Math.max(0, myMainOvrs.length - 1))] ?? 0
       const theirRoster = players.filter(p =>
-        p.teamId === fromId && p.status === 'active' && !p.loan && ovr(p) >= Math.max(65, lineupBar) && p.age <= 33)
+        // ★年齢の蓋（`p.age <= 33`）は外した。強さは `effectiveOvr`（年齢込み）1本で見る
+        p.teamId === fromId && p.status === 'active' && !p.loan && effectiveOvr(p) >= Math.max(65, lineupBar))
       // 自チームの穴（手薄なポジション）に合う選手を優先。いなければ出番基準を満たす全員から
       const fitRoster = theirRoster.filter(p => myNeeds.includes(p.specialty))
       const offerPool = fitRoster.length > 0 ? fitRoster : theirRoster

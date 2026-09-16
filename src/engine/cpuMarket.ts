@@ -2,6 +2,7 @@
 // どのクラブがどれだけ動くかは格（tierStrength）、誰を獲るかは utils/squadNeeds、
 // 本人が行くかは utils/transferDecision。ここはそれらを組み合わせる進行役。
 
+import { isDeclining } from './ageCurve'
 import { clubSalaryTotal } from '../utils/clubMoney'
 import { roundFee, transferCapOf } from '../data/economy'
 import { ROSTER_MAX, ROSTER_MIN } from '../data/rosterRules'
@@ -370,7 +371,10 @@ export function generateTransferActivity(
         if (listed || group.length < 3) continue
         const c = [...group].filter(p => spare(p) && p.contract.yearsLeft > 0).sort((a, b) => ovr(a) - ovr(b))[0]
         if (c) {
-          const price = roundFee(calcTransferValue(c) * (c.age > 28 ? 0.85 : 1.0))
+          // ★**年齢の値引き（28歳超で0.85倍）は外しました。** `calcTransferValue` の中の
+          //   `transferFeeAgeMultiplier`（〜22歳×5／23〜27×4／28〜31×3／32〜×2）が
+          //   既に年齢を効かせているので、**同じことを2回引いて**いました
+          const price = roundFee(calcTransferValue(c))
           newListings.push({ id: `lst-${raceIndex}-${c.id}`, playerId: c.id, fromTeamId: team.id, askingPrice: price, listedAtRace: raceIndex, expiresAtRace: raceIndex + 6, competingTeams: aiTeams.filter(t => t.id !== team.id && Math.random() < 0.5).slice(0, 3).map(t => t.id) })
           listedPlayerIds.add(c.id); listed = true
         }
@@ -388,7 +392,10 @@ export function generateTransferActivity(
 
     // Aging player (>30) with expiring contract below team average
     if (!listed) {
-      const c = [...teamPlayers].filter(p => p.age > 30 && spare(p) && p.contract.yearsLeft <= 1).sort((a, b) => a.age - b.age)[0]
+      // 「衰えた」は**ピークを過ぎたか**（`engine/ageCurve` の `isDeclining`）1本。
+      // 絶対年齢の 30 だと、ピーク22の早熟型が8年も「まだ若い」扱いになり、
+      // ピーク30の晩成型は全盛期の31歳で売りに出される
+      const c = [...teamPlayers].filter(p => isDeclining(p.growthCurve ?? 'normal', p.age) && spare(p) && p.contract.yearsLeft <= 1).sort((a, b) => a.age - b.age)[0]
       if (c) {
         newListings.push({ id: `lst-${raceIndex}-${c.id}`, playerId: c.id, fromTeamId: team.id, askingPrice: roundFee(calcTransferValue(c) * 0.7), listedAtRace: raceIndex, expiresAtRace: raceIndex + 4, competingTeams: aiTeams.filter(t => t.id !== team.id && Math.random() < 0.25).slice(0, 2).map(t => t.id) })
         listedPlayerIds.add(c.id); listed = true
@@ -541,8 +548,14 @@ export function generateTransferActivity(
       //   足りているタイプのエースにも打診が飛んでいた（買う側と非対称だった）。
       //   OVRの下限表（72/65・78/73）もここにあったが、needsPlayer の直前に置かれた
       //   ただの重複だった。人数が足りないときは走れるかどうかも見る
+      // ★**年齢の蓋（`p.age <= 34`）は外しました**（オーナー・2026-09-15「4合わせていい」）。
+      //   年齢は既に二重に効いています——`wants` が通る `needsPlayer` /
+      //   `wouldMakeLineup` は `effectiveOvr`（33歳から1歳ごとに−3）で並ぶので、
+      //   歳を取った選手は自然に序列から落ちます。ここに絶対年齢の線をもう1本置くと
+      //   **34歳で打診がぷつりと止まり**、同じファイルが「年齢の関門を消した」理由
+      //   （下の [FAの年齢関門] の節）と食い違います。
       targets = playerTeamPlayers.filter(p =>
-        !offerTargets.has(p.id) && p.age <= 34 && wants(p, needsSlot))
+        !offerTargets.has(p.id) && wants(p, needsSlot))
       // Prioritize players who want to leave
       const wantLeaveTargets = targets.filter(p => wantToLeaveIds.has(p.id))
       if (wantLeaveTargets.length > 0) targets = wantLeaveTargets

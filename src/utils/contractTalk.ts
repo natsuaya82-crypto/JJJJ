@@ -24,6 +24,7 @@
 // 新しい条件を足すときは必ずこのファイルの関数に足すこと。
 // 呼び出し側に直接 r.status や p.transferListed を書かないこと
 // （scripts/check-contract-talk.ts が検出する）。
+import { roundSalary } from '../data/economy'
 import type { ContractRequest, IncomingOffer, Player } from '../types'
 import { canStartContractTalk } from './transferEligibility'
 import { saleAnsweredIds, type SaleAnswerSeason } from './saleAnswer'
@@ -52,7 +53,7 @@ export const RENEWAL_URGENT_MONTHS = 3
  */
 export function effectiveDemandSalary(r: Pick<ContractRequest, 'demandSalary' | 'round'>): number {
   const roundFactor = 1 + (r.round - 1) * 0.03
-  return Math.round(r.demandSalary * roundFactor / 500000) * 500000
+  return roundSalary(r.demandSalary * roundFactor)
 }
 
 /** 契約残りの月数。チャットの表示・通知のリマインダー・ホームの警告が全部この式を使う */

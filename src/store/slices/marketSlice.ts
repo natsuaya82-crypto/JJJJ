@@ -1,5 +1,6 @@
 // market ドメインのアクション（gameStore から分割）。
 
+import { roundSalary } from '../../data/economy'
 import type { GameStore, SetGame } from '../gameStore'
 import { tradeValueCtxOf, faAllowedDespiteBan, willingFeeFor, finalizeSale } from '../marketOps'
 import { buildContractRequests } from '../../engine/contractRequests'
@@ -480,9 +481,9 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
         round: 1,
         status: 'pending_gm',
         expiresAtRace: (state.currentSeason.currentRaceIndex ?? 0) + 6,
-        demandSalary: Math.round(gmDemand / 500000) * 500000,
+        demandSalary: roundSalary(gmDemand),
         demandYears: 2,
-        offerSalary: Math.round(Math.min(gmDemand, player.contract.annualSalary * 1.05) / 500000) * 500000,
+        offerSalary: roundSalary(Math.min(gmDemand, player.contract.annualSalary * 1.05)),
         offerYears: 2 }
       return { currentSeason: { ...state.currentSeason, contractRequests: [...(state.currentSeason.contractRequests ?? []), req] } }
     })
@@ -761,7 +762,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       let rejectReason: AcquisitionOffer['rejectReason']
       if (ratio >= counterThresh && !isLastRound) {
         status = 'countered'
-        counterSalary = Math.round(desired / 500000) * 500000
+        counterSalary = roundSalary(desired)
         counterYears = Math.max(years, 2)
       } else {
         status = 'rejected'

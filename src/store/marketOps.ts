@@ -1,3 +1,4 @@
+import { transferCapOf } from '../data/economy'
 import type { GameStore, SetGame } from './gameStore'
 import { appendChatLog } from '../utils/chatLog'
 import { saleAnswers, keepSaleAnswers } from '../utils/saleAnswer'
@@ -10,7 +11,7 @@ import { counterCeiling } from '../data/economy'
 import { ROSTER_MIN, teamRosterSize } from '../data/rosterRules'
 import { type GameState, type Player, type Team } from '../types'
 import { MAJOR_NEWS_OVR, allTieredClubs, isBigClub, isStepUp } from '../utils/clubTier'
-import { bigClub, findClub, leagueOfClub } from '../utils/clubs'
+import { allForeignClubs, bigClub, findClub, leagueOfClub } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
 import { settleForeignFee } from '../utils/clubMoney'
 import { clubLabel, overseasMoveHeadline, soldPlayerHeadline } from '../utils/newsItems'
@@ -46,15 +47,29 @@ export function faAllowedDespiteBan(players: Player[], teamId: string): boolean 
 // 以前は runRace の中だけでこの補正を作っていたが、リーグ戦は画面側（interactiveRace）で
 // タイムを計算してから preComputedResults として渡すため、補正が一切反映されていなかった。
 // 画面と store の両方からこの関数を呼ぶことで、施設とケミストリーの効果を必ず効かせる。
+/**
+ * 逆提示に相手が応じられる上限。**国内も海外も同じ**（オーナー・2026-09-15
+ * 「海外とか日本とかもう差分がないんだから一本化して」）。
+ *
+ * ★以前は `if (offer.fromForeign) return ceil` で**海外クラブだけ予算を見ず青天井**でした。
+ *   理由は「海外クラブは `teams` に居ないので予算を見ない」でしたが、**その前提はもう
+ *   ありません**——海外クラブの資金も `finance.budget` 1本で、他所（`engine/cpuMarket` /
+ *   `utils/transferRivals` / `engine/transferMarket`）は全部 `transferCapOf(budget)` を
+ *   通しています。ここだけ残っていたので、国内52クラブだけが予算をやりくりし、
+ *   海外180クラブは常に上限いっぱい払えていました。
+ *   クラブは `utils/clubs` の `findClub` 1本で引く（国内・海外を区別しない引き方）。
+ */
 export function willingFeeFor(
-  state: { teams: Team[] },
+  state: { teams: Team[]; foreignLeagues?: import('../types').ForeignLeague[] | null },
   offer: { fromTeamId: string; offeredPrice: number; fromForeign?: boolean },
   player: Player,
 ): number {
   const ceil = counterCeiling(calcTransferValue(player), offer.offeredPrice)
-  if (offer.fromForeign) return ceil
-  const budget = state.teams.find(t => t.id === offer.fromTeamId)?.finance.budget ?? 0
-  return Math.min(budget, ceil)
+  // クラブは国内52＋海外180から引く（どちらも `finance.budget` を持つ）。
+  // 上限の式は `transferCapOf`（手元の資金）1本＝他所とまったく同じ
+  const club = state.teams.find(t => t.id === offer.fromTeamId)
+    ?? allForeignClubs(state.foreignLeagues ?? []).find(c => c.id === offer.fromTeamId)
+  return Math.min(transferCapOf(club?.finance?.budget ?? 0), ceil)
 }
 
 export function sellMove(

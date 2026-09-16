@@ -127,14 +127,20 @@ console.log('[4] 新人の年俸の下限')
 {
   // ★リテラルで釘を打つ（定数を読んで比べると、定数を変えたとき一緒に動いて緑のままになる）
   check('下限そのものは300万', SALARY_DIAL_MIN === 3_000_000, `${SALARY_DIAL_MIN}`)
-  check('刻みは100万', SALARY_DIAL_STEP === 1_000_000, `${SALARY_DIAL_STEP}`)
+  // ★**100万 → 50万へ変えました**（オーナー・2026-09-15「50で合わせよ」）。
+  //   要求額は50万刻みで作られるのにダイヤルだけ100万刻みで、要求が850万になると
+  //   ちょうどの額を出せませんでした（800万で決裂か900万で払いすぎ）。
+  check('刻みは50万', SALARY_DIAL_STEP === 500_000, `${SALARY_DIAL_STEP}`)
 
   const weak = P('weak', '', S0, 20)
   check('相場が安い選手でも300万を下回らない', draftSalaryFloor(weak) >= 3_000_000, `${draftSalaryFloor(weak)}`)
 
   const strong = P('strong', '', S0, 95)
-  const half = Math.round(faMarketSalary(strong) / 2 / 1_000_000) * 1_000_000
-  check('相場が高い選手は市場相場の半分（100万刻み）', draftSalaryFloor(strong) === Math.max(3_000_000, half),
+  // ★刻みもリテラルで打つ（`draftSalaryFloor` は `SALARY_DIAL_STEP` を使うので、
+  //   ここで定数を読むと一緒に動いて永遠に緑になる）。100万のままでも**たまたま**
+  //   同じ値になって通っていたので、50万へ揃えるときに打ち直した
+  const half = Math.round(faMarketSalary(strong) / 2 / 500_000) * 500_000
+  check('相場が高い選手は市場相場の半分（50万刻み）', draftSalaryFloor(strong) === Math.max(3_000_000, half),
     `${draftSalaryFloor(strong)} / 相場 ${faMarketSalary(strong)}`)
   check('強い選手の下限は300万より上（＝下限に張り付いていない世界で見ている）',
     draftSalaryFloor(strong) > 3_000_000, `${draftSalaryFloor(strong)}`)

@@ -15,6 +15,7 @@
 //   - 要求額は「市場価値 × 性格」。**旧仕様の『現年俸×1.2の自動昇給』は廃止のまま。**
 //     走っていない選手は減額しか要求できない
 //   - 移籍希望はここでは作らない（レース進行時の `generateTransferWishes`）
+import { roundSalary } from '../data/economy'
 import { canRequestRenewal, contractTalkCtx, hasContractTalk } from '../utils/contractTalk'
 import { strHash } from '../utils/hash'
 import { faMarketSalary, isRetiringAge, seasonPerfProfile } from '../utils/playerUtils'
@@ -76,7 +77,7 @@ export function buildContractRequests(args: {
       round: 1,
       status: 'pending_gm' as const,
       expiresAtRace: racesPlayed + 6,
-      demandSalary: Math.round(demand / 500000) * 500000,
+      demandSalary: roundSalary(demand),
       demandYears: personality === 'loyalty' ? 3 : 2,
       offerSalary: 0,
       offerYears: 0 }

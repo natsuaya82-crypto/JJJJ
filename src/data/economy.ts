@@ -138,7 +138,24 @@ export function counterCeiling(marketValue: number, offeredPrice: number): numbe
 // 上限は用途で意図的に違う（オーナー確認済み・2026-08-11）:
 // 交渉（契約更改・FA/引き抜きの獲得提示）は8000万、ドラフト新人は6000万。
 // 値を変えるときはオーナー確認の上でここだけを変えること（画面に直書きしない）。
-export const SALARY_DIAL_STEP = 1_000_000
+/**
+ * **年俸の刻み。年俸を丸めるのも、ダイヤルの1目盛りも、この1つ。**
+ *
+ * ★**100万円から50万円へ揃えました**（オーナー・2026-09-15「50で合わせよ」）。
+ *   要求額は50万円刻みで作られるのに**ダイヤルは100万円刻み**だったので、
+ *   要求が 850万 になると**ちょうどの額を出せません**でした——800万で決裂か
+ *   900万で払いすぎの二択です（承諾の判定は `salary / demand >= 0.95`）。
+ */
+export const SALARY_DIAL_STEP = 500_000
+
+/**
+ * **年俸を刻みに丸める（唯一の場所）。** `roundFee`（移籍金）の年俸版。
+ * 以前は `Math.round(x / 500000) * 500000` が**6か所に手書き**されていて、
+ * ダイヤルの刻み（当時100万）とは別の値に揃っていました。
+ */
+export function roundSalary(v: number): number {
+  return Math.round(v / SALARY_DIAL_STEP) * SALARY_DIAL_STEP
+}
 export const SALARY_DIAL_MIN = 3_000_000
 export const NEGOTIATION_SALARY_MAX = 80_000_000
 export const DRAFT_SALARY_MAX = 60_000_000

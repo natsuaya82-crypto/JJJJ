@@ -12,6 +12,7 @@
 //     ここで進めると二重に加算される
 //   - ラウンドの上限は `utils/contractTalk` の `MAX_CONTRACT_ROUNDS` 1本
 //   - 乱数を引かない（同じ提示には毎回同じ返事）
+import { roundSalary } from '../data/economy'
 import { MAX_CONTRACT_ROUNDS, effectiveDemandSalary } from '../utils/contractTalk'
 import type { ContractRequest, Player } from '../types'
 import { MORALE_DEFAULT } from '../utils/condition'
@@ -45,7 +46,7 @@ if (ratio >= acceptThresh) {
 } else if (ratio >= counterThresh && !isLastRound) {
   newStatus = 'countered'
   // カウンターは「提示と要求の中間」＝承諾すれば実際に値引きが成立する（従来は要求+3%で交渉するだけ損だった）
-  counterSalary = Math.round((demand + salary) / 2 / 500000) * 500000
+  counterSalary = roundSalary((demand + salary) / 2)
   counterYears = Math.max(1, years, req.demandYears)
 } else {
   newStatus = 'rejected'
