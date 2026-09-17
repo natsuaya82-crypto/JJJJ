@@ -16,7 +16,7 @@
  */
 import { greatSuccessChance, activeEvents, EVENTS, GREAT_SUCCESS_CHANCE, GREAT_SUCCESS_EVENT_CHANCE } from '../src/data/events'
 import { NEWS_POPUPS } from '../src/data/newsPopups'
-import { CHANGELOG } from '../src/data/appMeta'
+import { CHANGELOG, APP_VERSION } from '../src/data/appMeta'
 import { jstGameDayISO } from '../src/utils/jstDate'
 import { requiredExpForLevel } from '../src/engine/growth'
 import { RARITY_EXP } from '../src/utils/cardCombo'
@@ -60,67 +60,65 @@ for (const e of EVENTS) {
 console.log('\n[2-b] ポップとお知らせの日付が、イベントの期間と合っている')
 {
   // ★同じ期間が**4か所に文字で出ます**（イベント本体・ポップの出す期間・ポップに出る
-  //   文字・お知らせの本文）。ずらしたときに1つ書き忘れると、**画面にだけ古い日付が残る**。
-  //   コメントで「一緒に直すこと」と書いても守られないので、ここで突き合わせる。
-  const ev = EVENTS.find(e => e.id === 'dl1000-great')
-  const pop = NEWS_POPUPS.find(n => n.id === 'dl1000-2026-08')
-  check('イベントとポップが両方ある', !!ev && !!pop)
-  if (ev && pop) {
-    check('ポップを出す期間がイベントと同じ',
-      pop.from === ev.from && pop.until === ev.to, `ポップ ${pop.from}〜${pop.until} / イベント ${ev.from}〜${ev.to}`)
-    // 画面に出る文字（`8/23 10:00 〜 8/26 9:59`）。終わりは `to` の翌日の 9:59
-    const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`
-    const endDay = new Date(new Date(`${ev.to}T00:00:00+09:00`).getTime() + 86400_000 + 9 * 3600_000)
-      .toISOString().slice(0, 10)
-    const want = `${md(ev.from)} 10:00 〜 ${md(endDay)} 9:59`
-    check(`ポップに出る文字が期間と同じ（${want}）`, pop.event?.period === want, `いまは ${pop.event?.period}`)
-    // お知らせの本文（`8月23日10:00から8月26日9:59まで`）
-    const jp = (d: string) => `${Number(d.slice(5, 7))}月${Number(d.slice(8, 10))}日`
-    const line = `${jp(ev.from)}10:00から${jp(endDay)}9:59まで`
-    // ★**配信し終えたエントリは書き換えないこと**（CLAUDE.md）。期間を動かしたら、
-    //   古いほうはそのままにして**いまのバージョンのエントリ**に新しい期間を書く。
-    //   だから見るのは「このイベントに触れているエントリのうち、いちばん新しいもの」。
-    //   ★**`APP_VERSION` のエントリを見る形に戻さないこと。** それだと、終わった
-    //   イベントを**版を上げるたびに書き写す**ことになります（実際に v2.0.8 へ上げた
-    //   ときに落ちました）。お知らせは遊ぶ人が読むもので、App Store の「最新情報」に
-    //   そのまま出るので、**終わったイベントの期間が毎回載る＝嘘が載る**形でした。
-    //   期間を動かしたときは、いまのバージョンのエントリに書けばそこが最新になるので、
-    //   守りたいもの（新しい期間がどこにも書かれないまま配信される）はそのまま守れます。
-    const MARK = 'カード合成の大成功'
-    const cur = CHANGELOG.find(c => c.body.includes(MARK))
-    check(`このイベントに触れているお知らせがある`, !!cur, `「${MARK}」がどのエントリにも無い`)
-    check(`いちばん新しいお知らせの期間が同じ（${line}）`, !!cur && cur.body.includes(line),
-      `${cur?.version ?? '該当なし'} の本文に無い`)
+  //   文字・お知らせの本文）。1つ書き忘れると**画面にだけ古い日付が残る**ので突き合わせる。
+  //
+  // ★**特定の id（`dl1000-great`）で引く形に戻さないこと。** イベントを消しても
+  //   この点検だけが消えた id を探し続けて落ちます＝**「終わったイベントを消せない」点検**
+  //   になっていました（2026-09-17）。1件も無いときは「どこにも期間が残っていない」を見る。
+  const ev = EVENTS[0]
+  const pop = ev ? NEWS_POPUPS.find(n => n.from === ev.from && n.until === ev.to) : undefined
+  const jpPeriod = /[0-9]{1,2}月[0-9]{1,2}日10:00から/
+  const cur = CHANGELOG.find(x => x.version === APP_VERSION)
+  check(`${APP_VERSION} のお知らせがある`, !!cur)
+
+  if (!ev) {
+    console.log('      開催中のイベントは無い（EVENTS が空）')
+    // ★**空振りの緑ではありません**——イベントが無いのに期間の文字が残っていたら落ちます。
+    //   2026-09-17 に、終わったイベントの期間（8月24日10:00から…）を9月に出すところでした。
+    check('イベントが無いのに、期間を出すポップが残っていない',
+      NEWS_POPUPS.every(n => !n.event), NEWS_POPUPS.filter(n => n.event).map(n => n.id).join(' / '))
+    check(`イベントが無いのに、${APP_VERSION} のお知らせに期間が残っていない`,
+      !!cur && !jpPeriod.test(cur.body), jpPeriod.exec(cur?.body ?? '')?.[0] ?? '')
+  } else {
+    check('イベントを出すポップがある', !!pop, `${ev.id} と同じ期間のポップが無い`)
+    if (pop) {
+      const md = (x: string) => `${Number(x.slice(5, 7))}/${Number(x.slice(8, 10))}`
+      const endDay = new Date(new Date(`${ev.to}T00:00:00+09:00`).getTime() + 86400_000 + 9 * 3600_000)
+        .toISOString().slice(0, 10)
+      const want = `${md(ev.from)} 10:00 〜 ${md(endDay)} 9:59`
+      check(`ポップに出る文字が期間と同じ（${want}）`, pop.event?.period === want, `いまは ${pop.event?.period}`)
+      const jp = (x: string) => `${Number(x.slice(5, 7))}月${Number(x.slice(8, 10))}日`
+      const line = `${jp(ev.from)}10:00から${jp(endDay)}9:59まで`
+      check(`${APP_VERSION} のお知らせの期間が同じ（${line}）`,
+        !!cur && cur.body.includes(line), `${APP_VERSION} の本文に無い`)
+    }
   }
 }
 
 console.log('\n[3] 大成功の確率（イベント中だけ倍率が掛かる）')
 {
-  // ★**日付を書かないこと。** ここは前日・当日・翌日を `data/events` から引く。
-  //   手書きしていたころ（2026-08-21 に期間を 8/22〜8/24 → 8/23〜8/25 へずらしたとき）は、
-  //   「ふだんは5%」に当てていた 8/21 が**新しい期間でもふだんのまま**なので緑で通り、
-  //   「終わったら戻る」の 8/25 だけが**イベント中に変わって**落ちた。
-  //   ずれた日を1つずつ直すことになるので、動かす場所を1つにする。
-  const ev = EVENTS.find(e => e.id === 'dl1000-great')
-  check('1000DL記念のイベントが入っている', !!ev, 'data/events の EVENTS')
-  if (ev) {
-    const shift = (d: string, days: number) =>
-      new Date(new Date(`${d}T00:00:00+09:00`).getTime() + days * 86400_000 + 9 * 3600_000)
+  // ★**日付を書かないこと**（前日・当日・翌日は `data/events` から引く）。
+  // ★**特定の id で引かないこと**（上の [2-b] と同じ理由）。
+  const ev = EVENTS[0]
+  if (!ev) {
+    console.log('      開催中のイベントは無い（EVENTS が空）')
+    check('いつ引いてもふだんの5%',
+      greatSuccessChance('2026-09-17') === GREAT_SUCCESS_CHANCE
+      && greatSuccessChance('2026-08-25') === GREAT_SUCCESS_CHANCE)
+    // ★**仕組みが生きていることは確かめる**（飛ばすと「EVENTS を空にすれば何でも緑」になる）
+    check('イベント中の確率は確定（1）のまま持っている', GREAT_SUCCESS_EVENT_CHANCE === 1)
+  } else {
+    const shift = (x: string, days: number) =>
+      new Date(new Date(`${x}T00:00:00+09:00`).getTime() + days * 86400_000 + 9 * 3600_000)
         .toISOString().slice(0, 10)
     const before = shift(ev.from, -1), during = ev.from, after = shift(ev.to, 1)
     console.log(`      前日 ${before} ／ 期間 ${ev.from}〜${ev.to} ／ 翌日 ${after}`)
     check(`ふだんは5%（${before}）`, greatSuccessChance(before) === GREAT_SUCCESS_CHANCE)
-    // ★イベント中の確率は data/events の GREAT_SUCCESS_EVENT_CHANCE 1本
-    //   （オーナー・2026-08-22「確定って話してただろ」＝ 1.0）。倍率で持たないこと。
     check(`イベント中は確定（${during}）`,
-      greatSuccessChance(during) === GREAT_SUCCESS_EVENT_CHANCE,
-      String(greatSuccessChance(during)))
-    // ★1 を超えないこと。イベント中が確定なら**広告の「大成功を確約」は消えるのが正しい**
-    //   （確約するものが既に確約されているため）。1 を超えると `< 1` の判定が壊れる
+      greatSuccessChance(during) === GREAT_SUCCESS_EVENT_CHANCE, String(greatSuccessChance(during)))
     check('1 を超えない', greatSuccessChance(during) <= 1)
     check(`終わったら戻る（${after}）`, greatSuccessChance(after) === GREAT_SUCCESS_CHANCE)
   }
-  // 広告まわりを隠す判定も同じ関数から出していること（画面に日付や 0.05 を書かない）
   const page = readFileSync('src/components/training/CardTrainingPage.tsx', 'utf8')
   check('広告まわりの出し分けも greatSuccessChance から', /greatSuccessChance\(jstGameDayISO\(\)\) < 1/.test(page))
   check('画面に 0.05 も日付も書いていない', !/0\.05|2026-08-2/.test(page))

@@ -114,7 +114,17 @@ console.log('\n[4] 期間中は毎回出す（「もう表示しない」を押�
 {
   const rep = NEWS_POPUPS.find(n => n.repeat)
   if (!rep) {
-    check('repeat のお知らせがある（この節が空振りしていない）', false, '1件も無い')
+    // ★**「無いこと」で落とさないこと。** ここは `repeat` のお知らせが1件も無いと
+    //   NG になっていたので、**期間が終わったお知らせを消せませんでした**
+    //   （2026-09-17・1000DL記念を撤去したとき）。`repeat` は期間ものに付ける印なので、
+    //   何もやっていない時期は0件が正しい。**仕組みが生きているかだけを見る。**
+    console.log('      期間もののお知らせは無い（repeat は0件）')
+    check('repeat を持つお知らせが本当に0件', NEWS_POPUPS.every(n => !n.repeat))
+    const app0 = readFileSync('src/App.tsx', 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+    check('「期間中は毎回出す」の仕組みは残っている',
+      /if \(!news\.repeat \|\| stop\) markDeviceNewsSeen/.test(app0))
+    check('「もう表示しない」を押せる口がある',
+      /もう表示しない/.test(readFileSync('src/components/ui/NewsModal.tsx', 'utf8')))
   } else {
     const shift = (d: string, n: number) => {
       const t = new Date(`${d}T00:00:00Z`); t.setUTCDate(t.getUTCDate() + n)

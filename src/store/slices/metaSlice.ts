@@ -82,39 +82,7 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
       // 期限切れ（expiresAt を過ぎた）ギフトは毎回掃除する
       const nowISO = new Date().toISOString()
       const pruned = (state.pendingGifts ?? []).filter(g => !g.expiresAt || g.expiresAt >= nowISO)
-      const prunedChanged = pruned.length !== (state.pendingGifts ?? []).length
-
-      // ★**中身を変えたら版も変えること。** ギフトはセーブに実体で載るので、
-      //   コードだけ直しても**既に配られたぶんは古い中身のまま**です。
-      //   `-2` は 8/20 に選手作成を足したぶん（初版はトロフィー5個だけだった）。
-      const GIFT_VERSION = '2.0.5-1000dl-2'
-      if ((state.giftGivenVersions ?? []).includes(GIFT_VERSION)) {
-        return prunedChanged ? { pendingGifts: pruned } : state
-      }
-      // ★**前の版の未受け取りを取り下げる。** 上のコメントにそう書いてあるのに
-      //   実際には**何もしていませんでした**（期限切れの掃除だけ）。取り下げないと、
-      //   中身を差し替えた版と古い版が2件並んで両方受け取れます。
-      //   取り下げるのは**この仕組みが配ったぶんだけ**（`giftGivenVersions` に載っている版）。
-      //   `gift_` で始まる、のような形で見ると、他から入れたギフトまで消えます。
-      const mine = new Set((state.giftGivenVersions ?? []).map(v => `gift_${v}`))
-      const withdrawn = pruned.filter(g => !mine.has(g.id))
-      // 受け取りの期限（オーナー・2026-08-21「プレゼントの受け取りは8/31まで」）。
-      // 日本時間の 8/31 いっぱい＝UTC で 8/31 14:59:59。**配布からの日数にしないこと**
-      // （いつ入れたかで期限が変わり、告知の日付と合わなくなる）
-      const expiresAt = '2026-08-31T14:59:59.999Z'
-      const gift: Gift = {
-        id: `gift_${GIFT_VERSION}`,
-        title: '1000ダウンロード突破記念',
-        // ★**説明文を書かないこと**（オーナー・2026-08-20「キモい説明文書くなって
-        //   言ってるだろ。今後一切禁止で」）。中身は giftContents が名札として出す
-        message: '',
-        cards: [],
-        trophies: 5,
-        playerCreates: 1,
-        expiresAt }
-      return {
-        pendingGifts: [...withdrawn, gift],
-        giftGivenVersions: [...(state.giftGivenVersions ?? []), GIFT_VERSION] }
+      return pruned.length !== (state.pendingGifts ?? []).length ? { pendingGifts: pruned } : state
     })
   },
 

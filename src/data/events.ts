@@ -32,16 +32,13 @@ export const GREAT_SUCCESS_CHANCE = 0.05
  * ★`to` は**その日を含む**（`from <= 今日 <= to`）。8/23〜8/25 で3日間。
  */
 export const EVENTS: GameEvent[] = [
-  // 1000DL突破記念。★**大成功は「確定」**（オーナー・2026-08-22「確定って話してただろ」）。
-  // 8/20 にいったん 100% → 2倍 にしましたが、確定に戻しました。
-  // ★「3日だけ」なので 8/24〜8/26。日付の区切りは日本時間の朝10時（`jstGameDayISO`）
-  // ★**8/23〜8/25 から、もう1日ずらしました**（オーナー・2026-08-22「1日ずれて明日から開催に変更」
-  //   ＝ 8/24 10:00 〜 8/27 9:59）。ビルドが実機に届く時間ぶん、開始を後ろへ動かした。
-  //   **期間を動かしたら、次の3つも一緒に直すこと**（日付が3か所に文字で出ます）
-  //     ・`data/newsPopups` の `event.period`（ポップに出る文字）と `from` / `until`
-  //     ・`data/appMeta` の v2.0.5 のお知らせの本文
-  //     ・`scripts/check-event-window.ts` の[3]（前日・当日・翌日をここから引きます）
-  { id: 'dl1000-great', title: '1000DL記念 大成功確定', from: '2026-08-24', to: '2026-08-26' },
+  // ★**いま開催中のイベントはありません。**
+  //   1000DL記念（大成功確定・2026-08-24〜26）は終わったので消しました（2026-09-17）。
+  //   終わったイベントを置いたままにすると、`greatSuccessChance` は日付で外れるので
+  //   何も起きないように見えますが、**期間の文字がお知らせとポップに残り続けます**
+  //   （実際にそれで、9月に「8月24日10:00から…」を出すところでした）。
+  //   足すときは `data/newsPopups` の `event.period` と `from`/`until`、
+  //   `data/appMeta` のお知らせ本文も一緒に。`check-event-window` の[2-b]が突き合わせます。
 ]
 
 /**
@@ -79,6 +76,12 @@ export function isEventActive(id: string, today: string): boolean {
  *   「確定」との区別が付かなくなります（画面は `< 1` で広告のボタンを出す）。
  */
 export function greatSuccessChance(today: string): number {
-  const c = isEventActive('dl1000-great', today) ? GREAT_SUCCESS_EVENT_CHANCE : GREAT_SUCCESS_CHANCE
+  // ★**特定の id で引かないこと。** 以前は `isEventActive('dl1000-great', …)` と
+  //   書いてあり、そのイベントを EVENTS から消しても**この行だけが消えた id を
+  //   指したまま**残りました（2026-09-17）。何も起きないので気づけません。
+  //   `EVENTS` はいまのところ「合成の大成功が確定する期間」だけを持ちます。
+  //   **別の種類のイベントを足すときは、`GameEvent` に種類を持たせること**
+  //   （でないと、その期間も大成功が確定します）。
+  const c = activeEvents(today).length > 0 ? GREAT_SUCCESS_EVENT_CHANCE : GREAT_SUCCESS_CHANCE
   return Math.min(1, c)
 }

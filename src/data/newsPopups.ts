@@ -59,29 +59,7 @@ export type NewsPopup = {
   repeat?: boolean
 }
 
-import dl1000 from '../assets/dl1000.png'
-
 export const NEWS_POPUPS: NewsPopup[] = [
-  {
-    // ★**先頭に置くこと**（オーナー・2026-08-21「1000dl記念→ランクマッチ」）。
-    //   ポップは1回に1件しか出さないので、並び順がそのまま出す順番になります。
-    id: 'dl1000-2026-08',
-    lead: '1000',
-    title: 'ダウンロード突破記念',
-    hero: dl1000,
-    logo: 'title',
-    rewards: [
-      { icon: 'trophy', label: '優勝トロフィー ×5' },
-      { icon: 'runner', label: '選手作成 ×1' },
-    ],
-    event: { label: 'カード合成の大成功が確定', period: '8/24 10:00 〜 8/27 9:59' },
-    body: '受け取りは8/31まで',
-    actionLabel: '受け取る',
-    to: '/notifications',
-    from: '2026-08-24',
-    until: '2026-08-26',
-    repeat: true,
-  },
   {
     // ★**id を変えたら、前のお知らせを見た人にももう一度出ます。**
     //   募集（`rated-entry-2026-09`）→ 中止のお知らせ、で3代目。
