@@ -92,7 +92,7 @@ export const NEWS_POPUPS: NewsPopup[] = [
     lead: '開催中止',
     title: '第一回ランクマッチβテスト',
     art: 'ranks',
-    body: '参加者が集まらなかったため、9/1の開催を見送ります',
+    body: '参加者が集まらなかったため、第一回の開催を見送りました',
     actionLabel: '閉じる',
     to: '/online/rated',
     until: '2026-09-30',
