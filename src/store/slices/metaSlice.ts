@@ -2,7 +2,6 @@
 
 import type { GameStore, SetGame } from '../gameStore'
 import { loginPrevKey, loginTodayKey } from '../../utils/loginDate'
-import { type Gift } from '../../types'
 import { ADS_PER_DAY, AD_REWARD_JEWELS, getAdDay } from '../../utils/ads'
 import { findClub } from '../../utils/clubs'
 import { canRegisterHof, isHofEligible, registerHof, removeHof } from '../../utils/hofRoster'
