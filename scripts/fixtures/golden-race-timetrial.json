@@ -5,7 +5,7 @@
  "currentSeason": "6b80dcdde39064fd (635264B)",
  "deficitRescue": "6b86b273ff34fce1 (1B)",
  "draftState": "74234e98afe7498f (4B)",
- "foreignLeagues": "d9d512bb822faeea (30819B)",
+ "foreignLeagues": "b40df97ec6722ff3 (30820B)",
  "giftGivenVersions": "4f53cda18c2baa0c (2B)",
  "gmOffers": "4f53cda18c2baa0c (2B)",
  "gmRep": "1a6562590ef19d10 (2B)",
@@ -46,5 +46,5 @@
  "worldAthleticsResults": "4f53cda18c2baa0c (2B)",
  "worldRecords": "474ea71bbbb14707 (253B)",
  "worldRepresentatives": "4f53cda18c2baa0c (2B)",
- "$all": "bd8c11730174a102 (5031308B)"
+ "$all": "05d1fad8ff24696a (5031309B)"
 }
