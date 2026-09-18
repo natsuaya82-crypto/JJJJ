@@ -55,7 +55,10 @@ console.log('[1] 枠は IntroModal 1本')
 
 console.log('\n[2] 文面は data に置く（画面に直書きしない）')
 {
-  check('お知らせが1件以上ある', NEWS_POPUPS.length > 0, `${NEWS_POPUPS.length}件`)
+  // ★**「1件以上ある」で落とさないこと。** 出すものが無い時期のほうがふつうで、
+  //   ここが NG だと**終わったお知らせを消せません**（2026-09-18・ランクマッチを
+  //   隠したとき）。0件でよい。そのぶん**仕組みが生きているか**を下で見る。
+  if (NEWS_POPUPS.length === 0) console.log('      いま出しているお知らせは無い（0件）')
   check('画面に見出しを書いていない', /news\.title/.test(news) && !/オンラインレート戦/.test(news))
   check('App.tsx に見出しを書いていない', !/オンラインレート戦/.test(noComments(app)))
   for (const n of NEWS_POPUPS) {
@@ -72,9 +75,16 @@ console.log('\n[3] 選ぶ判定は nextNewsPopup 1本')
   const TODAY = '2026-08-18'
   // ★**`from` が来ている先頭は数に入れない。** 期間前のものは出ないのが正しい
   //   （2026-08-21 に1000DL記念を先頭へ置いた。8/22 より前は次のものが出る）
-  const first = NEWS_POPUPS.find(n => (!n.from || n.from <= TODAY) && (!n.until || n.until >= TODAY))!
-  check('まだ見ていなければ出る', nextNewsPopup([], TODAY)?.id === first.id, String(nextNewsPopup([], TODAY)?.id))
-  check('一度見たら出ない', nextNewsPopup(NEWS_POPUPS.map(n => n.id), TODAY) === null)
+  const first = NEWS_POPUPS.find(n => (!n.from || n.from <= TODAY) && (!n.until || n.until >= TODAY))
+  if (!first) {
+    // ★0件（または全部が期間外）のときも**空振りにしない**——「何も出ない」ことを実際に確かめる
+    check('出すものが無いので、いつ聞いても null',
+      nextNewsPopup([], TODAY) === null && nextNewsPopup([], '2026-12-31') === null,
+      String(nextNewsPopup([], TODAY)?.id ?? nextNewsPopup([], '2026-12-31')?.id))
+  } else {
+    check('まだ見ていなければ出る', nextNewsPopup([], TODAY)?.id === first.id, String(nextNewsPopup([], TODAY)?.id))
+    check('一度見たら出ない', nextNewsPopup(NEWS_POPUPS.map(n => n.id), TODAY) === null)
+  }
   // ★**`nextNewsPopup` を実際に呼ぶこと。** ここはコメントに「期限切れの世界を作って
   //   確かに出ないことを見る」と書いてあるのに、**配列に期限切れの行が無いことを
   //   見ているだけ**で `nextNewsPopup` を1回も呼んでいませんでした
@@ -82,12 +92,19 @@ console.log('\n[3] 選ぶ判定は nextNewsPopup 1本')
   //   基準日も 2026-08-16 のベタ書きだったので、そこから先に期限が切れた行は素通りでした。
   {
     const allUntil = NEWS_POPUPS.map(n => n.until).filter((u): u is string => !!u)
-    check('期限つきのお知らせがある（空振りの緑ではない）', allUntil.length > 0, `${allUntil.length}件`)
+    if (allUntil.length === 0) {
+      // ★お知らせが0件のときは「期限切れが出ない」を確かめようがないので、
+      //   **絞り込みの式が生きているか**を見る（消すとここが落ちる）
+      const src = readFileSync('src/data/newsPopups.ts', 'utf8')
+      check('期限で絞る式が残っている', /!n\.until \|\| n\.until >= today/.test(src))
+      check('開始日で絞る式が残っている', /!n\.from \|\| n\.from <= today/.test(src))
+    } else {
     // いちばん遅い期限の翌日から見れば、期限つきのものは1件も出ないはず
     const after = allUntil.slice().sort().pop()!
     const dayAfter = new Date(Date.parse(after + 'T00:00:00Z') + 86400_000).toISOString().slice(0, 10)
     const left = nextNewsPopup([], dayAfter)
     check('期限を過ぎたものは出ない', left === null || !left.until, `${dayAfter} に ${left?.id ?? 'なし'} が出た`)
+    }
   }
   check('画面が配列を自分で絞っていない', !/NEWS_POPUPS/.test(news) && !/NEWS_POPUPS/.test(app))
   check('App.tsx が nextNewsPopup を通る', /nextNewsPopup\(/.test(app))

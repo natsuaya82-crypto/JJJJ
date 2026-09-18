@@ -36,10 +36,9 @@ export function withFatigue<T extends { fatigue?: number }>(p: T, delta: number)
  * 下げるときは下限しか掛かっていない**半分ずつの上下限**だったので、1本にまとめて
  * 両方掛ける（掛かる値は同じ。0〜100の外に出る経路はもともと無い）。
  *
- * ★**下限は 0 の1本です**（以前は `seasonObjectives` に `Math.max(1, …)` があったが撤去済み）。旧：下限が0と1の2つ（`docs/BACKLOG.md` A-8）。
- *   シーズン終了時の目標達成率で動かす `engine/seasonObjectives.ts` だけが
- *   `Math.max(1, ...)` で、1で止まります。どちらが正かはオーナーの判断待ちなので、
- *   ここでは触らず、あちら側に「1で止める」を明示的に1行残してあります。
+ * ★**下限は 0 の1本です**（オーナー判断・2026-08-12。`docs/BACKLOG.md` A-8 `済`）。
+ *   以前はシーズン終了時の目標達成率で動かす `engine/seasonObjectives.ts` だけが
+ *   `Math.max(1, ...)` で1止まりでしたが、撤去済みです。**戻さないこと。**
  */
 export const GM_REP_DEFAULT = 50
 export function withGmRep(cur: number | undefined, delta: number): number {

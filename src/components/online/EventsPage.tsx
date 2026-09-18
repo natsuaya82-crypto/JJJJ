@@ -4,6 +4,7 @@ import PageHeader from '../ui/PageHeader'
 import MenuButton from '../ui/MenuButton'
 import { fetchEvent, type RatedEventInfo } from '../../lib/ratedApi'
 import { C, alpha, FONT, F } from '../../styles/tokens'
+import { RATED_ENABLED } from '../../data/featureFlags'
 
 // ============================================================================
 // **オンラインのイベント一覧。**
@@ -24,6 +25,8 @@ import { C, alpha, FONT, F } from '../../styles/tokens'
 //   遊びかたは中の `?`（`components/rated/ratedRules`）から見る。
 // ============================================================================
 
+// ★**出す・出さないは `data/featureFlags` 1本**（ここに日付や条件を書かないこと）。
+//   ランクマッチは `RATED_ENABLED` が false のあいだ行ごと消えます。
 export default function EventsPage() {
   const navigate = useNavigate()
   const [ev, setEv] = useState<RatedEventInfo | null>(null)
@@ -36,7 +39,7 @@ export default function EventsPage() {
       <PageHeader eyebrow="EVENTS" title="イベント" />
 
       <div style={{ padding: '10px 20px 0', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {ev && (
+        {RATED_ENABLED && ev && (
           <MenuButton
             label="ランクマッチ"
             en="RANKED MATCH"
@@ -50,7 +53,7 @@ export default function EventsPage() {
           />
         )}
 
-        {loaded && !ev && (
+        {loaded && (!RATED_ENABLED || !ev) && (
           <div style={{
             padding: '28px 18px', textAlign: 'center', color: C.textGhost, fontSize: F.sub,
             border: `1px solid ${alpha(C.border3, 0.7)}`,
