@@ -650,13 +650,15 @@ tab / page / view / division / section のものが一覧に無ければ落ち�
 | W4 | 日程・結果・順位表はリーグIDで引く（`Season.leagues`） |
 | W5 | 時計は日付（`engine/leagueDay`） |
 | W6 | CPU の自動処理は「自チームの id 以外」で絞る（`otherClubs`） |
-| W7 | お金の精算は1か所 |
+| W7 | お金の精算は1か所（来季予算＝`engine/seasonBudget` の `computeSeasonBudgets`／クラブ間のお金＝`utils/clubMoney` の `payBetween`）。自チームかどうかは id だけで見る |
 
-★**P3（2026-09-25）で済んだのは W1・W2・W4・W5 と入れ物の一本化まで**です。国内と海外で処理が違うところ
-（`isJpelLeague` / `jpelClubs` で分けているところ：移籍金を動かすのは日本のリーグだけ＝`movePlayer` と
-`settleForeignFee` の2か所・区間賞を払うのは国内だけ・CPU の自動処理の一部が国内だけ、など）は
-**振る舞いを変えずにそのまま残してあり、揃えるのは P4** です（オーナーの決定は P4 の計画にあります）。
-新しく書くときは `jpelClubs` で絞る分岐を増やさず、リーグの決まりから引くこと。
+★**P4（2026-09-25）で W6・W7 まで入りました。** お金を動かすのは `utils/clubMoney` の `payBetween` 1本
+（移籍金もトレードの現金も、どのリーグのクラブでも両側が動く）、来季予算の精算は `engine/seasonBudget` 1か所
+（232クラブ・区間賞は海外リーグにも払う）、CPU のオフの処理と ECL は自チームを id で外す
+（`check-season-budget` / `check-club-money` / `check-self-by-id` / `check-trade-world`）。
+**まだ `jpelClubs` / `isJpelLeague` で分けているところ**（シーズン中のレンタルの打診 borrow_in の出し手・
+記録会のチーム歴代記録・指名権まわり・監督オファーの候補・新しいゲームの並べ替え など）は振る舞いを
+変えずに残してあります。新しく書くときは `jpelClubs` で絞る分岐を増やさず、リーグの決まりから引くこと。
 
 `check-world-layer` が見張るもの：層の外の直読み**0件**（予算の fixture は置かない＝1件でも落ちる）／
 `GameState` に `teams` / `foreignLeagues` が無い／旧い名前を読み書きするのは移行の2本だけ／
@@ -698,6 +700,13 @@ tab / page / view / division / section のものが一覧に無ければ落ち�
 | ドラフト | `generateDraftPool` → `draftSlice` | **1部の20クラブだけ**（`joinsDraft`） | 候補120人・2巡＝40人／年 |
 | 海外の補充 | `engine/playerGenerator.ts` の `refreshForeignLeagues` | 海外180クラブ | 1クラブ最大3人（最大540人／年） |
 | 国内2・3部の若手 | 同ファイルの `refreshDomesticYouth` | **2部・3部の32クラブ**（1部は入れない） | `DOMESTIC_YOUTH_PER_CLUB` ＝ **1クラブ2人** |
+
+★**この3つ（と下限割れの救済 `fillAllRostersToMin`）を1本にする決定があります**（オーナー・2026-09-25
+「格に応じて平均の高い選手が入る」「20人以下になったら開催できないから20人以上になるように」）が、
+**「開幕の直前に20人に届くまで埋める」だけで入れると世界が崩れた**ので入れていません（P4 で実測。
+16年回すと全クラブが20人に張り付き、FAが11年目から0人、OVR90+が122人→41人）。
+**毎年どれだけ入れるかの決まり**が決まってから入れること。測る道具は `scripts/measure-roster-fill.ts`
+（入口を変える前と後のコードで同じまま走る）。
 
 `refreshDomesticYouth` はオーナーの指示（2026-08-16「2.3部にも若手補強しよう。2人。
 レベル帯はドラフト外レベル」）。**レベル帯はランク C・D＝ドラフトで指名されずに残る帯**で、
