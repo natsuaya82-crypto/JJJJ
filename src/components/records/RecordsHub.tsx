@@ -5,7 +5,7 @@ import { teamHistoryOf, titleRows } from '../../utils/teamHistory'
 import { makeTeamIdAt } from '../../utils/gmTenure'
 import { C, alpha, DIV_STAR, SAIRA, FONT, F } from '../../styles/tokens'
 import PageHeader from '../ui/PageHeader'
-import { DIVISION_LABEL, rankOfTeam, seasonDivisionStandings } from '../../utils/league'
+import { DIVISION_LABEL, rankOfTeam, seasonLeagueStandings } from '../../utils/league'
 import { panelStyle } from '../ui/Panel'
 import { myLeagueRaces } from '../../utils/world'
 
@@ -25,8 +25,8 @@ export default function RecordsHub() {
   // ★**部ごと**（オーナー・2026-08-12）。合計だと3部優勝と1部優勝が混ざる
   const clubTitles = teamHistoryOf(pastSeasons, playerTeamId)
   const completedRaces = myLeagueRaces(currentSeason, playerTeamId).filter(r => r.results).length
-  // 自分の部の中での順位。**通し順位（1〜52）は出さない**（格を決める内部の数・utils/clubStanding）
-  const myStanding = rankOfTeam(seasonDivisionStandings(currentSeason, playerTeamId), playerTeamId)
+  // 自分のリーグの中での順位。**通し順位（1〜52）は出さない**（格を決める内部の数・utils/clubStanding）
+  const myStanding = rankOfTeam(seasonLeagueStandings(currentSeason, playerTeamId), playerTeamId)
 
   const SECTIONS = [
     {
@@ -153,7 +153,7 @@ export default function RecordsHub() {
             <div style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.textDim, letterSpacing: '2px', marginBottom: '8px' }}>過去の成績</div>
             <div style={{ display: 'flex', gap: '8px' }}>
               {pastSeasons.slice(-4).reverse().map(season => {
-                const rank = rankOfTeam(seasonDivisionStandings(season, teamIdAt(season.year)), teamIdAt(season.year))
+                const rank = rankOfTeam(seasonLeagueStandings(season, teamIdAt(season.year)), teamIdAt(season.year))
                 const rankCol = rank === 1 ? C.gold : rank <= 3 ? C.green : C.textDim
                 return (
                   <div key={season.year} style={{ flex: 1, textAlign: 'center', padding: '6px',background: C.surface }}>

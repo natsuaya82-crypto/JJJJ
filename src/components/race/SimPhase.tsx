@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import type { Race, Team, Player } from '../../types'
+import type { Race, Player, WorldClub } from '../../types'
 import { panelStyle } from '../ui/Panel'
 import type { RaceSegmentEvent, InteractiveSegResult, EventTriggerCondition } from '../../engine/interactiveRace'
 import { choiceSuccessProb } from '../../engine/interactiveRace'
@@ -77,7 +77,7 @@ function checkEventTrigger(
 
 type Props = {
   race: Race
-  raceTeams: Team[]
+  raceTeams: readonly WorldClub[]
   players: Player[]
   playerTeamId: string
   pendingEvent: RaceSegmentEvent | null
@@ -101,7 +101,7 @@ type Props = {
 
 // ランナー位置計算（総合順位ベース）
 function calcRunnerPositions(
-  raceTeams: Team[],
+  raceTeams: readonly WorldClub[],
   playerTeamId: string,
   playerBaseTime: number,
   cpuTimesForSeg: Record<string, number>,
@@ -129,7 +129,7 @@ export function RaceTrack({
   raceTeams, players, segRunnerIds, playerTeamId, playerBaseTime, cpuTimesForSeg, baselineCumulative,
   kmRatio, distanceKm, segCol, currentSegIdx, race,
 }: {
-  raceTeams: Team[]
+  raceTeams: readonly WorldClub[]
   players?: Player[]
   segRunnerIds?: Record<string, string>
   playerTeamId: string
@@ -685,7 +685,7 @@ export function SegmentResultCard({
 }: {
   seg: InteractiveSegResult
   race: Race
-  teamMap: Map<string, Team>
+  teamMap: ReadonlyMap<string, WorldClub>
   playerMap: Map<string, Player>
   playerTeamId: string
   isLastSeg: boolean

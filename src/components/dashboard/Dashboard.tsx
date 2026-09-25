@@ -11,6 +11,7 @@ import { ovr } from '../../utils/playerUtils'
 import { TeamLogoSVG } from '../icons/Icons'
 import { C, alpha, SAIRA, F, PAGE_X } from '../../styles/tokens'
 import JewelGainPopup from '../ui/JewelGainPopup'
+import { leagueRoutePath } from '../../utils/clubs'
 import HeroCard from './HeroCard'
 import NextRaceCard from './NextRaceCard'
 import { computeSeasonAwards } from '../../utils/awards'
@@ -29,7 +30,7 @@ import { SkipRaceButton } from '../race/SkipRaceButton'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { GmPassSheet, IAP_ENABLED } from '../shared/GmPassSheet'
 import { contractTalkCtx, contractMonthsLeft, needsRenewalAttention } from '../../utils/contractTalk'
-import { seasonDivisionStandings, rankOfTeam } from '../../utils/league'
+import { seasonLeagueStandings, rankOfTeam } from '../../utils/league'
 import { panelStyle } from '../ui/Panel'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { MORALE_DEFAULT } from '../../utils/condition'
@@ -269,9 +270,8 @@ export default function Dashboard() {
   const dueTT = getDueIndividualEvent(currentSeason, myLeagueRaces(currentSeason, playerTeamId))
   const showTTNext = !!dueTT && (!nextRaceData || dueTT.date <= nextRaceData.race.date)
   const seasonDone = currentSeason.currentRaceIndex >= myLeagueRaces(currentSeason, playerTeamId).length && myLeagueRaces(currentSeason, playerTeamId).length > 0
-  // 順位表は全52チームぶんを1本で持っているので、自分が走っている部だけに絞る
-  // （絞らないと、部ごとにレース数が違うぶんだけ順位がずれる）
-  const sorted = seasonDivisionStandings(currentSeason, playerTeamId)
+  // 自分が走っているリーグの順位表（日本の部も海外リーグも同じ・utils/league）
+  const sorted = seasonLeagueStandings(currentSeason, playerTeamId)
   // ホームの「チャット」に出す未読の数。**チャットを開くまで消えない**
   const chatUnseen = chatUnseenCount(
     { currentSeason, players, clubs, playerTeamId },
@@ -341,14 +341,15 @@ export default function Dashboard() {
   ) : null
   const lastSeason = pastSeasons[pastSeasons.length - 1]
   const lastRank = lastSeason
-    ? rankOfTeam(seasonDivisionStandings(lastSeason, playerTeamId), playerTeamId)
+    ? rankOfTeam(seasonLeagueStandings(lastSeason, playerTeamId), playerTeamId)
     : 0
 
   /* Season end */
   const isChampion = seasonDone && sorted[0]?.teamId === playerTeamId
   // リーグMVP・新人王（endSeasonで保存されるのと同じルール: 6戦以上・平均区間順位）
-  // ★MVPは部ごと（1部MVP・2部MVP・3部MVP）。ここは自分の部のぶん
-  const seasonAward = seasonDone ? computeSeasonAwards(myLeagueRaces(currentSeason, playerTeamId), players, currentSeason.year, clubSeasonRank(currentSeason, playerTeamId).division) : null
+  // ★MVPは部ごと（1部MVP・2部MVP・3部MVP）。ここは自分の部のぶん。表彰は部にしか無い（utils/awards）
+  const myDivision = clubSeasonRank(currentSeason, playerTeamId).division
+  const seasonAward = seasonDone && myDivision != null ? computeSeasonAwards(myLeagueRaces(currentSeason, playerTeamId), players, currentSeason.year, myDivision) : null
   const mvp = seasonAward?.mvpId ? players.find(p => p.id === seasonAward.mvpId) : null
   const rookie = seasonAward?.rookieId ? players.find(p => p.id === seasonAward.rookieId) : null
 
@@ -669,7 +670,7 @@ export default function Dashboard() {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {/* 順位表 */}
-          <div onClick={() => navigate('/standings')} className="btn-press" style={{ ...sqStyle, cursor: 'pointer' }}>
+          <div onClick={() => navigate(leagueRoutePath(team.leagueId))} className="btn-press" style={{ ...sqStyle, cursor: 'pointer' }}>
             <div style={sqTitleRow}>
               <span style={sqTitle}>順位表</span>
               <div style={{ flex: 1, height: 1, background: alpha(C.border3, 0.6) }}/>

@@ -1,5 +1,5 @@
 import type { GmTenure, SeasonStanding } from '../types'
-import { seasonDivisionStandings, rankOfTeam, type SeasonStandingsLike } from './league'
+import { seasonLeagueStandings, rankOfTeam, type SeasonStandingsLike } from './league'
 
 // ============================================================================
 // 監督（GM）の在任履歴。「何年から何年まで、どのチームの監督だったか」だけを持つ。
@@ -83,7 +83,7 @@ export function gmSeasonRanks(
   return seasons.map(s => {
     const teamId = at(s.year)
     // その年に走った部の中での順位（順位表は部ごとに分かれている）
-    const r = rankOfTeam(seasonDivisionStandings(s, teamId), teamId)
+    const r = rankOfTeam(seasonLeagueStandings(s, teamId), teamId)
     return { year: s.year, teamId, rank: r > 0 ? r : null }
   })
 }

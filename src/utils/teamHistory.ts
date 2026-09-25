@@ -1,5 +1,5 @@
 import type { SeasonStanding, Division, LeagueId } from '../types'
-import { DIVISIONS, TOP_DIVISION, divisionInSeason, rankedStandings, seasonDivisionStandings, rankOfTeam, standingsByDivision } from './league'
+import { DIVISIONS, TOP_DIVISION, divisionInSeason, rankedStandings, seasonLeagueStandings, rankOfTeam, standingsByDivision } from './league'
 import { makeTeamIdAt } from './gmTenure'
 import type { GmTenure } from '../types'
 
@@ -142,7 +142,7 @@ export function gmCareerTitles(
     // その年の**自分の部**の1位が自分か。全52チームで並べると部ごとのレース数の差でずれる
     const div = divisionInSeason(s, tid)
     if (div == null) continue
-    if (rankOfTeam(seasonDivisionStandings(s, tid), tid) !== 1) continue
+    if (rankOfTeam(seasonLeagueStandings(s, tid), tid) !== 1) continue
     const cur = map.get(tid) ?? []
     cur.push({ year: s.year, division: div })
     map.set(tid, cur)

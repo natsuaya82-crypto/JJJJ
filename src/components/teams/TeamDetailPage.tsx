@@ -179,7 +179,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   const name = found.name
   const shortName = found.shortName
 
-  const isMyTeam = !isForeign && id === playerTeamId
+  const isMyTeam = id === playerTeamId
 
   // ロスター（1軍/2軍の区別なし）。国内チームも海外クラブも判定は同じ
   const mainPlayers = players.filter(p => belongsToClub(p, id))

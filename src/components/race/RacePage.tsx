@@ -30,7 +30,7 @@ import {
 import type { ISim, InteractiveSegResult } from '../../engine/interactiveRace'
 import { buildTeamRankings, countSegmentsByTeam } from '../../engine/raceEngine'
 import ScreenPortal from '../ui/ScreenPortal'
-import { jpelClubs, myClub, myLeagueRaces } from '../../utils/world'
+import { myClub, myLeagueRaces } from '../../utils/world'
 
 type Phase = 'lineup' | 'simulating' | 'results'
 
@@ -832,7 +832,7 @@ export default function RacePage() {
       : iSim.playerBaseTime
 
     // 画面に並べるのは**そのレースを走っているクラブだけ**（engine/raceEngine の1本）
-    const raceTeams = racingTeams(jpelClubs(clubs), iSim.cpuLineups, playerTeamId)
+    const raceTeams = racingTeams(clubs, iSim.cpuLineups, playerTeamId)
 
     return (
       <SimPhase
@@ -865,7 +865,7 @@ export default function RacePage() {
     <ResultsPhase
       race={race}
       results={results}
-      raceTeams={jpelClubs(clubs)}
+      raceTeams={clubs}
       players={players}
       playerTeamId={playerTeamId}
       currentSeason={currentSeason}

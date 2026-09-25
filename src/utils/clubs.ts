@@ -4,7 +4,7 @@ import type { ForeignClub, Nationality, Team, WorldClub } from '../types'
 import { leagueById } from '../data/leagues'
 import { strHash } from './hash'
 import { isBigClub } from './clubTier'
-import { clubById, isJpelLeague } from './world'
+import { clubById, divisionOfLeague, isJpelLeague } from './world'
 
 // ============================================================================
 // 「クラブ」は1種類だけ。ここが唯一の引き場所。
@@ -113,6 +113,15 @@ export function clubRoutePath(club: Club | null | undefined): string | null {
   return club.isDomestic
     ? `/teams/detail/${club.id}`
     : `/teams/foreign/${club.leagueId}/${club.id}`
+}
+
+/**
+ * そのリーグの順位表の行き先。**日本の部は順位表の画面（その部を開く）、海外はリーグの画面。**
+ * 「自分のリーグを開く」はここを通す（`/standings` を決め打ちすると海外クラブを指揮したときに
+ * 日本の順位表が開く）
+ */
+export function leagueRoutePath(leagueId: string): string {
+  return divisionOfLeague(leagueId) != null ? `/standings/${leagueId}` : `/teams/foreign/${leagueId}`
 }
 
 export type ClubIndex = {

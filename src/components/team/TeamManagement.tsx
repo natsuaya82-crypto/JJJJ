@@ -23,6 +23,7 @@ import { comparePlayers, PLAYER_SORT_LABEL, type PlayerSortKey } from '../../uti
 import PlayerList from '../player/PlayerList'
 import ScreenCover from '../ui/ScreenCover'
 import { jpelClubById, myClub } from '../../utils/world'
+import { clubCity, clubFounded, clubGmName } from '../../utils/clubs'
 
 const SORT_OPTIONS: { value: PlayerSortKey; label: string }[] = [
   { value: 'ovr', label: PLAYER_SORT_LABEL.ovr },
@@ -148,7 +149,7 @@ export default function TeamManagement() {
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: F.subLg, fontWeight: 800, color: C.text }}>{team.name}</div>
           <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 2 }}>
-            {team.city} ・ 設立{team.founded}年 ・ GM: {team.gmName}
+            {clubCity(team)} ・ 設立{clubFounded(team)}年 ・ GM: {clubGmName(team)}
           </div>
         </div>
       </div>

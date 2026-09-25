@@ -13,7 +13,7 @@
  *   抜けて**いました。どちらも相手のGM名が出る画面です。
  *
  * ■見方
- *   **他人の名前を出している画面を実際に数えます**（`gmName` を出している .tsx）。
+ *   **他人の名前を出している画面を実際に数えます**（`gmName` / `clubGmName(` を出している .tsx）。
  *   自分のことしか出さない画面は対象外なので、**理由を書いて `MINE_ONLY` に入れる**
  *   （「漏れた」と「あえて」を区別するため。`check-sticky-tab` と同じ形）。
  *
@@ -58,7 +58,9 @@ walk('src/components')
 
 console.log('[1] 他人の名前が出る画面は全部、段位の紋章を出している')
 {
-  const shows = files.filter(f => /\bgmName\b/.test(readFileSync(f, 'utf8')))
+  // GM名を出す口は2つ（保存されている値 `gmName` と、utils/clubs の `clubGmName`）。片方だけ数えると、
+  // もう片方に寄せた画面が網から黙って抜ける
+  const shows = files.filter(f => /\bgmName\b|\bclubGmName\(/.test(readFileSync(f, 'utf8')))
   const missing = shows.filter(f => !MINE_ONLY[f] && !/RankBadge/.test(readFileSync(f, 'utf8')))
   console.log(`  他人の名前が出る画面 ${shows.length - Object.keys(MINE_ONLY).length}件（自分だけの画面 ${Object.keys(MINE_ONLY).length}件は対象外）`)
   check('紋章の付け忘れが無い', missing.length === 0,

@@ -17,6 +17,7 @@ export default function ForeignLeagueDetailPage() {
   const clubs = useGameStore(s => s.clubs)
   const players = useGameStore(s => s.players)
   const currentSeason = useGameStore(s => s.currentSeason)
+  const playerTeamId = useGameStore(s => s.playerTeamId)
   // この画面に出すのは海外リーグ（日本の部は順位表の画面）
   const league = leagueById(leagueId)
 
@@ -44,6 +45,7 @@ export default function ForeignLeagueDetailPage() {
     id: club.id, name: club.name, shortName: club.shortName,
     primary: club.colors.primary, secondary: club.colors.secondary, teamId: club.id,
     points, recentForm: form,
+    isMe: club.id === playerTeamId,
   }))
 
   return (

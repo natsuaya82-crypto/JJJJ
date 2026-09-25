@@ -2,6 +2,8 @@ import type { WorldClub } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useTeamHistory } from '../../lib/useTeamHistory'
 import { topTitleCount } from '../../utils/teamHistory'
+import { clubCity, clubGmName } from '../../utils/clubs'
+import { divisionOfLeague } from '../../utils/world'
 import { C, alpha, SAIRA, F, PAGE_X } from '../../styles/tokens'
 import { panelStyle } from '../ui/Panel'
 
@@ -25,6 +27,8 @@ export default function HeroCard({ team, seasonYear, rank, totalRaces, completed
   const titles = useTeamHistory(team.id).titles
   // ★**1部の優勝だけ**を数える（オーナー判断・2026-08-14）。utils/teamHistory の1本
   const jpelTitles = topTitleCount(titles)
+  // 優勝回数は日本の部の順位表から数えている（utils/teamHistory）。部のリーグにいないクラブには数が無い
+  const countsTitles = divisionOfLeague(team.leagueId) != null
   const moraleColor = avgMorale >= 75 ? C.green : avgMorale >= 50 ? C.gold : C.red
 
   return (
@@ -57,7 +61,7 @@ export default function HeroCard({ team, seasonYear, rank, totalRaces, completed
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>{team.name}</div>
           <div style={{ fontSize: F.label, color: C.textDim, marginTop: 2 }}>
-            {team.city} ・ GM: {team.gmName}
+            {clubCity(team)} ・ GM: {clubGmName(team)}
           </div>
         </div>
         {!seasonDone && rank > 0 && (
@@ -92,7 +96,7 @@ export default function HeroCard({ team, seasonYear, rank, totalRaces, completed
         borderTop: `1px solid ${alpha(C.border3, 0.6)}`, borderBottom: `1px solid ${alpha(C.border3, 0.6)}`,
       }}>
         {[
-          { label: 'JPEL優勝', value: `${jpelTitles}`, color: C.text },
+          ...(countsTitles ? [{ label: 'JPEL優勝', value: `${jpelTitles}`, color: C.text }] : []),
           { label: 'GM評判', value: `${gmRep}`, color: gmRep >= 70 ? C.green : gmRep >= 40 ? C.text : C.red },
           { label: '士気', value: `${avgMorale}`, color: moraleColor },
         ].map((item, i) => (

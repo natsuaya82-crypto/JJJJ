@@ -1,6 +1,6 @@
 import { rankOfTeam } from '../utils/league'
 import type { GmOffer, GmTenure, WorldClub } from '../types'
-import { divisionOf, seasonDivisionStandings, type SeasonStandingsLike } from './league'
+import { divisionOf, seasonLeagueStandings, type SeasonStandingsLike } from './league'
 import { tierOf, tierOfClubId } from './clubTier'
 import { facilitiesOf, facilityScoutPoints } from './facilities'
 import { clubById, clubIds, clubsInLeague, divisionLeagueId, jpelClubs } from './world'
@@ -206,7 +206,7 @@ export function buildOffer(a: {
   // 前季順位は**移籍先の部の中での順位**（順位表は部ごとに分かれている）。
   // 来季の目標をここから引き直すので、部をまたいだ順位を使うと目標が的外れになる
   const destDivision = divisionOf(dest)
-  const prevRank = rankOfTeam(seasonDivisionStandings(a.season, a.teamId), a.teamId)
+  const prevRank = rankOfTeam(seasonLeagueStandings(a.season, a.teamId), a.teamId)
   const destDivisionSize = clubsInLeague(a.clubs, divisionLeagueId(destDivision)).length
   return {
     teamId: a.teamId,

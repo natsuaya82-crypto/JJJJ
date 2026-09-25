@@ -33,7 +33,8 @@ import { fmtYen } from '../../utils/money'
 import { offersAwaitingReply } from '../../utils/notifItems'
 import { SpecChip } from '../player/PlayerChips'
 import PlayerList from '../player/PlayerList'
-import { clubMap, clubsInLeague, jpelClubById, jpelClubIdSet, jpelClubs, otherClubs } from '../../utils/world'
+import { clubMap, clubsInLeague, clubsWhere, jpelClubIdSet, jpelClubs, myClub, otherClubs } from '../../utils/world'
+import { holdsDraftPicks } from '../../data/leagueRules'
 import { FOREIGN_LEAGUE_DEFS } from '../../data/leagues'
 
 const MARKET_SORT_OPTIONS: { value: PlayerSortKey; label: string }[] = [
@@ -135,7 +136,7 @@ export default function TransferPage() {
   const { results: offerResults, push: pushOfferResult, dismiss: dismissOfferResult } = useOfferResults()
 
 
-  const myTeam = jpelClubById(clubs, playerTeamId)
+  const myTeam = myClub({ clubs, playerTeamId })
   if (!myTeam) return null
 
   // 補強不可の判定は `utils/bidGate` の各 `*BlockReason` の中（`data/economy` の `reinforcementBanned` 1本）。**同じ式をここに書き写さないこと**
@@ -186,11 +187,11 @@ export default function TransferPage() {
           mktLeague === 'all'
             ? [
                 ...cpuJpel.map(t => ({ id: t.id, name: t.name })),
-                ...FOREIGN_LEAGUE_DEFS.flatMap(l => clubsInLeague(clubs, l.id).map(c => ({ id: c.id, name: c.name }))),
+                ...FOREIGN_LEAGUE_DEFS.flatMap(l => otherClubs(clubsInLeague(clubs, l.id), playerTeamId).map(c => ({ id: c.id, name: c.name }))),
               ].sort((a, b) => a.name.localeCompare(b.name))
             : mktLeague === 'jpel'
             ? cpuJpel.map(t => ({ id: t.id, name: t.name })).sort((a, b) => a.name.localeCompare(b.name))
-            : (FOREIGN_LEAGUE_DEFS.some(l => l.id === mktLeague) ? clubsInLeague(clubs, mktLeague) : []).map(c => ({ id: c.id, name: c.name }))
+            : (FOREIGN_LEAGUE_DEFS.some(l => l.id === mktLeague) ? otherClubs(clubsInLeague(clubs, mktLeague), playerTeamId) : []).map(c => ({ id: c.id, name: c.name }))
 
         // 枠で囲まない。下の細い線と文字だけで組む（レート戦・ロスターと同じ）
         const cell: React.CSSProperties = {
@@ -469,7 +470,7 @@ export default function TransferPage() {
               const bp = players.find(x => x.id === bidTarget)
               if (!bp) return null
               const bListing = listings.find(l => l.playerId === bp.id)
-              return <BidSheet player={bp} budget={myTeam.finance.budget} listing={bListing} onSubmit={fee => { submitTransferBid(bp.id, fee); setBidTarget(null) }} onClose={() => setBidTarget(null)} />
+              return <BidSheet player={bp} budget={myTeam.finance?.budget ?? 0} listing={bListing} onSubmit={fee => { submitTransferBid(bp.id, fee); setBidTarget(null) }} onClose={() => setBidTarget(null)} />
             })()}
 
             {/* レンタルシート — 他チームタブと共通 */}
@@ -669,7 +670,8 @@ export default function TransferPage() {
             {(() => {
               // 直近オフに使う指名権(今シーズン+1)は売却不可。2シーズン以上先の未来指名権のみ売れる。
               const myPicks = (myTeam?.draftPicks ?? []).filter(pk => pk.year > currentSeason.year + 1)
-              const cpuTeamsList = otherClubs(jpelClubs(clubs), playerTeamId)
+              // 買い手は指名権を持てるクラブだけ（data/leagueRules の holdsDraftPicks。トレードの札と同じ）
+              const cpuTeamsList = clubsWhere(otherClubs(clubs, playerTeamId), holdsDraftPicks)
               if (myPicks.length === 0) return null
               return (
                 <div style={{ marginTop: '22px' }}>

@@ -3,7 +3,7 @@
 // 本編のレース結果画面（ResultsPhase の「区間タイム詳細」）で使っていた中身を、
 // オンライン対戦の最終結果からも同じ見た目で使えるように切り出したもの。
 // ここは表示だけ。ストアには触らない（オンラインでは手元のセーブに無い選手も並ぶため）。
-import type { Race, RaceResults, Team, Player, Nationality } from '../../types'
+import type { Race, RaceResults, Player, Nationality, WorldClub } from '../../types'
 import { formatDiff } from '../../engine/raceEngine'
 import { formatRaceTime } from '../../utils/eventTime'
 import { terrainColor, terrainLabel } from './raceUtils'
@@ -51,7 +51,7 @@ export function SegmentDetailCard({
 }: {
   segResult: SegResult
   race: Race
-  teamMap: Map<string, Team>
+  teamMap: ReadonlyMap<string, WorldClub>
   playerMap: Map<string, Player>
   myTeamId: string
   newSegRecords?: { segmentIndex: number; playerId: string }[]

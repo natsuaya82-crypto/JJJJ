@@ -16,7 +16,8 @@ import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
-import { DIVISION_LABEL, seasonDivisionStandings, standingRowOf, rankOfTeam, divisionInSeason, type SeasonStandingsLike } from '../../utils/league'
+import { DIVISION_LABEL, seasonLeagueStandings, rankOfTeam, divisionInSeason, type SeasonStandingsLike } from '../../utils/league'
+import { clubStandingRow } from '../../utils/clubStanding'
 import Panel from '../ui/Panel'
 import { clubById, myClub, myLeagueRaces } from '../../utils/world'
 
@@ -260,9 +261,9 @@ function FranchiseTab({ clubs, pastSeasons, currentSeason, playerTeamId, players
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
             {[...allSeasons].reverse().map(season => {
               // その年の自分の部だけで数える（utils/league）。全52チームで並べると部の差でずれる
-              const sorted = seasonDivisionStandings(season, playerTeamId)
+              const sorted = seasonLeagueStandings(season, playerTeamId)
               const myStanding = rankOfTeam(sorted, playerTeamId)
-              const myRow = standingRowOf(season, playerTeamId)
+              const myRow = clubStandingRow(season, playerTeamId)
               const myPoints = myRow?.totalPoints ?? 0
               const wins = myRow?.raceResults?.filter(r => r.rank === 1).length ?? 0
               const isCurrent = season.year === currentSeason.year
@@ -570,7 +571,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, clubs, p
   const tenures = normalizeTenures(gmTenures, playerTeamId, allSeasons[0]?.year ?? currentSeason.year)
   const teamIdAt = makeTeamIdAt(tenures, playerTeamId)
   const rankIn = (s: SeasonStandingsLike<SeasonStanding>, teamId: string): number | null => {
-    const r = rankOfTeam(seasonDivisionStandings(s, teamId), teamId)
+    const r = rankOfTeam(seasonLeagueStandings(s, teamId), teamId)
     return r > 0 ? r : null
   }
   // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す
@@ -641,7 +642,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, clubs, p
         const chartSeasons = allSeasons.slice(-10)
         const pts = chartSeasons.map(s => {
           const tid = teamIdAt(s.year)
-          const sorted = seasonDivisionStandings(s, tid)
+          const sorted = seasonLeagueStandings(s, tid)
           return { year: s.year, teamId: tid, rank: rankIn(s, tid), totalTeams: sorted.length || 10, isCurrent: s.year === currentSeason.year }
         })
         const maxTeams = Math.max(8, ...pts.map(p => p.totalTeams))
@@ -752,7 +753,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, clubs, p
         // 通算成績（自チームの全シーズン駅伝結果を集計）
         let totalRaces = 0, totalWins = 0, podiums = 0, totalPts = 0
         for (const s of allSeasons) {
-          const my = standingRowOf(s, teamIdAt(s.year))
+          const my = clubStandingRow(s, teamIdAt(s.year))
           if (!my) continue
           totalPts += my.totalPoints ?? 0
           for (const rr of (my.raceResults ?? [])) {

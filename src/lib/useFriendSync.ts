@@ -10,6 +10,7 @@ import { gmCareerTitles } from '../utils/teamHistory'
 import { ONLINE_ENABLED } from '../data/featureFlags'
 import { saveSlotSuffix } from '../store/saveSlot'
 import { myClub } from '../utils/world'
+import { clubGmName } from '../utils/clubs'
 
 // 指紋の置き場もスロットごと。共通だと、別スロットで送った指紋と一致して
 // 「前と同じだから送らない」と誤判定し、そのスロットの情報が一生送られない
@@ -54,7 +55,7 @@ export async function syncNow(): Promise<void> {
     const career = gmCareerTitles(st.pastSeasons, st.gmTenures, st.playerTeamId)
     const champs = career.total
     const stamp = fingerprint(JSON.stringify({
-      y: st.currentSeason?.year, n: team.name, s: team.shortName, g: team.gmName, l: team.logoId,
+      y: st.currentSeason?.year, n: team.name, s: team.shortName, g: clubGmName(team), l: team.logoId,
       c: [team.colors.primary, team.colors.secondary], ch: champs, ct: career.titles,
       // 名前も指紋に入れる。入れないと、改名しただけのときに「前と同じ」と判断されて
       // 一生送られず、友達側にいつまでも古い名前が出たままになる。

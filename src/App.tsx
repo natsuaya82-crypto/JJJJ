@@ -308,7 +308,8 @@ function SeasonBudgetNotice() {
   )
 }
 
-function AppRoutes({ onBackToTitle }: { resetGame: () => void; onBackToTitle: () => void }) {
+// ゲーム中の画面の道すじ。check-foreign-screens（scripts/screens）も同じこれを描いて確かめる
+export function AppRoutes({ onBackToTitle }: { resetGame: () => void; onBackToTitle: () => void }) {
   const location = useLocation()
   const navigate = useNavigate()
   const prevPath = useRef(location.pathname)

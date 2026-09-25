@@ -24,6 +24,7 @@ import { OFFLINE_TEXT } from '../../lib/supabase'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import ScreenPortal from '../ui/ScreenPortal'
 import { myClub } from '../../utils/world'
+import { clubGmName } from '../../utils/clubs'
 
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -107,7 +108,7 @@ export default function FriendRequestsPage() {
   const shareCode = async () => {
     if (!shareRef.current || sharing || !code.data) return
     setSharing(true)
-    try { await shareElementAsImage(shareRef.current, { filename: 'jpel-gm-card.png', title: 'フレンド申請', text: `GM ${myTeam?.gmName ?? ''} フレンドコード ${myCodeText} #JPELManager` }) }
+    try { await shareElementAsImage(shareRef.current, { filename: 'jpel-gm-card.png', title: 'フレンド申請', text: `GM ${myTeam ? clubGmName(myTeam) : ''} フレンドコード ${myCodeText} #JPELManager` }) }
     catch { /* noop */ } finally { setSharing(false) }
   }
 

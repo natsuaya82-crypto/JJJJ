@@ -233,7 +233,7 @@ RULES.push({
   pattern: /Object\.values\([^)]*[Ss]tandings\s*\)|DIVISIONS\.flatMap\([^)]*standings/,
   allow: ['src/utils/league.ts', 'scripts/check-division-rank.ts'],
     neverAppears: '順位表は部ごとに分けて持つ。平らにする形はどこにも無いのが正しい',
-  fix: 'league.ts の divisionStandings / seasonDivisionStandings で部ごとに取り出す',
+  fix: 'league.ts の divisionStandings（部）/ seasonLeagueStandings（そのクラブのリーグ）で取り出す',
 })
 
 // 相手のロスターと殿堂入りは同じ行（rosters）に入っている。

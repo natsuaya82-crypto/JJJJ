@@ -7,7 +7,7 @@ import { CARD_UNIT_EXP, CARD_UNIT_PRICE } from '../../data/cardShop'
 import { applyGrowth } from '../../engine/growth'
 import { type CardStatKey, type Player, type TrainingCard } from '../../types'
 import { MAX_FUSION_CARDS, detectCombo, planExchange } from '../../utils/cardCombo'
-import { rankOfTeam, seasonDivisionStandings } from '../../utils/league'
+import { rankOfTeam, seasonLeagueStandings } from '../../utils/league'
 import { getStatPotentials, limitBreakCost } from '../../utils/playerUtils'
 import { canSpendTrophy } from '../../utils/trophy'
 
@@ -51,7 +51,7 @@ export const createCardsSlice = (set: SetGame, get: () => GameStore): Slice => (
       const lastSeason = state.pastSeasons[state.pastSeasons.length - 1]
       let rank = 0
       if (lastSeason) {
-        rank = rankOfTeam(seasonDivisionStandings(lastSeason, state.playerTeamId), state.playerTeamId)
+        rank = rankOfTeam(seasonLeagueStandings(lastSeason, state.playerTeamId), state.playerTeamId)
       }
       // 配るカードの中身は `data/cardShop` の `preseasonCardDist` 1本
       // （画面の「もらえる中身」の表示と同じところから出す）

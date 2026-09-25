@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import type { Race, RaceResults, Team, Player, Season } from '../../types'
+import type { Race, RaceResults, Player, Season, WorldClub } from '../../types'
 import { formatDiff } from '../../engine/raceEngine'
 import { formatRaceTime } from '../../utils/eventTime'
 import { ovr, ratingColor } from '../../utils/playerUtils'
@@ -15,7 +15,7 @@ import { TeamLogoSVG } from '../icons/Icons'
 import StandingsTable from '../teams/StandingsTable'
 import { SegmentDetailCard, SegmentTabs, FaceOrDot } from './SegmentDetailCard'
 import { contractTalkCtx, contractMonthsLeft, isUrgentRenewal } from '../../utils/contractTalk'
-import { rankedStandings, seasonDivisionStandings, rankOfTeam } from '../../utils/league'
+import { rankedStandings, seasonLeagueStandings, rankOfTeam } from '../../utils/league'
 import { requiredExpForLevel } from '../../engine/growth'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
@@ -46,7 +46,7 @@ export function ResultsPhase({
 }: {
   race: Race
   results: RaceResults
-  raceTeams: Team[]
+  raceTeams: readonly WorldClub[]
   players: Player[]
   playerTeamId: string
   currentSeason: Season
@@ -137,10 +137,10 @@ export function ResultsPhase({
   }
 
   // リザーブリーグはその大会だけの順位表なのでそのまま。
-  // 本編は全52チームぶんを1本で持っているので、自分が走っている部だけに絞る
+  // 本編は自分が走っているリーグの順位表（utils/league）
   const fullSorted = altStandings
     ? rankedStandings(altStandings)
-    : seasonDivisionStandings(currentSeason, playerTeamId)
+    : seasonLeagueStandings(currentSeason, playerTeamId)
   const playerSeasonRank = rankOfTeam(fullSorted, playerTeamId)
   // 上位10行。トップ10外なら自チーム行を区切って末尾に追加
   const seasonRows: { s: typeof fullSorted[number]; rank: number; isBreak: boolean }[] =

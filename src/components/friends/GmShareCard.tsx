@@ -5,6 +5,7 @@ import { topTitleCount } from '../../utils/teamHistory'
 import { useMyRatedRank } from '../../lib/useRatedRanks'
 import { RankBadge } from '../rated/ratedUi'
 import { C, SAIRA, CARD, F } from '../../styles/tokens'
+import { clubGmName } from '../../utils/clubs'
 
 const GOLD = CARD.gold
 
@@ -47,7 +48,7 @@ export default function GmShareCard({ team, code }: { team?: WorldClub; code: st
             {/* 相手に見せる画像なので段位も入れる。ランクマッチ未参加なら何も出ない */}
             <RankBadge rating={myRank} size={24} />
           </div>
-          <div style={{ fontSize: 34, fontWeight: 900, lineHeight: 1.05, marginTop: 2 }}>GM {team?.gmName ?? '—'}</div>
+          <div style={{ fontSize: 34, fontWeight: 900, lineHeight: 1.05, marginTop: 2 }}>GM {team ? clubGmName(team) : '—'}</div>
           <div style={{ display: 'flex', gap: 14, alignItems: 'baseline', marginTop: 8 }}>
             <span style={{ fontSize: F.bodyLg, color: C.shareDim }}>通算優勝 <b style={{ color: GOLD, fontSize: F.titleLg }}>{champs}</b></span>
             <span style={{ fontSize: F.bodyLg, color: C.shareDim }}>監督歴 <b style={{ color: CARD.text, fontSize: F.titleLg }}>{seasons}</b>季</span>

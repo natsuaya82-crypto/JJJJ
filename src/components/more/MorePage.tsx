@@ -24,6 +24,7 @@ import { OFFLINE_TEXT } from '../../lib/supabase'
 import { useRatedRanks } from '../../lib/useRatedRanks'
 import { RankBadge } from '../rated/ratedUi'
 import { clubById, myClub } from '../../utils/world'
+import { clubCity, clubGmName } from '../../utils/clubs'
 
 
 
@@ -263,7 +264,7 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
 
       {/* 設定リスト */}
       <div>
-        <SettingRow icon={IcTeam} label="チーム編集" sub={myTeam ? `${myTeam.name}・GM ${myTeam.gmName}` : undefined} onClick={() => setDetail('team')} />
+        <SettingRow icon={IcTeam} label="チーム編集" sub={myTeam ? `${myTeam.name}・GM ${clubGmName(myTeam)}` : undefined} onClick={() => setDetail('team')} />
         <SettingRow icon={IcSound} label="サウンド" sub="SE・BGMの音量" onClick={() => setDetail('sound')} />
         <SettingRow
           icon={IcRace}
@@ -392,24 +393,29 @@ function TeamEditScreen({ onClose }: { onClose: () => void }) {
   const playerTeamId = useGameStore(s => s.playerTeamId)
   const updateMyTeam = useGameStore(s => s.updateMyTeam)
   const team = myClub({ clubs, playerTeamId })
+  // いまの値。監督名・本拠地は utils/clubs の1本（保存が無いクラブは決め打ちの値）
+  const cur = {
+    name: team?.name ?? '', shortName: team?.shortName ?? '', logoId: team?.logoId ?? '',
+    gmName: team ? clubGmName(team) : '', region: team?.region ?? '', city: team ? clubCity(team) : '',
+  }
 
-  const [name, setName] = useState(team?.name ?? '')
-  const [shortName, setShortName] = useState(team?.shortName ?? '')
-  const [gmName, setGmName] = useState(team?.gmName ?? '')
-  const [logoId, setLogoId] = useState(team?.logoId ?? '')
-  const [region, setRegion] = useState(team?.region ?? '')
-  const [city, setCity] = useState(team?.city ?? '')
+  const [name, setName] = useState(cur.name)
+  const [shortName, setShortName] = useState(cur.shortName)
+  const [gmName, setGmName] = useState(cur.gmName)
+  const [logoId, setLogoId] = useState(cur.logoId)
+  const [region, setRegion] = useState(cur.region)
+  const [city, setCity] = useState(cur.city)
   const [saved, setSaved] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
 
   if (!team) return null
 
-  const dirty = name.trim() !== team.name || shortName.trim() !== team.shortName || gmName.trim() !== team.gmName || logoId !== (team.logoId ?? '') || region.trim() !== team.region || city.trim() !== team.city
+  const dirty = name.trim() !== cur.name || shortName.trim() !== cur.shortName || gmName.trim() !== cur.gmName || logoId !== cur.logoId || region.trim() !== cur.region || city.trim() !== cur.city
   const valid = name.trim() !== '' && shortName.trim() !== '' && gmName.trim() !== ''
 
   const handleSave = () => {
     if (!dirty || !valid) return
-    updateMyTeam({ name: name.trim(), shortName: shortName.trim(), gmName: gmName.trim(), logoId: logoId || undefined, region: region.trim() || team.region, city: city.trim() || team.city })
+    updateMyTeam({ name: name.trim(), shortName: shortName.trim(), gmName: gmName.trim(), logoId: logoId || undefined, region: region.trim() || team.region, city: city.trim() || cur.city })
     audio.playSe('tap')
     setSaved(true)
     setTimeout(() => setSaved(false), 1600)

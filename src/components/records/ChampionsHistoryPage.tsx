@@ -15,7 +15,7 @@ import { NAT_LABEL } from '../../data/nationalities'
 import type { Nationality } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { C, alpha, DIV_STAR, glassStyle, SAIRA, F } from '../../styles/tokens'
-import { DIVISION_LABEL, pointSeriesStandings, rankedStandings, seasonDivisionStandings } from '../../utils/league'
+import { DIVISION_LABEL, pointSeriesStandings, rankedStandings, seasonLeagueStandings } from '../../utils/league'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
 import { jpelClubs, myLeagueRaces } from '../../utils/world'
@@ -131,7 +131,7 @@ export default function ChampionsHistoryPage() {
       return { rank: i + 1, teamId, name: t?.name ?? '—', colors: t?.colors, score, isMe: teamId === teamIdAt(ps.year) }
     }
     // その年、監督が指揮していたチームの部だけで並べる（部ごとにレース数が違うので混ぜられない）
-    if (c === 'jpel') return seasonDivisionStandings(ps, teamIdAt(ps.year)).map((s, i) => mk(s.teamId, i, s.totalPoints))
+    if (c === 'jpel') return seasonLeagueStandings(ps, teamIdAt(ps.year)).map((s, i) => mk(s.teamId, i, s.totalPoints))
     if (c === 'reserve') {
       const st = ps.secondTeamStandings ?? []
       // その年リザーブ戦を1度も開催していない（全チームraceResults空）なら総合優勝なし

@@ -20,7 +20,7 @@ import { payBetween } from '../../utils/clubMoney'
 import { bigClub, findClub } from '../../utils/clubs'
 import { withMorale } from '../../utils/condition'
 import { canOfferRenewal, canReNegotiate, contractTalkCtx, liveContractOf } from '../../utils/contractTalk'
-import { domesticThroughRankOfTeam, rankOfTeam, rankedStandings, seasonDivisionStandings, leagueStandingRows } from '../../utils/league'
+import { domesticThroughRankOfTeam, rankOfTeam, rankedStandings, seasonLeagueStandings, leagueStandingRows } from '../../utils/league'
 import { fmtYen } from '../../utils/money'
 import { movePlayer } from '../../utils/movePlayer'
 import { foreignSignedHeadline, joinedHeadline, loanInOutHeadline, renewalHeadline, signedWithFeeHeadline, tradeAcceptedHeadline, tradeSummaryHeadline } from '../../utils/newsItems'
@@ -99,7 +99,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     const ratio = salary / player.contract.annualSalary
     const personality = player.personality ?? 'salary'
     // 「上位のチームか」は自分が走っている部の中で見る（順位表は部ごとに分かれている）
-    const standings = seasonDivisionStandings(state.currentSeason, state.playerTeamId)
+    const standings = seasonLeagueStandings(state.currentSeason, state.playerTeamId)
     const myRank = rankOfTeam(standings, state.playerTeamId)
     const isGoodTeam = myRank > 0 && myRank <= 5
     const minRatio =
@@ -504,7 +504,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
         }
       }
       // 「強豪か」は自分の部の中での順位で見る（順位表は部ごとに分かれている）
-      const myRank = rankOfTeam(seasonDivisionStandings(state.currentSeason, state.playerTeamId), state.playerTeamId)
+      const myRank = rankOfTeam(seasonLeagueStandings(state.currentSeason, state.playerTeamId), state.playerTeamId)
       const isGoodTeam = myRank > 0 && myRank <= 5
       // その提示を受けるか・逆提示するか・断るかは engine/renewalDecision 1本
       const judged = judgeRenewalOffer({ request: req, player, salary, years, isGoodTeam })

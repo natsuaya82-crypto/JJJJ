@@ -7,7 +7,7 @@
  * 絞り忘れた画面で 2部の首位が9位・3部の首位が13位 と出ていた。
  */
 import {
-  rankedStandings, rankOfTeam, seasonDivisionStandings, divisionStandings, divisionInSeason,
+  rankedStandings, rankOfTeam, seasonLeagueStandings, divisionStandings, divisionInSeason,
   domesticThroughRankOfTeam, newSeasonStandings, positionPointsFor,
   DIVISIONS, DIVISION_SIZE, DIVISION_RACES, DIVISION_LABEL, divisionLeagueId,
 } from '../src/utils/league'
@@ -57,12 +57,12 @@ console.log('')
 // 昇降格して今は別の部にいても、過去の年が狂わない
 const me = 'd1-09'
 console.log('■ その年どの部にいたか（順位表のキーそのもの）')
-console.log(`  ${me} → ${DIVISION_LABEL[divisionInSeason(season, me)!]} / その部で ${rankOfTeam(seasonDivisionStandings(season, me), me)}位`)
+console.log(`  ${me} → ${DIVISION_LABEL[divisionInSeason(season, me)!]} / その部で ${rankOfTeam(seasonLeagueStandings(season, me), me)}位`)
 
 // いまは3部にいる、という状態を作っても過去の年は動かない
 const movedTeams = teams.map(t => (t.id === me ? { ...t, leagueId: divisionLeagueId(3) } : t))
 const stillDiv = divisionInSeason(season, me)
-console.log(`  そのあと3部へ降格しても → ${DIVISION_LABEL[stillDiv!]} / ${rankOfTeam(seasonDivisionStandings(season, me), me)}位`)
+console.log(`  そのあと3部へ降格しても → ${DIVISION_LABEL[stillDiv!]} / ${rankOfTeam(seasonLeagueStandings(season, me), me)}位`)
 console.log(movedTeams.length === teams.length && stillDiv === 1
   ? '\n✓ いまの所属を変えても、過去の年の部と順位は動かない'
   : '\n✗ 過去の年が今の所属に引きずられている')

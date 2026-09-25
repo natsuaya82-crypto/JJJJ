@@ -2,29 +2,24 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useStickyTab } from '../../lib/useStickyTab'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
-import { clubById, myClub } from '../../utils/world'
+import { clubById, divisionOfLeague, myClub } from '../../utils/world'
 import { clubRoutePath } from '../../utils/clubs'
 import { LeagueLogoSVG } from '../icons/Icons'
 import PageHeader from '../ui/PageHeader'
 import PillTabs from '../ui/PillTabs'
 import StandingsTable, { type StandRow } from './StandingsTable'
 import { C, FONT, F } from '../../styles/tokens'
-import { rankedStandings, pointSeriesStandings, divisionStandings, DIVISIONS, DIVISION_LABEL, divisionOf, PROMOTION_SLOTS } from '../../utils/league'
+import { rankedStandings, pointSeriesStandings, divisionStandings, DIVISIONS, DIVISION_LABEL, TOP_DIVISION, PROMOTION_SLOTS } from '../../utils/league'
 import type { Division } from '../../types'
 
-
-/** URLのリーグ指定 → 部。ECL・未指定なら undefined */
-const divisionOfLeague = (league: string | undefined): Division | undefined => {
-  const d = Number((league ?? '').slice(1))
-  return league?.startsWith('d') && DIVISIONS.includes(d as Division) ? (d as Division) : undefined
-}
 
 export default function StandingsPage() {
   const navigate = useNavigate()
   const { league } = useParams<{ league: string }>()
   const { clubs, currentSeason, playerTeamId } = useGameStore()
-  // 部の指定が無いとき（ホームのFULL→）は自チームのいる部。いちばん見たいのは自分の部なので
-  const myDivision = divisionOf(myClub({ clubs, playerTeamId }))
+  // 部の指定が無いときは自チームのいる部（いちばん見たいのは自分の部なので）。
+  // 部のリーグにいないクラブを指揮しているときは最上位の部
+  const myDivision = divisionOfLeague(myClub({ clubs, playerTeamId })?.leagueId) ?? TOP_DIVISION
   // ECLで開いたときは切り替えを出さない
   const isEcl = league === 'ecl'
   // ★見ている部は**URLに覚えさせる**（`?div=3`）。`useState` だとクラブ詳細へ行って
@@ -79,7 +74,7 @@ export default function StandingsPage() {
         onRowClick: goClub,
       }
     }
-    // 部の順位表。順位表は全52チームぶんを1本で持っているので、所属の部だけに絞る（utils/league）
+    // 部の順位表（部ごとに1つのリーグ・utils/league）
     const div = division
     return {
       eyebrow: `${currentSeason.year} JPEL ${DIVISION_LABEL[div]}`, title: `${DIVISION_LABEL[div]} 順位表`, logoId: 'jpel',

@@ -6,10 +6,11 @@ import { ovr } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
 import { TeamLogoSVG } from '../icons/Icons'
 import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
-import { seasonDivisionStandings, rankOfTeam } from '../../utils/league'
+import { seasonLeagueStandings, rankOfTeam } from '../../utils/league'
 import { panelStyle } from '../ui/Panel'
 import { facilitiesOf } from '../../utils/facilities'
 import { myClub } from '../../utils/world'
+import { clubCity, clubGmName } from '../../utils/clubs'
 
 
 export default function TeamHub() {
@@ -20,8 +21,8 @@ export default function TeamHub() {
   const myTeam = myClub({ clubs, playerTeamId })
   const myPlayers = players.filter(p => p.teamId === playerTeamId)
   const expiringCount = myPlayers.filter(p => p.contract.yearsLeft <= 1).length
-  // 全52チームぶんの順位表から、自分が走っている部だけに絞る（utils/league）
-  const sortedStandings = seasonDivisionStandings(currentSeason, playerTeamId)
+  // 自分が走っているリーグの順位表（utils/league）
+  const sortedStandings = seasonLeagueStandings(currentSeason, playerTeamId)
   const myRank = rankOfTeam(sortedStandings, playerTeamId)
   const avgOvr = myPlayers.length > 0 ? Math.round(myPlayers.reduce((s, p) => s + ovr(p), 0) / myPlayers.length) : 0
 
@@ -202,7 +203,7 @@ export default function TeamHub() {
             }}>
               {myTeam?.name ?? '—'}
             </div>
-            <div style={{ fontSize: F.label, color: C.textSub, marginTop: 2 }}>{myTeam?.city} · GM: {myTeam?.gmName}</div>
+            <div style={{ fontSize: F.label, color: C.textSub, marginTop: 2 }}>{myTeam && clubCity(myTeam)} · GM: {myTeam && clubGmName(myTeam)}</div>
           </div>
 
           {/* Rank badge */}

@@ -18,7 +18,7 @@
 import { clubStandingRow, clubSeasonRank, clubRacesDone, clubWonLeague, normalizeStandingRows, normalizeForeignStandings } from '../src/utils/clubStanding'
 import {
   DIVISIONS, DIVISION_SIZE, DIVISION_RACES, divisionOf,
-  standingRowOf, rankedStandings, newSeasonStandings,
+  rankedStandings, newSeasonStandings,
   divisionInSeason, divisionStandings, rankOfTeam,
 } from '../src/utils/league'
 import { INITIAL_TEAMS } from '../src/data/teams'
@@ -76,7 +76,7 @@ console.log('[1] 国内クラブ：順位はその部の中での順位（通し
   for (const t of teams) {
     const div = divisionInSeason(season, t.id)!
     const want = rankOfTeam(divisionStandings(season, div), t.id)
-    const oldRow = standingRowOf(season, t.id)
+    const oldRow = divisionStandings(season, div).find(r => r.teamId === t.id)
     const got = clubSeasonRank(season, t.id)
     if (got.rank !== want) rankDiff++
     if (got.total !== DIVISION_SIZE[div]) totalDiff++
