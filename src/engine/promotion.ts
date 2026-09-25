@@ -16,7 +16,7 @@
 //
 // 乱数は使わない。
 import type { Division, Season, SeasonStanding, WorldClub } from '../types'
-import { tierFromDomesticRank } from '../utils/clubTier'
+import { tierFromDomesticRank, tierOf, type ClubTier } from '../utils/clubTier'
 import { domesticClubsComplete, originalDivisionOf } from '../utils/domesticClubs'
 import { DIVISIONS, PROMOTION_SLOTS, divisionOf, domesticThroughRank, rankOfTeam, divisionLeagueId, leagueStandingRows } from '../utils/league'
 import { leagueRules } from '../data/leagueRules'
@@ -56,8 +56,12 @@ export function computePromotion(params: {
   })()
   const divisionRankOf = (t: { id: string; leagueId?: string }) =>
     rankOfTeam(rowsByEffDiv.get(effDivisionOf(t)), t.id)
-  const nextTierOf = (t: { id: string; leagueId?: string }) =>
-    tierFromDomesticRank(domesticThroughRank(effDivisionOf(t), divisionRankOf(t)))
+  // ★格が順位で動くのは、決まり（data/leagueRules の tierMoves）があるリーグのクラブだけ。
+  //   ほかのリーグのクラブは今の格のまま（オーナー・2026-08-18「格はもう動かさない。国内だけ動かす」）
+  const nextTierOf = (t: { id: string; leagueId?: string; tier?: ClubTier }): ClubTier =>
+    leagueRules(t.leagueId).tierMoves
+      ? tierFromDomesticRank(domesticThroughRank(effDivisionOf(t), divisionRankOf(t)))
+      : tierOf(t)
   const myNextTier = nextTierOf(myClub({ clubs, playerTeamId }) ?? { id: playerTeamId })
 
   // ── 昇降格 ──────────────────────────────────────────────────
@@ -88,5 +92,18 @@ export function computePromotion(params: {
       category: 'race' as const,
       relatedIds: [t.id] }))
   const myNextDivision = nextDivisionOf(myClub({ clubs, playerTeamId }) ?? { id: playerTeamId })
-  return { nextTierOf, nextDivisionOf, myNextTier, myNextDivision, divisionMoveNews }
+  /**
+   * **来季の置き場所（格と所属リーグ）。クラブに書き込むのはこれ1本。**
+   * 動くかどうかはリーグの決まりだけで決まる（格＝tierMoves／部の入れ替え＝promotion）。
+   * 動かないリーグのクラブには格を書き込まない（格は data/clubTiers の初期値が正で、
+   * `tier` を持たせると初期値を上書きする口になる）。
+   */
+  const nextPlaceOf = (t: { id: string; leagueId?: string; tier?: ClubTier }): { tier?: ClubTier; leagueId?: string } => {
+    const rules = leagueRules(t.leagueId)
+    return {
+      ...(rules.tierMoves ? { tier: nextTierOf(t) } : {}),
+      leagueId: rules.promotion ? divisionLeagueId(nextDivisionOf(t)) : t.leagueId,
+    }
+  }
+  return { nextTierOf, nextDivisionOf, nextPlaceOf, myNextTier, myNextDivision, divisionMoveNews }
 }

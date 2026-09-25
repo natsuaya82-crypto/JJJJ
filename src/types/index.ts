@@ -321,7 +321,7 @@ export type SeasonStanding = {
   totalPoints: number
   raceResults: { raceId: string; rank: number; points: number }[]
   /**
-   * 順位ぶんと区間賞ぶんの内訳。**国内だけ**（区間賞は国内のレースにしかない）。
+   * 順位ぶんと区間賞ぶんの内訳（どのリーグも `utils/league` の `addRaceToStandings` 1本で積む）。
    * 合計は totalPoints にあるので、読む側はふつうそちらを見る。
    */
   leaguePoints?: number

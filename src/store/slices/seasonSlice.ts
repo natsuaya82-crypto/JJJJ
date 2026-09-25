@@ -545,12 +545,12 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const prevRaceIncome = state.currentSeason.seasonRaceIncome ?? 0   // 区間賞のみ
       const prevStreakMe = playerTeamObj?.finance?.deficitStreak ?? 0
 
-      // 来季予算の精算は engine/seasonBudget 1本（自チームもCPUも同じ式）
+      // 来季予算の精算は engine/seasonBudget 1本（232クラブ全部。自チームかどうかは id で見る）
       const budgets = computeSeasonBudgets({
-        players: playersAfterMorale, clubs: state.clubs, sponsors: state.sponsors ?? [], clubsWithFA,
+        players: playersAfterMorale, sponsors: state.sponsors ?? [], clubsWithFA,
         currentSeason: state.currentSeason, playerTeamId: state.playerTeamId,
-        myNextTier, nextTierOf, nextDivisionOf,
-        playerSalaryTotal, playerBudgetAtSeasonEnd, prevRaceIncome, sponsorAnnual,
+        nextTierOf, nextPlaceOf: promo.nextPlaceOf,
+        playerSalaryTotal, playerBudgetAtSeasonEnd, sponsorAnnual,
         objBudgetBonus, bonusTotalPayout, prevStreakMe })
       const newBudget = budgets.newBudget
       const newBudgetBreakdown = budgets.newBudgetBreakdown

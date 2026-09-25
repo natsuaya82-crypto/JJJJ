@@ -128,15 +128,18 @@ console.log('[5] 海外クラブの格を書き換えているコードが1つ�
 {
   // ★字面ではなく**書き戻す口の数**を見る。海外の格は初期値のまま固定なので、
   //   ForeignClub に `tier:` を書くコードは1つもあってはいけない。
-  //   （国内の Team.tier は engine/seasonBudget が毎年書く。それは残す）
+  //   （国内の Team.tier は engine/seasonBudget が engine/promotion の nextPlaceOf で毎年書く。それは残す）
   const src = logicSource()
   check('tierFromForeignRank は廃止されている（src に無い）', !src.includes('tierFromForeignRank'))
   const clubTier = readFileSync('src/utils/clubTier.ts', 'utf8')
   check('定義そのものも消えている',
     !/export function tierFromForeignRank/.test(clubTier))
-  // 海外リーグのクラブへ格を書き戻す形（`c, tier:` / `club, tier:` / `clubs.map(... tier:`）
-  const fs = readFileSync('src/engine/foreignSeason.ts', 'utf8')
-  check('foreignSeason が clubs に tier を書いていない', !/clubs:[\s\S]{0,400}?\btier:/.test(fs))
+  // クラブに来季の格を書く口は engine/promotion の nextPlaceOf 1本で、書くのは決まり（tierMoves）の
+  // あるリーグだけ。実際に232クラブを精算して海外に格が書かれないことは check-season-budget の[2]が見る
+  const promo = readFileSync('src/engine/promotion.ts', 'utf8')
+  check('来季の格を書くのは tierMoves のあるリーグだけ（nextPlaceOf）',
+    /rules\.tierMoves \? \{ tier: nextTierOf\(t\) \} : \{\}/.test(promo))
+  check('来季の格の式も tierMoves を見てから', /leagueRules\(t\.leagueId\)\.tierMoves\s*\?\s*tierFromDomesticRank/.test(promo))
   // 帯の上端が1のリーグでは、配り方の答えがちゃんと1になる（Math.max(2,…)の潰しが戻っていない）
   const topBands = Object.entries(FOREIGN_TIER_BAND).filter(([, b]) => b[0] === 1).map(([id]) => id)
   console.log(`      帯の上端が格1のリーグ: ${topBands.join(' / ') || '(無し)'}`)

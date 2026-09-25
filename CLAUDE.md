@@ -918,17 +918,24 @@ push まで済んでいたのに「コミットしていません」と報告し
 **`fBudget` を格から作り直さないこと**（`scripts/check-foreign-money.ts` が `npm run check` で見張ります）。
 
 海外クラブが1人に出せる上限も国内と同じ `transferCapOf(c.finance.budget)` 1本。
-`tierOfClubId`（＝`data/clubTiers.ts` の初期値）で引かないこと。海外の格は毎年動くので、
+`tierOfClubId`（＝`data/clubTiers.ts` の初期値）で引かないこと。国内の格は毎年動くので、
 初期値で引くと「格20まで落ちたクラブが格1の額を出す」が起きます。
 **同じ理由で、選手の成長速度も `tierOfPlayerClub(teamId, state.clubs)` から引きます。**
 
-`src/data/economy.ts` の `computeNextSeasonBudget` 1本。自チームもCPUも海外も同じです。
+式は `src/data/economy.ts` の `computeNextSeasonBudget` 1本、**精算する場所は
+`src/engine/seasonBudget.ts` の `computeSeasonBudgets` 1か所**（W7）。232クラブ全部を
+どのリーグにいても同じ式で通し、自チームかどうかは **id だけ**で見ます（自チームにだけ
+スポンサー・目標ボーナス・出来高がある）。格と所属リーグを来季ぶんへ進めるのも同じ場所で、
+動くかどうかはリーグの決まり（`engine/promotion` の `nextPlaceOf`＝`tierMoves` / `promotion`）。
+以前は日本のリーグのクラブをここで、海外クラブを `engine/foreignSeason` で別々に精算していて、
+自チームが海外クラブだと自チーム用の精算を通らず、海外には区間賞も払っていませんでした。
 **次のものは廃止済みです。復活させないこと。**
 
 - `RANK_BUDGET`（前年順位→グラント）— 1〜20位ぶんしか無く、52チーム制では
   21位以降が全部3.90億になって2部と3部の区別が消えていた
 - 順位別のレース賞金・観客収入（自チーム／CPU双方）。区間賞だけは残っていて、
-  数え方は `utils/league.ts` の `segmentPrizeByTeam` 1本。**自チームもCPUも同額**
+  数え方は `utils/league.ts` の `segmentPrizeByTeam` 1本。**自チームもCPUも同額で、
+  どのリーグのレースでも払う**（海外リーグにも払う・オーナー・2026-09-25）
 - CPUへのグラント10%補填
 - 連続赤字のグラント減額 — 減るのは収入なのに脱出手段は年俸削減だけの一方通行。
   赤字のペナルティは補強禁止だけ
