@@ -185,6 +185,14 @@ const CHECKS = [
     why: 'playwright かブラウザが無い環境では走らせられない',
     env: () => ({ BOOT_CHROME: bootChrome() }),
   },
+  // 海外クラブを指揮しても画面が壊れないか。boot と同じく実際にブラウザで開く（日本のクラブの世界と
+  // 海外クラブの世界でアプリの道すじを全部開く）。世界を作って70枚ほど開くので1分ほどかかる
+  {
+    name: 'foreign-screens',
+    needs: () => bootChrome() ? null : 'playwright かブラウザが見つからない',
+    why: 'playwright かブラウザが無い環境では走らせられない',
+    env: () => ({ BOOT_CHROME: bootChrome() }),
+  },
   // 年をまたぐ表で「その年の事実」がその年のまま出るか（在籍履歴の部・表彰パッチの部）
   'player-history',
   // 代表の「自動選出」が engine の autoSelectEkiden 1本を通っているか（自前で並べ直していないか）

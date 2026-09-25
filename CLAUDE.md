@@ -149,7 +149,8 @@ md は消すこと**。2026-08-23 に7本（リファクタリング設計書・
 | `src/utils/clubStanding.ts` の `clubSeasonRank` | **画面に出す順位**。国内＝部内順位（1部1〜20／2部・3部1〜16）、海外＝リーグ内順位。**通し順位（1〜52）は返さない**（格を決める内部の数。「47位」「52位」に意味は無い）。`{rank, total, division}` |
 | `src/utils/segmentRecords.ts` | **区間記録**。1部・2部・3部は同じコースを分け合って走るので、**そのコースでいちばん速いタイム1本**。部で分けない（国内3部のリーグを全部一緒に数える） |
 | `src/utils/awards.ts` | **年度表彰（MVP・新人王）。部ごとに選ぶ**（1部MVP・2部MVP・3部MVP）。走る相手も本数も違うので混ぜない。分け方は `racesByDivision` 1本 |
-| `src/utils/league.ts` | 順位の出し方。**日程・結果・順位表はリーグごとに持つ**（`Season.leagues`＝リーグID → 日程・順位表。国内の部のリーグIDは `divisionLeagueId`）。`leagueRaces` / `leagueStandingRows` / `divisionStandings` / `seasonDivisionStandings` / `newSeasonStandings` |
+| `src/utils/league.ts` | 順位の出し方。**日程・結果・順位表はリーグごとに持つ**（`Season.leagues`＝リーグID → 日程・順位表。国内の部のリーグIDは `divisionLeagueId`）。`leagueRaces` / `leagueStandingRows` / `divisionStandings`（部）／ **`seasonLeagueStandings`（そのクラブがその年に走ったリーグの順位表＝自チームの順位はここ。日本の部も海外リーグも同じ）** / `newSeasonStandings`。**指名権を持てるクラブは `draftPickHolders`**（`data/leagueRules` の `draftPicks`。発行・指名順・売り買いはこの並びだけを相手にする） |
+| `src/utils/clubs.ts` の `leagueRoutePath` | **そのリーグの順位表の行き先**（日本の部＝順位表の画面でその部を開く／海外＝リーグの画面）。「自分のリーグを開く」はここを通す。**`/standings` を決め打ちしないこと**——海外クラブを指揮していると日本の1部が開く。クラブ詳細の行き先は隣の `clubRoutePath` |
 | `src/utils/world.ts` の `myLeagueId` / `myLeagueRaces` | **自チームのいるリーグ**。順位表に載っている場所がその年の所属なので、過去の年にもそのまま使える。**部番号（`divisionOf(myClub(…))`）から自チームの日程・順位表を引く2本目を作らないこと** |
 | `src/engine/leagueDay.ts` | **時計は日付1本**。`runLeaguesThrough`＝その日までに開催のある、自チーム以外の全リーグ（国内の他の部・海外9）を日付の順に走らせる（本編の1戦の前と、シーズン末に残り全部）。`withForeignSchedules`＝海外リーグの日程（日本1部と同じ10日・同じコースの並び・呼び名は地域のもの）。順位表へ足すのは `addRaceToStandings` 1本（自チームのリーグも同じ）。**「自チームの何戦目か」でほかのリーグを進めないこと** |
 | `src/store/persistence/legacySeason.ts` | **旧い形のシーズンを均す唯一の場所**（`normalizeSeasonLeagues`）。旧い入れ物の名前（`races`／`divisionRaces`／`standings`／`foreignRaces`／`foreignStandings`／`foreignRaceIndex`）を書いてよいのはここと `migrateSave.ts` だけ（`check-season-leagues` が見張る） |
@@ -651,14 +652,23 @@ tab / page / view / division / section のものが一覧に無ければ落ち�
 | W5 | 時計は日付（`engine/leagueDay`） |
 | W6 | CPU の自動処理は「自チームの id 以外」で絞る（`otherClubs`） |
 | W7 | お金の精算は1か所（来季予算＝`engine/seasonBudget` の `computeSeasonBudgets`／クラブ間のお金＝`utils/clubMoney` の `payBetween`）。自チームかどうかは id だけで見る |
+| W8 | **画面も自チームは `myClub`、自分のリーグは順位表から**（`seasonLeagueStandings` / `myLeagueId` / `leagueRoutePath`）。監督名・本拠地・創設年は `utils/clubs` の `clubGmName` / `clubCity` / `clubFounded`（保存の無いクラブでも出る）。`jpelClubById(…, playerTeamId)` や `divisionOf(myClub(…))` で自チームを引かない |
 
 ★**P4（2026-09-25）で W6・W7 まで入りました。** お金を動かすのは `utils/clubMoney` の `payBetween` 1本
 （移籍金もトレードの現金も、どのリーグのクラブでも両側が動く）、来季予算の精算は `engine/seasonBudget` 1か所
 （232クラブ・区間賞は海外リーグにも払う）、CPU のオフの処理と ECL は自チームを id で外す
 （`check-season-budget` / `check-club-money` / `check-self-by-id` / `check-trade-world`）。
+★**P5（2026-09-25）で W8 まで入りました。** 画面は自チームを `myClub`、自分のリーグを順位表から引きます
+（ホームの順位と順位表の四角・「順位表」の行き先・移籍市場・クラブ詳細の「自チーム」・監督名）。
+`check-foreign-screens` が、日本のクラブを指揮している世界と海外クラブへ移った世界の2つで、
+**アプリの道すじ（`App.tsx` の `AppRoutes`）を全部ブラウザで開いて**見張ります（落ちない・何か出る・
+自分のリーグの順位と名前が出る・海外の世界で自チームの画面に「JPEL」「◯部」が出ない）。
+日本の部にしか無いもの（ホームの「JPEL優勝」・年度表彰）は、自チームが部のリーグにいないときは出しません。
+指名権（`draftPickHolders` / `holdsDraftPicks`）と新しいゲームの並べ替え（`promotion` のあるリーグ）は
+リーグの決まりから引く形にしました。
 **まだ `jpelClubs` / `isJpelLeague` で分けているところ**（シーズン中のレンタルの打診 borrow_in の出し手・
-記録会のチーム歴代記録・指名権まわり・監督オファーの候補・新しいゲームの並べ替え など）は振る舞いを
-変えずに残してあります。新しく書くときは `jpelClubs` で絞る分岐を増やさず、リーグの決まりから引くこと。
+記録会のチーム歴代記録・監督オファーの候補 など）は振る舞いを変えずに残してあります。
+新しく書くときは `jpelClubs` で絞る分岐を増やさず、リーグの決まりから引くこと。
 
 `check-world-layer` が見張るもの：層の外の直読み**0件**（予算の fixture は置かない＝1件でも落ちる）／
 `GameState` に `teams` / `foreignLeagues` が無い／旧い名前を読み書きするのは移行の2本だけ／

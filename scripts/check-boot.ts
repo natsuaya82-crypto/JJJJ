@@ -22,8 +22,8 @@
  *     BOOT_CHROME=/opt/pw-browsers/chromium-1194/chrome-linux/chrome node <組んだもの>
  */
 import { createRequire } from 'node:module'
-import { spawn } from 'node:child_process'
 import { join } from 'node:path'
+import { startDev, CONSOLE_NOISE } from './devServer'
 
 // playwright は esbuild で束ねない（ネイティブの実行ファイルを抱えているため）。
 // createRequire 経由にすると、束ねる側からは中身が見えないので実行時に読み込まれる。
@@ -41,40 +41,10 @@ if (!CHROME) {
   process.exit(1)
 }
 
-// ── dev サーバを立ち上げる ──
-// ポートは空きしだいで変わるので、出力から読み取る（5173 と決め打ちしない）
-type Dev = { url: string; stop: () => void }
-function startDev(): Promise<Dev> {
-  return new Promise((resolve, reject) => {
-    // ★プロセスグループごと起こす。`npm run dev` は sh → vite と孫が生えるので、
-    //   子だけ kill しても vite が生き残り、その stdio がこちらを終わらせない
-    //   （結果を出したあと固まる。落ちるときは process.exit で抜けるので、
-    //     **緑になって初めて出る**種類の穴だった）
-    const child = spawn('npm', ['run', 'dev'], { cwd: process.cwd(), env: process.env, detached: true })
-    let buf = ''
-    const timer = setTimeout(() => { child.kill('SIGKILL'); reject(new Error(`dev サーバが立ち上がりませんでした:\n${buf.slice(-500)}`)) }, 60000)
-    const onData = (d: Buffer) => {
-      buf += d.toString()
-      const m = buf.match(/http:\/\/localhost:(\d+)/)
-      if (m) {
-        clearTimeout(timer)
-        child.stdout?.off('data', onData)
-        resolve({ url: m[0] + '/', stop: () => { try { process.kill(-child.pid!, 'SIGKILL') } catch { /* もう死んでいる */ } } })
-      }
-    }
-    child.stdout?.on('data', onData)
-    child.stderr?.on('data', onData)
-    child.on('error', e => { clearTimeout(timer); reject(e) })
-  })
-}
-
 // CJS に束ねるので top-level await は使えない。本体は async 関数に包む
 async function main() {
-  // BOOT_URL があればそこを開く（dev サーバを立てない）。
-  // 中身を差し替えて「緑になる道」を確かめるときと、将来 dist を見る版に使う
-  const dev = process.env.BOOT_URL
-    ? { url: process.env.BOOT_URL, stop: () => {} }
-    : await startDev()
+  // BOOT_URL があればそこを開く（dev サーバを立てない。scripts/devServer）
+  const dev = await startDev()
   console.log(`  開く先: ${dev.url}`)
 
   const { chromium } = req('playwright') as typeof import('playwright')
@@ -103,9 +73,9 @@ async function main() {
 
   // ★合否に使うのは「アプリ自身が投げた例外」だけ。
   //   読み込みに失敗した（404・接続断）は描画の失敗ではないので合否から外す
-  //   ——ただし黙って捨てず、下に参考として出す。
+  //   ——ただし黙って捨てず、下に参考として出す（scripts/devServer の CONSOLE_NOISE）。
   //   （favicon の404が「console.error が出ている」で赤くなっていた）
-  const NOISE = /Failed to load resource|ERR_CONNECTION_RESET|favicon|\[vite\]|Download the React DevTools|getSnapshot should be cached/i
+  const NOISE = CONSOLE_NOISE
   const uniq = [...new Set(errors)]
   const real = uniq.filter(e => !NOISE.test(e))
   const noise = uniq.filter(e => NOISE.test(e))
