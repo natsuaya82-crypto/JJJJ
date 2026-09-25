@@ -29,7 +29,6 @@ import { natLabel, natGeoRegion } from '../../data/nationalities'
 import { WA_HOST_CITY } from '../../engine/worldAthletics'
 import { waRaceRows } from '../../utils/waRaces'
 import { ranRaces, raceKey, splitRaceKey, shortRaceName } from '../../utils/raceHistory'
-import { ForeignChip } from '../player/PlayerChips'
 import ScreenCover from '../ui/ScreenCover'
 import ScreenPortal from '../ui/ScreenPortal'
 
@@ -526,7 +525,6 @@ export default function PlayerSheet() {
                     </svg>
                   </button>
                 )}
-                <ForeignChip nationality={player.nationality} />
                 {player.status === 'injured' && (
                   <span style={{ fontSize: F.micro, padding: '1px 5px',backgroundColor: `${CARD.red}18`, border: `1px solid ${CARD.red}35`, color: CARD.red, fontWeight: '700' }}>負傷中</span>
                 )}

@@ -16,7 +16,7 @@ import NumberDial from '../ui/NumberDial'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { audio } from '../../utils/audio'
 import { draftRoundOf, DRAFT_ROUNDS } from '../../utils/league'
-import { SpecChip, ForeignChip } from '../player/PlayerChips'
+import { SpecChip } from '../player/PlayerChips'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
 import { clubById, jpelClubs, myClub } from '../../utils/world'
@@ -779,7 +779,6 @@ function PoolCard({ player: p, isMyPick, onPick, isScouted, isRecommend, buzz }:
               <span style={{ fontSize: F.sub, fontWeight: '700', color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {p.name}
               </span>
-              <ForeignChip nationality={p.nationality} />
               {isRecommend && (
                 <span style={{ padding: '1px 5px',flexShrink: 0, backgroundColor: alpha(C.green, 0.18), border: `1px solid ${alpha(C.green, 0.4)}`, fontSize: F.micro, color: C.green, fontWeight: '800' }}>補強ニーズ◎</span>
               )}

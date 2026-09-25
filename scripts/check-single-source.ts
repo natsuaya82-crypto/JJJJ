@@ -425,12 +425,21 @@ RULES.push({
 //
 // タイプの札を画面ごとに手書きしていて、同じ札のはずなのに実測で8通りあった
 // （角の丸み 4/5/6/7/10、背景の濃さ 0.08〜0.15、枠線あり／なし）。
-// 「外」の札も3通りの青（C.blue / #7986CB / #6B7BE8）で、文字まで「外」と「海外」に割れていた。
 RULES.push({
-  name: '選手の札（タイプ・外国人）を自前で描いている',
-  pattern: /SPECIALTY_LABELS\[[^\]]*\][^\n]*(backgroundColor|background):|(backgroundColor|background):[^\n]*SPECIALTY_LABELS\[|>外<\/span>|>海外<\/span>/,
+  name: '選手のタイプの札を自前で描いている',
+  pattern: /SPECIALTY_LABELS\[[^\]]*\][^\n]*(backgroundColor|background):|(backgroundColor|background):[^\n]*SPECIALTY_LABELS\[/,
   allow: ['src/components/player/PlayerChips.tsx'],
-  fix: 'components/player/PlayerChips.tsx の SpecChip / ForeignChip を使う',
+  neverAppears: '`SpecChip` は `chipStyle` で描くので、`SPECIALTY_LABELS` と背景が同じ行に並ぶ場所はどこにも無いのが正しい',
+  fix: 'components/player/PlayerChips.tsx の SpecChip を使う',
+})
+
+// 外国籍の「外」の札は部品（`ForeignChip`）ごと廃止した（オーナー・2026-09-25）。
+RULES.push({
+  name: '外国籍の「外」の札を描いている',
+  pattern: />外<\/span>|>海外<\/span>|ForeignChip/,
+  allow: ['src/components/player/PlayerChips.tsx'],
+  neverAppears: '「外」の札は 2026-09-25 に部品ごと廃止。二度と出てこないのが正しい',
+  fix: '描かない（国籍で印を付けない）',
 })
 
 // 得点・フォント・コース種別を画面や別のエンジンで作り直さないこと。

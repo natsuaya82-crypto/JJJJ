@@ -1,9 +1,8 @@
 import type { CSSProperties } from 'react'
-import type { Nationality, Specialty } from '../../types'
+import type { Specialty } from '../../types'
 import { SPECIALTY_LABELS } from '../../types'
 import { SPEC_COLOR } from '../../utils/playerUtils'
-import { isForeignNat } from '../../data/nationalities'
-import { C, alpha, F } from '../../styles/tokens'
+import { alpha, F } from '../../styles/tokens'
 
 // ============================================================================
 // 選手の名前の横に出る小さな札。**同じ札はここ1本で描く。**
@@ -60,10 +59,4 @@ export function SpecChip({ specialty, size = 'md', highlight }: {
       {SPECIALTY_LABELS[specialty]}{highlight ? ' ✓' : ''}
     </span>
   )
-}
-
-/** 外国人選手の「外」。国籍から出すので、呼ぶ側が条件を書かなくていい（該当しなければ何も出ない） */
-export function ForeignChip({ nationality, size = 'sm' }: { nationality: Nationality; size?: Size }) {
-  if (!isForeignNat(nationality)) return null
-  return <span style={chipStyle(C.blue, size)}>外</span>
 }

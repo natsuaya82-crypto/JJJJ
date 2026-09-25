@@ -7,7 +7,6 @@ import { fmtYen } from '../../utils/money'
 import { SPECIALTY_LABELS } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
-import { ForeignChip } from '../player/PlayerChips'
 import { panelStyle } from '../ui/Panel'
 
 
@@ -139,7 +138,6 @@ export default function NewsPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
                       <span style={{ fontSize: F.sub, fontWeight: 700, color: C.text, fontFamily: SAIRA }}>{relPlayer.name}</span>
-                      <ForeignChip nationality={relPlayer.nationality} />
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: F.caption, fontWeight: 700, color: specCol, fontFamily: SAIRA }}>{SPECIALTY_LABELS[relPlayer.specialty]}</span>
