@@ -13,7 +13,7 @@ import { generateCpuRosters } from '../src/engine/playerGenerator'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { LEAGUE_COURSE_POOL } from '../src/data/races'
-import { DIVISIONS, DIVISION_LABEL, divisionOf } from '../src/utils/league'
+import { DIVISIONS, DIVISION_LABEL, divisionOf, divisionLeagueId } from '../src/utils/league'
 import type { Race, Team } from '../src/types'
 
 const teams: Team[] = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
@@ -44,7 +44,7 @@ for (let r = 0; r < ROUNDS; r++) {
 }
 
 // 走行記録から数え直す（本番と同じ入口）
-const fromRecords = buildCareerCounts([{ races: [], divisionRaces: racedByDiv }])
+const fromRecords = buildCareerCounts([{ year: 2028, leagues: Object.fromEntries(DIVISIONS.map(d => [divisionLeagueId(d), { races: racedByDiv[d] }])) }])
 
 const ids = new Set([...Object.keys(oldCounts), ...fromRecords.keys()])
 let sameRaces = 0, sameWins = 0

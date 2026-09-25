@@ -257,6 +257,7 @@ RULES.push({
     'src/utils/careerStats.ts',   // 古い年だけここで使う（分岐は addSeason 1か所）
     'src/utils/playerUtils.ts',   // foreignAppsOf の実体（旧形式と圧縮版の吸収）
     'src/utils/archiveSeason.ts', // 過去シーズンへ書き出すときの詰め替え
+    'src/store/persistence/legacySeason.ts',  // 旧セーブの過去シーズンを同じ形まで削る（toArchivedShape）
     'src/types/index.ts',
     'src/store/gameStore.ts',     // 走らせた年にためる側（読む側ではない）
     'src/utils/retiredTeamBackfill.ts',  // 型が付いていない生データの形を書いているだけ
@@ -302,6 +303,7 @@ RULES.push({
     'src/store/persistence/migrateSave.ts',  // 旧セーブの移行（v37の詰め替え）
     'src/store/seasonArchive.ts',    // 別ファイルへの書き出し・読み戻し
     'src/utils/archiveSeason.ts',    // 過去シーズンへの詰め替え
+    'src/store/persistence/legacySeason.ts',  // 旧セーブの過去シーズンを同じ形まで削る（toArchivedShape）
     'src/types/index.ts',
   ],
   fix: 'utils/waRaces.ts の waRaceRows を使う（本戦・アジア予選・大陸予選が年と大会名つきで返る）',
@@ -325,29 +327,15 @@ RULES.push({
 // 画面が1つずつ拾っていたので、足し忘れたぶんはそのまま表示から消えていた
 // （海外リーグの出走が選手ページに1件も出ていなかった）。取り出しは utils/raceHistory 1本。
 RULES.push({
-  name: '走行記録の置き場所を画面から直接読んでいる',
-  pattern: /\.(divisionRaces|foreignRaces)/,
+  name: '日程・結果・順位表の旧い入れ物を読み書きしている',
+  // 国内の自分の部・他の部・海外で割れていた旧い入れ物。いまは Season.leagues（リーグID → 日程・順位表）1つ。
+  // 旧い名前を書いてよいのは、旧セーブを均す2か所だけ（src 全体は check-season-leagues が数える）
+  pattern: /\.(divisionRaces|foreignRaces|foreignStandings|foreignRaceIndex)\b/,
   allow: [
-    'src/utils/raceHistory.ts',    // 唯一の取り出し口
-    'src/utils/careerStats.ts',    // 通算成績の数え直し
-    'src/utils/playerUtils.ts',    // 海外の在籍履歴（圧縮版の吸収）
-    'src/utils/archiveSeason.ts',  // 過去シーズンへの詰め替え
-    'src/store/seasonArchive.ts',  // 別ファイルへの書き出し・読み戻し
-    'src/store/gameStore.ts',      // ためる側
-    'src/engine/domesticLeague.ts',
-    'src/engine/foreignLeague.ts',
-    // 区間記録と年度表彰は「どの部の走りか」を自分で分ける側なので、生の日程を直接読む。
-    // 記録は部をまたいで1本（同じコースの最速）、表彰は部ごと（1部MVP・2部MVP・3部MVP）。
-    'src/utils/segmentRecords.ts',
-    'src/utils/awards.ts',
-    'src/store/bootRepair.ts',      // 過去シーズンの部を日程から直す側
-    'src/utils/playRate.ts',        // 「そのクラブが走っている日程」を引く側
-    'src/store/slices/competitionSlice.ts',   // 書く側（海外リーグ進行の移設先）
-    'src/store/slices/raceSlice.ts',   // 書く側（runRaceの移設先）
-    'src/store/slices/seasonSlice.ts',   // 書く側（endSeasonの移設先）
-    'src/engine/catchUpDivisions.ts',   // 書く側（残り日程の消化。domesticLeague の呼び出し口）
+    'src/store/persistence/legacySeason.ts',  // 旧い形を均す唯一の場所
+    'src/store/persistence/migrateSave.ts',   // v46 より前の段（旧い形のまま動く）
   ],
-  fix: 'utils/raceHistory.ts の ranRaces を使う（リーグ名つきで全部返る）',
+  fix: '日程・結果は utils/league の leagueRaces（自チームは utils/world の myLeagueRaces）、順位表は leagueStandingRows で引く',
 })
 
 // チャットのログは2つの経路で積まれる（ボタンでその場で足す／次に開いて作り直す）。

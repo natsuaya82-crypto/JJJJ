@@ -14,7 +14,7 @@
 // 「どの部にも属さないチーム」が生まれ、順位表からもレースからも消える。
 // 必ず divisionOf() を通すこと。
 
-import type { Division, Team } from '../types'
+import type { Division, LeagueId, LeagueSeason, Race, SeasonStanding, Team } from '../types'
 import { myClub } from './world'
 
 /** 上から順。表示の並びもこの順 */
@@ -64,27 +64,95 @@ export function domesticThroughRank(division: Division, rankInDivision: number):
   return offset + Math.max(1, rankInDivision)
 }
 
+// ── リーグID（国内の部）──────────────────────────────────────
+//
+// 日程・結果・順位表は `Season.leagues`（リーグID → そのリーグ）に入っている。
+// 国内の部もリーグの1つで、IDは `jpel-<部>`。海外は `ForeignLeague.id` そのもの。
+// ★`utils/clubs` の `JPEL_LEAGUE_ID`（'jpel'）は**クラブの所属先**の印で、国内52クラブが
+//   全部 'jpel'。シーズンの入れ物は部ごとに日程も順位表も違うので、その後ろに部を付ける
+//   （clubs.ts は clubTier 経由でこのファイルを読むので、import せずに字で持つ）。
+
+const DIVISION_LEAGUE_PREFIX = 'jpel-'
+
+/** その部のリーグID。**部番号からリーグを引くのはここ1本** */
+export function divisionLeagueId(division: Division): LeagueId {
+  return `${DIVISION_LEAGUE_PREFIX}${division}`
+}
+
+/** 国内の部のリーグなら、その部。海外リーグなら undefined */
+export function divisionOfLeague(leagueId: LeagueId | null | undefined): Division | undefined {
+  if (!leagueId?.startsWith(DIVISION_LEAGUE_PREFIX)) return undefined
+  const d = Number(leagueId.slice(DIVISION_LEAGUE_PREFIX.length))
+  return (DIVISIONS as readonly number[]).includes(d) ? d as Division : undefined
+}
+
+/** そのリーグの日程（結果つき）。無ければ空 */
+export function leagueRaces(
+  season: { leagues?: Readonly<Record<LeagueId, Pick<LeagueSeason, 'races'>>> } | null | undefined,
+  leagueId: LeagueId | null | undefined,
+): Race[] {
+  return leagueId == null ? [] : season?.leagues?.[leagueId]?.races ?? []
+}
+
+/** そのリーグの順位表の行（登録順のまま。順位は `rankedStandings` で出す）。無ければ空 */
+export function leagueStandingRows(
+  season: { leagues?: Readonly<Record<LeagueId, Pick<LeagueSeason, 'standings'>>> } | null | undefined,
+  leagueId: LeagueId | null | undefined,
+): SeasonStanding[] {
+  return leagueId == null ? [] : season?.leagues?.[leagueId]?.standings ?? []
+}
+
+/** そのシーズンの全リーグの日程を1本に（国内3部＋海外）。区間記録・通算を数える側が使う */
+export function allLeagueRaces(
+  season: { leagues?: Readonly<Record<LeagueId, Pick<LeagueSeason, 'races'>>> } | null | undefined,
+): Race[] {
+  return Object.values(season?.leagues ?? {}).flatMap(l => l.races ?? [])
+}
+
 /**
- * その日程がどの部のものか。**「その年その部で走った」の唯一の引き方。**
- *
- * 自分の部の結果は `season.races` に、他の部は `season.divisionRaces` に入っている
- * （`races` は `divisionRaces[自分の部]` と同じ日程だが、結果が入るのは `races` の側）。
- * どちらも同じレースIDなので、重なりを見れば自分がどの部で走ったかが分かる。
- *
- * 過去シーズンではこれが唯一の手がかり。`Team.division` は「いまの部」なので、
- * 昇降格したあとの年に当てはめると過去の記録が動いてしまう。
- * 順位表のキーも当てにならない（キー自体がズレていたのが build 110 までの不具合）。
+ * 部ごとの日程と順位表から、国内3部ぶんのリーグを作る。**作る場所はここ1本。**
+ * 海外リーグは `engine/leagueDay` の `withForeignLeagues` が足す。
  */
-export function divisionOfRaces(
-  races: readonly { id: string }[] | undefined,
-  divisionRaces: Partial<Record<number, readonly { id: string }[]>> | undefined,
-): Division | undefined {
-  if (!races?.length || !divisionRaces) return undefined
-  const ids = new Set(races.map(r => r.id))
+export function divisionLeagues(
+  schedules: Partial<Record<Division, Race[]>>,
+  standings: Record<Division, SeasonStanding[]>,
+): Record<LeagueId, LeagueSeason> {
+  const out: Record<LeagueId, LeagueSeason> = {}
+  for (const d of DIVISIONS) out[divisionLeagueId(d)] = { races: schedules[d] ?? [], standings: standings[d] ?? [] }
+  return out
+}
+
+/** 国内3部の日程を差し替えたリーグを返す（順位表と海外リーグはそのまま） */
+export function withDivisionRaces(
+  leagues: Record<LeagueId, LeagueSeason> | undefined,
+  schedules: Partial<Record<Division, Race[]>>,
+): Record<LeagueId, LeagueSeason> {
+  const out = { ...(leagues ?? {}) }
   for (const d of DIVISIONS) {
-    if ((divisionRaces[d] ?? []).some(r => ids.has(r.id))) return d
+    const id = divisionLeagueId(d)
+    out[id] = { races: schedules[d] ?? [], standings: out[id]?.standings ?? [] }
   }
-  return undefined
+  return out
+}
+
+/** 国内3部の順位表を取り出す（部 → 行）。部を並べ直す（`reconcileStandingsDivisions`）ときだけ使う */
+export function divisionStandingsRecord<T extends RankableRow & { teamId: string }>(
+  season: SeasonStandingsLike<T>,
+): Record<Division, T[]> {
+  return Object.fromEntries(DIVISIONS.map(d => [d, [...(season.leagues?.[divisionLeagueId(d)]?.standings ?? [])]])) as Record<Division, T[]>
+}
+
+/** 国内3部の順位表を差し替えたリーグを返す（日程と海外リーグはそのまま） */
+export function withDivisionStandings(
+  leagues: Record<LeagueId, LeagueSeason>,
+  standings: Record<Division, SeasonStanding[]>,
+): Record<LeagueId, LeagueSeason> {
+  const out = { ...leagues }
+  for (const d of DIVISIONS) {
+    const id = divisionLeagueId(d)
+    out[id] = { races: leagues[id]?.races ?? [], standings: standings[d] ?? [] }
+  }
+  return out
 }
 
 /** 指定した部に所属するチームだけを返す */
@@ -173,13 +241,13 @@ export function rankOfTeam(rows: readonly { teamId: string; totalPoints: number 
 
 /** 順位を出すのに要るものだけ。今シーズンも過去シーズンも同じ形で渡せる */
 export type SeasonStandingsLike<T extends RankableRow & { teamId: string }> = {
-  standings?: Partial<Record<Division, readonly T[]>>
+  leagues?: Readonly<Record<LeagueId, { standings?: readonly T[] }>>
 }
 
 /**
  * その部の順位表（得点順）。**順位を出すのはここ1本。**
  *
- * 順位表は部ごとに分けて持っている（`Season.standings`）ので、ここは取り出して並べるだけ。
+ * 順位表はリーグごとに分けて持っている（`Season.leagues`）ので、ここは取り出して並べるだけ。
  * 部をまたいで並べる関数は用意しない。レース数が違う（10 / 8 / 7戦）ので、
  * 勝ち点を部をまたいで比べること自体に意味が無い。
  */
@@ -187,7 +255,7 @@ export function divisionStandings<T extends RankableRow & { teamId: string }>(
   season: SeasonStandingsLike<T>,
   division: Division,
 ): T[] {
-  return rankedStandings(season.standings?.[division])
+  return rankedStandings(season.leagues?.[divisionLeagueId(division)]?.standings)
 }
 
 /**
@@ -201,7 +269,7 @@ export function divisionInSeason(
   teamId: string,
 ): Division | undefined {
   for (const d of DIVISIONS) {
-    if (season.standings?.[d]?.some(r => r.teamId === teamId)) return d
+    if (season.leagues?.[divisionLeagueId(d)]?.standings?.some(r => r.teamId === teamId)) return d
   }
   return undefined
 }
@@ -214,7 +282,7 @@ export function divisionInSeason(
  * 昇降格した瞬間に過去の年の行まで今の部に書き換わる。
  * 実際、選手詳細の在籍履歴が「2部で走った年が、降格した途端に3部と表示される」状態だった。
  *
- * 順位表は部ごとに分けて持っている（`Season.standings` が `Record<部, 順位表>`）ので、
+ * 順位表はリーグごとに分けて持っている（`Season.leagues` の部のリーグ）ので、
  * その年の順位表に載っている場所がそのまま「その年の部」になる。
  *
  * @param fallback 順位表を持たない古いセーブの年に使う部（呼ぶ側で `divisionOf(いまのチーム)`）。
@@ -245,7 +313,7 @@ export function standingRowOf<T extends RankableRow & { teamId: string }>(
   teamId: string,
 ): T | undefined {
   for (const d of DIVISIONS) {
-    const row = season.standings?.[d]?.find(r => r.teamId === teamId)
+    const row = season.leagues?.[divisionLeagueId(d)]?.standings?.find(r => r.teamId === teamId)
     if (row) return row
   }
   return undefined
@@ -396,28 +464,31 @@ export function divisionStandingsFromRaces(
 /**
  * 順位表をチームの部に合わせる。**順位表を触る入口はここ1本。**
  *
- * 1. 行を「いまの Team.division」の側へ並べ直す
+ * 1. 国内の行を「いまの Team.division」の部のリーグへ並べ直す
  * 2. 自分の部だけ、走り終わったレースの結果から点を数え直す
  *
  * 起動時（persist の merge）とチーム選択（startSetup）の両方から呼ぶ。
  * 何度呼んでも同じ結果になるので、壊れたセーブは開き直すだけで直る。
+ * 日程と海外リーグには触らない。
  */
-export function syncSeasonStandings(params: {
-  standings: Record<Division, StandingRow[]> | undefined
-  races: readonly RanRace[] | undefined
+export function syncSeasonLeagues(params: {
+  leagues: Record<LeagueId, LeagueSeason> | undefined
   teams: readonly Pick<Team, 'id' | 'division'>[]
   playerTeamId: string | undefined
-}): Record<Division, StandingRow[]> {
-  const { standings, races, teams, playerTeamId } = params
-  const fixed = reconcileStandingsDivisions(standings, teams, teamId => ({
+}): Record<LeagueId, LeagueSeason> {
+  const { teams, playerTeamId } = params
+  const leagues = params.leagues ?? {}
+  const fixed = reconcileStandingsDivisions<SeasonStanding>(divisionStandingsRecord<SeasonStanding>({ leagues }), teams, teamId => ({
     teamId, leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [],
   }))
   // ★自チームが見つからないときに `divisionOf(undefined)` の既定値（1部）へ落ちないこと。
   //   落ちると1部だけ数え直し、自分の部の点はいつまでも0のまま＝直したつもりで直らない。
   const me = myClub({ teams, playerTeamId })
-  if (!me) return fixed
-  const myDiv = divisionOf(me)
-  return { ...fixed, [myDiv]: divisionStandingsFromRaces(fixed[myDiv], races ?? []) }
+  if (me) {
+    const myDiv = divisionOf(me)
+    fixed[myDiv] = divisionStandingsFromRaces(fixed[myDiv], leagues[divisionLeagueId(myDiv)]?.races ?? []) as SeasonStanding[]
+  }
+  return withDivisionStandings(leagues, fixed)
 }
 
 /**

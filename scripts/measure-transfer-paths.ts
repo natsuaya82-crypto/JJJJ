@@ -22,6 +22,7 @@ import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/
 import { newSeasonStandings, DIVISIONS, DIVISION_RACES, divisionOf } from '../src/utils/league'
 import { generateSeasonRaces } from '../src/data/races'
 import type { SeasonStanding, Team, Player } from '../src/types'
+import { seasonLeaguesFixture } from './seasonFixture'
 
 const YEAR = 2030
 const MY = 'tokyo'
@@ -53,8 +54,9 @@ useGameStore.setState({
   foreignLeagues: fgen.updatedLeagues,
   currentSeason: {
     year: YEAR, phase: 'postseason', currentRaceIndex: races.length,
-    races: races.map(r => ({ ...r, results: { teamResults: [], segmentResults: [] } })),
-    standings, foreignStandings, newsFeed: [], objectives: [],
+    leagues: seasonLeaguesFixture({ myDivision: divisionOf(teams.find(t => t.id === MY)!),
+      races: races.map(r => ({ ...r, results: { teamResults: [], segmentResults: [] } }) as never), standings, foreignStandings }),
+    newsFeed: [], objectives: [],
     incomingOffers: [], transferListings: [], contractRequests: [],
   },
   pastSeasons: [], worldAthleticsResults: [], worldRepresentatives: [],

@@ -8,6 +8,8 @@
  *   v32 予算をクラブの格1本にした            … 残高を格の年間予算で入れ直す
  *   v36 順位表を部ごとに分けて持つ            … 平らな配列 → 部ごとのRecord
  *   v37 世界大会の走行記録をシーズン側へ移す  … worldAthleticsResults[].races → Season.waRaces
+ *   v46 日程・結果・順位表をリーグIDで引く形へ … 国内（自分の部・他の部・部ごとの順位表）と
+ *       海外（走行記録・順位表・消化数）に割れていたのを Season.leagues 1つへ
  *
  * 変換が1つでも抜けると、読み込んだ瞬間に順位が全部おかしくなったり、
  * 過去の大会の記録が消えたりする。ここでは変換後に
@@ -23,7 +25,7 @@ import { LEAGUE_COURSE_POOL } from '../src/data/races'
 import { ranRaces } from '../src/utils/raceHistory'
 import { waRaceRows } from '../src/utils/waRaces'
 import { buildCareerCounts } from '../src/utils/careerStats'
-import { divisionStandings, DIVISIONS } from '../src/utils/league'
+import { divisionStandings, DIVISIONS, divisionLeagueId, leagueRaces, leagueStandingRows, divisionInSeason } from '../src/utils/league'
 import { clubSeasonRank, clubWonLeague } from '../src/utils/clubStanding'
 import type { Race } from '../src/types'
 
@@ -117,13 +119,18 @@ console.log(`  ※ 2部・3部の32クラブはここでは増えない。シー
 // ── 順位表（v36）──
 console.log('')
 console.log('[順位表]')
-const cs = after.currentSeason as { standings?: unknown }
-check('今季が部ごとの形になっている', !Array.isArray(cs.standings) && typeof cs.standings === 'object')
+const LEGACY = ['races', 'divisionRaces', 'standings', 'foreignRaces', 'foreignStandings', 'foreignRaceIndex']
+const cs = after.currentSeason as Record<string, unknown> & { leagues?: Record<string, unknown> }
+check('今季がリーグの形になっている（部ごとのリーグが3つ）', DIVISIONS.every(d => !!cs.leagues?.[divisionLeagueId(d)]))
+check('今季に旧い入れ物が残っていない', !LEGACY.some(k => k in cs), LEGACY.filter(k => k in cs).join(', '))
 const d1 = divisionStandings(cs as Parameters<typeof divisionStandings>[0], 1)
 check('1部に20チーム全部いる', d1.length === teams.length, `${d1.length}チーム`)
 check('2部・3部は空', DIVISIONS.slice(1).every(d => divisionStandings(cs as Parameters<typeof divisionStandings>[0], d).length === 0))
-const ps = (after.pastSeasons as { standings?: unknown }[])[0]
-check('過去シーズンも部ごとの形', !Array.isArray(ps.standings) && typeof ps.standings === 'object')
+const ps = (after.pastSeasons as (Record<string, unknown> & { leagues?: Record<string, unknown> })[])[0]
+check('過去シーズンもリーグの形', DIVISIONS.every(d => !!ps.leagues?.[divisionLeagueId(d)]))
+check('過去シーズンに旧い入れ物が残っていない', !LEGACY.some(k => k in ps), LEGACY.filter(k => k in ps).join(', '))
+check('自分の部の日程（結果つき）は自分の部のリーグに入る',
+  leagueRaces(cs, divisionLeagueId(1)).length === races.length && leagueRaces(cs, divisionLeagueId(1)).every(r => !!r.results))
 
 // ── 走行記録（v37 と読み口）──
 console.log('')
@@ -186,10 +193,9 @@ console.log('[クラブ側の名簿]')
 console.log('')
 console.log('[海外リーグの順位表]')
 {
-  const csAfter = after.currentSeason as { foreignStandings?: Record<string, Record<string, unknown>[]> }
-  const psAfter = (after.pastSeasons as { foreignStandings?: Record<string, Record<string, unknown>[]> }[])[0]
-  const cur = csAfter.foreignStandings?.africa_east ?? []
-  const past = psAfter?.foreignStandings?.africa_east ?? []
+  const psAfter = (after.pastSeasons as never[])[0]
+  const cur = leagueStandingRows(after.currentSeason as never, 'africa_east') as unknown as Record<string, unknown>[]
+  const past = leagueStandingRows(psAfter, 'africa_east') as unknown as Record<string, unknown>[]
   check('今季ぶんが teamId になっている', cur.length === 2 && cur.every(r => typeof r.teamId === 'string' && r.teamId !== ''),
     JSON.stringify(cur.map(r => r.teamId)))
   check('過去シーズンぶんも teamId になっている', past.length === 2 && past.every(r => typeof r.teamId === 'string' && r.teamId !== ''),
@@ -202,6 +208,29 @@ console.log('[海外リーグの順位表]')
   check('読み口から今季の順位が引ける', rank.rank === 1 && rank.total === 2, JSON.stringify(rank))
   check('読み口から過去の順位が引ける', pastRank.rank === 1, JSON.stringify(pastRank))
   check('過去のリーグ優勝が数えられる', clubWonLeague(psAfter as never, 'eth_1') && !clubWonLeague(psAfter as never, 'ken_1'))
+}
+
+// ── v46：自チームの行が走った部と違う部に載っている過去の年（build 110 までのズレ）──
+// 以前は起動のたびに bootRepair が日程のIDの重なりで直していた。いまは v46 の段で1回だけ直す
+// （結果を別ファイルへ出してある年は、起動時にはまだ結果が無いので bootRepair では直せない）
+console.log('')
+console.log('[v46 自チームの部のズレ]')
+{
+  const me = 'me'
+  const r3 = [{ id: 'race-d3-1', name: '3部戦', results: undefined }]
+  const past = {
+    year: YEAR - 1,
+    // 走ったのは3部の日程（自分の部の日程＝結果は別ファイルへ出してあるので空）
+    races: r3,
+    divisionRaces: { 1: [{ id: 'race-d1-1' }], 2: [{ id: 'race-d2-1' }], 3: r3 },
+    // ところが順位表は自分を2部に置いている
+    standings: { 1: [], 2: [{ teamId: me, totalPoints: 0, raceResults: [] }], 3: [{ teamId: 'x', totalPoints: 0, raceResults: [] }] },
+  }
+  const out = migrate(JSON.parse(JSON.stringify({ ...oldSave, playerTeamId: me, pastSeasons: [past] })), 45)
+  const fixed = (out.pastSeasons as never[])[0]
+  check('走った部（3部）へ直る', divisionInSeason(fixed, me) === 3, `${divisionInSeason(fixed, me)}部`)
+  check('  2部の側から消えている', !leagueStandingRows(fixed, divisionLeagueId(2)).some(r => r.teamId === me))
+  check('  3部の日程が3部のリーグに入る', leagueRaces(fixed, divisionLeagueId(3))[0]?.id === 'race-d3-1')
 }
 
 console.log('')

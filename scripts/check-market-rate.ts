@@ -29,6 +29,8 @@ import { allTieredClubs } from '../src/utils/world'
 import { allForeignClubs, leagueOfClub } from '../src/utils/clubs'
 import { ROSTER_MAX, ROSTER_MIN } from '../src/data/rosterRules'
 import type { Player, Season, Team } from '../src/types'
+import { newSeasonStandings } from '../src/utils/league'
+import { seasonLeaguesFixture } from './seasonFixture'
 
 let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
@@ -63,7 +65,9 @@ const destinationOf = (clubId: string, player: Player) => {
 const races = generateSeasonRaces(YEAR, 1)
 const season = {
   year: YEAR, currentRaceIndex: races.length,
-  races: races.map(r => ({ ...r, results: { teamResults: [], segmentResults: [] } })),
+  leagues: seasonLeaguesFixture({ myDivision: 1,
+    races: races.map(r => ({ ...r, results: { teamResults: [], segmentResults: [] } }) as never),
+    standings: newSeasonStandings(teams, id => ({ teamId: id, totalPoints: 0, raceResults: [] })) }),
 } as unknown as Season
 const dates = [...races.map(r => r.date), `${YEAR + 1}-02-01`]
 

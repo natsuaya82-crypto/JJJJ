@@ -31,13 +31,13 @@ import { settleBonusClauses } from '../../engine/bonusPayout'
 import { computeSeasonBudgets } from '../../engine/seasonBudget'
 import { tierBudget, tierOf, tierOfClubId } from '../../utils/clubTier'
 import { appraiseGmInvite, gmInviteFeeFor } from '../../utils/gmInvite'
-import { myClub, teamById, allTieredClubs } from '../../utils/world'
+import { myClub, teamById, allTieredClubs, myLeagueRaces } from '../../utils/world'
 import { allForeignClubs, foreignClubIdSet } from '../../utils/clubs'
 import { MORALE_DEFAULT, setMorale } from '../../utils/condition'
 import { backfillDomesticClubs } from '../../utils/domesticClubs'
 import { buildOffer, canResignAsGm, makeGmOffer, resignOffers } from '../../utils/gmOffer'
 import { managedTeamIds, startTenure } from '../../utils/gmTenure'
-import { DIVISIONS, TOP_DIVISION, divisionOf, divisionStandings, myDivSize, newSeasonStandings, rankOfTeam, seasonDivisionStandings } from '../../utils/league'
+import { DIVISIONS, TOP_DIVISION, divisionOf, divisionStandings, myDivSize, newSeasonStandings, rankOfTeam, seasonDivisionStandings, divisionLeagues } from '../../utils/league'
 import { divisionChampionHeadline, divisionsFoundedHeadline, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline } from '../../utils/newsItems'
 import { comparePlayers } from '../../utils/playerSort'
 import { faMarketSalary, newContractYears, ovr, packForeignApps, perfOf } from '../../utils/playerUtils'
@@ -157,10 +157,9 @@ function applyGmMove(state: GameStore, offer: GmOffer, inviteId?: string): Parti
         offer.divisionSize ?? myDivSize(state),
         offer.prevRank,
       ),
-      // ★日程は移籍先の部のものへ差し替える。3部から1部へ移ったのに3部の日程のままだと
-      //   走る本数（10／8／7）も相手も食い違う。部ごとの日程は divisionRaces に入っている
-      races: state.currentSeason.divisionRaces?.[divisionOf(teamById(teams, offer.teamId))]
-        ?? state.currentSeason.races,
+      // ★日程は差し替えない。自チームの日程は「自チームが順位表に載っているリーグ」から引く
+      //   （utils/world の myLeagueRaces）ので、playerTeamId が移籍先に変わった瞬間に
+      //   移籍先のリーグの日程になる。
       trainingAssignments: {},
       transferSpend: inviteSpend,
       scoutMissions: [] },
@@ -516,7 +515,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const playerTeamRosterIds = squadIdsOf(playersAfterRetire, state.playerTeamId)
 
       // League MVP・新人王（選出ルールは utils/awards.ts に一元化。画面表示側と同じ実装を使う）
-      const newSeasonAward: SeasonAward = computeSeasonAwards(state.currentSeason.races, grownPlayers, state.currentSeason.year, divisionOf(myClub(state)))
+      const newSeasonAward: SeasonAward = computeSeasonAwards(myLeagueRaces(state.currentSeason, state.playerTeamId), grownPlayers, state.currentSeason.year, divisionOf(myClub(state)))
 
       // 記録会のシーズン別トップ10は engine/eventSeasonTops 1本（全結果は保存時に捨てるため）
       const newEventTops = collectEventSeasonTops({ currentSeason: state.currentSeason, players: state.players })
@@ -620,7 +619,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // engine/foreignSeason 1本。**国内と扱いを分けないこと**という決まりもそちら側
       const fSeason = processForeignSeason({
         players: playersWithLoanHistory, foreignLeagues: state.foreignLeagues ?? [],
-        foreignStandings: state.currentSeason.foreignStandings ?? {},
+        leagues: state.currentSeason.leagues,
         // 国内2・3部の若手も、海外の新加入とまったく同じ口から世界へ入れる
         // （入れ方を2本に増やさない）
         refreshedLeagues: foreignRefresh.updatedLeagues,
@@ -653,9 +652,8 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // 今季の記録を保存する形に整える（出場0の選手も埋める）のは engine/seasonArchivePrep 1本
       const arcPrep = prepareSeasonArchive({
         currentSeason: state.currentSeason, before: state.players, teams: state.teams,
-        prevForeignLeagues: state.foreignLeagues ?? [] })
+        prevForeignLeagues: state.foreignLeagues ?? [], playerTeamId: state.playerTeamId })
       const archivedForeignApps = arcPrep.archivedForeignApps
-      const archivedForeignStandings = arcPrep.archivedForeignStandings
       const zeroAppearances = arcPrep.zeroAppearances
 
       // 国内チームの名簿もteamId起点で毎年完全に同期する（海外クラブと同じ自動修復）。
@@ -706,7 +704,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // 書けなければ何も起きない＝セーブに残ったままになるだけで、記録は消えない
       const archivedThisSeason = archiveSeason(state.currentSeason, {
         foreignAppsC: packForeignApps(archivedForeignApps),
-        foreignStandings: archivedForeignStandings,
+        leagues: arcPrep.archivedLeagues,
         zeroAppearances })
       void writeSeasonArchive(archivedThisSeason).then(ok => {
         if (!ok) return
@@ -751,8 +749,14 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
           year: newYear,
           currentRaceIndex: 0,
           phase: 'preseason',
-          races: newRaces,
-          divisionRaces: nextSchedules,
+          // 国内3部の日程と順位表。補ったクラブぶんも来季の順位表に並ぶよう、state.teams ではなく
+          // 補完後を使う。部の割り振りは昇降格を通したあとの部（＝来季走る部）で決まる
+          leagues: {
+            ...divisionLeagues(nextSchedules, newSeasonStandings(syncedTeams, teamId => ({
+              teamId, leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [] }))),
+            ...Object.fromEntries(Object.entries(initForeignStandings(foreignRefresh.updatedLeagues))
+              .map(([lid, standings]) => [lid, { races: [], standings }])),
+          },
           collegeRaces: [],
           // スカウトPTの効き目は `utils/facilities` の1本（画面の効き目の表示と同じ式）
           scoutPoints: 5 + objBonus + facilityScoutPoints(facilitiesOf(myClub(state)).scoutOffice),
@@ -778,8 +782,6 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
           sponsorOffers: newSponsorOffers,
           seasonRaceIncome: 0,
           seasonSegPrize: {},
-          foreignStandings: initForeignStandings(foreignRefresh.updatedLeagues),
-          foreignRaceIndex: 0,
           foreignAppearances: {},
           pendingForeignRestructure: false,  // 再編を適用したのでフラグ解除
           // 来季のECL：今季（＝前年）の各リーグ上位2チームで開催。4/6/7/9/11月の5戦、コースは10種から重複なし抽選。
@@ -791,7 +793,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
               teams: state.teams,
               playerTeamId: state.playerTeamId,
               leagues: foreignRefresh.updatedLeagues,
-              foreignStandings: state.currentSeason.foreignStandings ?? {},
+              seasonLeagues: state.currentSeason.leagues,
               players: market.players })
             if (parts.length < 4) return undefined
             return {
@@ -800,10 +802,6 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
               raceIndex: 0,
               points: {} }
           })(),
-          // 補ったクラブぶんも来季の順位表に並ぶよう、state.teams ではなく補完後を使う。
-          // 部の割り振りは昇降格を通したあとの部（＝来季走る部）で決まる
-          standings: newSeasonStandings(syncedTeams, teamId => ({
-            teamId, leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [] })),
           newsFeed: [
             ...backfillNews,
             { date: `${newYear}-03-01`, headline: seasonOpenHeadline(newYear, newRaces.length), category: 'race' as const, relatedIds: [] },

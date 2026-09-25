@@ -42,9 +42,10 @@ import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { drawSeasonSchedules, generateIndividualEvents } from '../src/data/races'
-import { newSeasonStandings, DIVISIONS, DIVISION_RACES, divisionOf } from '../src/utils/league'
+import { newSeasonStandings, DIVISIONS, DIVISION_RACES, divisionOf, divisionLeagues } from '../src/utils/league'
 import { assignLineupByTerrain } from '../src/engine/raceEngine'
 import { stripEphemeral } from '../src/store/ephemeralState'
+import { myLeagueRaces } from '../src/utils/world'
 import { calcTransferValue, faMarketSalary, ovr } from '../src/utils/playerUtils'
 import { draftPickValue } from '../src/data/economy'
 import { teamRosterSize } from '../src/data/rosterRules'
@@ -108,11 +109,15 @@ function buildState(phase: 'regular' | 'postseason', racesDone: number) {
   //   裏の部は「日程が無ければ自分の部のコースを流用する」古いセーブの保険の枝を走り、
   //   シーズン末の追い上げ（engine/catchUpDivisions）は1行も通っていなかった
   const schedules = drawSeasonSchedules(YEAR, Math.random)
-  const allRaces = schedules[divisionOf(myTeam)]
-  // racesDone 本だけ「消化済み」にする
-  const races: Race[] = allRaces.map((r, i) => i < racesDone
+  const myDiv = divisionOf(myTeam)
+  // racesDone 本だけ「消化済み」にする（自分の部だけ）
+  const races: Race[] = schedules[myDiv].map((r, i) => i < racesDone
     ? { ...r, results: { teamResults: [], segmentResults: [] } } as Race
     : r)
+  const leagues = {
+    ...divisionLeagues({ ...schedules, [myDiv]: races }, standings),
+    ...Object.fromEntries(Object.entries(foreignStandings).map(([lid, st]) => [lid, { races: [] as Race[], standings: st }])),
+  }
 
   useGameStore.setState({
     // 前のシナリオの残りを持ち越さないよう、素の状態へ戻してから組む（上の PRISTINE）
@@ -124,7 +129,7 @@ function buildState(phase: 'regular' | 'postseason', racesDone: number) {
     foreignLeagues: fgen.updatedLeagues,
     currentSeason: {
       year: YEAR, phase, currentRaceIndex: racesDone,
-      races, divisionRaces: schedules, standings, foreignStandings, newsFeed: [], objectives: [],
+      leagues, newsFeed: [], objectives: [],
       incomingOffers: [], transferListings: [], contractRequests: [],
     },
     pastSeasons: [],
@@ -228,7 +233,7 @@ SCENARIOS['runRace'] = () => {
   console.log('[runRace] 第1戦を走らせる')
   const { players } = buildState('regular', 0)
   const st = useGameStore.getState()
-  const race = st.currentSeason.races[0]
+  const race = myLeagueRaces(st.currentSeason, MY)[0]
   const roster = players.filter(p => p.teamId === MY && p.status === 'active')
   const lineup = assignLineupByTerrain(roster, race)
   compare('runRace', () => { useGameStore.getState().runRace(lineup) })
@@ -242,7 +247,7 @@ SCENARIOS['runRace-final'] = () => {
   const n = DIVISION_RACES[divisionOf(my)]
   const { players } = buildState('regular', n - 1)
   const st = useGameStore.getState()
-  const race = st.currentSeason.races[n - 1]
+  const race = myLeagueRaces(st.currentSeason, MY)[n - 1]
   const roster = players.filter(p => p.teamId === MY && p.status === 'active')
   const lineup = assignLineupByTerrain(roster, race)
   compare('runRace-final', () => { useGameStore.getState().runRace(lineup) })
@@ -315,7 +320,7 @@ SCENARIOS['draft-flow'] = () => {
   const g = () => useGameStore.getState()
   // ★2年目以降の枝（前年順位に基づく指名順）を実際に通すため、去年の順位表を入れておく。
   //   これが無いと「開幕年」の枝（全チーム横並びの抽選）しか通らない
-  useGameStore.setState({ pastSeasons: [{ year: YEAR - 1, races: [], collegeRaces: [], standings: pastSeasonStandings(base) }] } as never)
+  useGameStore.setState({ pastSeasons: [{ year: YEAR - 1, collegeRaces: [], leagues: divisionLeagues({}, pastSeasonStandings(base)) }] } as never)
   compare('draft-flow', () => {
     g().beginSeasonDraft()
     // 指名を最後まで進める。自チームの番は先頭候補を指名、それ以外はCPU任せ。

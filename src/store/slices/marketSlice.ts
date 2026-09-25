@@ -15,11 +15,11 @@ import { nationalityToForeignCategory } from '../../engine/playerGenerator'
 import { type AcquisitionOffer, type ContractRequest, type ExpiredNegKind, type ForeignCategory, type IncomingOffer, type Player, type TradeNegotiation, type TransferListing } from '../../types'
 import { MAJOR_NEWS_OVR, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
 import { tierLines, playerTierOf as playerTierFromLines } from '../../utils/playerTier'
-import { myClub, withMyClub, teamById, allTieredClubs } from '../../utils/world'
+import { myClub, withMyClub, teamById, allTieredClubs, myLeagueRaces } from '../../utils/world'
 import { allForeignClubs, bigClub, findClub, leagueOfClub } from '../../utils/clubs'
 import { withMorale } from '../../utils/condition'
 import { canOfferRenewal, canReNegotiate, contractTalkCtx, liveContractOf } from '../../utils/contractTalk'
-import { divisionOf, divisionStandings, domesticThroughRankOfTeam, rankOfTeam, rankedStandings, seasonDivisionStandings } from '../../utils/league'
+import { divisionOf, divisionStandings, domesticThroughRankOfTeam, rankOfTeam, rankedStandings, seasonDivisionStandings, leagueStandingRows } from '../../utils/league'
 import { fmtYen } from '../../utils/money'
 import { movePlayer } from '../../utils/movePlayer'
 import { settleForeignFee } from '../../utils/clubMoney'
@@ -116,7 +116,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       currentSeason: {
         ...state.currentSeason,
         newsFeed: [{
-          date: state.currentSeason.races[state.currentSeason.currentRaceIndex - 1]?.date ?? `${state.currentSeason.year}-06-01`,
+          date: myLeagueRaces(state.currentSeason, state.playerTeamId)[state.currentSeason.currentRaceIndex - 1]?.date ?? `${state.currentSeason.year}-06-01`,
           headline: renewalHeadline({ playerName: player.name, years }),
           category: 'fa' as const,
           relatedIds: [playerId] }, ...state.currentSeason.newsFeed].slice(0, 30) } }))
@@ -169,7 +169,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       if (!tradeNotLopsided(acceptIn, tvCtxA).ok) {
         return callOff(offer.requestedPlayerIds[0] ?? offer.offeredPlayerIds[0] ?? '', 'trade_unfair')
       }
-      const tradeDate = state.currentSeason.races[state.currentSeason.currentRaceIndex - 1]?.date
+      const tradeDate = myLeagueRaces(state.currentSeason, state.playerTeamId)[state.currentSeason.currentRaceIndex - 1]?.date
       // 選手の出し入れも指名権の交換も engine/tradeExecution 1本
       // （こちらから出す tradePlayer とまったく同じ動かし方を通す）
       const moved = runTradeMoves({ players: state.players, teams: state.teams }, [
@@ -232,7 +232,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       const years = newContractYears(player, state.currentSeason.year)
       const moved = movePlayer(state, listing.playerId, state.playerTeamId, {
         year: state.currentSeason.year,
-        date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date,
+        date: myLeagueRaces(state.currentSeason, state.playerTeamId)[state.currentSeason.currentRaceIndex]?.date,
         raceIndex: state.currentSeason.currentRaceIndex,
         fee: price, myTeamId: state.playerTeamId, checkCapacity: true,
         contract: { yearsLeft: years } })
@@ -248,7 +248,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
         ...state.currentSeason,
         transferSpend: (state.currentSeason.transferSpend ?? 0) + moved.spend,
         transferListings: (state.currentSeason.transferListings ?? []).filter(l => l.id !== listingId),
-        newsFeed: [{ date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`, headline: signedWithFeeHeadline({ playerName: player.name, fee: price }), category: 'trade' as const, relatedIds: [player.id], major: ovr(player) >= MAJOR_NEWS_OVR || bigClub(state, listing.fromTeamId), fromTeamId: listing.fromTeamId, toTeamId: state.playerTeamId }, ...state.currentSeason.newsFeed].slice(0, 30) } })
+        newsFeed: [{ date: myLeagueRaces(state.currentSeason, state.playerTeamId)[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`, headline: signedWithFeeHeadline({ playerName: player.name, fee: price }), category: 'trade' as const, relatedIds: [player.id], major: ovr(player) >= MAJOR_NEWS_OVR || bigClub(state, listing.fromTeamId), fromTeamId: listing.fromTeamId, toTeamId: state.playerTeamId }, ...state.currentSeason.newsFeed].slice(0, 30) } })
     })
     return bought
   },
@@ -305,7 +305,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     if (!team) {
       const lg = leagueOfClub(state.foreignLeagues, clubId)
       region = regionOfLeague(lg?.id)
-      const rows = rankedStandings((state.currentSeason.foreignStandings ?? {})[lg?.id ?? ''] ?? [])
+      const rows = rankedStandings(leagueStandingRows(state.currentSeason, lg?.id))
       const i = rows.findIndex(r => r.teamId === clubId)
       if (i >= 0) { leagueRank = i + 1; leagueSize = rows.length }
     }
@@ -343,7 +343,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     const offers = (state.currentSeason.incomingOffers ?? []).filter(o => o.playerId === playerId && o.offeredPrice > 0)
     if (offers.length === 0) return []
     // ★出場率は「そのクラブが走っている日程」で数える（utils/playRate の1本）。
-    //   currentSeason.races は自分の部だけなので、1部・2部の選手は必ず0になり、
+    //   自分の部の日程だけで数えると、1部・2部の選手は必ず0になり、
     //   appraiseMove の「干されている」(+0.2)が全員に付いていた
     const { fraction: frac, teamRaces: races } = playRateOf(
       playerId, player.teamId, state.currentSeason, state.teams, state.foreignLeagues,
@@ -450,7 +450,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       // 要求額は市場価値×性格で算出（自動昇給は廃止）。市場価値の中に
       // 出場割合・平均区間順位・今季の区間賞・通算実績が畳み込まれている（faMarketSalary）
       const gmRacesPlayed = state.currentSeason.currentRaceIndex ?? 0
-      const gmSeasonRaces = state.currentSeason.races ?? []
+      const gmSeasonRaces = myLeagueRaces(state.currentSeason, state.playerTeamId)
       const gmPersonality = player.personality ?? 'salary'
       const gmMarket = faMarketSalary(player, seasonPerfProfile(player.id, gmSeasonRaces, gmRacesPlayed))
       const gmPersoFactor = gmPersonality === 'salary' ? 1.05 : gmPersonality === 'winning' ? 1.0 : 0.95
@@ -714,7 +714,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
         if (!consentAcq.ok) return rejectWith('not_convinced')
         const moved = movePlayer(state, player.id, state.playerTeamId, {
           year: state.currentSeason.year,
-          date: state.currentSeason.races[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date,
+          date: myLeagueRaces(state.currentSeason, state.playerTeamId)[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date,
           raceIndex: state.currentSeason.currentRaceIndex,
           kind: 'free', teamRole, myTeamId: state.playerTeamId, checkCapacity: true,
           contract: { annualSalary: salary, yearsLeft: years, contractType } })
@@ -729,7 +729,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
               ? { ...o, status: 'accepted' as const, offerSalary: salary, offerYears: years, offerContractType: contractType, offerTeamRole: teamRole }
               : o),
             newsFeed: [{
-              date: state.currentSeason.races[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date ?? `${state.currentSeason.year}-06-01`,
+              date: myLeagueRaces(state.currentSeason, state.playerTeamId)[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date ?? `${state.currentSeason.year}-06-01`,
               headline: joinedHeadline({ playerName: player.name, salary, years }),
               category: 'fa' as const,
               relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30) } }
@@ -764,7 +764,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       const player = state.players.find(p => p.id === offer.playerId)
       const moved = movePlayer(state, offer.playerId, state.playerTeamId, {
         year: state.currentSeason.year,
-        date: state.currentSeason.races[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date,
+        date: myLeagueRaces(state.currentSeason, state.playerTeamId)[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date,
         raceIndex: state.currentSeason.currentRaceIndex,
         kind: 'free', teamRole: offer.offerTeamRole,
         myTeamId: state.playerTeamId, checkCapacity: true,
@@ -778,7 +778,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
           ...state.currentSeason,
           acquisitionOffers: (state.currentSeason.acquisitionOffers ?? []).map(o => o.id === offerId ? { ...o, status: 'accepted' as const } : o),
           newsFeed: [{
-            date: state.currentSeason.races[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date ?? `${state.currentSeason.year}-06-01`,
+            date: myLeagueRaces(state.currentSeason, state.playerTeamId)[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date ?? `${state.currentSeason.year}-06-01`,
             headline: joinedHeadline({ playerName: player?.name ?? '', salary: offer.counterSalary, years: offer.counterYears }),
             category: 'fa' as const,
             relatedIds: [offer.playerId] }, ...state.currentSeason.newsFeed].slice(0, 30) } }
@@ -984,7 +984,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       askingPrice: roundFee(marketValueOfUtil(player, state)),
       listedAtRace: raceIdx,
       // 選手本人の移籍希望を認めた売出は今季いっぱい有効
-      expiresAtRace: Math.max(raceIdx + 1, state.currentSeason.races.length),
+      expiresAtRace: Math.max(raceIdx + 1, myLeagueRaces(state.currentSeason, state.playerTeamId).length),
       competingTeams: interested }
     const alreadyListed = (state.currentSeason.transferListings ?? []).some(l => l.playerId === playerId)
     // 売出は非売・貸出歓迎と排他（自動で解除して切り替える）
@@ -1082,7 +1082,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
         teams: moved.teams,
         currentSeason: {
           ...state.currentSeason,
-          newsFeed: [{ date: state.currentSeason.races[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date ?? `${state.currentSeason.year}-06-01`, headline: loanInOutHeadline({ playerName: player.name, years: yrs, dir: 'in' }), category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30) } }
+          newsFeed: [{ date: myLeagueRaces(state.currentSeason, state.playerTeamId)[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date ?? `${state.currentSeason.year}-06-01`, headline: loanInOutHeadline({ playerName: player.name, years: yrs, dir: 'in' }), category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30) } }
     })
     return true
   },
@@ -1118,7 +1118,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
         teams: moved.teams,
         currentSeason: {
           ...state.currentSeason,
-          newsFeed: [{ date: state.currentSeason.races[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date ?? `${state.currentSeason.year}-06-01`, headline: loanInOutHeadline({ playerName: player.name, years: yrs, dir: 'out' }), category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30),
+          newsFeed: [{ date: myLeagueRaces(state.currentSeason, state.playerTeamId)[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date ?? `${state.currentSeason.year}-06-01`, headline: loanInOutHeadline({ playerName: player.name, years: yrs, dir: 'out' }), category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30),
           departureNotices: [...(state.currentSeason.departureNotices ?? []), ...(moved.notice ? [moved.notice] : [])] } }
     })
     return true
@@ -1252,7 +1252,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     // 移動は movePlayer 一本（枠チェック・旧クラブの名簿整理・移籍金の受け渡し・履歴まで込み）
     const moved = movePlayer(state, bid.playerId, state.playerTeamId, {
       year: state.currentSeason.year,
-      date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date,
+      date: myLeagueRaces(state.currentSeason, state.playerTeamId)[state.currentSeason.currentRaceIndex]?.date,
       raceIndex: state.currentSeason.currentRaceIndex,
       fee: bid.offeredFee, myTeamId: state.playerTeamId, checkCapacity: true,
       contract: { annualSalary: salary, yearsLeft: years, contractType: 'standard' } })
@@ -1271,7 +1271,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
         transferSpend: (s.currentSeason.transferSpend ?? 0) + moved.spend,
         transferBids: (s.currentSeason.transferBids ?? []).map(b => b.id === bidId ? { ...b, status: 'complete' as const } : b),
         transferListings: (s.currentSeason.transferListings ?? []).filter(l => l.playerId !== bid.playerId),
-        newsFeed: [{ date: s.currentSeason.races[s.currentSeason.currentRaceIndex]?.date ?? `${s.currentSeason.year}-06-01`, headline: signedWithFeeHeadline({ playerName: player.name, fee: bid.offeredFee, salary }), category: 'trade' as const, relatedIds: [player.id], major: ovr(player) >= MAJOR_NEWS_OVR || bigClub(s, bid.targetTeamId), fromTeamId: bid.targetTeamId, toTeamId: s.playerTeamId }, ...s.currentSeason.newsFeed].slice(0, 30) } }))
+        newsFeed: [{ date: myLeagueRaces(s.currentSeason, s.playerTeamId)[s.currentSeason.currentRaceIndex]?.date ?? `${s.currentSeason.year}-06-01`, headline: signedWithFeeHeadline({ playerName: player.name, fee: bid.offeredFee, salary }), category: 'trade' as const, relatedIds: [player.id], major: ovr(player) >= MAJOR_NEWS_OVR || bigClub(s, bid.targetTeamId), fromTeamId: bid.targetTeamId, toTeamId: s.playerTeamId }, ...s.currentSeason.newsFeed].slice(0, 30) } }))
     return { ok: true }
   },
 
@@ -1403,7 +1403,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       // それを見た選手だけ movePlayer が呼ばれず片落ちトレードになっていた
       const myIdsAfterTrade = squadIdsOf(state.players, state.playerTeamId).filter(id => !offeredIds.includes(id))
       const incomingIds = requestedIds.filter(id => !myIdsAfterTrade.includes(id))
-      const tradeDate = state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`
+      const tradeDate = myLeagueRaces(state.currentSeason, state.playerTeamId)[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`
 
       // 選手の出し入れも指名権の交換も engine/tradeExecution 1本
       // （相手からの打診を飲む acceptTradeOffer とまったく同じ動かし方を通す）
@@ -1607,7 +1607,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       // 所属・名簿・移籍金・加入年・移籍履歴は movePlayer にまとめて任せる（国内移籍と同じ後始末）
       const moved = movePlayer(s, playerId, s.playerTeamId, {
         year: s.currentSeason.year,
-        date: s.currentSeason.races[s.currentSeason.currentRaceIndex]?.date,
+        date: myLeagueRaces(s.currentSeason, s.playerTeamId)[s.currentSeason.currentRaceIndex]?.date,
         raceIndex: s.currentSeason.currentRaceIndex,
         fee: transferFee,
         myTeamId: s.playerTeamId,
@@ -1632,7 +1632,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
           ...s.currentSeason,
           transferSpend: (s.currentSeason.transferSpend ?? 0) + moved.spend,
           newsFeed: [{
-            date: s.currentSeason.races[s.currentSeason.currentRaceIndex]?.date ?? `${s.currentSeason.year}-06-01`,
+            date: myLeagueRaces(s.currentSeason, s.playerTeamId)[s.currentSeason.currentRaceIndex]?.date ?? `${s.currentSeason.year}-06-01`,
             headline: foreignSignedHeadline({ playerName: player.name, nationality: player.nationality, fee: transferFee }),
             category: 'fa' as const,
             relatedIds: [playerId] }, ...s.currentSeason.newsFeed].slice(0, 30) } }

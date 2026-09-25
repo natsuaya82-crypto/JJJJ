@@ -60,7 +60,7 @@ import type { ClubTier } from '../utils/clubTier'
 // 監督の在任履歴と、他チームからの監督オファー
 // 引退選手の「引退時の所属」を旧セーブに埋める処理（記録室の国内限定ランキング用）
 import { stripCareerForSave } from '../utils/careerStats'
-import { newSeasonStandings, syncSeasonStandings, divisionOf } from '../utils/league'
+import { newSeasonStandings, syncSeasonLeagues, divisionLeagues, withDivisionRaces, divisionOf } from '../utils/league'
 import { tierBudget, tierOf } from '../utils/clubTier'
 // 端末に置いているものの登録表（キーと寿命）。データ削除で消すのはここから引く
 import { clearGameStorage } from './appStorage'
@@ -431,7 +431,6 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
       year: 2027,
       currentRaceIndex: 0,
       phase: 'draft',
-      races: [],
       collegeRaces: [],
       scoutPoints: 5,
       // 1年目は前シーズンが無いので、自チームの格そのままが初期予算になる
@@ -453,9 +452,9 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
       acquisitionOffers: [],
       retirementRequests: [],
       transferRequests: [],
-      // 順位表は部ごとに分けて持つ（utils/league の newSeasonStandings）
-      standings: newSeasonStandings(ALL_TEAMS, teamId => ({
-        teamId, leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [] })),
+      // 国内3部のリーグ（日程はチームを選んだときに引く）。順位表は部ごとに分けて持つ
+      leagues: divisionLeagues({}, newSeasonStandings(ALL_TEAMS, teamId => ({
+        teamId, leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [] }))),
       newsFeed: [] },
     pastSeasons: [],
     growthReport: null,
@@ -560,8 +559,6 @@ export const useGameStore = create<GameStore>()(
           // 残り22本を3部で取り合う（data/races.ts の drawSeasonSchedules）。
           // ここでやらないと、部が決まる前に組んだ1部の10戦のまま3部を走ることになる
           const schedules = drawSeasonSchedules(state.currentSeason.year)
-          // 繰り上げ後の自分の部（列の最後尾なので3部になる）
-          const myDiv = divisionOf(renamedTeams.find(t => t.id === setup.teamId))
 
           // 最初の18人をチームに入れる。入り口はドラフトでも移籍でも同じなので movePlayer を通す
           let players: Player[] = state.players
@@ -580,14 +577,12 @@ export const useGameStore = create<GameStore>()(
             teams, players, setupData: setup, playerTeamId: setup.teamId,
             currentSeason: {
               ...state.currentSeason,
-              races: schedules[myDiv],
-              divisionRaces: schedules,
-              // ★ここで部が動いたので順位表も合わせる（utils/league の syncSeasonStandings 1本）。
+              // ★ここで部が動いたので順位表も合わせる（utils/league の syncSeasonLeagues 1本）。
               //   順位表は部ごとに分けて持つ＝部がキーなので、teams の部だけ動かすと
               //   「走る部」と「順位表に載っている部」が食い違い、自分の行が書き込み先に
               //   存在しなくなる（2部のクラブを選ぶと自分だけ0ptのまま・元の2部が裏で走り続けた）
-              standings: syncSeasonStandings({
-                standings: state.currentSeason.standings, races: [], teams, playerTeamId: setup.teamId }) },
+              leagues: syncSeasonLeagues({
+                leagues: withDivisionRaces(state.currentSeason.leagues, schedules), teams, playerTeamId: setup.teamId }) },
             // 監督の在任履歴はここが起点。以後の移籍でここに積んでいく（utils/gmTenure.ts）
             gmTenures: [{ teamId: setup.teamId, fromYear: state.currentSeason.year }] }
         })

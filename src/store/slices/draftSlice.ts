@@ -13,7 +13,7 @@ import { draftLotteryOrder, draftOrderTeams, pickExistsAnywhere, standingsPickNu
 import { buildDraftOrder, generateCpuRosters, generateDraftPool, generateForeignLeaguePlayers, generateJpelForeignName, generatePlayerInitialRoster } from '../../engine/playerGenerator'
 import { type Player, type TransferRecord } from '../../types'
 import { tierBudget, tierOf, tierOfPlayerClub } from '../../utils/clubTier'
-import { myClub, withMyClub, teamById, allTieredClubs } from '../../utils/world'
+import { myClub, withMyClub, teamById, allTieredClubs, myLeagueId, myLeagueRaces, withLeagueRaces } from '../../utils/world'
 import { allForeignClubs, findClub } from '../../utils/clubs'
 import { draftRoundOf, joinsDraft } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
@@ -269,8 +269,10 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
         teams: teamsWithPicks,
         draftState: { ...state.draftState, contractsDone: true },
         currentSeason: {
-          ...state.currentSeason, phase: nextPhase,
-          races: (state.currentSeason.races ?? []).length > 0 ? state.currentSeason.races : SEASON_2027_RACES,
+          // 自チームのリーグの日程が空なら既定の10戦で埋める（日程を引く前のセーブの保険）
+          ...(myLeagueRaces(state.currentSeason, state.playerTeamId).length > 0 ? state.currentSeason
+            : withLeagueRaces(state.currentSeason, myLeagueId(state.currentSeason, state.playerTeamId), SEASON_2027_RACES)),
+          phase: nextPhase,
           individualEvents: (state.currentSeason.individualEvents ?? []).length > 0 ? state.currentSeason.individualEvents : generateIndividualEvents(state.currentSeason.year),
           newsFeed: (state.currentSeason.newsFeed ?? []).length > 0 ? state.currentSeason.newsFeed : initialNews() } })
     }
@@ -448,7 +450,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     const fairVal = draftPickValue(pick.round, pick.pickNumber)
     if (price > fairVal * 1.3) return false
     if (buyTeam.finance.budget < price) return false  // 買い手が払えない額では成立しない
-    const date = state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`
+    const date = myLeagueRaces(state.currentSeason, state.playerTeamId)[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`
     set(s => ({
       teams: s.teams.map(t => {
         if (t.id === s.playerTeamId) return {

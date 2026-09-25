@@ -18,6 +18,7 @@ import { type Nationality, type Player } from '../../types'
 import { allForeignClubs } from '../../utils/clubs'
 import { fmtYen } from '../../utils/money'
 import { deficitRescueHeadline } from '../../utils/newsItems'
+import { myLeagueRaces } from '../../utils/world'
 
 export function normalizeLoadedSave(p: Partial<GameStore>): void {
   // 監督の在任履歴が無い旧セーブは「最初のシーズンからずっと今のチーム」として1件だけ入れる。
@@ -42,8 +43,9 @@ export function normalizeLoadedSave(p: Partial<GameStore>): void {
   // ECL開催日を「リーグ戦の中間日」へ再配置（生成時の修正は来季からしか効かないので、既存セーブもここで直す。消化済みの戦は動かさない）
   const fixEclDates = (season: GameStore['currentSeason']): GameStore['currentSeason'] => {
     const series = season.eclSeries
-    if (!series?.races?.length || !season.races?.length) return season
-    const leagueDates = season.races.map(r => r.date)
+    const myRaces = myLeagueRaces(season, p.playerTeamId)
+    if (!series?.races?.length || !myRaces.length) return season
+    const leagueDates = myRaces.map(r => r.date)
     const midDate = (target: string) => eclDateBetweenLeagueRaces(target, leagueDates)
     let changed = false
     const races = series.races.map(r => {

@@ -8,8 +8,8 @@
 //
 // 表彰はセーブに貯めず、保存してあるレース結果から毎回選び直す（下の seasonAwardsOf）。
 // 選び方は上のルールのまま変えていないので、これまでの受賞者がそのまま出る。
-import type { Division, Nationality, Player, Race, SeasonAward } from '../types'
-import { DIVISIONS, divisionOfRaces } from './league'
+import type { Division, LeagueId, Nationality, Player, Race, SeasonAward } from '../types'
+import { DIVISIONS, leagueRaces, divisionLeagueId } from './league'
 
 type Stat = { races: number; rankSum: number; segWins: number }
 /** 選手ID → その年の出走数・区間順位の合計・区間賞数 */
@@ -76,26 +76,12 @@ export function computeSeasonAwards(races: Race[], players: Player[], year: numb
 
 /**
  * その年のレースを部ごとに分ける。**表彰を部ごとに選ぶための唯一の入口。**
- *
- * 自分の部の結果は `season.races` に、他の部は `season.divisionRaces` に入っている
- * （`races` は `divisionRaces[自分の部]` と同じ日程だが、結果が入るのは `races` の側）。
- * どの部が自分のぶんかはレースIDの重なりで分かるので、外から部を教える必要はない。
- * 部を持たない旧セーブは、これまでどおり部の付かない1件になる。
+ * 部ごとの日程と結果は、その部のリーグ（`Season.leagues`）に入っている。
  */
 export function racesByDivision(s: SeasonRacesLike): { division?: Division; races: Race[] }[] {
-  const mine = s.races ?? []
-  const buckets = DIVISIONS
-    .map(d => ({ division: d as Division, races: s.divisionRaces?.[d] ?? [] }))
+  return DIVISIONS
+    .map(d => ({ division: d as Division, races: leagueRaces(s, divisionLeagueId(d)) }))
     .filter(b => b.races.length > 0)
-  if (buckets.length === 0) return mine.length > 0 ? [{ races: mine }] : []
-  // 自分がどの部で走ったかは日程の重なりで分かる（utils/league の divisionOfRaces 1本）
-  const myDiv = divisionOfRaces(mine, s.divisionRaces)
-  const myIds = new Set(mine.map(r => r.id))
-  const out = buckets.map(b => (b.division !== myDiv ? b
-    // 同じIDは結果の入っている season.races 側を採る
-    : { division: b.division, races: [...mine, ...b.races.filter(r => !myIds.has(r.id))] }))
-  // どの部にも重ならなかったとき（部の日程が壊れているセーブ）は落とさず部無しで残す
-  return myDiv != null || mine.length === 0 ? out : [...out, { races: mine }]
 }
 
 // ── 歴代の表彰（保存してあるレース結果から作り直す） ──────────────────
@@ -113,9 +99,8 @@ export function racesByDivision(s: SeasonRacesLike): { division?: Division; race
 /** 過去シーズンから必要な物だけを受ける */
 export type SeasonRacesLike = {
   year: number
-  races?: Race[]
-  /** 部ごとの日程（1部・2部・3部）。自分が走っていない部もここに入っている */
-  divisionRaces?: Partial<Record<number, Race[]>>
+  /** リーグごとの日程（結果つき）。表彰は国内の部のぶんだけ見る */
+  leagues?: Readonly<Record<LeagueId, { races: Race[] }>>
 }
 
 type StatsByYear = { year: number; division?: Division; stats: SeasonStats }[]

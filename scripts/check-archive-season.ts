@@ -6,11 +6,13 @@
  * 見ているのは3つ。
  *   1. 旧セーブ（Season丸ごと）を移行すると、残す項目だけになるか
  *   2. 記録室・在籍履歴・歴代優勝が使う元データが1件も欠けていないか
- *   3. 保存時（archiveSeason）と移行時（toArchivedShape）の形が一致するか
+ *   3. 保存時（archiveSeason）と移行時（toArchivedShape → normalizeSeasonLeagues）の形が一致するか
  *      ＝ 片方だけ直して形がズレる事故を防ぐ
  *   4. セーブに書かない項目（ephemeralState）が、書かない物だけを落としているか
  */
-import { archiveSeason, toArchivedShape } from '../src/utils/archiveSeason'
+import { archiveSeason } from '../src/utils/archiveSeason'
+import { normalizeSeasonLeagues, toArchivedShape } from '../src/store/persistence/legacySeason'
+import { divisionLeagueId } from '../src/utils/league'
 import { EPHEMERAL_KEYS, stripEphemeral } from '../src/store/ephemeralState'
 import type { Season } from '../src/types'
 
@@ -30,7 +32,8 @@ const oldSeason: Record<string, unknown> = {
   year: 2046,
   races: [race('r1', 'p1', 't1')],
   collegeRaces: [race('c1', 'p9', 'univ')],
-  standings: [{ teamId: 't1', leaguePoints: 10, segmentPoints: 5, totalPoints: 15, raceResults: [{ raceId: 'r1', rank: 1, points: 15 }] }],
+  // 部ごとの順位表（v36 で部ごとに分けたあとの形）
+  standings: { 1: [{ teamId: 't1', leaguePoints: 10, segmentPoints: 5, totalPoints: 15, raceResults: [{ raceId: 'r1', rank: 1, points: 15 }] }] },
   secondTeamRaces: [race('s1', 'p2', 't1')],
   secondTeamStandings: [{ teamId: 't1', totalPoints: 8, raceResults: [] }],
   foreignStandings: { l1: [{ clubId: 'fc1', totalPoints: 30, raceResults: [{ raceId: 'x', rank: 1, points: 30 }] }] },
@@ -62,14 +65,15 @@ const oldSeason: Record<string, unknown> = {
   pendingRenewalDecisions: ['p1'], rosterSubmitted: true,
 }
 
-const KEEP = ['year', 'races', 'collegeRaces', 'standings', 'secondTeamRaces', 'secondTeamStandings',
-  'foreignStandings', 'foreignRaceIndex', 'foreignAppearances', 'foreignAppsC', 'zeroAppearances',
-  'eclRace', 'eclSeries',
+const KEEP = ['year', 'leagues', 'collegeRaces', 'secondTeamRaces', 'secondTeamStandings',
+  'foreignAppsC', 'zeroAppearances', 'eclRace', 'eclSeries',
   // 走行記録（別ファイルへ書き出す対象）。増やしたらここにも足すこと
-  'divisionRaces', 'foreignRaces', 'waRaces'] as const
+  'waRaces'] as const
 
 console.log('\n[1] 旧セーブの移行')
-const migrated = toArchivedShape(oldSeason)
+// 移行の道と同じ順（v19 で削る → v46 でリーグの形へ均す）
+const migrated = normalizeSeasonLeagues(toArchivedShape(oldSeason)) as Record<string, unknown>
+const L = migrated.leagues as Record<string, { races: { id: string }[]; standings: { teamId: string; totalPoints: number; raceResults: unknown[] }[] }>
 const leftover = Object.keys(migrated).filter(k => !(KEEP as readonly string[]).includes(k))
 check('残す項目以外が消えている', leftover.length === 0, `残っている: ${leftover.join(', ')}`)
 for (const k of ['objectives', 'initialBudget', 'eclResult', 'newsFeed', 'chatLogs', 'trainingAssignments']) {
@@ -78,34 +82,38 @@ for (const k of ['objectives', 'initialBudget', 'eclResult', 'newsFeed', 'chatLo
 
 console.log('\n[2] 記録の元データが欠けていない')
 check('年', migrated.year === 2046)
-check('1軍の駅伝結果', JSON.stringify(migrated.races) === JSON.stringify(oldSeason.races))
+check('1軍の駅伝結果（自分の部のリーグ）', JSON.stringify(L[divisionLeagueId(1)]?.races) === JSON.stringify(oldSeason.races))
+check('裏の部の駅伝結果', JSON.stringify(L[divisionLeagueId(2)]?.races) === JSON.stringify((oldSeason.divisionRaces as Record<number, unknown>)[2]))
+check('海外リーグの駅伝結果', L.l1?.races?.[0]?.id === 'f1')
 check('大学駅伝', JSON.stringify(migrated.collegeRaces) === JSON.stringify(oldSeason.collegeRaces))
-check('年間順位表', JSON.stringify(migrated.standings) === JSON.stringify(oldSeason.standings))
+check('年間順位表', JSON.stringify(L[divisionLeagueId(1)]?.standings) === JSON.stringify((oldSeason.standings as Record<number, unknown>)[1]))
 check('リザーブ駅伝', JSON.stringify(migrated.secondTeamRaces) === JSON.stringify(oldSeason.secondTeamRaces))
 check('リザーブ順位表', JSON.stringify(migrated.secondTeamStandings) === JSON.stringify(oldSeason.secondTeamStandings))
 check('ECL（旧・一発勝負）', JSON.stringify(migrated.eclRace) === JSON.stringify(oldSeason.eclRace))
 check('ECL 5戦シリーズ', JSON.stringify(migrated.eclSeries) === JSON.stringify(oldSeason.eclSeries))
 check('出走ゼロの年の所属', JSON.stringify(migrated.zeroAppearances) === JSON.stringify(oldSeason.zeroAppearances))
-check('海外マッチデー数', migrated.foreignRaceIndex === 12)
 
 const appsC = migrated.foreignAppsC as Record<string, Record<string, number[]>>
 check('海外の出場記録が圧縮版に移っている', !!appsC?.fc1?.p3)
 check('　出場数・区間賞・順位合計・順位付きレース数が一致',
   JSON.stringify(appsC?.fc1?.p3) === JSON.stringify([10, 2, 25, 10]))
-const fs = migrated.foreignStandings as Record<string, { clubId: string; totalPoints: number; raceResults: unknown[] }[]>
-check('海外リーグ順位表の合計ポイントが残っている', fs?.l1?.[0]?.totalPoints === 30)
-check('　1戦ごとの結果は落ちている（容量削減）', fs?.l1?.[0]?.raceResults.length === 0)
+check('海外リーグ順位表の合計ポイントが残っている', L.l1?.standings?.[0]?.totalPoints === 30)
+check('　行のキーが teamId に均されている', L.l1?.standings?.[0]?.teamId === 'fc1')
+check('　1戦ごとの結果は落ちている（容量削減）', L.l1?.standings?.[0]?.raceResults.length === 0)
 
 console.log('\n[3] 保存時と移行時で形が同じ')
-const saved = archiveSeason(oldSeason as unknown as Season, {
+const saved = archiveSeason(normalizeSeasonLeagues(oldSeason) as unknown as Season, {
   foreignAppsC: appsC as never,
-  foreignStandings: fs as never,
+  leagues: L as never,
   zeroAppearances: oldSeason.zeroAppearances as never,
 })
 const keysOf = (o: object) => Object.keys(o).sort().join(',')
+// 項目の並び順は見ない（中身だけを突き合わせる）
+const canon = (v: unknown): string => JSON.stringify(v, (_k, x) => (x && typeof x === 'object' && !Array.isArray(x)
+  ? Object.fromEntries(Object.keys(x).sort().map(k => [k, (x as Record<string, unknown>)[k]])) : x))
 check('項目名が完全に一致', keysOf(saved) === keysOf(migrated),
   `保存時=[${keysOf(saved)}] 移行時=[${keysOf(migrated)}]`)
-check('中身も一致', JSON.stringify(saved) === JSON.stringify(migrated))
+check('中身も一致', canon(saved) === canon(migrated))
 
 console.log('\n[4] 壊れた入力でも落ちない')
 check('空オブジェクト', !!toArchivedShape({}))
@@ -114,7 +122,9 @@ check('すでに圧縮版を持つ年は二重変換しない',
   JSON.stringify(toArchivedShape({ foreignAppsC: { fc1: { p1: [1, 0, 0, 0] } }, foreignAppearances: { p2: { clubId: 'fc2', races: 5, wins: 0 } } }).foreignAppsC)
   === JSON.stringify({ fc1: { p1: [1, 0, 0, 0] } }))
 check('2回流しても結果が変わらない（冪等）',
-  JSON.stringify(toArchivedShape(toArchivedShape(oldSeason))) === JSON.stringify(migrated))
+  canon(normalizeSeasonLeagues(toArchivedShape(toArchivedShape(oldSeason)))) === canon(migrated))
+check('いまの形のものは均しても変わらない（冪等）',
+  canon(normalizeSeasonLeagues(toArchivedShape(migrated))) === canon(migrated))
 
 console.log('\n[5] セーブに書かない項目（一時的な状態）')
 // 実際のストアを模した状態。一時的な項目と、絶対に消えてはいけない項目を混ぜてある

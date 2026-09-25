@@ -13,7 +13,7 @@
 //   練習プランが効く条件のときだけもう1回。順序は切り出し前と同じ。
 import type { CardStatKey, ForeignLeague, Player, RaceResults, Season, Team } from '../types'
 import { withFatigue } from '../utils/condition'
-import { myClub, allTieredClubs } from '../utils/world'
+import { myClub, allTieredClubs, myLeagueRaces } from '../utils/world'
 import { ANNUAL_BASE_EXP, tierOfPlayerClub } from '../utils/clubTier'
 import { GROW_STAT_KEYS, applyGrowth, growWorldPlayer } from './growth'
 import { facilitiesOf } from '../utils/facilities'
@@ -63,7 +63,7 @@ export function applyRaceProgress(params: {
     tierCache.set(id, v)
     return v
   }
-  const seasonRaces = Math.max(1, (currentSeason.races ?? []).length)
+  const seasonRaces = Math.max(1, myLeagueRaces(currentSeason, playerTeamId).length)
   const finalPlayers = players.map(p => {
     // Form: 設計書準拠 レース後再抽選（絶好調10%/好調25%/普通40%/不調20%/最悪5%）
     const fr = rng()

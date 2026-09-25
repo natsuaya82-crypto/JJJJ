@@ -451,7 +451,6 @@ export type ForeignLeague = {
   clubs: ForeignClub[]
 }
 
-// 海外リーグの順位表（1クラブぶん）。currentSeason.foreignStandings に leagueId 単位で保持。
 /**
  * 海外リーグの順位表の1行。**国内とまったく同じ型**（別名として残してあるだけ）。
  * v39 より前のセーブは行のキーが clubId なので、読むときは
@@ -641,17 +640,42 @@ export type GrowthEntry = {
   ovrAfter: number
 }
 
+/**
+ * リーグのID。**日程・結果・順位表はこれで引く**（`Season.leagues`）。
+ *
+ * 国内は部ごとに1本（`jpel-1` / `jpel-2` / `jpel-3`・作るのは `utils/league` の
+ * `divisionLeagueId`）。海外は `ForeignLeague.id` そのもの。
+ * `utils/clubs` の `JPEL_LEAGUE_ID`（'jpel'）は**クラブの所属先**（国内の52クラブ全部が 'jpel'）で、
+ * シーズンの入れ物のキーではない。部ごとに日程も順位表も違うので、入れ物は部の数だけ要る。
+ */
+export type LeagueId = string
+
+/**
+ * 1シーズンぶんの1リーグ。**日本1部・2部・3部も海外9リーグも同じ形**。
+ *
+ * 以前は国内と海外で入れ物が割れていた（自分の部 `races` ／ 他の部 `divisionRaces` ／
+ * 部ごとの `standings` ／ 海外 `foreignRaces` ・`foreignStandings` ・`foreignRaceIndex`）。
+ * 読む側は「自分の部か・他の部か・海外か」で3通りに書き分けていて、1か所でも書き忘れると
+ * その大会だけ記録が消えた。
+ */
+export type LeagueSeason = {
+  /** 日付つきの日程。`results` が入っている回が走り終わった回 */
+  races: Race[]
+  /** 順位表（並びは登録順。順位は `utils/league` の `rankedStandings` で出す） */
+  standings: SeasonStanding[]
+}
+
 export type Season = {
   year: number
+  /** 自チームのリーグで何戦目か（0始まり）。**他のリーグはこれで進めない**（日付で進む） */
   currentRaceIndex: number
   phase: SeasonPhase
-  races: Race[]
   /**
-   * 部ごとのシーズン日程（data/races.ts の drawSeasonSchedules）。
-   * races はこのうち自分の部のぶん。裏で走る他の部はここから自分の日程を引く。
-   * 25コースのうちファイナル3本は部ごとに固定、残り22本を3部で取り合う（重複なし）。
+   * リーグID → そのリーグの日程・結果・順位表。**12リーグ全部ここ**（国内3部＋海外9）。
+   * 自チームのリーグは `utils/world` の `myLeagueId` / `myLeagueRaces` で引く。
+   * 部番号で引くときは `utils/league` の `divisionLeagueId(部)` をキーにする。
    */
-  divisionRaces?: Record<number, Race[]>
+  leagues: Record<LeagueId, LeagueSeason>
   /**
    * このシーズンは全大会の走行記録を残してあるか（utils/raceRecord）。
    * 目印が無い年は、記録を残していなかった年＝古い集計で読む。
@@ -681,19 +705,6 @@ export type Season = {
    * 旧セーブには無いので、初回の日程でその日が入る。
    */
   lastCpuMarketDate?: string
-  /**
-   * 年間順位表。**部ごとに分けて持つ。**
-   *
-   * 部が違えばレース数が違う（1部10戦 / 2部8戦 / 3部7戦）ので、勝ち点は部をまたいで
-   * 比べられない。1部で毎回8着のチーム（130点）が2部の全勝（128点）より上に来る。
-   * 海外リーグを `foreignStandings`（リーグID → 順位表）で分けているのと同じ理由。
-   *
-   * 以前は全52チームを1本の配列で持ち「表示するときに部で絞る」形にしていた。
-   * 読む側10箇所のうち絞っていたのは順位表ページだけで、ホーム・チーム画面・
-   * レース結果・記録室・ドラフト順・契約更新が全部混ざったまま動いていた。
-   * **1本に戻さないこと。** 絞り忘れができる形そのものが原因だった。
-   */
-  standings: Record<Division, SeasonStanding[]>
   newsFeed: {
     date: string
     headline: string
@@ -764,19 +775,9 @@ export type Season = {
   // 以前はシーズン終了時に問答無用で強制FA（移籍金0で流出）だった
   stayOrLeave?: { playerId: string }[]
   chatLogs?: Record<string, ChatMessage[]>
-  // 海外リーグの裏進行（プレイヤーの本編レースに同期して1戦ずつ進む）
-  foreignStandings?: Record<string, ForeignStanding[]>   // leagueId → 順位表
-  foreignRaceIndex?: number                              // 消化した海外マッチデー数
-  /**
-   * 海外リーグの走行記録。リーグID → そのリーグが走ったレース（結果つき）。
-   * 国内の裏の部（divisionRaces）と同じ扱い。**大会で残す／捨てるを分けない。**
-   * 以前は結果を捨てて出走数（foreignAppearances）だけ残していたので、
-   * 区間タイムも順位も残らず、海外クラブを指揮したときに過去が空になっていた。
-   */
-  foreignRaces?: Record<string, Race[]>
   /**
    * 大陸予選（欧州・アフリカ・アメリカ）の走行記録。地域の記号 → 走ったレース（結果つき）。
-   * 海外リーグ（foreignRaces）・裏の部（divisionRaces）と同じ扱いで、シーズンと一緒に
+   * リーグの走行記録（leagues）と同じ扱いで、シーズンと一緒に
    * 別ファイルへ書き出される（store/seasonArchive）。
    *
    * **worldAthleticsResults の側に持たせないこと。** あちらは普段のセーブに入りっぱなしなので、
@@ -846,16 +847,12 @@ export type Season = {
 //   Pick から外すと、その項目を読んでいる箇所が全部コンパイルエラーになる。それを潰してから消すこと。
 export type ArchivedSeason = Pick<Season,
   | 'year'
-  | 'races'                 // 1軍の駅伝結果。記録室・在籍履歴・区間記録の元データ
-  | 'divisionRaces'         // 裏の部（自分以外の部）の駅伝結果
-  | 'foreignRaces'          // 海外リーグの駅伝結果
+  | 'leagues'               // 国内3部・海外9リーグの駅伝結果と年間順位表。記録室・在籍履歴・区間記録・
+                            // 歴代優勝・翌季のクラブの格の元（海外の順位表は合計ポイントだけ残す）
   | 'waRaces'               // 大陸予選（欧州・アフリカ・アメリカ）の駅伝結果
   | 'collegeRaces'          // 大学駅伝の結果
-  | 'standings'             // 年間順位表。歴代優勝・チーム成績・翌季のクラブの格の元
   | 'secondTeamRaces'       // 旧リザーブ駅伝の結果（build 88 まで。読むだけ）
   | 'secondTeamStandings'   // 旧リザーブの年間順位表（build 88 まで。読むだけ）
-  | 'foreignStandings'      // 海外リーグの年間順位表
-  | 'foreignRaceIndex'      // その年の海外マッチデー数（出場率の分母）
   | 'foreignAppearances'    // 旧セーブ用。新しく書くのは foreignAppsC のみ（読む側は foreignAppsOf() 経由）
   | 'foreignAppsC'          // 海外リーグの選手別出場記録（圧縮版）
   | 'zeroAppearances'       // 出走ゼロだった年の国内所属。無いと在籍履歴に穴が空く

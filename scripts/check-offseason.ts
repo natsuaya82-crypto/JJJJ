@@ -22,6 +22,7 @@ import { tierOf } from '../src/utils/clubTier'
 import { ovr, retirementAgeOf, calcTransferValue, marketValueOf } from '../src/utils/playerUtils'
 import { POACH_PREMIUM } from '../src/data/economy'
 import type { SeasonStanding, Team, Player } from '../src/types'
+import { seasonLeaguesFixture } from './seasonFixture'
 
 const problems: string[] = []
 const check = (name: string, ok: boolean, detail = '') => {
@@ -67,8 +68,11 @@ useGameStore.setState({
   foreignLeagues: fgen.updatedLeagues,
   currentSeason: {
     year: YEAR, phase: 'postseason', currentRaceIndex: races.length,
-    races: races.map(r => ({ ...r, results: { teamResults: [], segmentResults: [] } })),
-    standings, foreignStandings, newsFeed: [], objectives: [],
+    leagues: seasonLeaguesFixture({
+      myDivision: divisionOf(teams.find(t => t.id === MY)!),
+      races: races.map(r => ({ ...r, results: { teamResults: [], segmentResults: [] } }) as never),
+      standings, foreignStandings }),
+    newsFeed: [], objectives: [],
     incomingOffers: [], transferListings: [], contractRequests: [],
   },
   pastSeasons: [],

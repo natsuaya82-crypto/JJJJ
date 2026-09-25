@@ -9,6 +9,7 @@ import { C, alpha, SAIRA, TT_COLOR, F } from '../../styles/tokens'
 import { courseTypeOf } from '../../data/races'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
+import { myLeagueRaces } from '../../utils/world'
 
 
 function getCourseColor(type: string): string {
@@ -23,14 +24,14 @@ export default function SchedulePage() {
   const navigate = useNavigate()
   const { currentSeason, playerTeamId, players } = useGameStore()
   const worldTournament = useGameStore(s => s.worldTournament)
-  const isSeasonStart = currentSeason.currentRaceIndex === 0 && !currentSeason.races[0]?.results
+  const isSeasonStart = currentSeason.currentRaceIndex === 0 && !myLeagueRaces(currentSeason, playerTeamId)[0]?.results
 
 
   // カレンダー進行: 次のリーグ戦の前に未実施の記録会があればNEXTはそちら
-  const dueTT = getDueIndividualEvent(currentSeason)
+  const dueTT = getDueIndividualEvent(currentSeason, myLeagueRaces(currentSeason, playerTeamId))
 
   // 進行は日付順。リーグ戦とECLの次戦が同時にNEXTにならないよう、日付が最も早いものだけを光らせる。
-  const nextMainObj = currentSeason.races[currentSeason.currentRaceIndex]
+  const nextMainObj = myLeagueRaces(currentSeason, playerTeamId)[currentSeason.currentRaceIndex]
   const nextMainDate = (nextMainObj && !nextMainObj.results) ? nextMainObj.date : null
   const eclS = currentSeason.eclSeries
   const nextEclObj = eclS && eclS.raceIndex < eclS.races.length ? eclS.races[eclS.raceIndex] : undefined
@@ -38,7 +39,7 @@ export default function SchedulePage() {
   const mainIsEarliest = !!nextMainDate && (!nextEclDate || nextMainDate < nextEclDate)
   const eclIsEarliest = !!nextEclDate && (!nextMainDate || nextEclDate <= nextMainDate)
 
-  const mainRaces = currentSeason.races.map((r, i) => ({
+  const mainRaces = myLeagueRaces(currentSeason, playerTeamId).map((r, i) => ({
     race: r,
     kind: 'main' as const,
     roundNum: i + 1,
@@ -85,7 +86,7 @@ export default function SchedulePage() {
   const timeline = [...raceItems, ...ttItems, ...waItems].sort((a, b) => a.date.localeCompare(b.date))
 
   const totalDone = currentSeason.currentRaceIndex + (eclS?.raceIndex ?? 0)
-  const totalRaces = currentSeason.races.length + (eclS?.races.length ?? 0)
+  const totalRaces = myLeagueRaces(currentSeason, playerTeamId).length + (eclS?.races.length ?? 0)
 
   function rankColor(rank: number | null) {
     if (rank === null) return C.textDim
@@ -131,7 +132,7 @@ export default function SchedulePage() {
               {currentSeason.year} シーズン開幕
             </div>
             <div style={{ fontSize: F.body, color: C.textSub }}>
-              全{currentSeason.races.length}戦のスケジュール（日程の確認）。
+              全{myLeagueRaces(currentSeason, playerTeamId).length}戦のスケジュール（日程の確認）。
             </div>
           </div>
         </div>

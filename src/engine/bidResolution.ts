@@ -9,7 +9,7 @@
 //   誰が参加するかは需要、誰が勝つかは格（出せる額は格の年間予算から）。
 // ★競り負けは金額の問題なので、来季まで交渉不可のロックはかけない。
 import type { ClubTier } from '../utils/clubTier'
-import type { ArchivedSeason, ExpiredNegKind, ExpiredNegotiation, ForeignLeague, Player, Race, Season, Team, TransferBid, TransferListing } from '../types'
+import type { ArchivedSeason, ExpiredNegKind, ExpiredNegotiation, ForeignLeague, Player, Season, Team, TransferBid, TransferListing } from '../types'
 import { playRateOf, prevSeasonOf } from '../utils/playRate'
 import { resolveBid, type BidContext } from '../utils/transferBid'
 import { rivalClubsFor } from '../utils/transferRivals'
@@ -54,14 +54,14 @@ export function resolveTransferBids(params: {
   foreignLeagues: ForeignLeague[]
   listings: TransferListing[]
   currentSeason: Season
+  /** 今季に**このレースの結果まで載せたもの**。入札の決着（実績の参照）に使う */
+  seasonAfterRace: Season
   /**
    * 前シーズン。**実績（keyPlayerStatus）と出場率（playRateOf）の両方が見る**ので、
    * 絞った型（`BidContext['pastSeasons']`）ではなく本体を渡すこと。
    * 絞った型には裏の部・海外リーグの日程が入っておらず、出場率が引けない。
    */
   pastSeasons: readonly ArchivedSeason[]
-  /** 今季の日程（結果入り）。実績の参照に使う */
-  races: Race[]
   /** レース通算数（期限の判定に使う） */
   raceClock: number
   playerTeamId: string
@@ -74,7 +74,7 @@ export function resolveTransferBids(params: {
   expiredPlayerIds: string[]
   outbidMoves: { playerId: string; toTeamId: string; fee: number; playerName: string; clubName: string }[]
 } {
-  const { bids, players, teams, foreignLeagues, listings, currentSeason, pastSeasons, races, raceClock, playerTeamId, destinationOf, playerTierOf } = params
+  const { bids, players, teams, foreignLeagues, listings, currentSeason, seasonAfterRace, pastSeasons, raceClock, playerTeamId, destinationOf, playerTierOf } = params
   // 入札(移籍金オファー)の応答。判定は utils/transferBid の resolveBid 1本。
   // サブの1戦を進めたときも同じ関数を呼ぶので、進め方で結果が変わらない
   const bidExpiredNegs: ExpiredNegotiation[] = []
@@ -110,9 +110,9 @@ export function resolveTransferBids(params: {
       players: players,
       listings: listings,
       teams, foreignLeagues,
-      // ★**シーズンはそのまま渡すこと**（`{ year, races }` だけに削ると、
-      //   出場率が自分の部の日程しか見られず、他の部・海外の選手が全員0％になります）
-      currentSeason: { ...currentSeason, races },
+      // ★**シーズンはそのまま渡すこと**（自分の部の日程だけに削ると、
+      //   出場率が自分の部しか見られず、他の部・海外の選手が全員0％になります）
+      currentSeason: seasonAfterRace,
       pastSeasons: pastSeasons,
       raceIndex: raceClock,
       rivals: bid.status === 'pending' && target ? rivalsFor(target) : undefined })

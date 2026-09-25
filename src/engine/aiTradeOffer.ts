@@ -14,6 +14,7 @@ import { AI_OFFER_GAIN_MAX, AI_OFFER_GAIN_MIN, priceOf } from '../utils/tradeVal
 import { canBePoached, eligibilityCtx } from '../utils/transferEligibility'
 import { ovr } from '../utils/playerUtils'
 import { cpuSpecialtyNeeds } from './cpuMarket'
+import { myLeagueRaces } from '../utils/world'
 
 /** 打診が1件も無いときだけ、25%の確率で1件つくる。作れなければ空 */
 export function generateAiTradeOffers(params: {
@@ -73,7 +74,7 @@ export function generateAiTradeOffers(params: {
       // ★**値段は `utils/tradeValue` の `priceOf` 1本**（成立を判断する側とまったく同じ）。
       //   以前ここだけ `calcTransferValue(p)` を**引数なしで**呼んでいて、判断する側は
       //   出場と割増（`transferFeeFor`）を見ていたので、**作る物差しと飲む物差しが別**でした。
-      const tvCtx = { races: currentSeason.races, teamRaces: currentSeason.currentRaceIndex, players }
+      const tvCtx = { races: myLeagueRaces(currentSeason, playerTeamId), teamRaces: currentSeason.currentRaceIndex, players }
       let best: { mine: Player; theirs: Player; fits: boolean } | null = null
       for (const mine of askPool) {
         const myVal = priceOf(mine, tvCtx)

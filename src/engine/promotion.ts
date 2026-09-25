@@ -18,7 +18,7 @@
 import type { Division, Season, SeasonStanding, Team } from '../types'
 import { tierFromDomesticRank } from '../utils/clubTier'
 import { domesticClubsComplete, originalDivisionOf } from '../utils/domesticClubs'
-import { DIVISIONS, PROMOTION_SLOTS, divisionOf, domesticThroughRank, rankOfTeam, teamsInDivision } from '../utils/league'
+import { DIVISIONS, PROMOTION_SLOTS, divisionOf, domesticThroughRank, rankOfTeam, teamsInDivision, divisionLeagueId, leagueStandingRows } from '../utils/league'
 import { divisionMoveHeadline } from '../utils/newsItems'
 import { myClub, teamById } from '../utils/world'
 
@@ -45,7 +45,7 @@ export function computePromotion(params: {
   const rowsByEffDiv = (() => {
     const m = new Map<Division, SeasonStanding[]>()
     for (const d of DIVISIONS) {
-      for (const r of currentSeason.standings[d] ?? []) {
+      for (const r of leagueStandingRows(currentSeason, divisionLeagueId(d))) {
         const e = effDivisionOf(teamById(teams, r.teamId) ?? { id: r.teamId })
         const list = m.get(e)
         if (list) list.push(r); else m.set(e, [r])

@@ -20,6 +20,7 @@ import { requiredExpForLevel } from '../../engine/growth'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
 import ScreenPortal from '../ui/ScreenPortal'
+import { myLeagueRaces } from '../../utils/world'
 
 
 const RANK_ROW_STYLE = (rank: number, isPlayer: boolean): React.CSSProperties => {
@@ -117,7 +118,7 @@ export function ResultsPhase({
   // 1本化したときに6ヶ月へ広げてしまい、レースのたびに飛ばされるようになっていた
   const urgentRenewalExists = (() => {
     const raceIndex = currentSeason.currentRaceIndex ?? 0
-    const totalRaces = currentSeason.races?.length ?? 1
+    const totalRaces = myLeagueRaces(currentSeason, playerTeamId)?.length ?? 1
     const ctx = contractTalkCtx(currentSeason, playerTeamId)
     return players.some(p =>
       isUrgentRenewal(p, contractMonthsLeft(p.contract.yearsLeft, raceIndex, totalRaces), ctx))

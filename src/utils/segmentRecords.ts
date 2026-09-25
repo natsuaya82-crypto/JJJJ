@@ -1,4 +1,5 @@
-import type { Race, SegmentRecord } from '../types'
+import type { LeagueId, Race, SegmentRecord } from '../types'
+import { DIVISIONS, divisionLeagueId, leagueRaces } from './league'
 
 // 区間記録（歴代トップ10）を、保存してあるレース結果から毎回組み立てる。
 //
@@ -13,10 +14,9 @@ import type { Race, SegmentRecord } from '../types'
 // ■どの部の走りも同じ記録に入る
 //   1部・2部・3部は同じ25本のコースを分け合って走る（data/races.ts の drawSeasonSchedules）。
 //   同じコースなら距離も起伏も同じなので、**区間記録はそのコースでいちばん速いタイム**であって
-//   部ごとに分ける意味がない。以前は自分の部（`season.races`）しか数えておらず、
+//   部ごとに分ける意味がない。以前は自分の部しか数えておらず、
 //   裏で走っている他の部の走りが記録に一切載らなかった。
-//   ここで `divisionRaces`（3部ぶん全部）も一緒に数える。`races` と重なるが、
-//   選手ごとに最速の1本だけを残すので二重には数えない。
+//   ここで国内3部のリーグを全部一緒に数える。
 //
 // ■並び
 //   同じ選手は一番速い1本だけ。速い順に10人まで。
@@ -30,9 +30,8 @@ export type SegmentRecordMap = Record<string, SegmentRecord[]>
 /** 過去シーズンでも今シーズンでも同じように読めるように、必要な物だけを受ける */
 export type SeasonRacesLike = {
   year: number
-  races?: Race[]
-  /** 部ごとの日程（1部・2部・3部）。自分が走っていない部もここに入っている */
-  divisionRaces?: Partial<Record<number, Race[]>>
+  /** リーグごとの日程。区間記録は国内の部のぶんだけ見る */
+  leagues?: Readonly<Record<LeagueId, { races: Race[] }>>
   secondTeamRaces?: Race[]
   eclRace?: Race
   eclSeries?: { races: Race[] }
@@ -42,9 +41,8 @@ function racesOf(s: SeasonRacesLike, kind: RecordKind): Race[] {
   if (kind === 'reserve') return s.secondTeamRaces ?? []
   // ECLは5戦シリーズ。旧セーブの一発勝負（eclRace）も同じコース名なので一緒に数える
   return [
-    ...(s.races ?? []),
-    // 他の部の走りも同じコースの記録に入る（同じコース＝同じ距離・同じ起伏）
-    ...Object.values(s.divisionRaces ?? {}).flat().filter((r): r is Race => !!r),
+    // どの部の走りも同じコースの記録に入る（同じコース＝同じ距離・同じ起伏）
+    ...DIVISIONS.flatMap(d => leagueRaces(s, divisionLeagueId(d))),
     ...(s.eclSeries?.races ?? []),
     ...(s.eclRace ? [s.eclRace] : []),
   ]
@@ -87,7 +85,7 @@ const cache: Record<RecordKind, CacheSlot | null> = { main: null, reserve: null 
 function depsOf(pastSeasons: SeasonRacesLike[], currentSeason: SeasonRacesLike, kind: RecordKind): unknown[] {
   return kind === 'reserve'
     ? [pastSeasons, currentSeason?.secondTeamRaces]
-    : [pastSeasons, currentSeason?.races, currentSeason?.divisionRaces, currentSeason?.eclSeries, currentSeason?.eclRace]
+    : [pastSeasons, currentSeason?.leagues, currentSeason?.eclSeries, currentSeason?.eclRace]
 }
 
 /**

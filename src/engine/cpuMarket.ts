@@ -6,7 +6,7 @@ import { isDeclining } from './ageCurve'
 import { clubSalaryTotal } from '../utils/clubMoney'
 import { roundFee, transferCapOf } from '../data/economy'
 import { ROSTER_MAX, ROSTER_MIN } from '../data/rosterRules'
-import { type ForeignClub, type IncomingLoanOffer, type IncomingOffer, type Player, type Race, type Specialty, type Team, type TransferListing } from '../types'
+import { type ForeignClub, type IncomingLoanOffer, type IncomingOffer, type Player, type Specialty, type Team, type TransferListing } from '../types'
 import type { Destination } from '../utils/transferDecision'
 import { clubSeasonRank } from '../utils/clubStanding'
 import { tierBudget, tierOf, tierStrength } from '../utils/clubTier'
@@ -241,13 +241,13 @@ export function generateLoanOffers(params: {
   playerTeamId: string
   raceIndex: number
   existingLoans: IncomingLoanOffer[]
-  races?: Race[]   // 出場機会の判定用（borrow_in打診は出番のない選手から選ぶ）
-  /** 今シーズン。出場率は「そのクラブが走っている日程」で数える（utils/playRate） */
+  /** 今シーズン。出場率は「そのクラブが走っている日程」で数える（utils/playRate）。
+   *  borrow_in の打診は出番のない選手から選ぶ */
   season?: import('../utils/playRate').PlayRateSeason & import('../utils/saleAnswer').SaleAnswerSeason
   retiringIds?: Set<string>   // 引退希望中の選手（打診の対象外）
   currentYear?: number        // 今のシーズン年
 }): { loanOffers: IncomingLoanOffer[] } {
-  const { players, teams, foreignClubs, playerTeamId, raceIndex, existingLoans, races, season, retiringIds, currentYear } = params
+  const { players, teams, foreignClubs, playerTeamId, raceIndex, existingLoans, season, retiringIds, currentYear } = params
   // 「誰に話を持ちかけていいか」の条件は utils/transferEligibility.ts に集約。
   // 「譲ります」と返事をして決着待ちの選手には、貸出の話も持ちかけない（utils/saleAnswer）
   const eligCtx = { teamId: playerTeamId, currentYear, retiringIds, saleAnsweredIds: saleAnsweredIds(season) }
@@ -267,7 +267,7 @@ export function generateLoanOffers(params: {
   //     オーナー指摘（2026-08-14）「レンタルも、主力の90とかをレンタルしようとしてくるのなに？」。
   //     レース結果に依らない**序列**（走れる7人に入っているか）を先に見ます。
   const myRoster = [...myPlayers].sort(comparePlayers('ovr'))
-  const myPlayFrac = (p: Player) => playRateOf(p.id, playerTeamId, season ?? { races }, teams).fraction
+  const myPlayFrac = (p: Player) => playRateOf(p.id, playerTeamId, season ?? {}, teams).fraction
   const myYoung = myPlayers.filter(p =>
     p.age <= 23 && canLoanOut(p, eligCtx)
     && !wouldMakeLineup(myRoster, p)              // 走れる7人に入っている＝主力。貸さない
@@ -301,7 +301,7 @@ export function generateLoanOffers(params: {
     //   自分の部の日程で数えると、他の部のクラブの選手は全員0＝全員が「干されている」に
     //   なり、1部・2部の選手が丸ごとレンタルの出し手候補になっていた
     const playFrac = (pid: string, clubId: string) =>
-      playRateOf(pid, clubId, season ?? { races }, teams).fraction
+      playRateOf(pid, clubId, season ?? {}, teams).fraction
     // ★こちらも序列を先に見る（相手クラブの主力を借りられないように）。
     //   出場率だけだとシーズンの頭に相手の主力が候補へ入る
     const rosterOfClub = (cid: string) => [...(clubIndexOf(players).get(cid) ?? [])]

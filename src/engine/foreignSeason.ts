@@ -34,8 +34,8 @@ export function processForeignSeason(args: {
   players: Player[]
   /** 今季の海外リーグ（優勝クラブを見るため、更新前のもの） */
   foreignLeagues: ForeignLeague[]
-  /** 今季の海外リーグ順位表 */
-  foreignStandings: NonNullable<GameState['currentSeason']['foreignStandings']>
+  /** 今季のリーグ（順位表はここから引く） */
+  leagues: GameState['currentSeason']['leagues']
   /** 年次入れ替え後の海外リーグ */
   refreshedLeagues: ForeignLeague[]
   /** 年次入れ替えで新しく入った選手 */
@@ -48,12 +48,12 @@ export function processForeignSeason(args: {
   /** 来季の年 */
   newYear: number
 }): ForeignSeasonResult {
-  const { players, foreignLeagues, foreignStandings, refreshedLeagues, newForeignPlayers,
+  const { players, foreignLeagues, leagues, refreshedLeagues, newForeignPlayers,
     removedForeignPlayerIds, teams } = args
 
   // 海外リーグの優勝クラブ所属選手に championships +1（今季の順位表を確定してから）
   const playersWithForeignChamp = applyForeignChampions(
-    foreignLeagues, players, foreignStandings,
+    foreignLeagues, players, leagues,
   )
 
   // ★**海外クラブの格は動かさない**（オーナー・2026-08-18「格はもう動かさない。国内だけ動かす」）。

@@ -2,11 +2,12 @@ import type { ArchivedSeason, ForeignLeague, Player, Season, Team } from '../typ
 import { ALL_DOMESTIC_TEAMS, domesticClubsComplete, backfillDomesticClubs } from '../utils/domesticClubs'
 import { managedTeamIds } from '../utils/gmTenure'
 import {
-  syncSeasonStandings, reconcileStandingsDivisions, rebalanceDivisions, divisionOfRaces,
+  syncSeasonLeagues, reconcileStandingsDivisions, rebalanceDivisions,
   divisionOf, divisionInSeason, rankOfTeam, DIVISIONS, DIVISION_SIZE,
+  divisionLeagueId, leagueRaces, leagueStandingRows,
 } from '../utils/league'
-import type { Division, SeasonStanding } from '../types'
-import { normalizeForeignStandings } from '../utils/clubStanding'
+import type { LeagueSeason } from '../types'
+import { normalizeStandingRows } from '../utils/clubStanding'
 
 // ============================================================================
 // 起動時のつじつま合わせ。**セーブを直す場所はここ1本。**
@@ -82,7 +83,7 @@ export function repairLoadedSave(input: RepairInput): RepairResult {
     const before = DIVISIONS.map(d => teams!.filter(t => divisionOf(t) === d).length)
     if (before.some((n, i) => n !== DIVISION_SIZE[DIVISIONS[i]])) {
       const rankOf = (t: Team) => {
-        const at = rankOfTeam(currentSeason?.standings?.[divisionOf(t)], t.id)
+        const at = rankOfTeam(leagueStandingRows(currentSeason, divisionLeagueId(divisionOf(t))), t.id)
         return at > 0 ? at : (t.initialRank ?? 999)
       }
       teams = rebalanceDivisions(teams, rankOf, t => pinned.has(t.id))
@@ -99,16 +100,11 @@ export function repairLoadedSave(input: RepairInput): RepairResult {
   // 順位表は部ごとに分けて持つ＝部がキー。teams の部だけ動くと、走った結果の
   // 書き込み先に自分の行が無い＝点がどこにも入らない状態になる（utils/league の解説を参照）。
   if (isInitialized && Array.isArray(teams) && currentSeason) {
-    const before = JSON.stringify(DIVISIONS.map(d => (currentSeason!.standings?.[d] ?? []).map(r => r.teamId)))
-    const standings = syncSeasonStandings({
-      standings: currentSeason.standings,
-      races: currentSeason.races,
-      teams,
-      playerTeamId,
-    }) as Season['standings']
-    const after = JSON.stringify(DIVISIONS.map(d => (standings[d] ?? []).map(r => r.teamId)))
-    if (before !== after) repairs.push('順位表の部をチームの部に合わせ直した')
-    currentSeason = { ...currentSeason, standings }
+    const idsOf = (s: Season) => JSON.stringify(DIVISIONS.map(d => leagueStandingRows(s, divisionLeagueId(d)).map(r => r.teamId)))
+    const before = idsOf(currentSeason)
+    const leagues = syncSeasonLeagues({ leagues: currentSeason.leagues, teams, playerTeamId })
+    currentSeason = { ...currentSeason, leagues }
+    if (before !== idsOf(currentSeason)) repairs.push('順位表の部をチームの部に合わせ直した')
   }
 
   // ── 4. 過去シーズンの「自分がどの部で走ったか」を直す ────────────
@@ -116,40 +112,37 @@ export function repairLoadedSave(input: RepairInput): RepairResult {
   // build 110 までのズレで、3部を走った年が「JPEL 2部」と記録され、
   // 部が分からない年は出場0の「JPEL」として出ていた。
   //
-  // 過去の年は `Team.division`（いまの部）では直せない。走った日程だけが手がかりなので、
-  // `divisionOfRaces` で「その年その部を走った」を引き、順位表の行をその部へ移す。
-  // 導出なので何度通しても同じ結果になる。
+  // 過去の年は `Team.division`（いまの部）では直せない。走った結果だけが手がかりなので、
+  // 「自チームの結果が載っている部のリーグ」を引き、順位表の行をその部へ移す。
+  // 導出なので何度通しても同じ結果になる（結果を別ファイルへ出してある年は、読み戻すまで何もしない）。
   if (isInitialized && playerTeamId && Array.isArray(pastSeasons)) {
     let moved = 0
     pastSeasons = pastSeasons.map(ps => {
-      const want = divisionOfRaces(ps?.races, ps?.divisionRaces)
-      const have = divisionInSeason(ps as never, playerTeamId)
+      const want = DIVISIONS.find(d => leagueRaces(ps, divisionLeagueId(d))
+        .some(r => r.results?.teamRankings?.some(tr => tr.teamId === playerTeamId)))
+      const have = divisionInSeason(ps, playerTeamId)
       if (want == null || have == null || want === have) return ps
-      const row = (ps.standings?.[have] ?? []).find(r => r.teamId === playerTeamId)
+      const haveId = divisionLeagueId(have), wantId = divisionLeagueId(want)
+      const row = leagueStandingRows(ps, haveId).find(r => r.teamId === playerTeamId)
       if (!row) return ps
       moved++
-      const standings = { ...ps.standings } as Record<Division, SeasonStanding[]>
-      standings[have] = (ps.standings?.[have] ?? []).filter(r => r.teamId !== playerTeamId)
-      standings[want] = [...(ps.standings?.[want] ?? []), row]
-      return { ...ps, standings }
+      const leagues: Record<string, LeagueSeason> = { ...ps.leagues }
+      leagues[haveId] = { races: leagueRaces(ps, haveId), standings: leagueStandingRows(ps, haveId).filter(r => r.teamId !== playerTeamId) }
+      leagues[wantId] = { races: leagueRaces(ps, wantId), standings: [...leagueStandingRows(ps, wantId), row] }
+      return { ...ps, leagues }
     })
     if (moved > 0) repairs.push(`過去 ${moved}シーズンの自チームの部を、実際に走った部へ直した`)
   }
 
-  // ── 5. 海外の順位表の行の形をそろえる ────────────────────────
-  // 旧セーブはキーが clubId、いまは teamId。読む側は国内・海外を区別しないので、
+  // ── 5. 順位表の行の形をそろえる ──────────────────────────────
+  // 旧セーブの海外リーグはキーが clubId、いまは teamId。読む側はリーグを区別しないので、
   // ここでそろえておかないと海外だけ順位が引けない（utils/clubStanding の解説を参照）。
-  if (currentSeason?.foreignStandings) {
-    currentSeason = {
-      ...currentSeason,
-      foreignStandings: normalizeForeignStandings(currentSeason.foreignStandings as never) as never,
-    }
-  }
-  if (Array.isArray(pastSeasons)) {
-    pastSeasons = pastSeasons.map(ps => ps.foreignStandings
-      ? { ...ps, foreignStandings: normalizeForeignStandings(ps.foreignStandings as never) as never }
-      : ps)
-  }
+  const normalizeLeagues = <S extends { leagues?: Record<string, LeagueSeason> }>(s: S): S => (s?.leagues
+    ? { ...s, leagues: Object.fromEntries(Object.entries(s.leagues).map(([id, lg]) =>
+        [id, { ...lg, standings: normalizeStandingRows(lg.standings) }])) }
+    : s)
+  if (currentSeason) currentSeason = normalizeLeagues(currentSeason)
+  if (Array.isArray(pastSeasons)) pastSeasons = pastSeasons.map(normalizeLeagues)
 
   // ── 6. 存在しないチームに所属している選手をFAへ戻す ──────────
   // クラブが消えた／IDが変わったときに、名簿からも市場からも消えた選手が生まれる。

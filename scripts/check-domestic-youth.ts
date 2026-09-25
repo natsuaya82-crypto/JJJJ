@@ -47,6 +47,7 @@ import { generateSeasonRaces } from '../src/data/races'
 import { ovr } from '../src/utils/playerUtils'
 import { useGameStore } from '../src/store/gameStore'
 import type { Player, SeasonStanding, Team } from '../src/types'
+import { seasonLeaguesFixture } from './seasonFixture'
 
 let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
@@ -148,8 +149,11 @@ console.log('\n[6] 世界を3年回して、2部・3部が痩せない')
   useGameStore.setState({
     isInitialized: true, playerTeamId: MY, teams, players, foreignLeagues: fgen.updatedLeagues,
     currentSeason: { year: YEAR, phase: 'postseason', currentRaceIndex: races.length,
-      races: races.map(r => ({ ...r, results: { teamResults: [], segmentResults: [] } })),
-      standings, foreignStandings, newsFeed: [], objectives: [], incomingOffers: [], transferListings: [], contractRequests: [] },
+      leagues: seasonLeaguesFixture({
+        myDivision: divisionOf(teams.find(t => t.id === MY)!),
+        races: races.map(r => ({ ...r, results: { teamResults: [], segmentResults: [] } }) as never),
+        standings, foreignStandings }),
+      newsFeed: [], objectives: [], incomingOffers: [], transferListings: [], contractRequests: [] },
     pastSeasons: [], worldAthleticsResults: [], worldRepresentatives: [],
   } as never)
 

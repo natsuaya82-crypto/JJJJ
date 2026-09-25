@@ -9,7 +9,7 @@
 //
 // ★自チームが交渉中だったFAを先に獲られたときは、黙って消さず理由を残す
 //   （札の片付けそのものは utils/talkSync の reconcileTalks の仕事）。
-import type { ExpiredNegotiation, ForeignClub, ForeignLeague, Player, Race, Season, Team, TransferRecord } from '../types'
+import type { ExpiredNegotiation, ForeignClub, ForeignLeague, Player, Season, Team, TransferRecord } from '../types'
 import { rosterCapOf } from '../data/rosterRules'
 import { pickCpuFreeAgents } from './cpuMarket'
 import { findClub } from '../utils/clubs'
@@ -22,9 +22,8 @@ export function signInSeasonFreeAgents(params: {
   teams: Team[]
   foreignClubs: ForeignClub[]
   foreignLeagues: ForeignLeague[]
+  /** 今季（**このレースの結果まで載せたもの**）。実績の参照に使う */
   currentSeason: Season
-  /** 今季の日程（結果入り）。実績の参照に使う */
-  races: Race[]
   playerTeamId: string
   /** ④本人が行くか。呼び出し側（store）が destinationOf を持っているので渡してもらう */
   consents?: (player: Player, clubId: string) => boolean
@@ -32,7 +31,7 @@ export function signInSeasonFreeAgents(params: {
   /** レース通算数（先を越された通知のIDに使う） */
   nextClock: number
 }): { players: Player[]; teams: Team[]; records: TransferRecord[]; news: NewsItem[]; snipedNegs: ExpiredNegotiation[] } {
-  const { foreignClubs, foreignLeagues, currentSeason, races, playerTeamId, raceDate, nextClock } = params
+  const { foreignClubs, foreignLeagues, currentSeason, playerTeamId, raceDate, nextClock } = params
   let players = params.players
   let teams = params.teams
   const records: TransferRecord[] = []
@@ -49,7 +48,7 @@ export function signInSeasonFreeAgents(params: {
     players: players,
     clubs: [...teams, ...foreignClubs],
     playerTeamId,
-    season: { ...currentSeason, races: races },
+    season: currentSeason,
     // ★**在籍上限は `data/rosterRules` の `rosterCapOf` 1本。海外だけ別の数にしないこと。**
     //   ここには `海外 ? ROSTER_MAX : rosterCapOf(0)` という三項が書いてありましたが、
     //   `rosterCapOf(0)` は `ROSTER_MAX - 0` なので**両側とも同じ数**でした＝

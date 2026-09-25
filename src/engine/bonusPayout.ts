@@ -10,6 +10,7 @@
 // 乱数は使わない。
 import type { Player, Season, SeasonAward } from '../types'
 import { bonusPayoutHeadline } from '../utils/newsItems'
+import { myLeagueRaces } from '../utils/world'
 
 export function settleBonusClauses(params: {
   players: Player[]
@@ -30,7 +31,7 @@ export function settleBonusClauses(params: {
   const players = params.players
   // Count segment wins per player this season from race results
   const playerSegWinsSeason: Record<string, number> = {}
-  for (const race of currentSeason.races) {
+  for (const race of myLeagueRaces(currentSeason, playerTeamId)) {
     if (!race.results) continue
     for (const seg of race.results.segmentResults) {
       const winner = seg.runners.find(r => r.rank === 1)

@@ -30,7 +30,7 @@ import {
 import type { ISim, InteractiveSegResult } from '../../engine/interactiveRace'
 import { buildTeamRankings, countSegmentsByTeam } from '../../engine/raceEngine'
 import ScreenPortal from '../ui/ScreenPortal'
-import { myClub } from '../../utils/world'
+import { myClub, myLeagueRaces } from '../../utils/world'
 
 type Phase = 'lineup' | 'simulating' | 'results'
 
@@ -358,7 +358,7 @@ export default function RacePage() {
   }, [phase, results, setActiveRaceResults])
 
   const raceIndex = currentSeason.currentRaceIndex
-  const currentRace = currentSeason.races[raceIndex]
+  const currentRace = myLeagueRaces(currentSeason, playerTeamId)[raceIndex]
 
   const race = (phase !== 'lineup' && lockedRace) ? lockedRace : currentRace
   const activeRaceIndex = (phase !== 'lineup' && lockedRace) ? lockedRaceIndex : raceIndex
@@ -412,7 +412,7 @@ export default function RacePage() {
         fontFamily: "'Noto Sans JP', system-ui, sans-serif",
         color: CARD.textGhost, fontSize: F.sub,
       }}>
-        {raceIndex >= currentSeason.races.length
+        {raceIndex >= myLeagueRaces(currentSeason, playerTeamId).length
           ? 'シーズン終了。すべてのレースが完了しました。'
           : 'レーススケジュールが未設定です。'}
         {/* ★**行き止まりを作らないこと。** この画面はレース中なので下タブが隠れていて、
@@ -437,7 +437,7 @@ export default function RacePage() {
     const playerPlayerId = raceLineup[segIdx]
     const playerObj = racePlayers.find(p => p.id === playerPlayerId)
     const playerTeam = myClub({ teams, playerTeamId })
-    const seasonProgress = raceIndex / currentSeason.races.length
+    const seasonProgress = raceIndex / myLeagueRaces(currentSeason, playerTeamId).length
     const totalSegs = activeRace.segments.length
 
     const cpuTimesForSeg = calcCpuTimesForSeg(
@@ -567,7 +567,7 @@ export default function RacePage() {
     const playerObj2 = racePlayers.find(p => p.id === playerPlayerId)
     const playerTeam2 = myClub({ teams, playerTeamId })
     const seg2 = race.segments.find(s => s.index === sim.currentSegIdx)
-    const seasonProgress2 = raceIndex / currentSeason.races.length
+    const seasonProgress2 = raceIndex / myLeagueRaces(currentSeason, playerTeamId).length
     const totalSegs2 = race.segments.length
     const playerFinalTime = playerObj2 && seg2
       ? calcFinalSegTime(sim.segStamina, sim.initialSegStamina, sim.playerTimeMod, playerObj2, seg2, playerTeam2, race, seasonProgress2, raceStrategy, totalSegs2)
@@ -687,7 +687,7 @@ export default function RacePage() {
     // Simulate all remaining segments
     const segs = race.segments
     const doneSeg = new Set(completedSegs.map(s => s.segmentIndex))
-    const seasonProgress = raceIndex / currentSeason.races.length
+    const seasonProgress = raceIndex / myLeagueRaces(currentSeason, playerTeamId).length
     const totalSegs = segs.length
 
     for (const seg of segs) {
@@ -741,7 +741,7 @@ export default function RacePage() {
     setActiveRaceLocked(currentRace, raceIndex)
     const race = currentRace
     const cpuLineups = buildCpuLineups(teams, players, race, playerTeamId)
-    const seasonProgress = raceIndex / currentSeason.races.length
+    const seasonProgress = raceIndex / myLeagueRaces(currentSeason, playerTeamId).length
     const totalSegs = race.segments.length
     let completedSegs: ReturnType<typeof finalizeSegment>[] = []
     const cumTime: Record<string, number> = {}
@@ -779,7 +779,7 @@ export default function RacePage() {
   if (phase === 'lineup') {
     const ttEvent = ttViewId
       ? (currentSeason.individualEvents ?? []).find(e => e.id === ttViewId) ?? null
-      : getDueIndividualEvent(currentSeason)
+      : getDueIndividualEvent(currentSeason, myLeagueRaces(currentSeason, playerTeamId))
     if (ttEvent) return (
       <IndividualEventScreen
         event={ttEvent as NonNullable<typeof currentSeason.individualEvents>[0]}
@@ -795,7 +795,7 @@ export default function RacePage() {
     <LineupPhase
       race={race}
       raceNumber={raceIndex + 1}
-      totalRaces={currentSeason.races.length}
+      totalRaces={myLeagueRaces(currentSeason, playerTeamId).length}
       mainPlayers={mainPlayers}
       raceLineup={raceLineup}
       assignedIds={assignedIds}
@@ -826,7 +826,7 @@ export default function RacePage() {
     const livePlayerObj = racePlayers.find(p => p.id === raceLineup[segIdx])
     const livePlayerTeam = myClub({ teams, playerTeamId })
     const liveSeg = race.segments.find(s => s.index === segIdx)
-    const liveSeasonProgress = raceIndex / currentSeason.races.length
+    const liveSeasonProgress = raceIndex / myLeagueRaces(currentSeason, playerTeamId).length
     const livePlayerTime = livePlayerObj && liveSeg
       ? calcFinalSegTime(iSim.segStamina, iSim.initialSegStamina, iSim.playerTimeMod, livePlayerObj, liveSeg, livePlayerTeam, race, liveSeasonProgress, raceStrategy, race.segments.length)
       : iSim.playerBaseTime
@@ -870,7 +870,7 @@ export default function RacePage() {
       playerTeamId={playerTeamId}
       currentSeason={currentSeason}
       competition="jpel"
-      isLastRace={activeRaceIndex >= currentSeason.races.length - 1}
+      isLastRace={activeRaceIndex >= myLeagueRaces(currentSeason, playerTeamId).length - 1}
     />
   )
 

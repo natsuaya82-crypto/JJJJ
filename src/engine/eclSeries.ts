@@ -51,11 +51,12 @@ export function buildEclParticipants(args: {
   teams: readonly { id: string; name: string; shortName: string; colors: { primary: string; secondary: string } }[]
   playerTeamId: string
   leagues: readonly LeagueLike[]
-  foreignStandings: Record<string, { teamId: string; totalPoints: number }[]>
+  /** その年のリーグ（海外リーグの順位表をここから引く） */
+  seasonLeagues: Readonly<Record<string, { standings: readonly { teamId: string; totalPoints: number }[] }>>
   /** 戦力での代替に使う。順位表がある年は読まれない */
   players: readonly Player[]
 }): EclSeriesParticipant[] {
-  const { standings, teams, playerTeamId, leagues, foreignStandings, players } = args
+  const { standings, teams, playerTeamId, leagues, seasonLeagues, players } = args
   const parts: EclSeriesParticipant[] = []
 
   for (const s of rankedStandings(standings).slice(0, ECL_SLOTS_PER_LEAGUE)) {
@@ -81,7 +82,7 @@ export function buildEclParticipants(args: {
     [...(ovrsByClub.get(club.id) ?? [])].sort((a, b) => b - a).slice(0, 10).reduce((s, v) => s + v, 0)
 
   for (const league of leagues) {
-    const st = rankedStandings(foreignStandings[league.id] ?? []).slice(0, ECL_SLOTS_PER_LEAGUE)
+    const st = rankedStandings(seasonLeagues[league.id]?.standings ?? []).slice(0, ECL_SLOTS_PER_LEAGUE)
     const clubs = st.length >= ECL_SLOTS_PER_LEAGUE
       ? st.map(s => league.clubs.find(c => c.id === s.teamId)).filter((c): c is ClubLike => !!c)
       : [...league.clubs].sort((a, b) => clubStrength(b) - clubStrength(a)).slice(0, ECL_SLOTS_PER_LEAGUE)

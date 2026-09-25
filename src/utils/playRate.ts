@@ -1,5 +1,5 @@
-import type { ForeignLeague, Player, Race, Team } from '../types'
-import { divisionOf, divisionOfRaces } from './league'
+import type { ForeignLeague, LeagueId, Player, Race, Team } from '../types'
+import { divisionLeagueId, divisionOf, divisionOfLeague, leagueRaces } from './league'
 import { teamById } from './world'
 
 /**
@@ -23,8 +23,8 @@ export function seasonAppearances(playerId: string, races: readonly RaceLike[]):
 // 「その選手は今季どれだけ走っているか」を出す唯一の入口。
 //
 // ■なぜ要るのか
-//   出場率は `seasonAppearances(id, currentSeason.races) / currentRaceIndex` と
-//   書かれていた。`currentSeason.races` は**自分の部の日程だけ**なので、
+//   出場率は `seasonAppearances(id, 自分の部の日程) / currentRaceIndex` と
+//   書かれていた。自分の部の日程には
 //   1部・2部のクラブの選手はそこに1本も載らず、**出場率が必ず 0** になっていた。
 //
 //   これが移籍の判断に直結する。`transferDecision.appraiseMove` は
@@ -33,8 +33,8 @@ export function seasonAppearances(playerId: string, races: readonly RaceLike[]):
 //   分母も間違っていて、`currentRaceIndex` は自分の部の消化数（3部なら7戦）なのに、
 //   1部のクラブは10戦走る。
 //
-//   「そのクラブが走っている日程」は自分の部・他の部・海外で置き場所が違うだけで、
-//   出場率の意味は同じ。置き場所を知る必要をここで消す。
+//   「そのクラブが走っている日程」は、そのクラブのリーグ（`Season.leagues`）にある。
+//   国内の部も海外も同じ形なので、読む側はリーグIDを引くだけ。
 //
 // ■分からないときは 0.5 / 0戦
 //   `teamRaces` が 0 なら `appraiseMove` の「干されている」は付かない（races>=3 が条件）。
@@ -43,17 +43,13 @@ export function seasonAppearances(playerId: string, races: readonly RaceLike[]):
 
 /** 出場率を出すのに要るものだけ。今シーズンも過去シーズンも同じ形で渡せる */
 export type PlayRateSeason = {
-  races?: Race[]
-  divisionRaces?: Record<number, Race[]>
-  foreignRaces?: Record<string, Race[]>
+  leagues?: Readonly<Record<LeagueId, { races: Race[] }>>
 }
 
 /**
  * そのクラブが今季走っている日程。**「どのレースを走るクラブか」の引き方はここ1本。**
  *
- * 国内は所属する部の日程。自分の部だけ結果が `season.races` の側に入るので、
- * どちらを見るかは `divisionOfRaces`（日程のIDの重なり）で決める。
- * 海外はそのクラブのリーグの日程。
+ * いまそのクラブが所属しているリーグ（国内は部のリーグ、海外はそのリーグ）の日程。
  */
 export function clubSeasonRaces(
   season: PlayRateSeason,
@@ -62,16 +58,9 @@ export function clubSeasonRaces(
   foreignLeagues?: readonly ForeignLeague[],
 ): Race[] {
   const team = teamById(teams, clubId)
-  if (team) {
-    const d = divisionOf(team)
-    // 自分の部は結果が season.races の側に入っている
-    if (divisionOfRaces(season.races, season.divisionRaces) === d) return season.races ?? []
-    const away = season.divisionRaces?.[d]
-    // 部ごとの日程を持たない古いセーブは、これまでどおり自分の部の日程で見る
-    return away ?? season.races ?? []
-  }
+  if (team) return leagueRaces(season, divisionLeagueId(divisionOf(team)))
   for (const l of foreignLeagues ?? []) {
-    if (l.clubs.some(c => c.id === clubId)) return season.foreignRaces?.[l.id] ?? []
+    if (l.clubs.some(c => c.id === clubId)) return leagueRaces(season, l.id)
   }
   return []
 }
@@ -98,6 +87,12 @@ export function prevSeasonOf(
 /** 走り終わったレースの数（結果が入っているぶんだけ） */
 export function racesDone(races: readonly Race[]): number {
   return races.filter(r => r.results).length
+}
+
+/** 海外リーグが今季消化した回の数（海外の出場記録の分母。どのリーグも同じ日程で走る） */
+export function foreignRacesDone(season: PlayRateSeason): number {
+  return Math.max(0, ...Object.entries(season.leagues ?? {})
+    .filter(([id]) => divisionOfLeague(id) == null).map(([, lg]) => racesDone(lg.races)))
 }
 
 /**

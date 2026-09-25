@@ -8,7 +8,7 @@
 import type { Division, Race, RaceResults, Player, Season, Team } from '../types'
 import { DIVISION_SIZE, divisionStandings, rankOfTeam } from '../utils/league'
 import { type NewsItem, boardEvalHeadline, myFinishHeadline, raceWinnerHeadline, rivalHeadline, segmentWinHeadline } from '../utils/newsItems'
-import { teamById } from '../utils/world'
+import { teamById, myLeagueRaces } from '../utils/world'
 
 export function buildRaceNews(params: {
   race: Race
@@ -60,7 +60,7 @@ export function buildRaceNews(params: {
   // 首脳陣の評価（3戦目以降・3戦ごと）
   if (playerRank > 0) {
     const raceIndex = currentSeason.currentRaceIndex
-    const totalRaces = currentSeason.races.length
+    const totalRaces = myLeagueRaces(currentSeason, playerTeamId).length
     if (raceIndex >= 3 && raceIndex % 3 === 0) {
       const sortedStandingsNow = divisionStandings(currentSeason, myDivision)
       const myCurrentRank = rankOfTeam(sortedStandingsNow, playerTeamId)

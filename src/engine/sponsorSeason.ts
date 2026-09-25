@@ -13,7 +13,7 @@ import { roundSalary } from '../data/economy'
 import { generateSponsorOffers } from '../data/sponsors'
 import type { ClubTier } from '../utils/clubTier'
 import { type NewsItem, sponsorEndHeadline } from '../utils/newsItems'
-import { myClub } from '../utils/world'
+import { myClub, myLeagueRaces } from '../utils/world'
 
 export function processSeasonSponsors(params: {
   sponsors: Sponsor[]
@@ -29,7 +29,7 @@ export function processSeasonSponsors(params: {
   const { sponsors, teams, currentSeason, playerTeamId, myFinalRank, myNextTier, newYear } = params
   // Sponsor contract processing
   const myActiveSponsorIds = myClub({ teams, playerTeamId })?.sponsors ?? []
-  const mySegWins = currentSeason.races
+  const mySegWins = myLeagueRaces(currentSeason, playerTeamId)
     .filter(r => r.results)
     .flatMap(r => r.results!.segmentResults)
     .filter(sr => sr.runners[0]?.teamId === playerTeamId)

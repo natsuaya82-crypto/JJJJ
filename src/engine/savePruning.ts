@@ -20,6 +20,7 @@ import { eclHistoryOf } from '../utils/eclHistory'
 import { movePlayer } from '../utils/movePlayer'
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import type { ForeignLeague, GameState, Nationality, Player } from '../types'
+import { DIVISIONS, divisionLeagueId, leagueRaces } from '../utils/league'
 
 export type PruneResult = {
   players: Player[]
@@ -123,7 +124,7 @@ export function pruneSaveData(args: {
   // ここを今のチームだけにすると、移籍した瞬間に前のチームのOBが消える
   const myTeamIdsEver = new Set<string>([st.playerTeamId, ...(st.gmTenures ?? []).map(t => t.teamId)])
   for (const season of [...st.pastSeasons, st.currentSeason]) {
-    for (const race of [...(season.races ?? []), ...(season.secondTeamRaces ?? [])]) {
+    for (const race of [...DIVISIONS.flatMap(d => leagueRaces(season, divisionLeagueId(d))), ...(season.secondTeamRaces ?? [])]) {
       if (!race.results) continue
       for (const sr of race.results.segmentResults) {
         for (const r of sr.runners) if (myTeamIdsEver.has(r.teamId)) protectedIds.add(r.playerId)

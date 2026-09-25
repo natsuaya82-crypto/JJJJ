@@ -31,6 +31,8 @@ import { wouldMakeLineup } from '../src/utils/squadNeeds'
 import { ovr } from '../src/utils/playerUtils'
 import { readFileSync } from 'node:fs'
 import type { Player, Season, Team } from '../src/types'
+import { newSeasonStandings } from '../src/utils/league'
+import { seasonLeaguesFixture } from './seasonFixture'
 
 let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
@@ -100,7 +102,11 @@ console.log('\n[3] レンタルの相手は主力ではない（世界を作っ�
   //   ＝**全員が出場率0**。それでも主力（走れる7人）には話が来ないことを見る
   const races = generateSeasonRaces(YEAR, 1)
     .map(r => ({ ...r, results: { teamResults: [], segmentResults: [] } }))
-  const season = { year: YEAR, currentRaceIndex: races.length, races } as unknown as Season
+  const season = {
+    year: YEAR, currentRaceIndex: races.length,
+    leagues: seasonLeaguesFixture({ myDivision: 1, races: races as never,
+      standings: newSeasonStandings(teams, id => ({ teamId: id, totalPoints: 0, raceResults: [] })) }),
+  } as unknown as Season
   const myRoster = players.filter(p => p.teamId === MY && p.status === 'active').sort(comparePlayers('ovr'))
   const best = myRoster[0]
   console.log(`      自チームの名簿 ${myRoster.length}人 / 最強 OVR${ovr(best)}（${best.age}歳）`)
@@ -109,7 +115,7 @@ console.log('\n[3] レンタルの相手は主力ではない（世界を作っ�
   for (let raceIndex = 0; raceIndex < 40; raceIndex++) {
     const { loanOffers } = generateLoanOffers({
       players, teams, foreignClubs: [], playerTeamId: MY, raceIndex,
-      existingLoans: [], races, season, retiringIds: new Set<string>(), currentYear: YEAR,
+      existingLoans: [], season, retiringIds: new Set<string>(), currentYear: YEAR,
     })
     for (const o of loanOffers) {
       const p = players.find(x => x.id === o.playerId)!

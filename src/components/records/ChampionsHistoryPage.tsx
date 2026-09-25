@@ -18,6 +18,7 @@ import { C, alpha, DIV_STAR, glassStyle, SAIRA, F } from '../../styles/tokens'
 import { DIVISION_LABEL, pointSeriesStandings, rankedStandings, seasonDivisionStandings } from '../../utils/league'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
+import { myLeagueRaces } from '../../utils/world'
 
 
 type Category = 'jpel' | 'ecl' | 'waqual' | 'wamain' | 'reserve' | 'tt'
@@ -100,17 +101,19 @@ export default function ChampionsHistoryPage() {
         maps[c].get(r.name)!.push({ year: y, race: r })
       }
     }
+    // その年に指揮していたクラブのリーグの駅伝
+    const teamAt = makeTeamIdAt(gmTenures, playerTeamId)
     for (const ps of pastSeasons) {
-      add('jpel', ps.races, ps.year)
+      add('jpel', myLeagueRaces(ps, teamAt(ps.year)), ps.year)
       add('reserve', ps.secondTeamRaces, ps.year)
       add('ecl', [...(ps.eclSeries?.races ?? []), ...(ps.eclRace ? [ps.eclRace] : [])], ps.year)
     }
-    add('jpel', currentSeason.races, currentSeason.year)
+    add('jpel', myLeagueRaces(currentSeason, playerTeamId), currentSeason.year)
     add('reserve', currentSeason.secondTeamRaces, currentSeason.year)
     add('ecl', [...(currentSeason.eclSeries?.races ?? []), ...(currentSeason.eclRace ? [currentSeason.eclRace] : [])], currentSeason.year)
     for (const m of Object.values(maps)) for (const rows of m.values()) rows.sort((a, b) => a.year - b.year)
     return maps
-  }, [pastSeasons, currentSeason])
+  }, [pastSeasons, currentSeason, gmTenures, playerTeamId])
 
   const resolveClub = (tid: string) => clubIndex.byId(tid)
 

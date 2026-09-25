@@ -2,6 +2,7 @@ import type { Race, Player, Nationality } from '../types'
 import { foreignAppsOf } from './playerUtils'
 import { seasonAwardsOf, type SeasonRacesLike } from './awards'
 import type { RanRace } from './raceHistory'
+import { DIVISIONS, divisionLeagueId, divisionOfLeague, leagueRaces } from './league'
 
 // 選手の通算成績（通算出走数・通算区間賞・MVP回数）を、保存してあるレース結果から組み立てる。
 //
@@ -27,10 +28,6 @@ export type CareerCounts = { totalRaces: number; segmentWins: number; mvpAwards:
 export type CareerSeasonLike = SeasonRacesLike & {
   eclRace?: Race
   eclSeries?: { races: Race[] }
-  /** 裏の部（自分以外の部）の走行記録。ある年はここから数える */
-  divisionRaces?: Record<number, Race[]>
-  /** 海外リーグの走行記録。ある年はここから数える */
-  foreignRaces?: Record<string, Race[]>
   // ↓ 走行記録を残していなかった年ぶんの古い集計。**新しい年では使わない**
   foreignAppearances?: Record<string, { clubId: string; races: number; wins: number; rankSum?: number; rankedRaces?: number }>
   foreignAppsC?: Record<string, Record<string, [number, number, number, number]>>
@@ -40,6 +37,11 @@ export type CareerSeasonLike = SeasonRacesLike & {
 }
 
 type Counts = { totalRaces: number; segmentWins: number }
+
+/** 海外リーグ（国内の部ではないリーグ）の日程を1本に */
+function foreignLeagueRaces(s: CareerSeasonLike): Race[] {
+  return Object.entries(s.leagues ?? {}).filter(([id]) => divisionOfLeague(id) == null).flatMap(([, l]) => l.races ?? [])
+}
 
 function bump(out: Map<string, Counts>, id: string, races: number, wins: number) {
   const c = out.get(id)
@@ -69,13 +71,13 @@ export type ForeignSeasonApp = { clubId: string; races: number; wins: number; ra
 /**
  * その年の海外リーグの出場記録。**海外の数え方はここ1本。**
  *
- * 走行記録が残っている年（Season.foreignRaces）はそこから数え直し、
+ * 走行記録が残っている年（Season.leagues の海外リーグ）はそこから数え直し、
  * 残っていない古い年だけ昔の集計を使う。通算成績も在籍履歴もここを通すので、
  * 「通算では5戦なのに在籍履歴は3戦」のような食い違いが起きない。
  */
 export function foreignSeasonApps(s: CareerSeasonLike | undefined): Record<string, ForeignSeasonApp> {
   if (!s) return {}
-  const races = Object.values(s.foreignRaces ?? {}).flat()
+  const races = foreignLeagueRaces(s)
   if (races.length === 0) {
     // 走行記録を残していなかった年
     const out: Record<string, ForeignSeasonApp> = {}
@@ -119,7 +121,7 @@ export function buildPlayerHistory(params: {
   // 在籍履歴（移籍情報）集計：年 × teamId × 大会(1軍/リザーブ/ECL/海外) ごとに 出場数・区間賞数・平均区間順位。
   // 表示は年×チームの親行に集約し、タップで大会別の内訳を開く
   const historyMap = new Map<string, HistoryRow>()
-  const addHistory = (year: number, comp: HistComp, raceList: typeof currentSeason.races | undefined) => {
+  const addHistory = (year: number, comp: HistComp, raceList: Race[] | undefined) => {
     if (!raceList) return
     for (const race of raceList) {
       if (!race.results) continue
@@ -137,7 +139,7 @@ export function buildPlayerHistory(params: {
       }
     }
   }
-  // ★在籍履歴も ranRows から積む。以前は currentSeason.races（自分の部の日程）だけを
+  // ★在籍履歴も ranRows から積む。以前は自分の部の日程だけを
   //   数えていたので、**他の部のクラブの選手は出場0・区間賞0・平均「—」**のままだった。
   //   大学駅伝と世界大会はこれまでどおり在籍履歴には積まない（所属クラブの成績ではない）。
   for (const { year, league, race } of ranRows) {
@@ -188,17 +190,15 @@ export function buildPlayerHistory(params: {
 /** 1シーズンぶん（JPEL・ECL・海外リーグ）を足す */
 function addSeason(out: Map<string, Counts>, s: CareerSeasonLike | undefined) {
   if (!s) return
-  for (const r of s.races ?? []) addRace(out, r)
+  // 国内の部。**3部とも日程が残っている年はそこから数え、自分の部しか残っていない古い年だけ
+  // 裏の部を集計（awayAppearances）で足す。**
+  // 数え方の分岐はここだけ。呼ぶ側で年を見て振り分けないこと（経路ごとに食い違う）。
+  const byDiv = DIVISIONS.map(d => leagueRaces(s, divisionLeagueId(d)))
+  for (const rs of byDiv) for (const r of rs) addRace(out, r)
   // ECL。今の5戦シリーズと、古いセーブに残っている一発勝負のどちらも当時から通算に入れていた
   for (const r of s.eclSeries?.races ?? []) addRace(out, r)
   if (!s.eclSeries?.races?.length) addRace(out, s.eclRace)
-  // 裏の部（自分以外の部）と海外リーグ。
-  // **走行記録が残っている年はそこから数え、残っていない古い年だけ集計を使う。**
-  // 数え方の分岐はここだけ。呼ぶ側で年を見て振り分けないこと（経路ごとに食い違う）。
-  const awayRaces = Object.values(s.divisionRaces ?? {}).flat()
-  if (awayRaces.length > 0) {
-    for (const r of awayRaces) addRace(out, r)
-  } else {
+  if (!byDiv.every(rs => rs.length > 0)) {
     // 走行記録を残していなかった年。ここを足さないと1部・2部の選手が全員0回出走になり、
     // 実績倍率が上がらないので年俸も移籍金も安いままになる
     for (const [pid, a] of Object.entries(s.awayAppearances ?? {})) bump(out, pid, a.races, a.wins)
@@ -226,7 +226,7 @@ function pastCounts(pastSeasons: CareerSeasonLike[]): Map<string, Counts> {
 
 function currentCounts(currentSeason: CareerSeasonLike | undefined): Map<string, Counts> {
   const key: unknown[] = [
-    currentSeason?.races, currentSeason?.eclSeries, currentSeason?.eclRace,
+    currentSeason?.leagues, currentSeason?.eclSeries, currentSeason?.eclRace,
     currentSeason?.foreignAppearances, currentSeason?.foreignAppsC, currentSeason?.awayAppearances,
   ]
   if (curCache && curCache.key.length === key.length && curCache.key.every((k, i) => k === key[i])) return curCache.value

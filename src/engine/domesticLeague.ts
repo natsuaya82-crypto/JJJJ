@@ -32,7 +32,7 @@ export type AwayDivisionRound = {
   /** teamId → このレースの区間賞賞金。自チームの部と同じ数え方（utils/league.ts） */
   segPrize: Record<string, number>
   /**
-   * 実際に走らせたレース（結果つき）。呼ぶ側が Season.divisionRaces へ書き戻す。
+   * 実際に走らせたレース（結果つき）。呼ぶ側がその部のリーグの日程へ書き戻す。
    * 以前はここを捨てて出走数だけ残していたので、区間タイムも順位も誰と競ったかも
    * 残らなかった。区間記録・移籍の判断材料・監督が海外へ移ったときの過去が作れない。
    */

@@ -5,7 +5,7 @@ import ActionSheet from '../../ui/ActionSheet'
 import { useGameStore } from '../../../store/gameStore'
 import { useClubIndex } from '../../../lib/useClubIndex'
 import PlayerFace from '../../player/PlayerFace'
-import { allTieredClubs } from '../../../utils/world'
+import { allTieredClubs, myLeagueRaces } from '../../../utils/world'
 import { clubRoutePath, type Club } from '../../../utils/clubs'
 import { usePlayerLongPress } from '../../player/usePlayerLongPress'
 import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, freeContactConsent } from '../../../utils/playerUtils'
@@ -62,7 +62,7 @@ export function ChatView({
   const longPress = usePlayerLongPress()
   void openPlayerSheet
 
-  const totalRaces = currentSeason.races.length
+  const totalRaces = myLeagueRaces(currentSeason, playerTeamId).length
   const raceIndex = currentSeason.currentRaceIndex ?? 0
   const contractRequests = currentSeason.contractRequests ?? []
   // フリー移籍で他クラブと接触中か（勧誘クラブ名）。接触中は契約更新の用件（要求・催促）をこの会話に出さず、

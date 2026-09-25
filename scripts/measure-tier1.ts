@@ -11,6 +11,7 @@ import { generateSeasonRaces } from '../src/data/races'
 import { tierOf } from '../src/utils/clubTier'
 import { useGameStore } from '../src/store/gameStore'
 import type { Player, SeasonStanding, Team } from '../src/types'
+import { seasonLeaguesFixture } from './seasonFixture'
 
 const YEAR = 2030, MY = 'tokyo'
 const base = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
@@ -29,8 +30,9 @@ const races = generateSeasonRaces(YEAR, divisionOf(teams.find(t => t.id === MY)!
 useGameStore.setState({
   isInitialized: true, playerTeamId: MY, teams, players, foreignLeagues: fgen.updatedLeagues,
   currentSeason: { year: YEAR, phase: 'postseason', currentRaceIndex: races.length,
-    races: races.map(r => ({ ...r, results: { teamResults: [], segmentResults: [] } })),
-    standings, foreignStandings, newsFeed: [], objectives: [], incomingOffers: [], transferListings: [], contractRequests: [] },
+    leagues: seasonLeaguesFixture({ myDivision: divisionOf(teams.find(t => t.id === MY)!),
+      races: races.map(r => ({ ...r, results: { teamResults: [], segmentResults: [] } }) as never), standings, foreignStandings }),
+    newsFeed: [], objectives: [], incomingOffers: [], transferListings: [], contractRequests: [] },
   pastSeasons: [], worldAthleticsResults: [], worldRepresentatives: [],
 } as never)
 

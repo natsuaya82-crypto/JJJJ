@@ -1,4 +1,4 @@
-import type { SeasonStanding, Division } from '../types'
+import type { SeasonStanding, Division, LeagueId } from '../types'
 import { DIVISIONS, TOP_DIVISION, divisionInSeason, rankedStandings, seasonDivisionStandings, rankOfTeam, standingsByDivision } from './league'
 import { makeTeamIdAt } from './gmTenure'
 import type { GmTenure } from '../types'
@@ -62,7 +62,7 @@ export const EMPTY_TEAM_HISTORY: TeamHistory = Object.freeze({
 /** 過去シーズンから必要な物だけを受ける */
 export type SeasonStandingsLike = {
   year: number
-  standings?: Partial<Record<Division, SeasonStanding[]>>
+  leagues?: Readonly<Record<LeagueId, { standings?: readonly SeasonStanding[] }>>
 }
 
 /** teamId → そのチームの成績 */

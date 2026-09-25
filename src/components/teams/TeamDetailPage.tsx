@@ -10,7 +10,7 @@ import { teamHistoryOf, titleRows } from '../../utils/teamHistory'
 
 // 予算は格1本、施設も1本（国内CPUも海外も同じ決まり）
 import { tierBudget } from '../../utils/clubTier'
-import { teamById, leagueById } from '../../utils/world'
+import { teamById, leagueById, myLeagueRaces } from '../../utils/world'
 import { clubCity, clubFounded, clubGmName } from '../../utils/clubs'
 import { facilitiesOf, FACILITY_LABEL } from '../../utils/facilities'
 import { useClubIndex } from '../../lib/useClubIndex'
@@ -190,8 +190,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   const teamSalary = clubSalaryTotal(players, id)
 
   // 現在順位・ポイント・直近フォーム。**引き方は utils/clubStanding の1本**（国内も海外も同じ）。
-  // 順位表の置き場所は国内(standings)と海外(foreignStandings)で分かれているが、
-  // 読む側がそれを知る必要はない。以前はここだけで6か所が二重になっていた
+  // 順位表はリーグごと（国内の部も海外も同じ形）。以前はここだけで6か所が二重になっていた
   const standing = clubStandingRow(currentSeason, id)
   // ★順位は「その集団の中での順位」（国内＝部内順位／海外＝リーグ内順位）。
   //   通し順位（1〜52）は格を決める内部の数なので出さない（utils/clubStanding）
@@ -278,7 +277,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
       s.add(t)
     }
     for (const s of seasons) {
-      for (const race of [...(s.races ?? []), ...(s.secondTeamRaces ?? [])]) {
+      for (const race of [...myLeagueRaces(s, playerTeamId), ...(s.secondTeamRaces ?? [])]) {
         if (!race.results) continue
         for (const sr of race.results.segmentResults) for (const r of sr.runners) add(r.playerId, s.year, r.teamId)
       }

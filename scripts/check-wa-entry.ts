@@ -24,6 +24,7 @@ import { generateSeasonRaces } from '../src/data/races'
 import { newSeasonStandings, divisionOf } from '../src/utils/league'
 import { HOME_NATION } from '../src/data/nationalities'
 import type { SeasonStanding, Team, Player, Race } from '../src/types'
+import { seasonLeaguesFixture } from './seasonFixture'
 
 const problems: string[] = []
 const check = (name: string, ok: boolean, detail = '') => {
@@ -50,7 +51,8 @@ function buildWorld() {
     isInitialized: true, playerTeamId: MY, teams, players, foreignLeagues: fgen.updatedLeagues,
     currentSeason: {
       year: YEAR, phase: 'regular', currentRaceIndex: races.length,
-      races, standings, foreignStandings, newsFeed: [], objectives: [],
+      leagues: seasonLeaguesFixture({ myDivision: divisionOf(teams.find(t => t.id === MY)!), races, standings, foreignStandings }),
+      newsFeed: [], objectives: [],
       incomingOffers: [], transferListings: [], contractRequests: [] },
     pastSeasons: [], worldAthleticsResults: [], worldRepresentatives: [],
     worldTournament: undefined, worldRacePlans: undefined,

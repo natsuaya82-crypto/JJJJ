@@ -9,7 +9,7 @@
 import {
   rankedStandings, rankOfTeam, seasonDivisionStandings, divisionStandings, divisionInSeason,
   domesticThroughRankOfTeam, newSeasonStandings, positionPointsFor,
-  DIVISIONS, DIVISION_SIZE, DIVISION_RACES, DIVISION_LABEL,
+  DIVISIONS, DIVISION_SIZE, DIVISION_RACES, DIVISION_LABEL, divisionLeagueId,
 } from '../src/utils/league'
 import type { Division } from '../src/types'
 
@@ -28,8 +28,9 @@ for (const d of DIVISIONS) {
     pointsOf.set(id, DIVISION_RACES[d] * positionPointsFor(n, i + 1))
   }
 }
+const byDiv = newSeasonStandings<Row>(teams, teamId => ({ teamId, totalPoints: pointsOf.get(teamId) ?? 0 }))
 const season = {
-  standings: newSeasonStandings<Row>(teams, teamId => ({ teamId, totalPoints: pointsOf.get(teamId) ?? 0 })),
+  leagues: Object.fromEntries(DIVISIONS.map(d => [divisionLeagueId(d), { standings: byDiv[d] }])),
 }
 
 console.log('■ 配点（1位 = 出走クラブ数ぶん、以下1点ずつ減る）')
@@ -39,7 +40,7 @@ for (const d of DIVISIONS) {
 console.log('')
 
 // 混ぜたらどうなっていたか（この並べ方はもう作れない。ここでは手で潰して比較用に作る）
-const mixed = rankedStandings(DIVISIONS.flatMap(d => season.standings[d]))
+const mixed = rankedStandings(DIVISIONS.flatMap(d => byDiv[d]))
 
 console.log('■ 各部の首位')
 console.log('  部    部の中で   混ぜていたころ   通し順位(1〜52)')

@@ -7,6 +7,7 @@ import { C, alpha, DIV_STAR, SAIRA, FONT, F } from '../../styles/tokens'
 import PageHeader from '../ui/PageHeader'
 import { DIVISION_LABEL, rankOfTeam, seasonDivisionStandings } from '../../utils/league'
 import { panelStyle } from '../ui/Panel'
+import { myLeagueRaces } from '../../utils/world'
 
 
 export default function RecordsHub() {
@@ -23,7 +24,7 @@ export default function RecordsHub() {
   //   GMのがついてきてる」）。
   // ★**部ごと**（オーナー・2026-08-12）。合計だと3部優勝と1部優勝が混ざる
   const clubTitles = teamHistoryOf(pastSeasons, playerTeamId)
-  const completedRaces = currentSeason.races.filter(r => r.results).length
+  const completedRaces = myLeagueRaces(currentSeason, playerTeamId).filter(r => r.results).length
   // 自分の部の中での順位。**通し順位（1〜52）は出さない**（格を決める内部の数・utils/clubStanding）
   const myStanding = rankOfTeam(seasonDivisionStandings(currentSeason, playerTeamId), playerTeamId)
 
@@ -32,7 +33,7 @@ export default function RecordsHub() {
       key: '/records/franchise',
       label: '自チーム記録', en: 'FRANCHISE',
       desc: '優勝記録・歴代種目別記録・シーズン成績',
-      countLabel: `${completedRaces}戦 / ${currentSeason.races.length}戦`,
+      countLabel: `${completedRaces}戦 / ${myLeagueRaces(currentSeason, playerTeamId).length}戦`,
       badge: 0,
       color: C.gold,
       shadow: '#5a3500',

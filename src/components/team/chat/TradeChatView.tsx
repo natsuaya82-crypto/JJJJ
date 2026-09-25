@@ -15,7 +15,7 @@ import { C, alpha, SAIRA, F } from '../../../styles/tokens'
 import { tradeConsentBonus, tradeRefuser } from '../../../engine/tradeConsent'
 import { fmtYen } from '../../../utils/money'
 import { SpecChip } from '../../player/PlayerChips'
-import { myClub } from '../../../utils/world'
+import { myClub, myLeagueRaces } from '../../../utils/world'
 
 // --- 他チーム（所属選手を表示し、選手を選ぶと契約オファー＝交渉を開始） ---
 
@@ -47,7 +47,7 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: Team; onC
   const tradeOutlook = (() => {
     // ★**store と同じ材料を渡すこと**（`players` を渡さないと全員が主力扱いになり、
     //   画面の見積もりだけが store の判定とズレます）
-    const tvCtx = { races: currentSeason.races, teamRaces: currentSeason.currentRaceIndex, players }
+    const tvCtx = { races: myLeagueRaces(currentSeason, playerTeamId), teamRaces: currentSeason.currentRaceIndex, players }
     const keyWorld = { players, teams, foreignLeagues, currentSeason, pastSeasons }
     const getPlayers = [...getP].map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p)
     const givePlayers = [...give].map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p)

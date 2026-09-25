@@ -22,6 +22,7 @@ import { runWithLoading } from '../../store/loadingStore'
 import { C, alpha, rankColor, SAIRA, FONT, bottomStack, F } from '../../styles/tokens'
 import { panelStyle } from '../ui/Panel'
 import ScreenPortal from '../ui/ScreenPortal'
+import { myLeagueRaces } from '../../utils/world'
 
 // 天候の呼び名は `data/races` の `WEATHER_LABEL` 1本
 const weatherLabel: Record<string, string> = WEATHER_LABEL
@@ -56,7 +57,7 @@ export default function EclPage() {
   const nextRace = series && series.raceIndex < series.races.length ? series.races[series.raceIndex] : null
   const playerQualified = !!series?.participants.some(e => e.isPlayerTeam)
   // 開催は年間予定表の順序どおり：次のリーグ戦より日付が前のときだけ開催できる（4月に7月の戦は絶対に走らせない）
-  const nextLeagueRace = currentSeason.races[currentSeason.currentRaceIndex]
+  const nextLeagueRace = myLeagueRaces(currentSeason, playerTeamId)[currentSeason.currentRaceIndex]
   const eclDue = !!nextRace && (!nextLeagueRace || nextRace.date <= nextLeagueRace.date)
 
   // 出場権があり開催期日なら、他の駅伝と同じく開いたらすぐ区間配置へ

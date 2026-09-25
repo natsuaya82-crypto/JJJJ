@@ -17,7 +17,7 @@
  *   ①は utils/league の divisionInYear、②は utils/badges の getPlayerBadges。
  *   直す場所が違うので、落ちたときにどちらの話か分かるようにしている。
  */
-import { divisionInYear, divisionOf, DIVISIONS } from '../src/utils/league'
+import { divisionInYear, divisionOf, DIVISIONS, divisionLeagueId } from '../src/utils/league'
 import { getPlayerBadges } from '../src/utils/badges'
 import type { Division, Player, SeasonAward, SeasonStanding, Team } from '../src/types'
 
@@ -40,10 +40,10 @@ console.log('\n① 年ごとの部（utils/league の divisionInYear）')
 /** その年、MY が div に居た、という順位表を1年ぶん作る */
 const seasonOf = (year: number, div: Division) => ({
   year,
-  standings: Object.fromEntries(DIVISIONS.map(d => [
-    d,
-    (d === div ? [{ teamId: MY, totalPoints: 0, raceResults: [] }] : []) as SeasonStanding[],
-  ])) as Record<Division, SeasonStanding[]>,
+  leagues: Object.fromEntries(DIVISIONS.map(d => [
+    divisionLeagueId(d),
+    { races: [], standings: (d === div ? [{ teamId: MY, totalPoints: 0, raceResults: [] }] : []) as SeasonStanding[] },
+  ])),
 })
 
 const seasons = [seasonOf(2030, 1), seasonOf(2031, 2), seasonOf(2032, 3)]

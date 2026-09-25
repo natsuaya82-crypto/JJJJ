@@ -14,6 +14,7 @@ import { loginTodayKey } from '../src/utils/loginDate'
 import type { Player, Team, Season } from '../src/types'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { divisionLeagueId } from '../src/utils/league'
 
 let failed = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -28,7 +29,10 @@ const T = (id: string, extra: Record<string, unknown> = {}) =>
   ({ id, name: `${id}クラブ`, roster: { main: [] }, finance: { budget: 1_000_000, deficitStreak: 0 }, sponsors: [], ...extra }) as unknown as Team
 
 const S = (extra: Record<string, unknown> = {}) =>
-  ({ year: 2030, currentRaceIndex: 0, races: [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}], ...extra }) as unknown as Season
+  ({ year: 2030, currentRaceIndex: 0,
+    // 自チーム（a）のリーグに10戦
+    leagues: { [divisionLeagueId(1)]: { races: [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}], standings: [{ teamId: 'a', totalPoints: 0, raceResults: [] }] } },
+    ...extra }) as unknown as Season
 
 // 「今日はログインボーナス受け取り済み・マイプレイヤー作成済み」の素の入力。
 // この状態なら通知は0件になるので、足した分だけ数が増えることを確かめられる

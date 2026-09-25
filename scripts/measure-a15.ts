@@ -20,7 +20,8 @@ import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
-import { newSeasonStandings, DIVISIONS, DIVISION_RACES, divisionOf } from '../src/utils/league'
+import { newSeasonStandings, DIVISIONS, DIVISION_RACES, divisionOf, divisionLeagueId } from '../src/utils/league'
+import { myLeagueRaces } from '../src/utils/world'
 import { drawSeasonSchedules } from '../src/data/races'
 import type { SeasonStanding, Team, Player, Race } from '../src/types'
 import { simulateRace, bgLineup } from '../src/engine/raceEngine'
@@ -63,20 +64,17 @@ const runDiv = (rs: typeof races, ts: Team[]) => rs.map(r => {
   for (const t of ts) lineups[t.id] = bgLineup(players.filter(p => p.teamId === t.id && p.status === 'active'), r)
   return { ...r, results: simulateRace(r, lineups, teams, players, 0.5) }
 })
-const ranRaces = runDiv(races, teams.filter(t => divisionOf(t) === myDiv))
-const divisionRaces: Record<number, typeof races> = {}
+const leagues: Record<string, { races: Race[]; standings: SeasonStanding[] }> = {}
 for (const d of DIVISIONS) {
-  if (d === myDiv) continue
-  divisionRaces[d] = runDiv(sched[d], teams.filter(t => divisionOf(t) === d))
+  leagues[divisionLeagueId(d)] = { races: runDiv(sched[d], teams.filter(t => divisionOf(t) === d)), standings: standings[d] }
 }
-const foreignRaces: Record<string, typeof races> = {}
 for (const l of fgen.updatedLeagues) {
   const clubTeams = l.clubs.map(c => ({ id: c.id } as Team))
-  foreignRaces[l.id] = sched[1].slice(0, 8).map((r, k) => {
+  leagues[l.id] = { standings: foreignStandings[l.id], races: sched[1].slice(0, 8).map((r, k) => {
     const lineups: Record<string, Record<number, string>> = {}
     for (const t of clubTeams) lineups[t.id] = bgLineup(players.filter(p => p.teamId === t.id && p.status === 'active'), r)
     return { ...r, id: `race-${l.id}-${k}`, results: simulateRace(r, lineups, teams, players, 0.5) }
-  })
+  }) }
 }
 
 useGameStore.setState({
@@ -84,8 +82,7 @@ useGameStore.setState({
   foreignLeagues: fgen.updatedLeagues,
   currentSeason: {
     year: YEAR, phase: 'postseason', currentRaceIndex: races.length,
-    races: ranRaces, divisionRaces, foreignRaces,
-    standings, foreignStandings, newsFeed: [], objectives: [],
+    leagues, newsFeed: [], objectives: [],
     incomingOffers: [], transferListings: [], contractRequests: [],
   },
   pastSeasons: [], worldAthleticsResults: [], worldRepresentatives: [],
@@ -133,17 +130,12 @@ function simulateAll() {
     })
   }
   const cs = st.currentSeason
-  const myD = divisionOf(st.teams.find(t => t.id === MY)!)
-  const idsOf = (d: number) => st.teams.filter(t => divisionOf(t) === d).map(t => t.id)
-  const nextDiv: Record<number, Race[]> = { ...(cs.divisionRaces ?? {}) }
-  for (const d of DIVISIONS) { if (d !== myD && nextDiv[d]) nextDiv[d] = run(nextDiv[d], idsOf(d))! }
-  const nextFor: Record<string, Race[]> = { ...(cs.foreignRaces ?? {}) }
-  for (const l of st.foreignLeagues ?? []) {
-    if (nextFor[l.id]) nextFor[l.id] = run(nextFor[l.id], l.clubs.map(c => c.id))!
-  }
+  // どのリーグも「順位表に載っているクラブ」がそのリーグを走る
+  const next = Object.fromEntries(Object.entries(cs.leagues).map(([id, lg]) =>
+    [id, { ...lg, races: run(lg.races, lg.standings.map(r => r.teamId))! }]))
   useGameStore.setState({ currentSeason: {
-    ...cs, races: run(cs.races, idsOf(myD))!, divisionRaces: nextDiv, foreignRaces: nextFor,
-    currentRaceIndex: (cs.races ?? []).length, phase: 'postseason' } } as never)
+    ...cs, leagues: next,
+    currentRaceIndex: myLeagueRaces(cs, MY).length, phase: 'postseason' } } as never)
 }
 
 for (let y = 0; y < WARM; y++) {

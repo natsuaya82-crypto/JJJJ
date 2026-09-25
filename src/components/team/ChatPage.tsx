@@ -22,7 +22,7 @@ import { ChatView } from './chat/ChatView'
 import { TradeChatView } from './chat/TradeChatView'
 import { OfferChatRow } from './chat/Cards'
 import { fmtDuration } from '../../utils/chatFormat'
-import { teamById } from '../../utils/world'
+import { teamById, myLeagueRaces } from '../../utils/world'
 
 
 
@@ -127,7 +127,7 @@ export default function ChatPage() {
 
   useEffect(() => { generateContractRequests() }, [])
 
-  const totalRaces = currentSeason.races.length
+  const totalRaces = myLeagueRaces(currentSeason, playerTeamId).length
   const raceIndex = currentSeason.currentRaceIndex ?? 0
   const listCtx = contractTalkCtx(currentSeason, playerTeamId)
   const retirementRequests = currentSeason.retirementRequests ?? []

@@ -34,6 +34,8 @@ import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/
 import { generateSeasonRaces } from '../src/data/races'
 import { DIVISIONS, DIVISION_RACES, divisionOf, newSeasonStandings } from '../src/utils/league'
 import type { Player, Race, SeasonStanding, Team } from '../src/types'
+import { seasonLeaguesFixture } from './seasonFixture'
+import { myLeagueRaces } from '../src/utils/world'
 
 const problems: string[] = []
 const check = (name: string, ok: boolean, detail = '') => {
@@ -84,7 +86,8 @@ function buildWorld() {
     pendingGmMove: null,
     currentSeason: {
       year: YEAR, phase: 'postseason', currentRaceIndex: races.length,
-      races, standings, foreignStandings, newsFeed: [], objectives: [],
+      leagues: seasonLeaguesFixture({ myDivision: divisionOf(teams.find(t => t.id === MY)), races, standings, foreignStandings }),
+      newsFeed: [], objectives: [],
       incomingOffers: [], transferListings: [], contractRequests: [],
     },
     pastSeasons: [],
@@ -151,8 +154,8 @@ console.log('[⑤] 移った先のもので始まっている')
   // ★日程は移籍先の部のもの。3部から1部へ移ったのに3部の日程のままだと本数が食い違う
   const destDiv = divisionOf(dest)
   check(`日程が移籍先の部（${destDiv}部）の本数になっている`,
-    S().currentSeason.races.length === DIVISION_RACES[destDiv],
-    `${S().currentSeason.races.length}本 / ${DIVISION_RACES[destDiv]}本`)
+    myLeagueRaces(S().currentSeason, S().playerTeamId).length === DIVISION_RACES[destDiv],
+    `${myLeagueRaces(S().currentSeason, S().playerTeamId).length}本 / ${DIVISION_RACES[destDiv]}本`)
 }
 
 console.log('')

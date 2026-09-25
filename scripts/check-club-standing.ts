@@ -3,13 +3,14 @@
  * 表示が変わらない／変わったところは直っている、を確かめる。
  *   npx esbuild --bundle --platform=node --format=cjs scripts/check-club-standing.ts --outfile=/tmp/ccs.cjs && node /tmp/ccs.cjs
  *
- * 順位表の置き場所は国内(standings: 部ごと)と海外(foreignStandings: リーグごと)で分かれている。
- * もとは行のキーが teamId / clubId で違うだけだったので、読む側は必ず if (isForeign) を
- * 書かされていた。チーム詳細ページだけで6か所が二重になっていた。
+ * 順位表はリーグごと（Season.leagues・国内の部も海外リーグも同じ形）。
+ * もとは置き場所が国内（部ごと）と海外（リーグごと）で分かれ、行のキーも teamId / clubId で
+ * 違っていたので、読む側は必ず if (isForeign) を書かされていた。チーム詳細ページだけで
+ * 6か所が二重になっていた。
  *
  * ここで見るのは
  *   1. 国内クラブの順位・勝ち点・行が、これまでの引き方（league.ts）と1件も違わない
- *   2. 海外クラブの順位・勝ち点・行が、これまでの引き方（foreignStandings 直読み）と違わない
+ *   2. 海外クラブの順位・勝ち点・行が、そのリーグの順位表を直に並べたものと違わない
  *   3. 消化試合数が「そのクラブが走った数」になっている
  *      （旧：自分の部のレース数を全チームに使い回していたので、2部・3部のクラブを見ると
  *        10と出ていた。部ごとにレース数は10/8/7と違う）
@@ -23,7 +24,8 @@ import {
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
-import type { Division, ForeignStanding, SeasonStanding, Team } from '../src/types'
+import type { ForeignStanding, SeasonStanding, Team } from '../src/types'
+import { seasonLeaguesFixture } from './seasonFixture'
 
 const problems: string[] = []
 const check = (name: string, ok: boolean, detail = '') => {
@@ -63,7 +65,7 @@ for (const l of FOREIGN_LEAGUES) {
   }
 }
 
-const season = { standings: standings as Partial<Record<Division, SeasonStanding[]>>, foreignStandings }
+const season = { leagues: seasonLeaguesFixture({ standings, foreignStandings }) }
 
 // ★順位は「その集団の中での順位」1本。国内は部内順位（1部1〜20／2部・3部1〜16）。
 //   通し順位（1〜52）は格を決めるためだけの内部の数で、画面には出さない。

@@ -10,7 +10,7 @@ import { decideLoanRequests } from '../../engine/loanRequests'
 import { tradeValueCtxOf } from '../marketOps'
 import { ROSTER_MAX, rosterCapOf } from '../../data/rosterRules'
 import { type LoanResponse, type EclStanding, type ExpiredNegotiation, type GameState, type Player, type TransferRecord } from '../../types'
-import { withMyClub, allTieredClubs } from '../../utils/world'
+import { withMyClub, allTieredClubs, myLeagueRaces } from '../../utils/world'
 import { findClub } from '../../utils/clubs'
 import { TOP_DIVISION, divisionStandings, rankedStandings, pointSeriesStandings } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
@@ -28,21 +28,27 @@ type Slice = Pick<GameStore,
 export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
   // 海外リーグを1マッチデー進める。本編レースの完走に同期して runRace 末尾から呼ばれる。
-  // 本編と同じコース（races[foreignRaceIndex]）を各海外クラブが走り、順位表と選手の記録を積む。
+  // 本編と同じコース（自チームのリーグの日程の、海外が消化した回の次）を各海外クラブが走り、
+  // 順位表と選手の記録を積む。
   advanceForeignLeagues: () => set(state => {
     const leagues = state.foreignLeagues ?? []
     if (leagues.length === 0) return {}
-    const races = state.currentSeason.races
-    const idx = state.currentSeason.foreignRaceIndex ?? 0
+    const races = myLeagueRaces(state.currentSeason, state.playerTeamId)
+    const seasonLeagues = state.currentSeason.leagues
+    // 海外が消化した回の数（どのリーグも同じ日に1戦ずつ走る）
+    const idx = Math.max(0, ...leagues.map(l => (seasonLeagues[l.id]?.races ?? []).filter(r => r.results).length))
     if (idx >= races.length) return {}
     const race = races[idx]
     if (!race) return {}
-    const prevStandings = state.currentSeason.foreignStandings ?? initForeignStandings(leagues)
+    const prevStandings = Object.fromEntries(leagues.map(l => [l.id, seasonLeagues[l.id]?.standings
+      ?? initForeignStandings([l])[l.id]]))
     const seasonProgress = races.length > 0 ? idx / races.length : 0
     const { standingsByLeague, players, appearances, raced } = simulateForeignLeagueRound(race, leagues, state.players, prevStandings, seasonProgress)
     // 走らせた結果をそのまま残す。捨てると区間タイムも順位も戻らない（utils/raceRecord.ts）
-    const foreignRaces = { ...(state.currentSeason.foreignRaces ?? {}) }
-    for (const [lid, r] of Object.entries(raced)) foreignRaces[lid] = [...(foreignRaces[lid] ?? []), r]
+    const nextLeagues = { ...seasonLeagues }
+    for (const [lid, st] of Object.entries(standingsByLeague)) {
+      nextLeagues[lid] = { races: [...(nextLeagues[lid]?.races ?? []), ...(raced[lid] ? [raced[lid]] : [])], standings: st }
+    }
     // 今季の海外出場記録に加算（選手詳細の在籍履歴に海外クラブ行として表示するため）
     const foreignAppearances = { ...(state.currentSeason.foreignAppearances ?? {}) }
     for (const [id, add] of Object.entries(appearances)) {
@@ -54,7 +60,7 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
     }
     return {
       players,
-      currentSeason: { ...state.currentSeason, foreignStandings: standingsByLeague, foreignRaceIndex: idx + 1, foreignAppearances, foreignRaces } }
+      currentSeason: { ...state.currentSeason, leagues: nextLeagues, foreignAppearances } }
   }),
 
 
@@ -114,7 +120,6 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
   advanceMarketOneRace: () => set(state => {
     const cs = state.currentSeason
     const raceIdx = cs.currentRaceIndex ?? 0
-    const races = cs.races ?? []
     const playerTeamId = state.playerTeamId
     const expiredNegs: ExpiredNegotiation[] = []
     const lockedIds: string[] = []
@@ -125,7 +130,7 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
         players: state.players,
         listings: cs.transferListings ?? [],
         teams: state.teams, foreignLeagues: state.foreignLeagues,
-        currentSeason: { ...cs, races },
+        currentSeason: cs,
         pastSeasons: state.pastSeasons,
         raceIndex: raceIdx })
       if (r.expired) {
@@ -378,7 +383,8 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
   ensureEclSeries: () => {
     set(state => {
       const cs = state.currentSeason
-      const seasonDone = cs.races.length > 0 && cs.currentRaceIndex >= cs.races.length
+      const myRaces = myLeagueRaces(cs, state.playerTeamId)
+      const seasonDone = myRaces.length > 0 && cs.currentRaceIndex >= myRaces.length
       // 旧救済が日付を無視して終了済みシーズンに補充してしまった未着手のECLを削除する
       // （raceIndex=0かつ全戦結果なし＝日付的にあり得ない生成物。通常のシーズン末のECL残り戦は
       //  シーズン中に日付順で消化が強制されるため、この状態には正規プレイでは到達しない）
@@ -396,12 +402,12 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
         teams: state.teams,
         playerTeamId: state.playerTeamId,
         leagues,
-        foreignStandings: cs.foreignStandings ?? {},
+        seasonLeagues: cs.leagues,
         players: state.players })
       if (parts.length < 4) return state
       // 日付基準のフィルタ：最後に消化したレースより未来の開催回だけを残す（過ぎた回は開催されなかった扱い）
-      const lastPlayedDate = cs.currentRaceIndex > 0 ? cs.races[cs.currentRaceIndex - 1].date : ''
-      const races = buildEclRaces(cs.year, cs.races.map(r => r.date)).filter(r => r.date > lastPlayedDate)
+      const lastPlayedDate = cs.currentRaceIndex > 0 ? myRaces[cs.currentRaceIndex - 1].date : ''
+      const races = buildEclRaces(cs.year, myRaces.map(r => r.date)).filter(r => r.date > lastPlayedDate)
       if (races.length === 0) return state
       return {
         currentSeason: {

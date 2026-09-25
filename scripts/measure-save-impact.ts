@@ -12,7 +12,7 @@ import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
-import { newSeasonStandings, DIVISIONS, DIVISION_RACES } from '../src/utils/league'
+import { newSeasonStandings, DIVISIONS, DIVISION_RACES, divisionLeagueId } from '../src/utils/league'
 import { clubSeasonRank } from '../src/utils/clubStanding'
 import { squadIdsOf } from '../src/utils/rosterSync'
 import type { SeasonStanding, Team } from '../src/types'
@@ -81,12 +81,12 @@ console.log('[2] 消えてはいけないもの')
 {
   const tA = after.teams as Record<string, unknown>[]
   const pA = after.players as unknown[]
-  const cs = after.currentSeason as { standings?: Record<string, unknown[]>; foreignStandings?: Record<string, unknown[]> }
+  const cs = after.currentSeason as { leagues?: Record<string, { standings: unknown[] }> }
   check('選手が1人も消えていない', pA.length === players.length, `${pA.length} / ${players.length}`)
   check('チームが1つも消えていない', tA.length === base.length, `${tA.length} / ${base.length}`)
   check('資金が残っている', tA.every(t => (t.finance as { budget?: number })?.budget === 500_000_000))
-  check('国内の順位表が残っている', DIVISIONS.every(d => (cs.standings?.[String(d)] ?? []).length > 0))
-  check('海外の順位表が残っている', Object.keys(cs.foreignStandings ?? {}).length === fgen.updatedLeagues.length)
+  check('国内の順位表が残っている', DIVISIONS.every(d => (cs.leagues?.[divisionLeagueId(d)]?.standings ?? []).length > 0))
+  check('海外の順位表が残っている', fgen.updatedLeagues.every(l => (cs.leagues?.[l.id]?.standings ?? []).length > 0))
   // 順位が引けること（画面が見るのと同じ経路）
   const r = clubSeasonRank(after.currentSeason as never, 'fukuoka')
   check('自チームの順位が引ける', r.rank > 0 && r.total === 52, JSON.stringify(r))

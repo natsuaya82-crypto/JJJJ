@@ -11,7 +11,7 @@ import type { Season, Player, Team, ExpiredNegKind } from '../types'
 import { ROSTER_MAX, teamRosterSize } from '../data/rosterRules'
 import { loginTodayKey } from './loginDate'
 import { saleAnsweredIds } from './saleAnswer'
-import { myClub } from './world'
+import { myClub, myLeagueRaces } from './world'
 
 // 「交渉期限切れ」の通知に出す文言。
 // この箱には3種類（入札・獲得オファー・契約更新）が入るのに、通知ページ側が
@@ -322,7 +322,7 @@ export function collectNotifications(input: NotifInput) {
 
   // 契約更新のリマインダーは「残り半年（6ヶ月）を切った選手」だけ。チャットの「要対応」と同じ基準
   const raceIndex = currentSeason.currentRaceIndex ?? 0
-  const totalRaces = currentSeason.races.length
+  const totalRaces = myLeagueRaces(currentSeason, playerTeamId).length
   // 判定は needsRenewalAttention の1本（チャット一覧の赤札・ホームの警告・レース後の
   // 強制遷移と同じもの）。以前はこの4箇所が別々の条件を書いていたので、
   // ホームが「契約未解決が3人」と言うのにベルは0、レース後に飛ばされた先には何も無い、

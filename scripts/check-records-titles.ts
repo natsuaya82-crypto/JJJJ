@@ -25,6 +25,7 @@
 import { readFileSync } from 'node:fs'
 import { gmCareerTitles, teamHistoryOf } from '../src/utils/teamHistory'
 import type { GmTenure } from '../src/types'
+import { divisionLeagueId } from '../src/utils/league'
 
 let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
@@ -37,7 +38,7 @@ console.log('[1] 監督が移ると、クラブの記録と監督の記録は食
   // A で2回・B で1回優勝した世界。監督は 2032 に A から B へ移った
   const season = (year: number, champ: string) => ({
     year,
-    standings: { 1: [{ teamId: champ, totalPoints: 100 }, { teamId: 'zzz', totalPoints: 1 }] },
+    leagues: { [divisionLeagueId(1)]: { races: [], standings: [{ teamId: champ, totalPoints: 100 }, { teamId: 'zzz', totalPoints: 1 }] } },
   } as never)
   const pastSeasons = [season(2030, 'A'), season(2031, 'A'), season(2032, 'B'), season(2033, 'B')]
   const tenures: GmTenure[] = [

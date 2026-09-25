@@ -1,13 +1,13 @@
-import type { Race } from '../types'
-import { DIVISIONS, divisionInSeason } from './league'
+import type { LeagueId, Race } from '../types'
+import { DIVISIONS, divisionInSeason, divisionLeagueId, divisionOfLeague, leagueRaces } from './league'
 import { waRaceRows, type WaResultLike } from './waRaces'
 
 // 「その選手が走ったレースを、どの大会のものとして並べるか」を決める唯一の場所。
 //
 // ■なぜ1本にするのか
-//   走行記録の置き場所はシーズンの中に7つある。
-//     races（自分の部）/ divisionRaces（他の部）/ collegeRaces / secondTeamRaces /
-//     eclSeries・eclRace / foreignRaces / waRaces（＋古いセーブの worldAthleticsResults）
+//   走行記録の置き場所はシーズンの中に6つある。
+//     leagues（国内の部・海外リーグ）/ collegeRaces / secondTeamRaces /
+//     eclSeries・eclRace / waRaces（＋古いセーブの worldAthleticsResults）
 //   画面がこれを1つずつ拾っていたので、足し忘れたぶんは**そのまま表示から消えていた**
 //   （海外リーグの出走が選手ページに1件も出ていなかった）。
 //
@@ -34,14 +34,11 @@ export type RanRace = { year: number; league: string; order: number; race: Race 
 
 export type RaceHistorySeason = {
   year: number
-  standings?: Partial<Record<number, readonly { teamId: string }[]>>
-  races?: Race[]
-  divisionRaces?: Record<number, Race[]>
+  leagues?: Readonly<Record<LeagueId, { races: Race[]; standings?: readonly { teamId: string; totalPoints: number }[] }>>
   collegeRaces?: Race[]
   secondTeamRaces?: Race[]
   eclRace?: Race
   eclSeries?: { races: Race[] }
-  foreignRaces?: Record<string, Race[]>
   waRaces?: Record<string, Race[]>
 }
 
@@ -49,7 +46,7 @@ const done = (rs: readonly Race[] | undefined): Race[] => (rs ?? []).filter(r =>
 
 /**
  * 走り終えたレースを、大会名つきで全部返す。
- * @param playerTeamId 自チームのID。`season.races` がどの部の日程かを引くのに使う
+ * @param playerTeamId 自チームのID。その年に自チームが居た部を先に並べるのに使う
  */
 export function ranRaces(o: {
   seasons: readonly (RaceHistorySeason | undefined)[]
@@ -65,19 +62,17 @@ export function ranRaces(o: {
 
   for (const s of o.seasons) {
     if (!s) continue
-    // 自分の部の日程。その年に自チームが居た部で呼ぶ（昇降格で年ごとに変わる）
-    const myDiv = divisionInSeason(s as Parameters<typeof divisionInSeason>[0], o.playerTeamId)
-    if (myDiv != null) push(s.year, `JPEL ${myDiv}部`, LEAGUE_ORDER.division + myDiv, s.races)
-    else push(s.year, 'JPEL', LEAGUE_ORDER.division, s.races)   // 部が分からない古いセーブ
-    for (const d of DIVISIONS) {
-      if (d === myDiv) continue    // 自分の部は上で入れてある
-      push(s.year, `JPEL ${d}部`, LEAGUE_ORDER.division + d, s.divisionRaces?.[d])
+    // 国内の部。その年に自チームが居た部を先に並べる（昇降格で年ごとに変わる）
+    const myDiv = divisionInSeason(s, o.playerTeamId)
+    for (const d of myDiv != null ? [myDiv, ...DIVISIONS.filter(x => x !== myDiv)] : DIVISIONS) {
+      push(s.year, `JPEL ${d}部`, LEAGUE_ORDER.division + d, leagueRaces(s, divisionLeagueId(d)))
     }
     push(s.year, '大学駅伝', LEAGUE_ORDER.college, s.collegeRaces)
     push(s.year, '2軍駅伝', LEAGUE_ORDER.reserve, s.secondTeamRaces)
     push(s.year, 'ECL', LEAGUE_ORDER.ecl, [...(s.eclSeries?.races ?? []), ...(s.eclRace ? [s.eclRace] : [])])
-    for (const [lid, rs] of Object.entries(s.foreignRaces ?? {})) {
-      push(s.year, leagueName.get(lid) ?? lid, LEAGUE_ORDER.foreign, rs)
+    for (const [lid, lg] of Object.entries(s.leagues ?? {})) {
+      if (divisionOfLeague(lid) != null) continue   // 国内の部は上で入れてある
+      push(s.year, leagueName.get(lid) ?? lid, LEAGUE_ORDER.foreign, lg.races)
     }
   }
   // 世界大会は置き場所が新旧2つあるので utils/waRaces から受け取る（そこが吸収する）

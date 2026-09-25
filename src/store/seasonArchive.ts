@@ -1,4 +1,5 @@
-import type { ArchivedSeason, Race } from '../types'
+import type { ArchivedSeason, LeagueSeason, Race } from '../types'
+import { divisionOfLeague } from '../utils/league'
 import {
   packRaceResults, unpackRace, archiveKeyOf, archiveMatches,
   type PackedRace, type SeasonArchive,
@@ -31,24 +32,39 @@ const keyOf = (year: number) => archiveKeyOf(year, SUF)
 //   戻したあとの形は今までとまったく同じなので、読む側の画面は1行も変わらない。
 
 // 大会ごとの取り出し口。**大会で残す／捨てるを分けない**（utils/raceRecord.ts）。
-//   固定キー  jpel / college / reserve / ecl
-//   動的キー  div-<部>（裏の部）、lg-<リーグID>（海外リーグ）、wa-<地域>（大陸予選）
-const DIV_PREFIX = 'div-'
+//   固定キー  college / reserve / ecl
+//   動的キー  lg-<リーグID>（国内の部も海外リーグも）、wa-<地域>（大陸予選）
+//   旧いキー  jpel（自分の部）・div-<部>（裏の部）… 国内の部がリーグになる前に書いた年。
+//             読むときは `packedRacesOfLeague` 1本がどちらからでも拾う（書くのは新しいキーだけ）
 const LEAGUE_PREFIX = 'lg-'
 const WA_PREFIX = 'wa-'
+const LEGACY_MY_DIVISION = 'jpel'
+const LEGACY_DIV_PREFIX = 'div-'
 
 /** その年のシーズンから、大会ごとのレース一覧を取り出す。**取り出し方はここ1本** */
 function racesByCompetition(s: ArchivedSeason): Record<string, Race[]> {
   const out: Record<string, Race[]> = {
-    jpel: s.races ?? [],
     college: s.collegeRaces ?? [],
     reserve: s.secondTeamRaces ?? [],
     ecl: [...(s.eclSeries?.races ?? []), ...(s.eclRace ? [s.eclRace] : [])],
   }
-  for (const [d, rs] of Object.entries(s.divisionRaces ?? {})) out[`${DIV_PREFIX}${d}`] = rs
-  for (const [lid, rs] of Object.entries(s.foreignRaces ?? {})) out[`${LEAGUE_PREFIX}${lid}`] = rs
+  for (const [lid, lg] of Object.entries(s.leagues ?? {})) out[`${LEAGUE_PREFIX}${lid}`] = lg.races ?? []
   for (const [rg, rs] of Object.entries(s.waRaces ?? {})) out[`${WA_PREFIX}${rg}`] = rs
   return out
+}
+
+/**
+ * 別ファイルから、そのリーグの走行記録を拾う。**旧いキーで書いた年もここ1本で読む。**
+ * 国内の部のリーグは、部がリーグになる前は「自分の部（jpel）」と「裏の部（div-<部>）」に
+ * 分けて書いていた。レースIDで突き合わせるので、多めに渡しても別のレースには入らない。
+ */
+function packedRacesOfLeague(a: SeasonArchive, leagueId: string): PackedRace[] | undefined {
+  const d = divisionOfLeague(leagueId)
+  const lists = [
+    a.races[`${LEAGUE_PREFIX}${leagueId}`],
+    ...(d != null ? [a.races[LEGACY_MY_DIVISION], a.races[`${LEGACY_DIV_PREFIX}${d}`]] : []),
+  ].filter((x): x is PackedRace[] => !!x)
+  return lists.length > 0 ? lists.flat() : undefined
 }
 
 /** その年ぶんを詰める */
@@ -96,9 +112,8 @@ export function stripArchivedResults(
     if (!done.has(s.year)) return s
     return {
       ...s,
-      races: strip(s.races),
-      divisionRaces: stripMap(s.divisionRaces),
-      foreignRaces: stripMap(s.foreignRaces),
+      leagues: s.leagues && Object.fromEntries(Object.entries(s.leagues)
+        .map(([lid, lg]) => [lid, { ...lg, races: strip(lg.races) }])) as Record<string, LeagueSeason>,
       waRaces: stripMap(s.waRaces),
       collegeRaces: strip(s.collegeRaces),
       secondTeamRaces: strip(s.secondTeamRaces),
@@ -125,9 +140,8 @@ function applyArchive(s: ArchivedSeason, a: SeasonArchive): ArchivedSeason {
   const eclRaces = put(s.eclSeries?.races, a.races.ecl)
   return {
     ...s,
-    races: put(s.races, a.races.jpel),
-    divisionRaces: putMap(s.divisionRaces, DIV_PREFIX, a),
-    foreignRaces: putMap(s.foreignRaces, LEAGUE_PREFIX, a),
+    leagues: s.leagues && Object.fromEntries(Object.entries(s.leagues)
+      .map(([lid, lg]) => [lid, { ...lg, races: put(lg.races, packedRacesOfLeague(a, lid)) }])) as Record<string, LeagueSeason>,
     waRaces: putMap(s.waRaces, WA_PREFIX, a),
     collegeRaces: put(s.collegeRaces, a.races.college),
     secondTeamRaces: put(s.secondTeamRaces, a.races.reserve),

@@ -11,16 +11,16 @@
  *   実際 build 110 まで、チーム選択（startSetup）がこれだった。選んだクラブを列の最後尾へ
  *   回して部を動かすのに順位表は元の部のまま。2部のクラブを選ぶと
  *     ・自チームは teams では3部／順位表では2部
- *     ・走った点は standings[3] へ書きに行くが自分の行が無いので 0pt のまま
+ *     ・走った点は3部の順位表へ書きに行くが自分の行が無いので 0pt のまま
  *     ・自分の部(3部)は裏レースの対象外なので、順位表側の2部だけが裏で走り続ける
  *   となり、1年目から自分だけ0pt・他15クラブだけ点が増えていた。
  *
- *   いまは utils/league の syncSeasonStandings 1本に通す（起動時とチーム選択の両方）。
+ *   いまは utils/league の syncSeasonLeagues 1本に通す（起動時とチーム選択の両方）。
  *   点は保存済みのレース結果から数え直すので、何度呼んでも同じ結果になる＝
  *   すでに壊れているセーブも開き直すだけで直る。
  */
 import { ALL_DOMESTIC_TEAMS } from '../src/utils/domesticClubs'
-import { divisionOf, divisionInSeason, newSeasonStandings, syncSeasonStandings } from '../src/utils/league'
+import { divisionOf, divisionInSeason, newSeasonStandings, syncSeasonLeagues, divisionLeagues, divisionLeagueId, leagueStandingRows } from '../src/utils/league'
 import type { Team } from '../src/types'
 
 const problems: string[] = []
@@ -50,9 +50,7 @@ for (const pickedId of picks) {
   const teams = placeLikeSetup(base, pickedId)
   // 順位表は「元の部」で作られている＝チーム選択の前の状態
   const stale = newSeasonStandings(base, zero)
-  const synced = syncSeasonStandings({ standings: stale, races: [], teams, playerTeamId: pickedId })
-
-  const season = { standings: synced }
+  const season = { leagues: syncSeasonLeagues({ leagues: divisionLeagues({}, stale), teams, playerTeamId: pickedId }) }
   const mismatched = teams.filter(t => divisionInSeason(season, t.id) !== divisionOf(t))
   check(`${before}部のクラブを選んでも、全52クラブで走る部と順位表の部が一致する`,
     mismatched.length === 0, mismatched.map(t => t.name).join('・'))
@@ -61,7 +59,7 @@ for (const pickedId of picks) {
   check(`  選んだクラブは3部の順位表に載る（走る部＝${myDiv}部）`,
     myDiv === 3 && divisionInSeason(season, pickedId) === 3)
 
-  const sizes = [1, 2, 3].map(d => synced[d as 1 | 2 | 3].length)
+  const sizes = ([1, 2, 3] as const).map(d => leagueStandingRows(season, divisionLeagueId(d)).length)
   check('  各部の人数は 20 / 16 / 16 のまま', sizes.join('/') === '20/16/16', sizes.join('/'))
 }
 
@@ -83,16 +81,17 @@ for (const pickedId of picks) {
   }))
   // 事故と同じ状態：順位表は元の部のまま＝自分の行は2部側にあり、3部側には無い
   const broken = newSeasonStandings(base, zero)
-  const fixed = syncSeasonStandings({ standings: broken, races, teams, playerTeamId: pickedId })
-  const me = fixed[3].find(r => r.teamId === pickedId)
+  // 走った結果は自分の（いまの）部＝3部のリーグの日程に入っている
+  const fixed = syncSeasonLeagues({ leagues: divisionLeagues({ 3: races as never }, broken), teams, playerTeamId: pickedId })
+  const me = fixed[divisionLeagueId(3)].standings.find(r => r.teamId === pickedId)
   const expected = ranksByRace.reduce((s, r) => s + (myDivTeams.length - r + 1), 0)
   check('走ったレースの結果から、消えていた自チームの点が戻る',
     me?.totalPoints === expected, `${me?.totalPoints} / 期待 ${expected}`)
   check('  消化試合も戻る（3戦）', me?.raceResults.length === 3, `${me?.raceResults.length}戦`)
   // 何度通しても同じ数字になること（起動のたびに呼ぶので、増えたら二重加算）
-  const again = syncSeasonStandings({ standings: fixed, races, teams, playerTeamId: pickedId })
+  const again = syncSeasonLeagues({ leagues: fixed, teams, playerTeamId: pickedId })
   check('  何度読み込んでも点が増えない（二重加算しない）',
-    again[3].find(r => r.teamId === pickedId)?.totalPoints === expected)
+    again[divisionLeagueId(3)].standings.find(r => r.teamId === pickedId)?.totalPoints === expected)
 }
 
 console.log('')

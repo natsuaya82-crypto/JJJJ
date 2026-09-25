@@ -6,7 +6,7 @@
 //
 // 断られたぶんもニュースと通知に残す（黙って消えると「返事が来ない」ように見える）。
 // 乱数は使わない。
-import type { ForeignLeague, LoanRequest, LoanResponse, Player, Race, Season, Team } from '../types'
+import type { ForeignLeague, LoanRequest, LoanResponse, Player, Season, Team } from '../types'
 import { LOAN_SLOTS } from '../utils/bidGate'
 import { findClub } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
@@ -58,9 +58,9 @@ export function resolveLoanRequests(params: {
   players: Player[]
   teams: Team[]
   foreignLeagues: ForeignLeague[]
+  /** 今季（**このレースの結果まで載せたもの**。消化数が1戦ずれないように） */
   currentSeason: Season
   pastSeasons: PastArg
-  races: Race[]
   playerTeamId: string
   raceIndex: number
   raceDate: string
@@ -70,7 +70,7 @@ export function resolveLoanRequests(params: {
   news: { date: string; headline: string; category: 'trade'; relatedIds: string[] }[]
   responses: LoanResponse[]
 } {
-  const { teams: teams0, foreignLeagues, currentSeason, pastSeasons, races, playerTeamId, raceIndex, raceDate } = params
+  const { teams: teams0, foreignLeagues, currentSeason, pastSeasons, playerTeamId, raceIndex, raceDate } = params
   const players0 = params.players
   // レンタル要請（移籍市場から出したもの）の応答。相手が承諾なら借用成立、拒否ならニュース。
   const pendingLoanReqs = currentSeason.loanRequests ?? []
@@ -81,10 +81,10 @@ export function resolveLoanRequests(params: {
   if (pendingLoanReqs.length > 0) {
     // 受けるかどうかは `decideLoanRequests` 1本（枠の数・借りている人数・在籍の空き）
     const decided = decideLoanRequests(players0, playerTeamId, pendingLoanReqs, pl =>
-      // ★**走り終わったぶんを載せたシーズンを渡すこと**（`currentSeason.races` はまだ
-      //   このレースの結果を持っていないので、消化数が1戦ずれます）
+      // ★**走り終わったぶんを載せたシーズンを渡すこと**（呼ぶ側の責任。載っていないと
+      //   このレースの結果が無いので、消化数が1戦ずれます）
       keyPlayerStatus(pl, { players: players0, teams: teams0, foreignLeagues,
-        currentSeason: { ...currentSeason, races }, pastSeasons }) === 'open')
+        currentSeason, pastSeasons }) === 'open')
     for (const d of decided) {
       const ownerShort = findClub(teams0, foreignLeagues, d.player.teamId)?.shortName ?? '相手クラブ'
       loanRespNews.push({ date: raceDate, headline: loanReplyHeadline({ ownerLabel: ownerShort, playerName: d.player.name, years: d.years, accepted: d.accepted }), category: 'trade', relatedIds: [d.player.id] })

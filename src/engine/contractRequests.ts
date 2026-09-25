@@ -22,6 +22,7 @@ import { faMarketSalary, isRetiringAge, seasonPerfProfile } from '../utils/playe
 import { openWishIds } from '../utils/talkSync'
 import { isOwnedBy } from '../utils/transferEligibility'
 import type { ContractRequest, GameState, Player } from '../types'
+import { myLeagueRaces } from '../utils/world'
 
 export function buildContractRequests(args: {
   players: Player[]
@@ -60,7 +61,7 @@ export function buildContractRequests(args: {
   const myPlayers = players.filter(p => canRequestRenewal(p, gcrCtx)
     && p.contract.yearsLeft === 1
     && !hasContractTalk(gcrCtx.contractRequests, p.id))
-  const seasonRaces = currentSeason.races ?? []
+  const seasonRaces = myLeagueRaces(currentSeason, playerTeamId)
   const newReqs: ContractRequest[] = myPlayers.map(p => {
     const personality = p.personality ?? 'salary'
     // 要求額は「市場価値 × 性格」で決める。

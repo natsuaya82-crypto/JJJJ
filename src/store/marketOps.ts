@@ -11,7 +11,7 @@ import { counterCeiling } from '../data/economy'
 
 import { type GameState, type Player, type Team } from '../types'
 import { MAJOR_NEWS_OVR, isBigClub, isStepUp } from '../utils/clubTier'
-import { myClub, teamById, allTieredClubs } from '../utils/world'
+import { myClub, teamById, allTieredClubs, myLeagueRaces } from '../utils/world'
 import { allForeignClubs, bigClub, findClub, leagueOfClub } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
 import { settleForeignFee } from '../utils/clubMoney'
@@ -22,9 +22,9 @@ import { type TradeValueCtx } from '../utils/tradeValue'
 
 // 指名権のバックフィル判定。「自分が今持っているか」ではなく「どこかのチームが保有しているか」で見る。
 // 売却・トレード済みの指名権を「欠落」と誤認して再生成（複製）しないため。
-export function tradeValueCtxOf(state: { currentSeason: GameState['currentSeason']; pastSeasons: GameState['pastSeasons']; players?: GameState['players'] }): TradeValueCtx {
+export function tradeValueCtxOf(state: { currentSeason: GameState['currentSeason']; pastSeasons: GameState['pastSeasons']; playerTeamId: string; players?: GameState['players'] }): TradeValueCtx {
   return {
-    races: state.currentSeason.races,
+    races: myLeagueRaces(state.currentSeason, state.playerTeamId),
     teamRaces: state.currentSeason.currentRaceIndex,
     // 出す側での序列（＝余剰か）を数えるために要る。渡さないと全員が主力扱いになり、
     // 現金の移籍と値段が食い違う
@@ -73,7 +73,7 @@ export function sellMove(
 ) {
   return movePlayer(state, playerId, toTeamId, {
     year: state.currentSeason.year,
-    date: state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date,
+    date: myLeagueRaces(state.currentSeason, state.playerTeamId)[state.currentSeason.currentRaceIndex]?.date,
     raceIndex: state.currentSeason.currentRaceIndex,
     fee, toName,
     myTeamId: state.playerTeamId,
@@ -104,7 +104,7 @@ export function finalizeSale(
   fee: number,
 ): Partial<GameState> {
   const player = state.players.find(p => p.id === offer.playerId)!
-  const date = state.currentSeason.races[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`
+  const date = myLeagueRaces(state.currentSeason, state.playerTeamId)[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`
   const league = offer.fromForeign ? leagueOfClub(state.foreignLeagues, offer.fromTeamId) : undefined
   // 行き先がどれだけ大きいかは**クラブの格**で言う（リーグでは言えない。utils/clubTier）。
   //   ビッグクラブ（格2以上）＝世界最高峰／自クラブより格上＝ステップアップ

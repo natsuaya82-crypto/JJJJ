@@ -41,7 +41,7 @@ export function computeDynastyMilestones(args: {
   // 通算成績は「今季を足したあと」で見たいので、過去シーズンに今季の順位表を足して数え直す
   const gmRanksAfter = gmSeasonRanks([
     ...pastSeasons,
-    { year: currentSeason.year, standings: currentSeason.standings },
+    { year: currentSeason.year, leagues: currentSeason.leagues },
   ], gmTenures, playerTeamId)
   const gmTotalsAfter = gmCareerTotals(gmRanksAfter)
   const totalChamps = gmTotalsAfter.championships

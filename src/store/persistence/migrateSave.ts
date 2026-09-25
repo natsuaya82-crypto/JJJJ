@@ -12,7 +12,7 @@ import { NAT_LABEL } from '../../data/nationalities'
 import { initForeignStandings } from '../../engine/foreignLeague'
 import { generateForeignLeaguePlayers, nationalityToForeignCategory } from '../../engine/playerGenerator'
 import { type Nationality, type Player } from '../../types'
-import { toArchivedShape } from '../../utils/archiveSeason'
+import { normalizeSeasonLeagues, toArchivedShape } from './legacySeason'
 import { normalizeForeignStandings } from '../../utils/clubStanding'
 import { tierBudget } from '../../utils/clubTier'
 import { dropLegacyClubRosters, restoreTeamIdsFromLegacyClubs } from '../../utils/legacyClubRoster'
@@ -618,6 +618,19 @@ export const migrateSave = (persistedState: unknown, version: number) => {
       s.playerCreateGrants = Array.from({ length: n }, () => MY_PLAYER_POINTS_INITIAL)
       delete (s as { inauguralPlayerCreated?: boolean }).inauguralPlayerCreated
       delete (s as { playerCreateLeft?: number }).playerCreateLeft
+    }
+    // v46: 日程・結果・順位表を**リーグIDで引く1つの形**（Season.leagues）へ。
+    //   それまでは国内の自分の部（races）・他の部（divisionRaces）・部ごとの順位表（standings）・
+    //   海外（foreignRaces / foreignStandings / foreignRaceIndex）に割れていた。
+    //   均し方は store/persistence/legacySeason の normalizeSeasonLeagues 1本。今シーズンも
+    //   セーブに入っている過去シーズンも同じ関数を通す。別ファイルに出してある過去シーズンの
+    //   走行記録は、読み戻すとき（store/seasonArchive）に旧いキーからも拾う。
+    if (version < 46) {
+      const myTeamId = s.playerTeamId as string | undefined
+      if (s.currentSeason) s.currentSeason = normalizeSeasonLeagues(s.currentSeason as Record<string, unknown>, myTeamId)
+      if (Array.isArray(s.pastSeasons)) {
+        s.pastSeasons = (s.pastSeasons as Record<string, unknown>[]).map(ps => normalizeSeasonLeagues(ps, myTeamId))
+      }
     }
     return s
   } catch (e) {

@@ -42,7 +42,7 @@ import { comparePlayers } from '../utils/playerSort'
 import { playerTierOf, tierLines } from '../utils/playerTier'
 import { clubSeasonRaces, playRateOf, type PlayRateSeason } from '../utils/playRate'
 import { buildCareerCounts } from '../utils/careerStats'
-import { allTieredClubs } from '../utils/world'
+import { allTieredClubs, myLeagueRaces } from '../utils/world'
 import { allForeignClubs } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
 import { roundRobin } from '../utils/roundRobin'
@@ -187,8 +187,8 @@ export function runTransferMarket(
   const lastSeason = ctx.pastSeasons[ctx.pastSeasons.length - 1]
   const thisCounts = buildCareerCounts([ctx.season])
   const prevCounts = buildCareerCounts([lastSeason])
-  const thisRaces = (ctx.season.races ?? []).filter(r => r.results).length
-  const prevRaces = (lastSeason?.races ?? []).filter(r => r.results).length
+  const thisRaces = myLeagueRaces(ctx.season, ctx.playerTeamId).filter(r => r.results).length
+  const prevRaces = myLeagueRaces(lastSeason, ctx.playerTeamId).filter(r => r.results).length
 
   // ── **今季どれだけ走っているか。** 移籍の判断に渡す出場率は `utils/playRate` 1本
   //    （CLAUDE.md「移籍の判断に出場率を渡すところは必ずここを通すこと」）。

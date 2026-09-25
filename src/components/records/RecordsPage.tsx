@@ -18,7 +18,7 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
 import { DIVISION_LABEL, seasonDivisionStandings, standingRowOf, rankOfTeam, divisionInSeason, type SeasonStandingsLike } from '../../utils/league'
 import Panel from '../ui/Panel'
-import { myClub, teamById } from '../../utils/world'
+import { myClub, teamById, myLeagueRaces } from '../../utils/world'
 
 
 // 記録室の各ページ共通のヘッダー付き外枠（ハブと同じ見た目・横タブは廃止）
@@ -46,10 +46,11 @@ export default function FranchiseRecordsPage() {
 
 // 個人ランキング（通算区間賞・MVP・歴代種目別記録会）
 export function IndividualRecordsPage() {
-  const { teams, players, currentSeason, pastSeasons, foreignLeagues } = useGameStore()
+  const { teams, players, currentSeason, pastSeasons, foreignLeagues, playerTeamId, gmTenures } = useGameStore()
   return (
     <PageShell title="個人ランキング">
-      <PlayersTab players={players} teams={teams} foreignLeagues={foreignLeagues} currentSeason={currentSeason} pastSeasons={pastSeasons} />
+      <PlayersTab players={players} teams={teams} foreignLeagues={foreignLeagues} currentSeason={currentSeason} pastSeasons={pastSeasons}
+        playerTeamId={playerTeamId} gmTenures={gmTenures} />
     </PageShell>
   )
 }
@@ -363,8 +364,9 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
       const cur = last.get(playerId)
       if (!cur || year >= cur.year) last.set(playerId, { year, teamId })
     }
+    // その年に自チームが走ったリーグの駅伝（＋旧リザーブ）から拾う
     for (const season of [...pastSeasons, currentSeason]) {
-      for (const race of [...(season.races ?? []), ...(season.secondTeamRaces ?? [])]) {
+      for (const race of [...myLeagueRaces(season, playerTeamId), ...(season.secondTeamRaces ?? [])]) {
         if (!race.results) continue
         for (const sr of race.results.segmentResults) {
           for (const r of sr.runners) put(season.year, r.playerId, r.teamId)
@@ -374,7 +376,7 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
       for (const z of season.zeroAppearances ?? []) put(season.year, z.playerId, z.teamId)
     }
     return last
-  }, [pastSeasons, currentSeason])
+  }, [pastSeasons, currentSeason, playerTeamId])
 
   const myLegends = useMemo(() => players
     .filter(p => p.status === 'retired')
@@ -431,13 +433,16 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
   ]} />
 }
 
-function PlayersTab({ players, teams, foreignLeagues, currentSeason, pastSeasons }: {
+function PlayersTab({ players, teams, foreignLeagues, currentSeason, pastSeasons, playerTeamId, gmTenures }: {
   players: GameStore['players']
   teams: GameStore['teams']
   foreignLeagues: GameStore['foreignLeagues']
   currentSeason: GameStore['currentSeason']
   pastSeasons: GameStore['pastSeasons']
+  playerTeamId: string
+  gmTenures: GameStore['gmTenures']
 }) {
+
   const longPress = usePlayerLongPress()
   const clubIndex = useClubIndex()
   // 国内（JPEL）の記録として数えてよい選手かの判定は domesticPlayers.ts に集約。
@@ -456,7 +461,9 @@ function PlayersTab({ players, teams, foreignLeagues, currentSeason, pastSeasons
   // 過去シーズン＋今季のJPELレース結果だけから数え直す（レース結果はセーブに全部残っている）
   const jpelSegWinMap = useMemo(() => {
     const map: Record<string, number> = {}
-    const seasons = [...pastSeasons.map(ps => ps.races), currentSeason.races]
+    // その年に指揮していたクラブのリーグ（JPELの記録は自チームのリーグの駅伝から数える）
+    const teamIdAt = makeTeamIdAt(gmTenures, playerTeamId)
+    const seasons = [...pastSeasons, currentSeason].map(s => myLeagueRaces(s, teamIdAt(s.year)))
     for (const races of seasons) {
       for (const race of races) {
         if (!race.results) continue
@@ -467,7 +474,7 @@ function PlayersTab({ players, teams, foreignLeagues, currentSeason, pastSeasons
       }
     }
     return map
-  }, [pastSeasons, currentSeason.races])
+  }, [pastSeasons, currentSeason, gmTenures, playerTeamId])
   const topSegWins = players
     .filter(p => isDomestic(p) && (jpelSegWinMap[p.id] ?? 0) > 0)
     .sort((a, b) => (jpelSegWinMap[b.id] ?? 0) - (jpelSegWinMap[a.id] ?? 0))
@@ -475,7 +482,7 @@ function PlayersTab({ players, teams, foreignLeagues, currentSeason, pastSeasons
 
   // 今季スタッツ: 実レース結果から集計
   const seasonSegWinMap: Record<string, number> = {}
-  for (const race of currentSeason.races) {
+  for (const race of myLeagueRaces(currentSeason, playerTeamId)) {
     if (!race.results) continue
     for (const seg of race.results.segmentResults) {
       const winner = seg.runners.find(r => r.rank === 1)

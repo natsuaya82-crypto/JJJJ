@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { leagueById } from '../../utils/world'
-import { rankedStandings } from '../../utils/league'
+import { rankedStandings, leagueStandingRows } from '../../utils/league'
 import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { ovr } from '../../utils/playerUtils'
@@ -15,7 +15,7 @@ export default function ForeignLeagueDetailPage() {
   const navigate = useNavigate()
   const foreignLeagues = useGameStore(s => s.foreignLeagues) ?? []
   const players = useGameStore(s => s.players)
-  const foreignStandings = useGameStore(s => s.currentSeason.foreignStandings)
+  const currentSeason = useGameStore(s => s.currentSeason)
   const league = leagueById(foreignLeagues, leagueId)
 
   if (!league) return (
@@ -25,12 +25,12 @@ export default function ForeignLeagueDetailPage() {
   )
 
   // 勝点があれば勝点順、無ければ（開幕前など）平均OVR順。
-  const leagueStandings = foreignStandings?.[league.id]
-  const hasResults = !!leagueStandings && leagueStandings.some(s => s.raceResults.length > 0)
+  const leagueStandings = leagueStandingRows(currentSeason, league.id)
+  const hasResults = leagueStandings.some(s => s.raceResults.length > 0)
   const clubRows = league.clubs.map(club => {
     const clubPlayers = players.filter(p => belongsToClub(p, club.id))
     const avgOvr = clubPlayers.length > 0 ? Math.round(clubPlayers.reduce((s, p) => s + ovr(p), 0) / clubPlayers.length) : 0
-    const st = leagueStandings?.find(s => s.teamId === club.id)
+    const st = leagueStandings.find(s => s.teamId === club.id)
     return { club, avgOvr, totalPoints: st?.totalPoints ?? 0, form: (st?.raceResults ?? []).map(r => r.rank) }
   })
   // 勝点順に並べるのは `utils/league` の `rankedStandings` 1本（同点のときの扱いもあちら）。

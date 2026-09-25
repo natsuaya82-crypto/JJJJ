@@ -1,4 +1,4 @@
-import type { ForeignLeague } from '../types'
+import type { ForeignLeague, LeagueId, LeagueSeason, Race } from '../types'
 import type { TieredTeam } from './clubTier'
 
 // ============================================================================
@@ -69,4 +69,48 @@ export function leagueById(
   leagueId: string | null | undefined,
 ): ForeignLeague | undefined {
   return (foreignLeagues ?? []).find(l => l.id === leagueId)
+}
+
+// ============================================================================
+// リーグ（日程・結果・順位表）
+//
+// ★**日程・結果・順位表はリーグIDで引く**（`Season.leagues`）。部番号や「自分の部」で
+//   引く2本目を作らないこと。自チームのいるリーグを引くのは下の `myLeagueId` 1本。
+// ============================================================================
+
+/** リーグを持つシーズン。今シーズンも過去シーズンも同じ形で渡せる */
+type LeaguesLike = {
+  leagues?: Readonly<Record<LeagueId, { races?: readonly Race[]; standings?: readonly { teamId: string }[] }>>
+}
+
+/**
+ * そのシーズン、そのクラブがどのリーグで走ったか。順位表に載っていなければ undefined。
+ * **順位表に載っている場所がその年の所属**（昇降格しても過去の年が狂わない）
+ */
+export function leagueOfClub(season: LeaguesLike | null | undefined, clubId: string | null | undefined): LeagueId | undefined {
+  if (!clubId) return undefined
+  for (const [id, lg] of Object.entries(season?.leagues ?? {})) {
+    if (lg.standings?.some(r => r.teamId === clubId)) return id
+  }
+  return undefined
+}
+
+/** 自チームのいるリーグのID。**自チームのリーグを引くのはここ1本** */
+export function myLeagueId(season: LeaguesLike | null | undefined, playerTeamId: string | null | undefined): LeagueId | undefined {
+  return leagueOfClub(season, playerTeamId)
+}
+
+/** 自チームのリーグの日程（結果つき）。見つからなければ空 */
+export function myLeagueRaces(season: LeaguesLike | null | undefined, playerTeamId: string | null | undefined): Race[] {
+  const id = myLeagueId(season, playerTeamId)
+  return (id == null ? [] : season?.leagues?.[id]?.races ?? []) as Race[]
+}
+
+/** そのリーグの日程だけを差し替えたシーズンを返す（順位表とほかのリーグはそのまま） */
+export function withLeagueRaces<S extends { leagues: Record<LeagueId, LeagueSeason> }>(
+  season: S, leagueId: LeagueId | undefined, races: Race[],
+): S {
+  if (leagueId == null) return season
+  const cur = season.leagues[leagueId] ?? { races: [], standings: [] }
+  return { ...season, leagues: { ...season.leagues, [leagueId]: { ...cur, races } } }
 }

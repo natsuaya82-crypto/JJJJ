@@ -1,20 +1,21 @@
-import type { Division, ForeignStanding, SeasonStanding } from '../types'
+import type { Division, LeagueId, SeasonStanding } from '../types'
 import {
-  DIVISIONS, DIVISION_SIZE, divisionInSeason, divisionStandings,
+  DIVISIONS, DIVISION_SIZE, divisionOfLeague,
   domesticThroughRank, rankedStandings, rankOfTeam,
 } from './league'
+import { leagueOfClub } from './world'
 
 // ============================================================================
 // 「そのクラブは今どこにいるか」を引く唯一の入口。国内も海外も同じ。
 //
 // ■なぜ要るのか
-//   順位表の置き場所が2つある（国内 Season.standings は部ごと、海外 foreignStandings は
-//   リーグごと）。**行の型はもう1つ**（SeasonStanding・キーは teamId）だが、
-//   置き場所は分かれたままなので、読む側がそれを知らずに済むようにここでまとめる。
+//   順位表はリーグごとに持つ（`Season.leagues`・国内の部も海外リーグも同じ形）。
+//   読む側が「どのリーグか」を知らずに済むようにここでまとめる。
 //
-//   もとは行の型まで割れていた（国内 teamId ／ 海外 clubId）。形はまったく同じなのに
-//   キー名が違うだけで、読む側は必ず if (isForeign) を書かされ、チーム詳細ページだけで
-//   順位・勝ち点・直近フォーム・消化数・歴代順位・優勝回数の6か所が二重になっていた。
+//   もとは置き場所も行の型も割れていた（国内 Season.standings は部ごと・キー teamId ／
+//   海外 foreignStandings・キー clubId）。読む側は必ず if (isForeign) を書かされ、
+//   チーム詳細ページだけで順位・勝ち点・直近フォーム・消化数・歴代順位・優勝回数の
+//   6か所が二重になっていた。
 //
 // ■順位は「その集団の中での順位」1本。国内も海外も同じ
 //   国内は部の中での順位（1部1〜20／2部・3部1〜16）、海外はリーグの中での順位。
@@ -32,8 +33,7 @@ export type ClubStandingRow = {
 
 /** 順位表を持つシーズン。今シーズンも過去シーズンも同じ形で渡せる */
 export type StandingSeasonLike = {
-  standings?: Partial<Record<Division, readonly SeasonStanding[]>>
-  foreignStandings?: Record<string, ForeignStanding[]>
+  leagues?: Readonly<Record<LeagueId, { standings?: readonly SeasonStanding[] }>>
 }
 
 // ── 旧セーブの取り込み（v39より前は行のキーが clubId だった）────────────
@@ -52,7 +52,7 @@ export function normalizeStandingRows(rows: readonly unknown[] | undefined): Sea
   })
 }
 
-/** リーグID→順位表 をまとめて均す（Season.foreignStandings の形） */
+/** リーグID→順位表 をまとめて均す（旧セーブの海外リーグの順位表の形） */
 export function normalizeForeignStandings(
   fs: Record<string, readonly unknown[]> | undefined,
 ): Record<string, SeasonStanding[]> | undefined {
@@ -62,28 +62,13 @@ export function normalizeForeignStandings(
   return out
 }
 
-/** そのクラブが海外リーグの順位表に載っているか。載っていればそのリーグID */
-export function foreignLeagueOfClub(season: StandingSeasonLike, clubId: string): string | undefined {
-  for (const [leagueId, rows] of Object.entries(season.foreignStandings ?? {})) {
-    if (rows.some(r => r.teamId === clubId)) return leagueId
-  }
-  return undefined
-}
-
 /**
- * そのクラブの行。国内なら部の順位表から、海外ならリーグの順位表から引く。
- * どちらにも載っていなければ undefined（＝その年は走っていない）。
+ * そのクラブの行。そのクラブが載っているリーグ（国内の部でも海外でも同じ）の順位表から引く。
+ * どこにも載っていなければ undefined（＝その年は走っていない）。
  */
 export function clubStandingRow(season: StandingSeasonLike, clubId: string): ClubStandingRow | undefined {
-  for (const d of DIVISIONS) {
-    const row = season.standings?.[d]?.find(r => r.teamId === clubId)
-    if (row) return row
-  }
-  for (const rows of Object.values(season.foreignStandings ?? {})) {
-    const row = rows.find(r => r.teamId === clubId)
-    if (row) return row
-  }
-  return undefined
+  const id = leagueOfClub(season, clubId)
+  return id == null ? undefined : season.leagues?.[id]?.standings?.find(r => r.teamId === clubId)
 }
 
 /**
@@ -102,14 +87,11 @@ export function clubSeasonRank(
   season: StandingSeasonLike,
   clubId: string,
 ): { rank: number; total: number; division?: Division } {
-  const div = divisionInSeason(season as { standings?: Partial<Record<Division, readonly SeasonStanding[]>> }, clubId)
-  if (div != null) {
-    const rows = divisionStandings(season as { standings?: Partial<Record<Division, readonly SeasonStanding[]>> }, div)
-    return { rank: rankOfTeam(rows, clubId), total: rows.length || DIVISION_SIZE[div], division: div }
-  }
-  const leagueId = foreignLeagueOfClub(season, clubId)
-  if (leagueId == null) return { rank: 0, total: 0 }
-  const rows = rankedStandings(season.foreignStandings?.[leagueId] ?? [])
+  const id = leagueOfClub(season, clubId)
+  if (id == null) return { rank: 0, total: 0 }
+  const rows = rankedStandings(season.leagues?.[id]?.standings ?? [])
+  const division = divisionOfLeague(id)
+  if (division != null) return { rank: rankOfTeam(rows, clubId), total: rows.length || DIVISION_SIZE[division], division }
   return { rank: rows.findIndex(r => r.teamId === clubId) + 1, total: rows.length }
 }
 

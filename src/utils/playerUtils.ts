@@ -7,7 +7,7 @@ import { strHash } from './hash'
 import { POACH_PREMIUM, roundSalary } from '../data/economy'
 import { MORALE_DEFAULT } from './condition'
 import { lerpAnchors } from './anchors'
-import { clubSeasonRaces, racesDone, type PlayRateWorld } from './playRate'
+import { clubSeasonRaces, foreignRacesDone, racesDone, type PlayRateWorld } from './playRate'
 
 /**
  * 記録や結果に「焼き込まれた名前」ではなく、いまの名前を返す。
@@ -223,7 +223,7 @@ const foreignAppsCache = new WeakMap<object, Record<string, ForeignApp>>()
 /**
  * その年、誰がどの海外クラブにいたか。**在籍履歴の表示はこれを使う。**
  *
- * 出走数を数えるのは careerStats の仕事で、そちらは走行記録（Season.foreignRaces）から
+ * 出走数を数えるのは careerStats の仕事で、そちらは走行記録（Season.leagues の海外リーグ）から
  * 数え直す。表示側が出走数の集計に触ると、走行記録がある年と無い年で答えが食い違う。
  * ここは「どのクラブにいたか」だけを返すので、その心配がない。
  */
@@ -693,7 +693,6 @@ export function ratingColor(v: number, maxed = false): string {
 export type PerfWorld = PlayRateWorld & {
   currentSeason: {
     foreignAppearances?: Record<string, { clubId: string; races: number; wins: number; rankSum?: number; rankedRaces?: number }>
-    foreignRaceIndex?: number
   }
 }
 
@@ -717,7 +716,7 @@ export type PerfWorld = PlayRateWorld & {
  */
 export function perfOf(p: Pick<Player, 'id' | 'teamId'>, w: PerfWorld): PerfProfile | undefined {
   const fa = w.currentSeason.foreignAppearances?.[p.id]
-  if (fa && fa.races > 0) return foreignPerfProfile(fa, w.currentSeason.foreignRaceIndex ?? fa.races)
+  if (fa && fa.races > 0) return foreignPerfProfile(fa, foreignRacesDone(w.currentSeason) || fa.races)
   const list = clubSeasonRaces(w.currentSeason, p.teamId, w.teams, w.foreignLeagues)
   const teamRaces = racesDone(list)
   if (teamRaces < PLAY_SAMPLE_RACES) return undefined

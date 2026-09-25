@@ -30,6 +30,7 @@ import { generateIndividualEvents, generateSeasonRaces } from '../src/data/races
 import { newSeasonStandings } from '../src/utils/league'
 import { assignLineupByTerrain } from '../src/engine/raceEngine'
 import type { SeasonStanding, Team, Player } from '../src/types'
+import { seasonLeaguesFixture } from './seasonFixture'
 
 const YEAR = 2030, MY = 'tokyo'
 
@@ -47,7 +48,8 @@ const standings = newSeasonStandings<SeasonStanding>(teams, id => ({ teamId: id,
 useGameStore.setState({
   isInitialized: true, playerTeamId: MY, teams, players, foreignLeagues: fgen.updatedLeagues,
   currentSeason: {
-    year: YEAR, phase: 'season', currentRaceIndex: 0, races, standings, foreignStandings,
+    year: YEAR, phase: 'season', currentRaceIndex: 0,
+    leagues: seasonLeaguesFixture({ myDivision: 1, races, standings, foreignStandings }),
     individualEvents: generateIndividualEvents(YEAR),
     newsFeed: [], objectives: [], incomingOffers: [], transferListings: [], contractRequests: [],
   } as never,

@@ -11,9 +11,9 @@
 //   - 走らせるものが無ければ `null` を返す（呼び出し側は状態を変えない）
 //   - **乱数を引く。** 呼ぶ位置と回数を動かすと世界が変わる
 import { applyAwayDivisionRound, applyRacedToSchedule, simulateAwayDivisions } from './domesticLeague'
-import { DIVISIONS, divisionOf } from '../utils/league'
-import type { GameState, Player, Team } from '../types'
-import { myClub } from '../utils/world'
+import { DIVISIONS, divisionLeagueId, divisionOf, divisionStandingsRecord, leagueRaces, withDivisionStandings } from '../utils/league'
+import type { Division, GameState, Player, Race, Team } from '../types'
+import { myClub, myLeagueRaces } from '../utils/world'
 
 export function catchUpAwayDivisions(args: {
   currentSeason: GameState['currentSeason']
@@ -23,19 +23,19 @@ export function catchUpAwayDivisions(args: {
 }): { currentSeason: GameState['currentSeason']; players: Player[] } | null {
   const { currentSeason, teams, players, playerTeamId } = args
 
-const divRaces = currentSeason.divisionRaces
-if (!divRaces) return null
+const divRaces = Object.fromEntries(DIVISIONS.map(d => [d, leagueRaces(currentSeason, divisionLeagueId(d))])) as Record<Division, Race[]>
+const myRaces = myLeagueRaces(currentSeason, playerTeamId)
 const myDivision = divisionOf(myClub({ teams, playerTeamId }))
-const doneRounds = currentSeason.races.length
+const doneRounds = myRaces.length
 const maxRounds = Math.max(...Object.values(divRaces).map(rs => rs.length))
 if (maxRounds <= doneRounds) return null
-let standings = currentSeason.standings
-let catchUpSchedule = currentSeason.divisionRaces
+let standings = divisionStandingsRecord(currentSeason)
+let catchUpSchedule: Record<number, Race[]> | undefined = divRaces
 const careerAdd: Record<string, { races: number; segWins: number }> = {}
 const segPrize: Record<string, number> = { ...(currentSeason.seasonSegPrize ?? {}) }
 for (let r = doneRounds; r < maxRounds; r++) {
   const round = simulateAwayDivisions(
-    currentSeason.races[currentSeason.races.length - 1],
+    myRaces[myRaces.length - 1],
     teams, players, myDivision, 1, divRaces, r,
   )
   // 順位表へ足すときの raceId は、その回に実際に走った部のコースを使う
@@ -57,7 +57,18 @@ for (const [pid, v] of Object.entries(careerAdd)) {
 }
 
   return {
-    currentSeason: { ...currentSeason, standings, divisionRaces: catchUpSchedule, seasonSegPrize: segPrize, awayAppearances: awayApps2 },
+    currentSeason: {
+      ...currentSeason,
+      leagues: (() => {
+        const out = withDivisionStandings(currentSeason.leagues, standings)
+        for (const d of DIVISIONS) {
+          if (d === myDivision) continue   // 自分の部の日程は本編の結果が入っているので触らない
+          const id = divisionLeagueId(d)
+          out[id] = { ...out[id], races: catchUpSchedule?.[d] ?? out[id].races }
+        }
+        return out
+      })(),
+      seasonSegPrize: segPrize, awayAppearances: awayApps2 },
     players: players.map(p => {
       const add = careerAdd[p.id]
       return add

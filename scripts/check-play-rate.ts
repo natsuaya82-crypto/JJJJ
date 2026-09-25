@@ -27,6 +27,7 @@ import { logicSource } from './storeSource'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Race, Team } from '../src/types'
+import { divisionLeagueId } from '../src/utils/league'
 
 let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
@@ -68,9 +69,9 @@ console.log('[2] 0.5 / 0 を手書きしていない')
   const tm = strip(readFileSync('src/engine/transferMarket.ts', 'utf8'))
   check('transferMarket が playRateOf を通る', /playRateOf\(/.test(tm),
     '出場率を数え直さず playRateOf 1本から引くこと')
-  check('transferMarket が season.races を直に数えていない',
-    !/season\.races\b(?!\s*\?\?\s*\[\])/.test(tm.replace(/ctx\.season\.races \?\? \[\]/g, '')),
-    '自分の部の日程しか入っていないので、他の部と海外の212クラブが全員「0戦」になります')
+  check('transferMarket が出場率を自チームのリーグの日程で数えていない',
+    !/playRateOf\([^)]*myLeagueRaces/.test(tm) && !/seasonAppearances\([^)]*myLeagueRaces/.test(tm),
+    '自チームのリーグの日程だけで数えると、他の部と海外の212クラブが全員「0戦」になります')
 }
 
 // ── ⑥ 今季走っている選手を「1戦も走っていない」にしないこと ────────────
@@ -86,15 +87,17 @@ console.log('[3] 今季走っている選手は、前シーズンで上書きさ
     id, name: id, date: `${YEAR}-01-01`, segments: [{ distanceKm: 10, uphillPct: 0, downhillPct: 0 }],
     results: { teamResults: [], segmentResults: [{ segment: 1, runners: runners.map(p => ({ playerId: p, teamId: HI })) }] },
   } as unknown as Race)
-  const thisSeason = { races: [mk('r1', ['p']), mk('r2', ['p']), mk('r3', ['p'])] }
+  // クラブ HI は1部＝1部のリーグの日程を走る
+  const L = (races: Race[]) => ({ leagues: { [divisionLeagueId(1)]: { races } } })
+  const thisSeason = L([mk('r1', ['p']), mk('r2', ['p']), mk('r3', ['p'])])
   // 前季：同じクラブが10戦。本人はそのクラブに居なかったので0戦
-  const prev = { races: Array.from({ length: 10 }, (_, i) => mk(`q${i}`, ['other'])) }
+  const prev = L(Array.from({ length: 10 }, (_, i) => mk(`q${i}`, ['other'])))
   const r = playRateOf('p', HI, thisSeason, teams, [], prev)
   check('⑥ 3戦フル出場なら、前季を渡しても出場率100%', r.fraction === 1 && r.races === 3,
     `fraction=${r.fraction} races=${r.races} teamRaces=${r.teamRaces}`)
   // 空振りでないこと：今季まだ1戦も走っていないなら、前季を見る（本来の目的）
-  const notYet = { races: [mk('r1', ['other']), mk('r2', ['other'])] }
-  const prevFull = { races: Array.from({ length: 10 }, (_, i) => mk(`q${i}`, ['p'])) }
+  const notYet = L([mk('r1', ['other']), mk('r2', ['other'])])
+  const prevFull = L(Array.from({ length: 10 }, (_, i) => mk(`q${i}`, ['p'])))
   const r2 = playRateOf('p', HI, notYet, teams, [], prevFull)
   check('⑥ 空振りでない（今季まだ走っていなければ前季を見る）', r2.fraction === 1 && r2.teamRaces === 10,
     `fraction=${r2.fraction} teamRaces=${r2.teamRaces}`)

@@ -10,7 +10,9 @@
 //     歴代成績・リーグ優勝回数）。1戦ごとの結果は今季ぶんだけ必要なので保存時に落とす
 //     （1シーズンあたり約120KB）
 import { domesticTeamIdSet, foreignClubIdSet } from '../utils/clubs'
-import type { ForeignLeague, GameState, Player, Team } from '../types'
+import type { ForeignLeague, GameState, Player, Season, Team } from '../types'
+import { myLeagueRaces } from '../utils/world'
+import { divisionOfLeague } from '../utils/league'
 
 export function prepareSeasonArchive(args: {
   currentSeason: GameState['currentSeason']
@@ -19,8 +21,9 @@ export function prepareSeasonArchive(args: {
   teams: Team[]
   /** 今季の海外リーグ（更新前） */
   prevForeignLeagues: ForeignLeague[]
+  playerTeamId: string
 }) {
-  const { currentSeason, before, teams, prevForeignLeagues } = args
+  const { currentSeason, before, teams, prevForeignLeagues, playerTeamId } = args
 
   // 海外クラブ在籍で今季出場ゼロの選手にも0戦のエントリを埋めて保存する。
   // 在籍履歴（選手詳細）は出場記録から行を作るため、これが無いと出なかった年の所属が消える
@@ -35,13 +38,15 @@ export function prepareSeasonArchive(args: {
   // 過去シーズンの海外リーグ順位表は「合計ポイント」しか読まれない（チーム詳細の歴代成績・
   // リーグ優勝回数）。1戦ごとの結果は今季ぶんだけ（直近フォーム・消化数）なので保存時に落とす。
   // セーブ容量の節約：1シーズンあたり約120KB
-  const archivedForeignStandings = Object.fromEntries(
-    Object.entries(currentSeason.foreignStandings ?? {})
-      .map(([lid, st]) => [lid, st.map(s2 => ({ teamId: s2.teamId, totalPoints: s2.totalPoints, raceResults: [] }))]),
+  const archivedLeagues: Season['leagues'] = Object.fromEntries(
+    Object.entries(currentSeason.leagues ?? {}).map(([lid, lg]) => [lid, divisionOfLeague(lid) != null ? lg : {
+      races: lg.races,
+      standings: lg.standings.map(s2 => ({ teamId: s2.teamId, totalPoints: s2.totalPoints, raceResults: [] })),
+    }]),
   )
   // 国内も同様：今季1度も出走しなかった在籍選手の所属を記録して保存（在籍履歴の空白防止）
   const appearedIds = new Set<string>()
-  for (const race of [...currentSeason.races, ...(currentSeason.secondTeamRaces ?? [])]) {
+  for (const race of [...myLeagueRaces(currentSeason, playerTeamId), ...(currentSeason.secondTeamRaces ?? [])]) {
     if (!race.results) continue
     for (const sr of race.results.segmentResults) for (const r of sr.runners) appearedIds.add(r.playerId)
   }
@@ -50,5 +55,5 @@ export function prepareSeasonArchive(args: {
     .filter(p => p.status === 'active' && domesticTeamIds.has(p.teamId) && !appearedIds.has(p.id))
     .map(p => ({ playerId: p.id, teamId: p.teamId }))
 
-  return { archivedForeignApps, archivedForeignStandings, zeroAppearances }
+  return { archivedForeignApps, archivedLeagues, zeroAppearances }
 }

@@ -42,6 +42,7 @@ import { appraiseGmInvite } from '../src/utils/gmInvite'
 import { gmInviteNoLine } from '../src/utils/chatLines'
 import { ovr, retirementAgeOf } from '../src/utils/playerUtils'
 import type { Player, Race, SeasonStanding, Team } from '../src/types'
+import { seasonLeaguesFixture } from './seasonFixture'
 
 const problems: string[] = []
 const check = (name: string, ok: boolean, detail = '') => {
@@ -84,7 +85,8 @@ function buildWorld() {
     gmOffers: [], pendingGmMove: null,
     currentSeason: {
       year: YEAR, phase: 'postseason', currentRaceIndex: races.length,
-      races, standings, foreignStandings, newsFeed: [], objectives: [],
+      leagues: seasonLeaguesFixture({ myDivision: divisionOf(teams.find(t => t.id === MY)), races, standings, foreignStandings }),
+      newsFeed: [], objectives: [],
       incomingOffers: [], transferListings: [], contractRequests: [],
     },
     pastSeasons: [], worldAthleticsResults: [{ year: YEAR }], worldRepresentatives: [],

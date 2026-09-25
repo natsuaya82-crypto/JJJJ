@@ -1,4 +1,4 @@
-import type { ForeignLeague, ForeignStanding, Player, Race } from '../types'
+import type { ForeignLeague, ForeignStanding, Player, Race, Season } from '../types'
 import { runBackgroundRace, applyCareerAdd } from './backgroundRace'
 import { applyRaceMorale, standingOf, type RaceStanding } from './raceMorale'
 // コースの呼び名は地域ごと（中身は同じ）。ケニアのクラブが「出雲開幕戦」を走らないようにする
@@ -37,7 +37,7 @@ export function simulateForeignLeagueRound(
   players: Player[]
   appearances: Record<string, { clubId: string; races: number; wins: number; rankSum: number; rankedRaces: number }>
   /**
-   * リーグID → 走らせたレース（結果つき）。呼ぶ側が Season.foreignRaces へ足す。
+   * リーグID → 走らせたレース（結果つき）。呼ぶ側がそのリーグの日程へ足す。
    * 以前はここを捨てて出走数だけ残していたので、海外クラブの過去が空になっていた。
    * いずれ海外のクラブを指揮するので、国内と同じだけ残す（CLAUDE.md）
    */
@@ -108,11 +108,11 @@ export function simulateForeignLeagueRound(
 export function applyForeignChampions(
   foreignLeagues: ForeignLeague[],
   players: Player[],
-  standingsByLeague: Record<string, ForeignStanding[]>,
+  leagues: Season['leagues'],
 ): Player[] {
   const champIds = new Set<string>()
   for (const league of foreignLeagues) {
-    const st = standingsByLeague[league.id]
+    const st = leagues[league.id]?.standings
     if (!st || st.length === 0) continue
     const champ = rankedStandings(st)[0]
     if (!champ) continue

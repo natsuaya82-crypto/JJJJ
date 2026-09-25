@@ -33,7 +33,7 @@ import { seasonDivisionStandings, rankOfTeam } from '../../utils/league'
 import { panelStyle } from '../ui/Panel'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { MORALE_DEFAULT } from '../../utils/condition'
-import { myClub, teamById } from '../../utils/world'
+import { myClub, teamById, myLeagueRaces } from '../../utils/world'
 
 
 
@@ -260,15 +260,15 @@ export default function Dashboard() {
   const avgMorale = mainPlayers.length > 0
     ? Math.round(mainPlayers.reduce((s, p) => s + (p.morale ?? MORALE_DEFAULT), 0) / mainPlayers.length) : MORALE_DEFAULT
 
-  const nextMainRace = currentSeason.races[currentSeason.currentRaceIndex] ?? null
+  const nextMainRace = myLeagueRaces(currentSeason, playerTeamId)[currentSeason.currentRaceIndex] ?? null
   type NextRaceData = { race: Race; kind: 'main'; number: number; total: number }
   const nextRaceData: NextRaceData | null = nextMainRace
-    ? { race: nextMainRace, kind: 'main', number: currentSeason.currentRaceIndex + 1, total: currentSeason.races.length }
+    ? { race: nextMainRace, kind: 'main', number: currentSeason.currentRaceIndex + 1, total: myLeagueRaces(currentSeason, playerTeamId).length }
     : null
   // カレンダー進行: 次のリーグ戦より前に未実施の記録会があればNEXTはそちら
-  const dueTT = getDueIndividualEvent(currentSeason)
+  const dueTT = getDueIndividualEvent(currentSeason, myLeagueRaces(currentSeason, playerTeamId))
   const showTTNext = !!dueTT && (!nextRaceData || dueTT.date <= nextRaceData.race.date)
-  const seasonDone = currentSeason.currentRaceIndex >= currentSeason.races.length && currentSeason.races.length > 0
+  const seasonDone = currentSeason.currentRaceIndex >= myLeagueRaces(currentSeason, playerTeamId).length && myLeagueRaces(currentSeason, playerTeamId).length > 0
   // 順位表は全52チームぶんを1本で持っているので、自分が走っている部だけに絞る
   // （絞らないと、部ごとにレース数が違うぶんだけ順位がずれる）
   const sorted = seasonDivisionStandings(currentSeason, playerTeamId)
@@ -348,7 +348,7 @@ export default function Dashboard() {
   const isChampion = seasonDone && sorted[0]?.teamId === playerTeamId
   // リーグMVP・新人王（endSeasonで保存されるのと同じルール: 6戦以上・平均区間順位）
   // ★MVPは部ごと（1部MVP・2部MVP・3部MVP）。ここは自分の部のぶん
-  const seasonAward = seasonDone ? computeSeasonAwards(currentSeason.races, players, currentSeason.year, clubSeasonRank(currentSeason, playerTeamId).division) : null
+  const seasonAward = seasonDone ? computeSeasonAwards(myLeagueRaces(currentSeason, playerTeamId), players, currentSeason.year, clubSeasonRank(currentSeason, playerTeamId).division) : null
   const mvp = seasonAward?.mvpId ? players.find(p => p.id === seasonAward.mvpId) : null
   const rookie = seasonAward?.rookieId ? players.find(p => p.id === seasonAward.rookieId) : null
 
@@ -359,7 +359,7 @@ export default function Dashboard() {
   // 「契約未解決の選手が○人います」と言われても対応する場所が無い状態になっていた
   const renewCtx = contractTalkCtx(currentSeason, playerTeamId)
   const renewRaceIndex = currentSeason.currentRaceIndex ?? 0
-  const renewTotalRaces = currentSeason.races?.length ?? 1
+  const renewTotalRaces = myLeagueRaces(currentSeason, playerTeamId)?.length ?? 1
   const unresolvedMandatoryCount = players.filter(p =>
     needsRenewalAttention(p, contractMonthsLeft(p.contract.yearsLeft, renewRaceIndex, renewTotalRaces), renewCtx)
   ).length
@@ -372,7 +372,7 @@ export default function Dashboard() {
         team={team}
         seasonYear={currentSeason.year}
         rank={myRank}
-        totalRaces={currentSeason.races.length}
+        totalRaces={myLeagueRaces(currentSeason, playerTeamId).length}
         completedRaces={currentSeason.currentRaceIndex}
         gmRep={gmRepVal}
         avgMorale={avgMorale}
