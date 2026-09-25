@@ -32,7 +32,7 @@ function PlayerHead({ player }: { player: Player }) {
 
 // 他チーム選手：タップ＝吹き出しメニュー / 長押し＝詳細。移籍オファー・レンタルのオファーが可能。
 export function useOpponentMenu() {
-  const { players, teams, playerTeamId, currentSeason } = useGameStore()
+  const { players, clubs, playerTeamId, currentSeason } = useGameStore()
   const submitTransferBid = useGameStore(s => s.submitTransferBid)
   const submitLoanRequest = useGameStore(s => s.submitLoanRequest)
 
@@ -52,7 +52,7 @@ export function useOpponentMenu() {
     if (!menuPlayer) return []
     const gate = {
       currentSeason,
-      myTeam: myClub({ teams, playerTeamId }),
+      myTeam: myClub({ clubs, playerTeamId }),
       myTeamId: playerTeamId,
       bidsOnPlayer: (currentSeason.transferBids ?? []).filter(b => b.playerId === menuPlayer.id),
       loanSlotsUsed: players.filter(pl => pl.teamId === playerTeamId && pl.loan && pl.loan.ownerTeamId !== playerTeamId).length,
@@ -77,7 +77,7 @@ export function useOpponentMenu() {
 
       {offerId && (() => {
         const p = players.find(x => x.id === offerId); if (!p) return null
-        const budget = myClub({ teams, playerTeamId })?.finance.budget ?? 0
+        const budget = myClub({ clubs, playerTeamId })?.finance?.budget ?? 0
         const listing = (currentSeason.transferListings ?? []).find(l => l.playerId === p.id)
         return <BidSheet player={p} budget={budget} listing={listing} onSubmit={fee => { submitTransferBid(p.id, fee); setOfferId(null) }} onClose={() => setOfferId(null)} />
       })()}

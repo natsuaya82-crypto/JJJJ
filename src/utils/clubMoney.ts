@@ -1,6 +1,7 @@
 import { tierBudget } from './clubTier'
 import { belongsToClub } from './rosterSync'
-import type { ForeignLeague, Player } from '../types'
+import { isJpelLeague, mapClubs } from './world'
+import type { Player, WorldClub } from '../types'
 
 /**
  * **そのクラブが払う総年俸。数えるのはここ1本。**
@@ -31,7 +32,7 @@ export function clubSalaryTotal(players: readonly Player[], clubId: string): num
 /**
  * **移籍金の海外側の精算（唯一の場所）。**
  *
- * `movePlayer` は `teams`（国内52クラブ）しか知りません。それは意図した設計で、
+ * `movePlayer` は日本のリーグのクラブのお金しか動かしません。それは意図した設計で、
  * 崩さないことになっています（`docs/BACKLOG.md` A-4）。そのため
  * **相手が海外クラブのときは、片側（国内）しかお金が動きませんでした。**
  *
@@ -49,24 +50,22 @@ export function clubSalaryTotal(players: readonly Player[], clubId: string): num
  * @param toClubId   選手を受け取った側（払う）
  */
 export function settleForeignFee(
-  leagues: readonly ForeignLeague[] | undefined,
+  clubs: WorldClub[],
   fromClubId: string,
   toClubId: string,
   fee: number,
-): ForeignLeague[] {
-  const src = leagues ?? []
-  if (fee <= 0 || fromClubId === toClubId) return src as ForeignLeague[]
+): WorldClub[] {
+  if (fee <= 0 || fromClubId === toClubId) return clubs
   let touched = false
-  const next = src.map(l => ({
-    ...l,
-    clubs: l.clubs.map(c => {
-      const delta = c.id === fromClubId ? fee : c.id === toClubId ? -fee : 0
-      if (delta === 0) return c
-      touched = true
-      // 置き場所は国内チームとまったく同じ finance.budget 1本。
-      // finance が無い古いセーブだけ、その年に限り格の年間予算から始める
-      return { ...c, finance: { ...c.finance, budget: (c.finance?.budget ?? tierBudget(c)) + delta } }
-    }),
-  }))
-  return touched ? next : (src as ForeignLeague[])
+  const next = mapClubs(clubs, (c): WorldClub => {
+    // 日本のリーグのクラブは movePlayer が動かしている
+    if (isJpelLeague(c.leagueId)) return c
+    const delta = c.id === fromClubId ? fee : c.id === toClubId ? -fee : 0
+    if (delta === 0) return c
+    touched = true
+    // 置き場所は国内チームとまったく同じ finance.budget 1本。
+    // finance が無い古いセーブだけ、その年に限り格の年間予算から始める
+    return { ...c, finance: { ...c.finance, budget: (c.finance?.budget ?? tierBudget(c)) + delta } }
+  })
+  return touched ? next : clubs
 }

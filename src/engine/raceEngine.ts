@@ -1,10 +1,10 @@
-import type { Player, Specialty, RaceResults, Race, Team, Segment } from '../types'
+import type { Player, Specialty, RaceResults, Race, Team, Segment, WorldClub } from '../types'
 import type { TraitId } from '../utils/traitUtils'
-import { positionPointsFor, segmentAwardPoints, divisionOf, teamsInDivision } from '../utils/league'
+import { positionPointsFor, segmentAwardPoints, divisionOf, divisionLeagueId } from '../utils/league'
 import { MORALE_DEFAULT } from '../utils/condition'
 import { terrainWeights } from '../data/segmentWeights'
 import { lerpAnchors } from '../utils/anchors'
-import { myClub } from '../utils/world'
+import { clubMap, clubsInLeague, clubsWhere, myClub } from '../utils/world'
 
 // セーブ破損や旧データで ratings 自体（または一部の能力）が欠けている選手が混ざっても、
 // 描画・計算の途中で例外を投げてアプリが真っ白にならないようにするための防御。
@@ -113,7 +113,7 @@ export function calcSegmentAffinity(specialty: Specialty, seg: Pick<Segment, 'up
   return base * (specialty === 'ace' ? 1.09 : 1.05)
 }
 
-export function calcClubModifier(team: Pick<Team, 'city'>, raceLocation: string): number {
+export function calcClubModifier(team: { city?: string }, raceLocation: string): number {
   let mod = 1.00
   if (raceLocation && team.city && raceLocation.includes(team.city)) mod += 0.02
   return mod
@@ -339,14 +339,14 @@ function resolveSegmentEvents(ratings: Player['ratings'], isLastSeg: boolean): n
  *   「3部なのに48位」になっていた。順位ポイントも参加チーム数から出すので全部ずれる。
  */
 export function buildCpuLineups(
-  teams: readonly Team[],
+  clubs: readonly WorldClub[],
   players: Player[],
   race: Race,
   playerTeamId: string,
 ): Record<string, Record<number, string>> {
-  const myDivision = divisionOf(myClub({ teams, playerTeamId }))
+  const myDivision = divisionOf(myClub({ clubs, playerTeamId }))
   const out: Record<string, Record<number, string>> = {}
-  for (const team of teamsInDivision(teams, myDivision)) {
+  for (const team of clubsInLeague(clubs, divisionLeagueId(myDivision))) {
     if (team.id === playerTeamId) continue
     out[team.id] = bgLineup(players.filter(p => p.teamId === team.id && p.status === 'active'), race)
   }
@@ -363,25 +363,26 @@ export function buildCpuLineups(
  *   部の判定をここで書き直さないこと——`buildCpuLineups` の結果をそのまま使う。
  */
 export function racingTeams<T extends { id: string }>(
-  teams: readonly T[],
+  clubs: readonly T[],
   cpuLineups: Record<string, Record<number, string>>,
   playerTeamId: string,
 ): T[] {
   const ids = new Set([playerTeamId, ...Object.keys(cpuLineups)])
-  return teams.filter(t => ids.has(t.id))
+  return clubsWhere(clubs, t => ids.has(t.id))
 }
 
 export function simulateRace(
   race: Race,
   lineups: Record<string, Record<number, string>>,
-  teams: Team[],
+  /** 走るクラブの実体（本拠地の補正に使う）。世界のクラブをそのまま渡してよい */
+  clubs: readonly (Pick<Team, 'id'> & Partial<Pick<Team, 'city'>>)[],
   players: Player[],
   _seasonProgress: number,
   playerTeamId?: string,
   segmentTactics?: Record<number, string>,
 ): RaceResults {
   const teamIds = Object.keys(lineups)
-  const teamMap = new Map(teams.map(t => [t.id, t]))
+  const teamMap = clubMap(clubs, t => t)
   const playerMap = new Map(players.map(p => [p.id, p]))
   const cumTime: Record<string, number> = {}
   teamIds.forEach(id => { cumTime[id] = 0 })

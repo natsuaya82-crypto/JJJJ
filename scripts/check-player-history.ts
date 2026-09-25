@@ -33,7 +33,7 @@ const MY = 'tokyo'
 // ① 在籍履歴の部は「その年」から引く（divisionInYear）
 //
 //   1部 → 2部 → 3部 と2年つづけて降格したチームを作る。
-//   いまの Team.division は 3部なので、現在値で引くと過去2年も3部になる。
+//   いまの Team.leagueId は 3部なので、現在値で引くと過去2年も3部になる。
 // ───────────────────────────────────────────────────────────────
 console.log('\n① 年ごとの部（utils/league の divisionInYear）')
 
@@ -47,7 +47,7 @@ const seasonOf = (year: number, div: Division) => ({
 })
 
 const seasons = [seasonOf(2030, 1), seasonOf(2031, 2), seasonOf(2032, 3)]
-const nowTeam = { id: MY, division: 3 } as Team   // いまは3部（2年で2つ落ちた）
+const nowTeam = { id: MY, leagueId: divisionLeagueId(3) } as Team   // いまは3部（2年で2つ落ちた）
 const nowDiv = divisionOf(nowTeam)
 
 check('前提：いまのチームの部は3部', nowDiv === 3, `${nowDiv}部`)

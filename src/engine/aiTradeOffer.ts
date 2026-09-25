@@ -8,27 +8,25 @@
 // ★乱数は引数で受ける（既定は Math.random）。呼ぶ順は切り出し前と同じで、
 //   「既に打診があるなら抽選もしない」短絡もそのまま。
 import { effectiveOvr } from '../utils/foreignClubProfile'
-import type { AITradeOffer, ForeignLeague, Player, Season, Team } from '../types'
-import { allForeignClubs } from '../utils/clubs'
+import type { AITradeOffer, Player, Season, WorldClub } from '../types'
 import { AI_OFFER_GAIN_MAX, AI_OFFER_GAIN_MIN, priceOf } from '../utils/tradeValue'
 import { canBePoached, eligibilityCtx } from '../utils/transferEligibility'
 import { ovr } from '../utils/playerUtils'
 import { cpuSpecialtyNeeds } from './cpuMarket'
-import { myLeagueRaces } from '../utils/world'
+import { clubById, clubIds, myLeagueRaces, otherClubs } from '../utils/world'
 
 /** 打診が1件も無いときだけ、25%の確率で1件つくる。作れなければ空 */
 export function generateAiTradeOffers(params: {
   players: Player[]
-  teams: Team[]
-  /** 海外リーグ。**渡すこと**——渡さないとGMへの打診が国内52クラブからしか来ない */
-  foreignLeagues?: ForeignLeague[] | null
+  /** 世界のクラブ（国内52＋海外180）。打診はどのクラブからも来る */
+  clubs: WorldClub[]
   playerTeamId: string
   currentSeason: Season
   raceIndex: number
   hasExistingOffer: boolean
   rng?: () => number
 }): AITradeOffer[] {
-  const { players, teams, foreignLeagues, playerTeamId, currentSeason, raceIndex, hasExistingOffer, rng = Math.random } = params
+  const { players, clubs, playerTeamId, currentSeason, raceIndex, hasExistingOffer, rng = Math.random } = params
   if (hasExistingOffer) return []
   if (!(rng() < 0.25)) return []
       // トレード提案の質を上げる：
@@ -43,8 +41,7 @@ export function generateAiTradeOffers(params: {
       // ★**打診してくるのは国内52＋海外180の全部**（オーナー・2026-09-16「二も一緒」）。
       //   CPU同士のトレードは 2026-08-13 に既に1本化されている（「移籍は揃えて。
       //   国内国外という考えは消す」）のに、**GMに来る打診だけ国内に閉じて**いました。
-      const cpuClubs = [...teams, ...allForeignClubs(foreignLeagues ?? [])]
-      const cpuIds = cpuClubs.map(t => t.id).filter(id => id !== playerTeamId)
+      const cpuIds = clubIds(otherClubs(clubs, playerTeamId))
       // 自チームの穴を埋められる選手(OVR68+)を持つチームを優先。いなければランダム
       const teamsWithFit = cpuIds.filter(id => players.some(p =>
         p.teamId === id && p.status === 'active' && !p.loan && myNeeds.includes(p.specialty) && ovr(p) >= 68))
@@ -92,8 +89,8 @@ export function generateAiTradeOffers(params: {
         }
       }
   if (!best) return []
-  // クラブ名は国内・海外どちらも引く（`teams.find` だと海外が空になる）
-  const fromShort = cpuClubs.find(t => t.id === fromId)?.shortName ?? ''
+  // クラブ名は国内・海外どちらも同じ並びから引く
+  const fromShort = clubById(clubs, fromId)?.shortName ?? ''
   return [{
     id: `aito-${raceIndex + 1}-${best.mine.id}`,
     fromTeamId: fromId,

@@ -33,6 +33,7 @@ const check = (name: string, ok: boolean, detail = '') => {
 async function main() {
   const { useGameStore } = await import('../src/store/gameStore')
   const { getSaveHealth, getSaveHealthReason } = await import('../src/store/saveHealth')
+  const { jpelClubs } = await import('../src/utils/world')
   await new Promise(r => setTimeout(r, 500))
 
   const s = useGameStore.getState()
@@ -46,8 +47,9 @@ async function main() {
   check('読み込みが失敗していない', getSaveHealth() !== 'failed', getSaveHealthReason())
   check('ゲーム開始済みのまま', s.isInitialized === true, `isInitialized=${s.isInitialized}`)
   check('指揮チームが残っている', s.playerTeamId === myId, `${myId} → ${s.playerTeamId}`)
-  check('チーム数が減っていない', s.teams.length === (before.teams as unknown[]).length,
-    `${(before.teams as unknown[]).length} → ${s.teams.length}`)
+  // v47 からクラブは1つの並び（clubs）。旧い国内の teams は日本のリーグのクラブになる
+  check('チーム数が減っていない', jpelClubs(s.clubs).length === (before.teams as unknown[]).length,
+    `${(before.teams as unknown[]).length} → ${jpelClubs(s.clubs).length}`)
   check('選手が減っていない', s.players.length === bp.length, `${bp.length} → ${s.players.length}`)
   check('自チームの在籍が減っていない', myAfter === myBefore, `${myBefore}人 → ${myAfter}人`)
   check('シーズンの年が変わっていない',

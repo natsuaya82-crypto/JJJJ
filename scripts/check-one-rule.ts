@@ -102,9 +102,12 @@ console.log('\n[5] 在籍上限の数を直書きしていない')
 
 console.log('\n[6] 下限の救済は全クラブに効く（自チームだけを特別扱いしない）')
 {
-  // 戻し方：startRegularSeason を `state.teams.filter(t => t.id === state.playerTeamId)` に戻す
-  check('全クラブを渡している', /fillAllRostersToMin\(allClubs,/.test(code))
-  check('海外クラブも入っている', /allClubs = \[\.\.\.state\.teams, \.\.\.allForeignClubs\(/.test(code))
+  // 戻し方：startRegularSeason を `clubsWhere(state.clubs, c => c.id === state.playerTeamId)` に戻す／中で jpelClubs に絞る
+  // クラブは GameState.clubs の1つの並び（国内52＋海外180）。それを丸ごと渡せば海外も入る
+  check('全クラブを渡している', /fillAllRostersToMin\(state\.clubs,/.test(code))
+  check('海外クラブも入っている（中で国内だけに絞っていない）',
+    /export function fillAllRostersToMin\([\s\S]*?\n\}/.test(code)
+    && !/(?:jpelClubs|isJpelLeague|jpelClubIdSet)\(/.test((code.match(/export function fillAllRostersToMin\([\s\S]*?\n\}/) ?? [''])[0]))
   check('1クラブぶんだけ埋める旧API（fillRosterToMin）が残っていない', !/fillRosterToMin\(/.test(code))
 }
 

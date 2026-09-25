@@ -40,12 +40,13 @@ import { useGameStore } from '../src/store/gameStore'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { drawSeasonSchedules, generateIndividualEvents } from '../src/data/races'
 import { newSeasonStandings, DIVISIONS, DIVISION_RACES, divisionOf, divisionLeagues } from '../src/utils/league'
 import { assignLineupByTerrain } from '../src/engine/raceEngine'
 import { stripEphemeral } from '../src/store/ephemeralState'
-import { myLeagueRaces } from '../src/utils/world'
+import { jpelClubById, myLeagueRaces } from '../src/utils/world'
 import { calcTransferValue, faMarketSalary, ovr } from '../src/utils/playerUtils'
 import { draftPickValue } from '../src/data/economy'
 import { teamRosterSize } from '../src/data/rosterRules'
@@ -86,7 +87,7 @@ function buildState(phase: 'regular' | 'postseason', racesDone: number) {
   resetRng()
   const base = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
   const cpu = generateCpuRosters(base, YEAR)
-  const fgen = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+  const fgen = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
   let players: Player[] = [...cpu.cpuPlayers, ...fgen.players]
   // 契約年数をばらけさせる（満了が出ないと契約更新の枝を通らない）
   players = players.map((p, i) => ({ ...p, contract: { ...p.contract, yearsLeft: 1 + (i % 3) } }))
@@ -100,10 +101,10 @@ function buildState(phase: 'regular' | 'postseason', racesDone: number) {
     })
   }
   const foreignStandings: Record<string, SeasonStanding[]> = {}
-  for (const l of fgen.updatedLeagues) foreignStandings[l.id] = l.clubs.map((c, i) => ({ teamId: c.id, totalPoints: (20 - i) * 5, raceResults: [] }))
+  for (const l of FOREIGN_LEAGUES) foreignStandings[l.id] = l.clubs.map((c, i) => ({ teamId: c.id, totalPoints: (20 - i) * 5, raceResults: [] }))
 
-  const teams = base.map(t => ({ ...t, finance: { ...(t.finance ?? {}), budget: 400_000_000 } })) as Team[]
-  const myTeam = teams.find(t => t.id === MY)!
+  const jpel = base.map(t => ({ ...t, finance: { ...(t.finance ?? {}), budget: 400_000_000 } })) as Team[]
+  const myTeam = jpel.find(t => t.id === MY)!
   // 部ごとの日程は本物と同じ `drawSeasonSchedules` で引く（乱数はシード固定のもの）。
   // ★以前は自分の部の10戦しか組まず、**他の部に日程が1本も無い世界**だった。
   //   裏の部は「日程が無ければ自分の部のコースを流用する」古いセーブの保険の枝を走り、
@@ -124,9 +125,8 @@ function buildState(phase: 'regular' | 'postseason', racesDone: number) {
     ...pristine(),
     isInitialized: true,
     playerTeamId: MY,
-    teams,
+    clubs: [...jpel, ...INITIAL_FOREIGN_CLUBS],
     players,
-    foreignLeagues: fgen.updatedLeagues,
     currentSeason: {
       year: YEAR, phase, currentRaceIndex: racesDone,
       leagues, newsFeed: [], objectives: [],
@@ -372,7 +372,7 @@ SCENARIOS['draft-pick-sale'] = () => {
   ]
   const keyOf = (p: typeof picks[number]) => `${p.year}-R${p.round}-${p.pickNumber}`
   useGameStore.setState({
-    teams: g().teams.map(t => {
+    clubs: g().clubs.map(t => {
       if (t.id === MY) return { ...t, draftPicks: picks }
       // 買い手の1人をわざと予算不足にして「払えない」の枝も通す
       if (t.id === BUYER_POOR) return { ...t, finance: { ...t.finance, budget: 1_000_000 } }
@@ -425,10 +425,10 @@ SCENARIOS['market-trade'] = () => {
     const myPick = { year: YEAR + 1, round: 1, pickNumber: 3, originallyOwnedBy: MY }
     const theirPick = { year: YEAR + 1, round: 2, pickNumber: 5, originallyOwnedBy: P2 }
     const keyOf = (pk: typeof myPick) => `${pk.year}-R${pk.round}-${pk.pickNumber}`
-    useGameStore.setState({ teams: gg().teams.map(t =>
+    useGameStore.setState({ clubs: gg().clubs.map(t =>
       t.id === MY ? { ...t, draftPicks: [myPick] } : t.id === P2 ? { ...t, draftPicks: [theirPick] } : t) } as never)
     const withPick = gg().tradePlayer([mine[18].id], [t2[6].id], P2, 30_000_000, [keyOf(myPick)], [keyOf(theirPick)])
-    const myPicksAfter = (gg().teams.find(t => t.id === MY)?.draftPicks ?? []).map(keyOf).join(',')
+    const myPicksAfter = (jpelClubById(gg().clubs, MY)?.draftPicks ?? []).map(keyOf).join(',')
     console.log(`      飲んだ=${at(t2[3].id) === MY} 飲めなかった=${at(t2[15].id) === P2}`
       + ` / 打診の返事=${negStatus}(要求追加${demanded}人) 成立=${at(t1[0].id) === MY}`
       + ` / 話にならない打診=${neg2?.status ?? '(無し)'}`

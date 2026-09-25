@@ -102,7 +102,7 @@ console.log('\n[4] 実際に store を動かす（空振りの緑ではない）
 {
   const teams = INITIAL_TEAMS.slice(0, 3)
   const setup = (grants: number[]) => useGameStore.setState({
-    isInitialized: true, playerTeamId: teams[0].id, teams, players: [],
+    isInitialized: true, playerTeamId: teams[0].id, clubs: teams, players: [],
     playerCreateGrants: grants,
     currentSeason: { year: 2030, phase: 'regular', currentRaceIndex: 0, races: [], standings: {}, newsFeed: [], objectives: [], incomingOffers: [], transferListings: [], contractRequests: [] },
   } as never)
@@ -174,7 +174,7 @@ console.log('\n[5] 育て切ったときの上限はタイプごと（平均92�
   // ⑤実際に store を動かして、その並びが選手に入っていること
   const teams = INITIAL_TEAMS.slice(0, 3)
   useGameStore.setState({
-    isInitialized: true, playerTeamId: teams[0].id, teams, players: [],
+    isInitialized: true, playerTeamId: teams[0].id, clubs: teams, players: [],
     playerCreateGrants: [MY_PLAYER_POINTS_INITIAL],
     currentSeason: { year: 2030, phase: 'regular', currentRaceIndex: 0, races: [], standings: {}, newsFeed: [], objectives: [], incomingOffers: [], transferListings: [], contractRequests: [] },
   } as never)

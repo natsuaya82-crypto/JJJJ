@@ -14,24 +14,24 @@
 //
 // 乱数は使わない。
 import { clubSalaryTotal } from '../utils/clubMoney'
-import type { Division, Player, Season, Sponsor, Team } from '../types'
+import type { Division, Player, Season, Sponsor, Team, WorldClub } from '../types'
 import { computeNextSeasonBudget } from '../data/economy'
 import { operatingCostOf, tierBudget, type ClubTier } from '../utils/clubTier'
 import { facilityUpkeepOf } from '../utils/facilities'
-import { myClub } from '../utils/world'
+import { divisionLeagueId, isJpelLeague, mapClubs, myClub } from '../utils/world'
 
 export function computeSeasonBudgets(params: {
   players: Player[]
-  teams: Team[]
+  clubs: WorldClub[]
   sponsors: Sponsor[]
-  /** 契約満了・引退を反映したあとのチーム（スポンサーの持ち主を見る） */
-  teamsWithFA: Team[]
+  /** 契約満了・引退を反映したあとのクラブ（スポンサーの持ち主を見る） */
+  clubsWithFA: WorldClub[]
   currentSeason: Season
   playerTeamId: string
   /** 来季の格（engine/promotion） */
   myNextTier: ClubTier
-  nextTierOf: (t: { id: string; division?: Division }) => ClubTier
-  nextDivisionOf: (t: { id: string; division?: Division }) => Division
+  nextTierOf: (t: { id: string; leagueId?: string }) => ClubTier
+  nextDivisionOf: (t: { id: string; leagueId?: string }) => Division
   /** 自チームの今季の総年俸・期末残高・区間賞収入・スポンサー年額・目標ボーナス・出来高 */
   playerSalaryTotal: number
   playerBudgetAtSeasonEnd: number
@@ -41,7 +41,7 @@ export function computeSeasonBudgets(params: {
   bonusTotalPayout: number
   prevStreakMe: number
 }) {
-  const { teams, sponsors, teamsWithFA, currentSeason, playerTeamId, myNextTier, nextTierOf, nextDivisionOf,
+  const { clubs, sponsors, clubsWithFA, currentSeason, playerTeamId, myNextTier, nextTierOf, nextDivisionOf,
     playerSalaryTotal, playerBudgetAtSeasonEnd, prevRaceIncome, sponsorAnnual,
     objBudgetBonus, bonusTotalPayout, prevStreakMe } = params
   const players = params.players
@@ -59,7 +59,7 @@ export function computeSeasonBudgets(params: {
     objBudgetBonus,
     bonusPayout: bonusTotalPayout,
     salaryTotal: playerSalaryTotal,
-    facilityUpkeep: facilityUpkeepOf(myClub({ teams, playerTeamId })) })
+    facilityUpkeep: facilityUpkeepOf(myClub({ clubs, playerTeamId })) })
   // 初期予算の内訳（財務ページで「何が合わさって初期予算か」を表示）。
   // 繰越は「前季の最終収支」＝期末残高から年俸・運営費・ボーナスを精算した後の額。
   const newBudgetBreakdown = {
@@ -78,16 +78,19 @@ export function computeSeasonBudgets(params: {
   // 総年俸は `utils/clubMoney` の `clubSalaryTotal` 1本（レンタルで借りている選手は
   // 借りた側が払う・オーナー2026-09-15）。人数を数える `teamRosterSize` と同じ population
   const teamSalaryTotal = (teamId: string) => clubSalaryTotal(players, teamId)
-  const teamSponsorAnnual = (t: typeof teamsWithFA[0]) => (t.sponsors ?? [])
+  const teamSponsorAnnual = (t: Team) => (t.sponsors ?? [])
     .map(id => sponsors.find(s => s.id === id))
     .filter(Boolean)
     .reduce((s, sp) => s + sp!.annualPayment, 0)
   // 監督オファーを受けたときに移籍先の予算へ丸ごと入れ替えるので、
   // 他チームの来季予算の内訳もここで控えておく（あとからは計算し直せない）
   const cpuNextBudgets: Record<string, typeof newBudgetBreakdown & { budget: number }> = {}
-  const teamsWithSeasonRewards = teamsWithFA.map(t => {
+  // ★ここで精算するのは日本のリーグのクラブ（海外は engine/foreignSeason。いまの振る舞い）
+  const clubsWithSeasonRewards = mapClubs(clubsWithFA, (c): WorldClub => {
+    if (!isJpelLeague(c.leagueId)) return c
+    const t = c as Team
     if (t.id === playerTeamId) {
-      return { ...t, tier: myNextTier, division: nextDivisionOf(t), finance: { ...t.finance, budget: newBudget, deficitStreak: newStreakMe } }
+      return { ...t, tier: myNextTier, leagueId: divisionLeagueId(nextDivisionOf(t)), finance: { ...t.finance, budget: newBudget, deficitStreak: newStreakMe } }
     }
     const cpuTier = nextTierOf(t)
     const sal = teamSalaryTotal(t.id)
@@ -116,9 +119,9 @@ export function computeSeasonBudgets(params: {
       sponsor: cpuSponsor,
       objBonus: 0,
       expenses: 0 }
-    return { ...t, tier: cpuTier, division: nextDivisionOf(t), finance: { ...t.finance, budget: b, deficitStreak: cpuStreak } }
+    return { ...t, tier: cpuTier, leagueId: divisionLeagueId(nextDivisionOf(t)), finance: { ...t.finance, budget: b, deficitStreak: cpuStreak } }
   })
 
   // Generate future draft picks (next 2 seasons) for each team based on final rank
-  return { newBudget, newBudgetBreakdown, newStreakMe, cpuNextBudgets, teamsWithSeasonRewards }
+  return { newBudget, newBudgetBreakdown, newStreakMe, cpuNextBudgets, clubsWithSeasonRewards }
 }

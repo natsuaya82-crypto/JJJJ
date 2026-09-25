@@ -26,7 +26,7 @@ const P = (id: string, teamId: string, extra: Partial<Player> = {}) =>
   ({ id, name: id, teamId, status: 'active', age: 25, joinedYear: 2028, contract: { annualSalary: 1000, yearsLeft: 3, faEligibleYear: 2030 }, ...extra }) as unknown as Player
 
 const T = (id: string, extra: Record<string, unknown> = {}) =>
-  ({ id, name: `${id}クラブ`, roster: { main: [] }, finance: { budget: 1_000_000, deficitStreak: 0 }, sponsors: [], ...extra }) as unknown as Team
+  ({ id, name: `${id}クラブ`, leagueId: divisionLeagueId(1), roster: { main: [] }, finance: { budget: 1_000_000, deficitStreak: 0 }, sponsors: [], ...extra }) as unknown as Team
 
 const S = (extra: Record<string, unknown> = {}) =>
   ({ year: 2030, currentRaceIndex: 0,
@@ -36,8 +36,8 @@ const S = (extra: Record<string, unknown> = {}) =>
 
 // 「今日はログインボーナス受け取り済み・マイプレイヤー作成済み」の素の入力。
 // この状態なら通知は0件になるので、足した分だけ数が増えることを確かめられる
-const base = (season: Season, players: Player[] = [], teams: Team[] = [T('a')]) => ({
-  currentSeason: season, players, teams, playerTeamId: 'a',
+const base = (season: Season, players: Player[] = [], clubs: Team[] = [T('a')]) => ({
+  currentSeason: season, players, clubs, playerTeamId: 'a',
   lastLoginDate: loginTodayKey(),
   seenJoinIds: [] as string[], seenInjuryIds: [] as string[],
   myPlayerCreated: true, pendingGiftsCount: 0, playerCreateCount: 0, clubGiftsCount: 0, friendRequestsCount: 0,

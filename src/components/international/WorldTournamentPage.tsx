@@ -295,7 +295,7 @@ export default function WorldTournamentPage() {
       <RaceSimPanel
         race={lockedRace}
         results={results}
-        teams={pseudoTeams}
+        raceTeams={pseudoTeams}
         players={players}
         playerTeamId={t.japanIn ? 'nat_JPN' : playerTeamId}
         onDone={() => setPhase('results')}
@@ -309,7 +309,7 @@ export default function WorldTournamentPage() {
       <ResultsPhase
         race={lockedRace}
         results={results}
-        teams={pseudoTeams}
+        raceTeams={pseudoTeams}
         players={players}
         playerTeamId={t.japanIn ? 'nat_JPN' : playerTeamId}
         currentSeason={currentSeason}

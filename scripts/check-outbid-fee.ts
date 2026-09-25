@@ -2,7 +2,7 @@
  * 【競り勝ったクラブは、海外でも移籍金を払う】
  *
  * ■なぜ要るのか（2026-08-16・オーナー「なんで手書きしてんの？」の調べで発覚）
- *   `movePlayer` は `teams`（国内52クラブ）しか知りません。相手が海外クラブのときは
+ *   `movePlayer` は日本のリーグのクラブのお金しか動かしません。相手が海外クラブのときは
  *   `utils/clubMoney` の `settleForeignFee` を **`movePlayer` のすぐ外で**呼ばないと、
  *   **片側しかお金が動きません**（CLAUDE.md の決まり）。
  *
@@ -21,7 +21,8 @@
  */
 import { readFileSync } from 'node:fs'
 import { applySettledTransfers } from '../src/engine/applyTransfers'
-import type { ForeignClub, ForeignLeague, Player, Season, Team } from '../src/types'
+import { divisionLeagueId } from '../src/utils/world'
+import type { ForeignClub, Player, Season, Team, WorldClub } from '../src/types'
 
 let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
@@ -40,27 +41,25 @@ const P = (id: string, teamId: string): Player => ({
 } as unknown as Player)
 
 const T = (id: string): Team => ({
-  id, name: id, shortName: id, tier: 8,
+  id, name: id, shortName: id, tier: 8, leagueId: divisionLeagueId(1),
   colors: { primary: '#111', secondary: '#eee' },
   finance: { budget: 1_000_000_000 },
 } as unknown as Team)
 
 const FC = (id: string): ForeignClub => ({
-  id, name: id, shortName: id, tier: 3, country: 'KEN',
+  id, name: id, shortName: id, tier: 3, country: 'KEN', leagueId: 'africa_east',
   finance: { budget: 1_000_000_000 },
 } as unknown as ForeignClub)
 
-const leaguesOf = (clubs: ForeignClub[]): ForeignLeague[] =>
-  [{ id: 'eaf', name: '東アフリカ', country: 'KEN', clubs } as unknown as ForeignLeague]
 
 const SEASON = { year: YEAR, races: [], eclSeries: undefined } as unknown as Season
 
 /** 競り負けを1件だけ流して、海外クラブの手元資金がどうなるかを返す */
-function runOutbid(toClubId: string, leagues: ForeignLeague[]) {
+function runOutbid(toClubId: string, foreign: ForeignClub[]) {
   const players = [P('p1', 'home')]
-  const teams = [T('home'), T('other')]
+  const clubs: WorldClub[] = [T('home'), T('other'), ...foreign]
   return applySettledTransfers({
-    origPlayers: players, players, teams, foreignLeagues: leagues,
+    origPlayers: players, players, clubs,
     currentSeason: SEASON, listings: [], txList: [],
     outbidMoves: [{ playerId: 'p1', toTeamId: toClubId, fee: FEE, playerName: '名p1', clubName: toClubId }],
     playerTeamId: 'me', raceDate: `${YEAR}-05-01`, raceClock: 3,
@@ -74,8 +73,8 @@ function runOutbid(toClubId: string, leagues: ForeignLeague[]) {
 console.log('[1] 海外クラブが競り勝ったら、そのクラブの資金から移籍金が引かれる')
 {
   const before = FC('ken1')
-  const out = runOutbid('ken1', leaguesOf([before]))
-  const after = out.foreignLeagues[0].clubs.find(c => c.id === 'ken1')!
+  const out = runOutbid('ken1', [before])
+  const after = out.clubs.find(c => c.id === 'ken1')!
   const paid = (before.finance?.budget ?? 0) - (after.finance?.budget ?? 0)
   console.log(`      ken1 の手元資金 ${before.finance?.budget} → ${after.finance?.budget}`)
   // ★空振り除け。そもそも選手が動いていない世界だと、お金が動かないのは当たり前
@@ -88,8 +87,8 @@ console.log('[1] 海外クラブが競り勝ったら、そのクラブの資金
 console.log('\n[2] 国内クラブが競り勝ったときは、海外の資金は動かない')
 {
   const before = FC('ken1')
-  const out = runOutbid('other', leaguesOf([before]))
-  const after = out.foreignLeagues[0].clubs.find(c => c.id === 'ken1')!
+  const out = runOutbid('other', [before])
+  const after = out.clubs.find(c => c.id === 'ken1')!
   check('無関係な海外クラブの資金は変わらない',
     (after.finance?.budget ?? 0) === (before.finance?.budget ?? 0))
   check('国内クラブへは動いている', out.players.find(p => p.id === 'p1')?.teamId === 'other')
@@ -99,11 +98,17 @@ console.log('\n[3] 精算した結果を捨てていない（呼ぶ側が state 
 {
   const race = readFileSync('src/store/slices/raceSlice.ts', 'utf8')
   // ★ここが本体。`runRace` は長いあいだ foreignLeagues を**一度も書き戻していなかった**
-  check('runRace が applied.foreignLeagues を state に戻す',
-    /foreignLeagues: applied\.foreignLeagues/.test(race))
+  //   いまはクラブが1つの並び（clubs）なので、applied.clubs を受け取り → 次の処理へ渡し →
+  //   最後に state の clubs へ書く、の鎖が切れていないことを見る
+  check('runRace が applied.clubs を state に戻す',
+    /clubsWithCpuTx = applied\.clubs/.test(race)
+    && /clubs: clubsWithCpuTx/.test(race)
+    && /clubsAfterLoan = loanResult\.clubs/.test(race)
+    && /let clubsAfterFreeMoves = clubsAfterLoan/.test(race)
+    && /^\s*clubs: clubsAfterFreeMoves,/m.test(race))
   const apply = readFileSync('src/engine/applyTransfers.ts', 'utf8')
-  check('CPU間売買のあとに精算する', /settleForeignFee\(leaguesAfterFees, tx\./.test(apply))
-  check('競り負けのあとにも精算する', /settleForeignFee\(leaguesAfterFees, before\?\./.test(apply))
+  check('CPU間売買のあとに精算する', /settleForeignFee\(m\.clubs, tx\./.test(apply))
+  check('競り負けのあとにも精算する', /settleForeignFee\(m\.clubs, before\?\./.test(apply))
   // 「国内同士なら何も起きない」ので、呼ぶ側で分岐しないこと（CLAUDE.md）
   check('呼ぶ側で「海外なら」と分岐していない',
     !/isForeign[\s\S]{0,60}settleForeignFee/.test(apply))

@@ -22,7 +22,7 @@ import SortSelect from '../ui/SortSelect'
 import { comparePlayers, PLAYER_SORT_LABEL, type PlayerSortKey } from '../../utils/playerSort'
 import PlayerList from '../player/PlayerList'
 import ScreenCover from '../ui/ScreenCover'
-import { myClub, teamById } from '../../utils/world'
+import { jpelClubById, myClub } from '../../utils/world'
 
 const SORT_OPTIONS: { value: PlayerSortKey; label: string }[] = [
   { value: 'ovr', label: PLAYER_SORT_LABEL.ovr },
@@ -90,7 +90,7 @@ function TeamStrengthPanel({ players }: { players: Player[] }) {
 
 
 export default function TeamManagement() {
-  const { teams, players: allPlayers, playerTeamId, currentSeason, openPlayerSheet, openContractInfo, getTeamPlayers, raceStrategy, setRaceStrategy, setTrainingPlan, setTrainingFocus } = useGameStore()
+  const { clubs, players: allPlayers, playerTeamId, currentSeason, openPlayerSheet, openContractInfo, getTeamPlayers, raceStrategy, setRaceStrategy, setTrainingPlan, setTrainingFocus } = useGameStore()
   const navigate = useNavigate()
   const { section } = useParams<{ section: string }>()
   // ★見ているのは1軍か、借りている選手か。**URLに覚えさせる**（`?tab=loan`）。
@@ -116,7 +116,7 @@ export default function TeamManagement() {
     onClick: () => { if (lp.current.long) { lp.current.long = false; return } setMenuPlayerId(pid) },
   })
 
-  const team = myClub({ teams, playerTeamId })
+  const team = myClub({ clubs, playerTeamId })
   if (!team) return null
 
   // レンタルで借りている選手（teamId=自チーム・loan付きで所有者が他チーム）。roster配列外の別枠。
@@ -363,7 +363,7 @@ export default function TeamManagement() {
           {players.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 0', color: C.textGhost, fontSize: F.sub }}>登録選手なし</div>
           ) : (
-            players.map(p => <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} loanOwner={p.loan ? teamById(teams, p.loan!.ownerTeamId) : undefined}/>)
+            players.map(p => <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} loanOwner={p.loan ? jpelClubById(clubs, p.loan!.ownerTeamId) : undefined}/>)
           )}
         </PlayerList>
       </>}

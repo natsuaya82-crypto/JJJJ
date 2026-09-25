@@ -17,7 +17,7 @@
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import {
   ekidenCandidates, autoSelectEkiden, individualStarIds, NATIONAL_POOL,
 } from '../src/engine/worldAthletics'
@@ -32,7 +32,7 @@ const SQUAD = 20
 
 const teams: Team[] = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
 const domestic = generateCpuRosters(teams, YEAR).cpuPlayers
-const { players: foreign } = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+const { players: foreign } = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
 const players: Player[] = [...domestic, ...foreign]
 
 const jp = players.filter(p => p.nationality === HOME_NATION && p.status !== 'retired')
@@ -41,7 +41,7 @@ const pct = (n: number, d: number) => `${(n / d * 100).toFixed(1)}%`
 const bar = (n: number, max: number, w = 28) => '█'.repeat(Math.max(0, Math.round(n / max * w)))
 
 const teamById = new Map(teams.map(t => [t.id, t]))
-const foreignClubIds = new Set(FOREIGN_LEAGUES.flatMap(l => l.clubs).map(c => c.id))
+const foreignClubIds = new Set(INITIAL_FOREIGN_CLUBS.map(c => c.id))
 const whereOf = (p: Player) =>
   foreignClubIds.has(p.teamId) ? '海外'
   : teamById.has(p.teamId) ? `${divisionOf(teamById.get(p.teamId))}部`

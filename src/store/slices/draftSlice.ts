@@ -11,10 +11,10 @@ import { CPU_TICK_TRANSFERS, runCpuLoans, runCpuReleases, runCpuTrades } from '.
 import { runTransferMarket } from '../../engine/transferMarket'
 import { draftLotteryOrder, draftOrderTeams, pickExistsAnywhere, standingsPickNumbers } from '../../engine/draftOrder'
 import { buildDraftOrder, generateCpuRosters, generateDraftPool, generateForeignLeaguePlayers, generateJpelForeignName, generatePlayerInitialRoster } from '../../engine/playerGenerator'
-import { type Player, type TransferRecord } from '../../types'
+import { type ForeignClub, type Player, type Team, type TransferRecord, type WorldClub } from '../../types'
 import { tierBudget, tierOf, tierOfPlayerClub } from '../../utils/clubTier'
-import { myClub, withMyClub, teamById, allTieredClubs, myLeagueId, myLeagueRaces, withLeagueRaces } from '../../utils/world'
-import { allForeignClubs, findClub } from '../../utils/clubs'
+import { clubById, clubsWhere, isJpelLeague, jpelClubById, jpelClubs, mapClubs, myClub, otherClubs, withMyClub, myLeagueId, myLeagueRaces, withLeagueRaces } from '../../utils/world'
+import { findClub } from '../../utils/clubs'
 import { draftRoundOf, joinsDraft } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
 import { cpuSignedHeadline, draftPickSoldHeadline, initialNews, type NewsItem } from '../../utils/newsItems'
@@ -37,8 +37,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     //   プレイヤーはどのクラブを選んでも3部から始まるので、初年度は必ず観戦になる。
     //   代わりに選手を1人自分で作って加入させる（createMyPlayer）。
     //   指名されなかった候補はFAになるので、2部・3部はそこから拾う。
-    const inauguralRound1 = [...state.teams]
-      .filter(t => joinsDraft(t))
+    const inauguralRound1 = clubsWhere(jpelClubs(state.clubs), t => joinsDraft(t))
       .sort((a, b) => tierBudget(a) - tierBudget(b))
       .map(t => t.id)
     const pickOrder = [...inauguralRound1, ...[...inauguralRound1].reverse()]
@@ -51,7 +50,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
 
     // Pre-populate AI team rosters and player team initial roster
     const { cpuPlayers } = generateCpuRosters(
-      state.teams.filter(t => t.id !== state.playerTeamId),
+      otherClubs(jpelClubs(state.clubs), state.playerTeamId),
       state.currentSeason.year,
     )
     // 自チームの初期ロスターも「格」から作る。CPU・海外と同じ tierRankComposition を通るので、
@@ -60,15 +59,16 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     const { players: prPlayers } = generatePlayerInitialRoster(state.currentSeason.year, tierOf(myTeamForRoster))
     const prPlayersWithTeam = prPlayers.map(p => ({ ...p, teamId: state.playerTeamId }))
 
-    const seededTeams = withMyClub(state, t => ({
+    const seededClubs = withMyClub(state, t => ({
       ...t,
       // 最弱スタート：予算はそのクラブの格ぶん、施設は0から自分で建てる
       facilities: {},
       finance: { ...t.finance, budget: tierBudget(t) } }))
 
     // Generate foreign league players
-    const { players: foreignPlayers, updatedLeagues } = generateForeignLeaguePlayers(
-      state.foreignLeagues,
+    // 海外のクラブ（日本のリーグでないクラブ）。並びの順に作る＝乱数を引く順
+    const { players: foreignPlayers } = generateForeignLeaguePlayers(
+      clubsWhere(state.clubs, c => !isJpelLeague(c.leagueId)) as ForeignClub[],
       state.currentSeason.year,
     )
 
@@ -79,8 +79,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     ]
     // 最初の名簿は人数が多いので1人ずつ通さず、所属から一気に組み直す。
     // 決まり（引退とレンタル中は載せない）は movePlayer と同じ1つなのでズレない
-    const teams = seededTeams
-    set({ draftState, players, teams, foreignLeagues: updatedLeagues })
+    set({ draftState, players, clubs: seededClubs })
   },
 
 
@@ -103,7 +102,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     // ドラフトも入手経路が違うだけで「クラブに入る」は同じなので movePlayer を通す
     const moved = movePlayer(state, playerId, playerTeamId, { year: state.currentSeason.year, history: false })
     if (!moved.ok) return
-    const teams = moved.teams
+    const clubs = moved.clubs
     const players = moved.players.map(p => p.id === playerId
       ? { ...p, ...(({ round, pickInRound }) => ({ draftRound: round, draftPick: pickInRound }))(draftRoundOf(currentPick, pickOrder.length)) }
       : p)
@@ -113,7 +112,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
 
     set({
       draftState: { ...draftState, pool: newPool, picks: newPicks, currentPick: nextPick, isComplete },
-      teams,
+      clubs,
       players })
   },
 
@@ -126,7 +125,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     if (currentPick >= pickOrder.length || pool.length === 0) return
 
     const teamId = pickOrder[currentPick]
-    const team = teamById(state.teams, teamId)
+    const team = clubById(state.clubs, teamId)
     if (!team) return
 
     // ★**在籍上限に届いているクラブは指名を見送る**（2026-09-15）。
@@ -167,7 +166,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       set({ draftState: { ...draftState, currentPick: skipped, isComplete: skipped >= pickOrder.length } })
       return
     }
-    const teams = moved.teams
+    const clubs = moved.clubs
     const players = moved.players.map(p => p.id === picked.id
       ? { ...p, ...(({ round, pickInRound }) => ({ draftRound: round, draftPick: pickInRound }))(draftRoundOf(currentPick, pickOrder.length)) }
       : p)
@@ -176,7 +175,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
 
     set({
       draftState: { ...draftState, pool: newPool, picks: newPicks, currentPick: nextPick, isComplete },
-      teams,
+      clubs,
       players })
   },
 
@@ -195,7 +194,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       // 未指名は無所属(FA)になるだけ。放出と同じ扱いなので同じ入口を通す
       let undraftedApplied: Player[] = state.players
       for (const id of undraftedIds) {
-        const m = movePlayer({ players: undraftedApplied, teams: [] }, id, '', { year: state.currentSeason.year })
+        const m = movePlayer({ players: undraftedApplied, clubs: [] }, id, '', { year: state.currentSeason.year })
         if (m.ok) undraftedApplied = m.players
       }
       const undraftedSet = new Set(undraftedIds)
@@ -209,9 +208,8 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       //   一度も起きていなかった。判断は pickCpuFreeAgents 1本（ドラフト前と同じ）
       {
         // ドラフトは終わっているので空けておく枠は無い。数え方は同じ rosterCapOf
-        const postForeign = allForeignClubs(state.foreignLeagues)
         const postSignings = pickCpuFreeAgents({
-          players: updatedPlayers, clubs: [...state.teams, ...postForeign],
+          players: updatedPlayers, clubs: state.clubs,
           playerTeamId: state.playerTeamId, season: state.currentSeason,
           // 上限は `rosterCapOf` 1本（海外だけ `ROSTER_MAX` にする三項は、
           // `rosterCapOf(0) === ROSTER_MAX` なので**両側とも同じ数**の残骸だった）
@@ -221,9 +219,9 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
           // ＝経路で判断が割れている状態だった（A-9）
           consents: (fa, clubId) => {
             const { fraction, teamRaces } = playRateOf(fa.id, fa.teamId, state.currentSeason,
-              state.teams, state.foreignLeagues, prevSeasonOf(state.pastSeasons, state.currentSeason.year))
+              state.clubs, prevSeasonOf(state.pastSeasons, state.currentSeason.year))
             return playerConsentToMove(fa, get().destinationOf(clubId, fa),
-              tierOfPlayerClub(fa.teamId, allTieredClubs(state.teams, state.foreignLeagues)),
+              tierOfPlayerClub(fa.teamId, state.clubs),
               fraction, teamRaces, 0, true, get().playerTierOf(fa)).ok
           } })
         for (const sg of postSignings) {
@@ -234,7 +232,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
           //   いませんでした。拾われた選手は前の契約（残0年・前クラブの年俸）のまま加入し、
           //   次のオフにまた満了でFAへ戻ります。年数は `newContractYears`、
           //   年俸は `faMarketSalary` 1本。
-          const m = movePlayer({ players: updatedPlayers, teams: [] }, sg.playerId, sg.clubId, {
+          const m = movePlayer({ players: updatedPlayers, clubs: [] }, sg.playerId, sg.clubId, {
             year: state.currentSeason.year, kind: 'free', history: false,
             contract: {
               yearsLeft: newContractYears(before, state.currentSeason.year),
@@ -246,13 +244,17 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       // Generate future draft picks for all teams (yr+1, yr+2, rounds 1-2)
       // 指名権番号は前年順位の逆順（最下位＝全体1位）で振る。
       const currentYear = state.currentSeason.year
-      const pickNumMap = standingsPickNumbers(state.teams, teamHistoriesOf(state.pastSeasons))
-      const teamsWithPicks = state.teams.map((t) => {
+      // 指名権を持つのは日本のリーグのクラブ
+      const jpel = jpelClubs(state.clubs)
+      const pickNumMap = standingsPickNumbers(jpel, teamHistoriesOf(state.pastSeasons))
+      const clubsWithPicks = mapClubs(state.clubs, (c): WorldClub => {
+        if (!isJpelLeague(c.leagueId)) return c
+        const t = c as Team
         const pickNum = pickNumMap.get(t.id) ?? 1
         const newPicks: typeof t.draftPicks = []
         for (const yr of [currentYear + 1, currentYear + 2]) {
           for (const round of [1, 2]) {
-            if (!pickExistsAnywhere(state.teams, t.id, yr, round)) {
+            if (!pickExistsAnywhere(jpel, t.id, yr, round)) {
               newPicks.push({ year: yr, round, pickNumber: pickNum, originallyOwnedBy: t.id })
             }
           }
@@ -266,7 +268,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       set({
         isInitialized: true,
         players: updatedPlayers,
-        teams: teamsWithPicks,
+        clubs: clubsWithPicks,
         draftState: { ...state.draftState, contractsDone: true },
         currentSeason: {
           // 自チームのリーグの日程が空なら既定の10戦で埋める（日程を引く前のセーブの保険）
@@ -336,7 +338,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       if (!team) return state
       const prospect = (state.currentSeason.devProspects ?? []).find(p => p.id === prospectId)
       if (!prospect) return state
-      if (team.finance.budget < prospect.signingFee) return state
+      if ((team.finance?.budget ?? 0) < prospect.signingFee) return state
       // 2軍の区分は廃止済み。人数は総在籍(ROSTER_MAX)で見る
       if (teamRosterSize(state.players, team.id) >= ROSTER_MAX) return state
 
@@ -374,14 +376,14 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       // 名簿入りと支度金の引き落としは movePlayer に任せる（獲得・移籍と同じ後始末）。
       // 移籍ではないので履歴には残さない
       const moved = movePlayer(
-        { players: [...state.players, newPlayer], teams: state.teams },
+        { players: [...state.players, newPlayer], clubs: state.clubs },
         newPlayer.id, state.playerTeamId,
         { year: state.currentSeason.year, fee: prospect.signingFee, history: false },
       )
       if (!moved.ok) return state
       return {
         players: moved.players,
-        teams: moved.teams,
+        clubs: moved.clubs,
         currentSeason: {
           ...state.currentSeason,
           devProspects: (state.currentSeason.devProspects ?? []).filter(p => p.id !== prospectId) } }
@@ -443,16 +445,19 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
   sellDraftPick: (pickKey, targetTeamId, price) => {
     const state = get()
     const myTeam = myClub(state)
-    const buyTeam = teamById(state.teams, targetTeamId)
+    // 指名権を買えるのは日本のリーグのクラブ
+    const buyTeam = jpelClubById(state.clubs, targetTeamId)
     if (!myTeam || !buyTeam) return false
-    const pick = myTeam.draftPicks.find(p => `${p.year}-R${p.round}-${p.pickNumber}` === pickKey)
+    const pick = (myTeam.draftPicks ?? []).find(p => `${p.year}-R${p.round}-${p.pickNumber}` === pickKey)
     if (!pick) return false
     const fairVal = draftPickValue(pick.round, pick.pickNumber)
     if (price > fairVal * 1.3) return false
     if (buyTeam.finance.budget < price) return false  // 買い手が払えない額では成立しない
     const date = myLeagueRaces(state.currentSeason, state.playerTeamId)[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`
     set(s => ({
-      teams: s.teams.map(t => {
+      clubs: mapClubs(s.clubs, (c): WorldClub => {
+        if (!isJpelLeague(c.leagueId)) return c
+        const t = c as Team
         if (t.id === s.playerTeamId) return {
           ...t,
           finance: { ...t.finance, budget: t.finance.budget + price },
@@ -478,24 +483,28 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
   ensureFuturePicks: () => {
     const state = get()
     const yr = state.currentSeason.year
-    const anyMissingPicks = state.teams.some(t =>
+    // 指名権を持つのは日本のリーグのクラブ
+    const jpel = jpelClubs(state.clubs)
+    const anyMissingPicks = jpel.some(t =>
       !(t.draftPicks ?? []).some(pk => pk.year > yr)
     )
     if (!anyMissingPicks) return
     // 指名権番号は前年順位の逆順（最下位＝全体1位）で振る。
-    const pickNumMap = standingsPickNumbers(state.teams, teamHistoriesOf(state.pastSeasons))
-    const updatedTeams = state.teams.map((t) => {
+    const pickNumMap = standingsPickNumbers(jpel, teamHistoriesOf(state.pastSeasons))
+    const updatedClubs = mapClubs(state.clubs, (c): WorldClub => {
+      if (!isJpelLeague(c.leagueId)) return c
+      const t = c as Team
       const newPicks: typeof t.draftPicks = []
       for (const year of [yr + 1, yr + 2]) {
         for (const round of [1, 2]) {
-          if (!pickExistsAnywhere(state.teams, t.id, year, round)) {
+          if (!pickExistsAnywhere(jpel, t.id, year, round)) {
             newPicks.push({ year, round, pickNumber: pickNumMap.get(t.id) ?? 1, originallyOwnedBy: t.id })
           }
         }
       }
       return newPicks.length > 0 ? { ...t, draftPicks: [...(t.draftPicks ?? []), ...newPicks] } : t
     })
-    set({ teams: updatedTeams })
+    set({ clubs: updatedClubs })
   },
 
   beginSeasonDraft: () => {
@@ -511,9 +520,11 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     // ドラフト順は「当年分の指名権の所有」で決める：指名スロットの並びは各指名権の
     // 【元保有チームの抽選順】で決まり、現在の保有チームがそこで指名する。
     // 2年目以降は前年下位5チームの加重抽選で1巡目の順を決定。2巡目はスネーク（逆順＝1位から）。
-    const lotteryPos = draftLotteryOrder(state.teams, teamHistoriesOf(state.pastSeasons)) // teamId → 全体指名順位(1=全体1位)
-    const teamCount = state.teams.length
-    const ownedYearPicks = state.teams
+    // 指名権を持つのは日本のリーグのクラブ
+    const jpel = jpelClubs(state.clubs)
+    const lotteryPos = draftLotteryOrder(jpel, teamHistoriesOf(state.pastSeasons)) // teamId → 全体指名順位(1=全体1位)
+    const teamCount = jpel.length
+    const ownedYearPicks = jpel
       .flatMap(t => (t.draftPicks ?? []).filter(pk => pk.year === yr).map(pk => {
         const basePos = lotteryPos.get(pk.originallyOwnedBy ?? t.id) ?? pk.pickNumber
         // 2巡目はスネーク：1巡目の逆順にする（最後に指名したチームが2巡目の先頭）
@@ -523,7 +534,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       .sort((a, b) => a.round - b.round || a.orderKey - b.orderKey)
     // 指名するのは1部のクラブだけ（joinsDraft）。指名権を持っていても、
     // その年に1部にいなければ使えない
-    const draftTeams = state.teams.filter(t => joinsDraft(t))
+    const draftTeams = clubsWhere(jpel, t => joinsDraft(t))
     const draftTeamIds = new Set(draftTeams.map(t => t.id))
     const yearPicksInTop = ownedYearPicks.filter(pk => draftTeamIds.has(pk.ownerId))
     const pickOrder = yearPicksInTop.length >= draftTeams.length
@@ -534,12 +545,14 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     // 消化した当年分の指名権はここで名簿から外す（順は上のpickOrderに確定済み）
     // 指名権番号は前年順位の逆順（最下位＝全体1位）。既存の将来指名権も"元保有チームの順位"で振り直し、
     // 初回に配列順で焼き込まれた古い番号を都度上書きして正す（表示と実際の指名順を一致させる）。
-    const pickNumMap = standingsPickNumbers(state.teams, teamHistoriesOf(state.pastSeasons))
-    const teamsWithPicks = state.teams.map((t) => {
+    const pickNumMap = standingsPickNumbers(jpel, teamHistoriesOf(state.pastSeasons))
+    const clubsWithPicks = mapClubs(state.clubs, (c): WorldClub => {
+      if (!isJpelLeague(c.leagueId)) return c
+      const t = c as Team
       const newPicks: typeof t.draftPicks = []
       for (const year of [yr + 1, yr + 2]) {
         for (const round of [1, 2]) {
-          if (!pickExistsAnywhere(state.teams, t.id, year, round)) {
+          if (!pickExistsAnywhere(jpel, t.id, year, round)) {
             newPicks.push({ year, round, pickNumber: pickNumMap.get(t.id) ?? 1, originallyOwnedBy: t.id })
           }
         }
@@ -564,10 +577,10 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     //   海外は `engine/savePruning` の中で**別の線・別の出口**で切られていたので、
     //   そちらは消しました（同じ問いに2実装を残さない）。
     const releasedWorld = runCpuReleases(
-      { players: state.players, teams: teamsWithPicks, foreignLeagues: state.foreignLeagues ?? [] },
+      { players: state.players, clubs: clubsWithPicks },
       { playerTeamId: state.playerTeamId, year: yr, rosterCapFor })
     const playersAfterCpuRelease = releasedWorld.players
-    const teamsAfterCpuRelease = releasedWorld.teams
+    const clubsAfterCpuRelease = releasedWorld.clubs
 
     // ②移籍市場（メイン）：**経路は engine/transferMarket.ts の1本だけ**。
     // 国内52クラブと海外180クラブが同じ1つの市場に並ぶ（国内CPU間・海外↔海外・
@@ -579,18 +592,17 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     const offseasonTxNews: NewsItem[] = []
     const cpuTransferIds = new Set<string>()
     let playersAfterCpuTransfer = playersAfterCpuRelease
-    let teamsAfterCpuTransfer = teamsAfterCpuRelease
-    let leaguesAfterCpuTransfer = state.foreignLeagues ?? []
+    let clubsAfterCpuTransfer = clubsAfterCpuRelease
     {
       const bought = runTransferMarket(
-        { players: playersAfterCpuRelease, teams: teamsAfterCpuRelease, foreignLeagues: leaguesAfterCpuTransfer },
+        { players: playersAfterCpuRelease, clubs: clubsAfterCpuRelease },
         { playerTeamId: state.playerTeamId, year: state.currentSeason.year,
           // ★**走り終わったシーズン**を渡す。この時点の currentSeason は来季の空っぽの器で、
           //   それを渡すと全員が「出場0」になり移籍金も年俸も一律に潰れる
           season: state.pastSeasons[state.pastSeasons.length - 1] ?? state.currentSeason,
           pastSeasons: state.pastSeasons.slice(0, -1),
-          // 海外クラブはドラフトを取らないので、上限は ROSTER_MAX そのまま
-          rosterCapFor: (id) => (state.teams.some(t => t.id === id) ? rosterCapFor(id) : ROSTER_MAX),
+          // 上限は `rosterCapFor` 1本。指名権を持たないクラブ（海外）は `rosterCapOf(0)`＝`ROSTER_MAX`
+          rosterCapFor,
           destinationOf: get().destinationOf, excludeIds: cpuTransferIds,
           // ★**ここも「ただの1回」**。オフシーズンという考えは無いので、
           //   レース中の1回とまったく同じ件数にする（以前はここだけ上限なしで、
@@ -598,8 +610,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
           //   日付は日程の空いている1〜2月（レースは 3/8〜12/27）
           maxMoves: CPU_TICK_TRANSFERS, date: `${state.currentSeason.year}-02-01` })
       playersAfterCpuTransfer = bought.players
-      teamsAfterCpuTransfer = bought.teams
-      leaguesAfterCpuTransfer = bought.foreignLeagues
+      clubsAfterCpuTransfer = bought.clubs
       offseasonTxRecords.push(...bought.records)
       offseasonTxNews.push(...bought.news)
     }
@@ -609,14 +620,14 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     // 中身は engine/cpuOffseason.ts の runCpuTrades 1本（cpuTransferIds はその中で書き足される）
     {
       const traded = runCpuTrades(
-        { players: playersAfterCpuTransfer, teams: teamsAfterCpuTransfer },
+        { players: playersAfterCpuTransfer, clubs: clubsAfterCpuTransfer },
         { playerTeamId: state.playerTeamId, year: state.currentSeason.year,
           tradeValueCtx: tradeValueCtxOf(state), excludeIds: cpuTransferIds,
           // ④本人の同意（現金の移籍と同じ入口）
-          destinationOf: get().destinationOf, allTeams: state.teams, foreignLeagues: state.foreignLeagues,
+          destinationOf: get().destinationOf,
           season: state.currentSeason, pastSeasons: state.pastSeasons })
       playersAfterCpuTransfer = traded.players
-      teamsAfterCpuTransfer = traded.teams
+      clubsAfterCpuTransfer = traded.clubs
       offseasonTxRecords.push(...traded.records)
     }
 
@@ -625,12 +636,12 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     // （cpuTransferIds を渡すので、同じオフに移籍・トレードした選手は貸し出さない）
     {
       const loaned = runCpuLoans(
-        { players: playersAfterCpuTransfer, teams: teamsAfterCpuTransfer },
+        { players: playersAfterCpuTransfer, clubs: clubsAfterCpuTransfer },
         { playerTeamId: state.playerTeamId, year: state.currentSeason.year, excludeIds: cpuTransferIds,
           // ④本人が行くか（レンタルの基準で）
-          destinationOf: get().destinationOf, allTeams: state.teams, foreignLeagues: state.foreignLeagues })
+          destinationOf: get().destinationOf })
       playersAfterCpuTransfer = loaned.players
-      teamsAfterCpuTransfer = loaned.teams
+      clubsAfterCpuTransfer = loaned.clubs
       offseasonTxNews.push(...loaned.news)
     }
 
@@ -638,10 +649,13 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     // ★国内クラブと海外クラブをまとめて渡す。以前は海外だけ endSeason の中に別実装があり、
     //   「在籍20人を割ったクラブの救済」しか見ていなかった（必要かどうかを見ていない）。
     //   海外クラブのロスター上限も国内と同じ ROSTER_MAX
-    const foreignClubsForFa = allForeignClubs(state.foreignLeagues)
+    // ★海外クラブは**市場を回す前の姿**（資金）で渡している（いまの振る舞い）。
+    //   国内は市場・トレード・レンタルのあとの姿
+    const clubsForFa = mapClubs(clubsAfterCpuTransfer, c =>
+      isJpelLeague(c.leagueId) ? c : (clubById(state.clubs, c.id) ?? c))
     const cpuSignings = pickCpuFreeAgents({
       players: playersAfterCpuTransfer,
-      clubs: [...teamsAfterCpuTransfer, ...foreignClubsForFa],
+      clubs: clubsForFa,
       playerTeamId: state.playerTeamId, season: state.currentSeason,
       // 上限は `rosterCapFor` 1本。海外クラブはドラフトの指名権を持たないので
       // `rosterCapOf(0) === ROSTER_MAX` になり、**分けても答えは同じ**です
@@ -652,19 +666,19 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       // 憧れの地域と出番の良し悪しはここで効く
       consents: (fa, clubId) => {
         const { fraction, teamRaces } = playRateOf(fa.id, fa.teamId, state.currentSeason,
-          state.teams, state.foreignLeagues, prevSeasonOf(state.pastSeasons, state.currentSeason.year))
+          state.clubs, prevSeasonOf(state.pastSeasons, state.currentSeason.year))
         return playerConsentToMove(fa, get().destinationOf(clubId, fa),
-          tierOfPlayerClub(fa.teamId, allTieredClubs(state.teams, state.foreignLeagues)),
+          tierOfPlayerClub(fa.teamId, state.clubs),
           fraction, teamRaces, 0, true, get().playerTierOf(fa)).ok
       } })
     const newYear = state.currentSeason.year
     // CPUのFA契約も movePlayer に通す（所属・名簿・加入年をまとめて。名簿に入れるので契約種別も本契約に揃える）
     let playersWithCpuSigns: Player[] = playersAfterCpuTransfer
-    let teamsWithCpuSigns = teamsAfterCpuTransfer
+    let clubsWithCpuSigns = clubsAfterCpuTransfer
     for (const sg of cpuSignings) {
       const before = playersWithCpuSigns.find(x => x.id === sg.playerId)
       if (!before) continue
-      const m = movePlayer({ players: playersWithCpuSigns, teams: teamsWithCpuSigns }, sg.playerId, sg.clubId, {
+      const m = movePlayer({ players: playersWithCpuSigns, clubs: clubsWithCpuSigns }, sg.playerId, sg.clubId, {
         year: newYear,
         date: `${newYear}-02-01`,
         kind: 'free',
@@ -673,13 +687,12 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       if (!m.ok) continue
       playersWithCpuSigns = m.players.map(p =>
         p.id !== sg.playerId ? p : { ...p, contract: { ...p.contract, faEligibleYear: newYear + 2 } })
-      teamsWithCpuSigns = m.teams
+      clubsWithCpuSigns = m.clubs
     }
 
     // ロスターは1つだけ。「2軍を15人まで埋める」数合わせのFA大量署名は廃止済み。
     // 総在籍24人（下限）まではメインの補強パス(Pass3)が保証する
     const playersWithAllCpuSigns = playersWithCpuSigns
-    const teamsWithAllCpuSigns = teamsWithCpuSigns
 
     // ★海外クラブのFA補強は、もう上の pickCpuFreeAgents に入っている。
     //   ここに別実装（在籍20人を割ったクラブの救済／外国籍FAだけ）があったのを畳んだ。
@@ -700,7 +713,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       .slice(0, 10)
       .map(({ s, i }) => {
         const p = playersAfterCpuTransfer.find(x => x.id === s.playerId)!
-        const team = findClub(teamsAfterCpuTransfer, state.foreignLeagues, s.clubId)
+        const team = findClub(clubsAfterCpuTransfer, s.clubId)
         return {
           date: offDate(i),
           headline: cpuSignedHeadline({ clubShort: team?.shortName ?? '', playerName: p.name, playerOvr: ovr(p) }),
@@ -715,9 +728,8 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     set({
       draftState: { pool, pickOrder, currentPick: 0, picks: [], isComplete: false },
       players: [...playersWithForeignSigns, ...pool],
-      teams: teamsWithAllCpuSigns,
       // 市場で海外クラブの資金も動く（買えば減り、売れば増える）ので必ず書き戻す
-      foreignLeagues: leaguesAfterCpuTransfer,
+      clubs: clubsWithCpuSigns,
       // 直近10シーズン分だけ残して古い移籍記録は捨てる
       transferHistory: [
         ...(state.transferHistory ?? []).filter(r => r.year >= newYear - 10),

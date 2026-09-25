@@ -9,6 +9,8 @@
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
+import { divisionOf } from '../src/utils/league'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { ovr } from '../src/utils/playerUtils'
 import { tierBudget, tierOf } from '../src/utils/clubTier'
@@ -33,7 +35,7 @@ function run() {
 
   console.log('■ 国内（上位10人の平均OVR）')
   for (const div of [1, 2, 3] as const) {
-    const teams = allTeams.filter(t => (t.division ?? 1) === div)
+    const teams = allTeams.filter(t => divisionOf(t) === div)
     const rows = teams
       .map(t => ({ t, v: top10(byTeam.get(t.id) ?? []) }))
       .sort((a, b) => b.v - a.v)
@@ -43,7 +45,7 @@ function run() {
   }
 
   console.log('\n■ 海外（上位10人の平均OVR）')
-  const { players: foreign } = generateForeignLeaguePlayers(FOREIGN_LEAGUES, 2027)
+  const { players: foreign } = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, 2027)
   const byClub = new Map<string, Player[]>()
   for (const p of foreign) {
     if (!p.teamId) continue

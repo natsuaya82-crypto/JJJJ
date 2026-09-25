@@ -121,11 +121,11 @@ function PageWrapper({ children, locationKey }: { children: React.ReactNode; loc
 }
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const { teams, playerTeamId, currentSeason, jewels, activeRacePhase } = useGameStore()
+  const { clubs, playerTeamId, currentSeason, jewels, activeRacePhase } = useGameStore()
   const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
   // 買い切り版は下部広告なし。確保していた高さ(50px)を詰めてタブ・本文を下まで広げる。
   const adH = adsRemoved ? 0 : AD_H
-  const team = myClub({ teams, playerTeamId })
+  const team = myClub({ clubs, playerTeamId })
   const location = useLocation()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)

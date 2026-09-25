@@ -14,8 +14,9 @@
 // 「どの部にも属さないチーム」が生まれ、順位表からもレースからも消える。
 // 必ず divisionOf() を通すこと。
 
-import type { Division, LeagueId, LeagueSeason, Race, SeasonStanding, Team } from '../types'
-import { myClub } from './world'
+import type { Division, LeagueId, LeagueSeason, Race, SeasonStanding, Team, WorldClub } from '../types'
+import { divisionLeagueId, divisionOfLeague, jpelClubs, jpelClubById, mapClubs } from './world'
+import { leagueRules } from '../data/leagueRules'
 
 /** 上から順。表示の並びもこの順 */
 export const DIVISIONS: readonly Division[] = [1, 2, 3]
@@ -37,9 +38,12 @@ export const DIVISION_LABEL: Record<Division, string> = { 1: '1部', 2: '2部', 
  */
 export const PROMOTION_SLOTS = 2
 
-/** そのチームの部。未設定（古いセーブ・旧データ）は1部として扱う */
-export function divisionOf(team: Pick<Team, 'division'> | undefined): Division {
-  return team?.division ?? 1
+/**
+ * そのクラブの部。**所属は `club.leagueId` 1本**（`jpel-<部>`）で、部はそこから読む。
+ * 日本のリーグでないクラブ（海外）と、見つからないクラブは1部として扱う（以前の既定値のまま）
+ */
+export function divisionOf(team: { leagueId?: string } | undefined): Division {
+  return divisionOfLeague(team?.leagueId) ?? 1
 }
 
 /**
@@ -68,23 +72,9 @@ export function domesticThroughRank(division: Division, rankInDivision: number):
 //
 // 日程・結果・順位表は `Season.leagues`（リーグID → そのリーグ）に入っている。
 // 国内の部もリーグの1つで、IDは `jpel-<部>`。海外は `ForeignLeague.id` そのもの。
-// ★`utils/clubs` の `JPEL_LEAGUE_ID`（'jpel'）は**クラブの所属先**の印で、国内52クラブが
-//   全部 'jpel'。シーズンの入れ物は部ごとに日程も順位表も違うので、その後ろに部を付ける
-//   （clubs.ts は clubTier 経由でこのファイルを読むので、import せずに字で持つ）。
-
-const DIVISION_LEAGUE_PREFIX = 'jpel-'
-
-/** その部のリーグID。**部番号からリーグを引くのはここ1本** */
-export function divisionLeagueId(division: Division): LeagueId {
-  return `${DIVISION_LEAGUE_PREFIX}${division}`
-}
-
-/** 国内の部のリーグなら、その部。海外リーグなら undefined */
-export function divisionOfLeague(leagueId: LeagueId | null | undefined): Division | undefined {
-  if (!leagueId?.startsWith(DIVISION_LEAGUE_PREFIX)) return undefined
-  const d = Number(leagueId.slice(DIVISION_LEAGUE_PREFIX.length))
-  return (DIVISIONS as readonly number[]).includes(d) ? d as Division : undefined
-}
+// **クラブの所属（`club.leagueId`）もこのIDそのもの**（国内の部も海外も同じ）。
+// 部番号とリーグIDの対応は `utils/world` の `divisionLeagueId` / `divisionOfLeague` 1本（ここは写すだけ）。
+export { divisionLeagueId, divisionOfLeague } from './world'
 
 /** そのリーグの日程（結果つき）。無ければ空 */
 export function leagueRaces(
@@ -155,20 +145,15 @@ export function withDivisionStandings(
   return out
 }
 
-/** 指定した部に所属するチームだけを返す */
-export function teamsInDivision<T extends Pick<Team, 'division'>>(teams: readonly T[], division: Division): T[] {
-  return teams.filter(t => divisionOf(t) === division)
-}
-
 /**
- * ドラフトに参加できるのは1部のクラブだけ。ここが唯一の決まり。
+ * そのクラブがドラフトに参加するか。**決めるのはリーグの決まり（`data/leagues` の `rules.draft`）1本**
+ * （いまは日本1部だけ）。
  *
- * 指名されなかった候補はFAになるので、2部・3部はそこから拾う。
+ * 指名されなかった候補はFAになるので、ほかのリーグはそこから拾う。
  * 「今年は指名できるか」を各所で書き分けないこと（指名順・画面の出し分けとも必ずここを見る）。
  */
-export const DRAFT_DIVISION: Division = 1
-export function joinsDraft(team: Pick<Team, 'division'> | undefined): boolean {
-  return divisionOf(team) === DRAFT_DIVISION
+export function joinsDraft(club: { leagueId?: string } | undefined): boolean {
+  return leagueRules(club?.leagueId).draft
 }
 
 // ── 区間賞の賞金 ──────────────────────────────────────────────
@@ -336,11 +321,11 @@ export function emptyStandings<T>(): Record<Division, T[]> {
  * 部の割り振りをここでやってしまうので、あとから「どの部だったか」を推測する必要がない。
  */
 export function newSeasonStandings<T>(
-  teams: readonly Pick<Team, 'id' | 'division'>[],
+  clubs: readonly WorldClub[],
   makeRow: (teamId: string) => T,
 ): Record<Division, T[]> {
   const out = emptyStandings<T>()
-  for (const t of teams) out[divisionOf(t)].push(makeRow(t.id))
+  for (const t of jpelClubs(clubs)) out[divisionOf(t)].push(makeRow(t.id))
   return out
 }
 
@@ -361,13 +346,13 @@ export function newSeasonStandings<T>(
  */
 export function reconcileStandingsDivisions<T extends { teamId: string }>(
   standings: Record<Division, T[]> | undefined,
-  teams: readonly Pick<Team, 'id' | 'division'>[],
+  clubs: readonly WorldClub[],
   makeRow: (teamId: string) => T,
 ): Record<Division, T[]> {
   const rows = new Map<string, T>()
   for (const d of DIVISIONS) for (const r of standings?.[d] ?? []) rows.set(r.teamId, r)
   const out = emptyStandings<T>()
-  for (const t of teams) out[divisionOf(t)].push(rows.get(t.id) ?? makeRow(t.id))
+  for (const t of jpelClubs(clubs)) out[divisionOf(t)].push(rows.get(t.id) ?? makeRow(t.id))
   return out
 }
 
@@ -389,32 +374,33 @@ export function reconcileStandingsDivisions<T extends { teamId: string }>(
  * @param rankOf 小さいほど上。順位表があればその順位、無ければ initialRank を渡す
  * @param pin その部から動かさないクラブ（自チーム）
  */
-export function rebalanceDivisions<T extends Pick<Team, 'id' | 'division'>>(
-  teams: readonly T[],
-  rankOf: (team: T) => number,
-  pin?: (team: T) => boolean,
-): T[] {
+export function rebalanceDivisions<C extends WorldClub>(
+  clubs: readonly C[],
+  rankOf: (team: Team) => number,
+  pin?: (team: Team) => boolean,
+): C[] {
   const total = DIVISIONS.reduce((n, d) => n + DIVISION_SIZE[d], 0)
+  const jpel = jpelClubs(clubs)
   // 人数が合っているか、そもそも52クラブ揃っていないセーブには手を出さない
-  if (teams.length !== total) return [...teams]
-  if (DIVISIONS.every(d => teams.filter(t => divisionOf(t) === d).length === DIVISION_SIZE[d])) return [...teams]
+  if (jpel.length !== total) return mapClubs(clubs, c => c)
+  if (DIVISIONS.every(d => jpel.filter(t => divisionOf(t) === d).length === DIVISION_SIZE[d])) return mapClubs(clubs, c => c)
 
   const placed = new Map<string, Division>()
   const left: Record<Division, number> = { 1: DIVISION_SIZE[1], 2: DIVISION_SIZE[2], 3: DIVISION_SIZE[3] }
   // 動かさないクラブを先に席へ着かせる（枠を先に押さえる）
-  for (const t of teams) {
+  for (const t of jpel) {
     if (!pin?.(t)) continue
     const d = divisionOf(t)
     if (left[d] <= 0) continue
     placed.set(t.id, d)
     left[d]--
   }
-  const ordered = [...teams]
+  const ordered = [...jpel]
     .filter(t => !placed.has(t.id))
     .sort((a, b) => divisionOf(a) - divisionOf(b) || rankOf(a) - rankOf(b))
   let i = 0
   for (const d of DIVISIONS) for (let n = 0; n < left[d]; n++) placed.set(ordered[i++].id, d)
-  return teams.map(t => ({ ...t, division: placed.get(t.id) ?? divisionOf(t) }))
+  return mapClubs(clubs, c => placed.has(c.id) ? { ...c, leagueId: divisionLeagueId(placed.get(c.id)!) } : c)
 }
 
 /** 順位表の1行。得点は positionPoints + segmentPoints（utils/league の配点1本） */
@@ -480,17 +466,18 @@ export function divisionStandingsFromRaces(
  */
 export function syncSeasonLeagues(params: {
   leagues: Record<LeagueId, LeagueSeason> | undefined
-  teams: readonly Pick<Team, 'id' | 'division'>[]
+  clubs: readonly WorldClub[]
   playerTeamId: string | undefined
 }): Record<LeagueId, LeagueSeason> {
-  const { teams, playerTeamId } = params
+  const { clubs, playerTeamId } = params
   const leagues = params.leagues ?? {}
-  const fixed = reconcileStandingsDivisions<SeasonStanding>(divisionStandingsRecord<SeasonStanding>({ leagues }), teams, teamId => ({
+  const fixed = reconcileStandingsDivisions<SeasonStanding>(divisionStandingsRecord<SeasonStanding>({ leagues }), clubs, teamId => ({
     teamId, leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [],
   }))
   // ★自チームが見つからないときに `divisionOf(undefined)` の既定値（1部）へ落ちないこと。
   //   落ちると1部だけ数え直し、自分の部の点はいつまでも0のまま＝直したつもりで直らない。
-  const me = myClub({ teams, playerTeamId })
+  //   数え直すのは日本の部の順位表なので、自チームは日本のリーグのクラブとして引く
+  const me = jpelClubById(clubs, playerTeamId)
   if (me) {
     const myDiv = divisionOf(me)
     fixed[myDiv] = divisionStandingsFromRaces(fixed[myDiv], leagues[divisionLeagueId(myDiv)]?.races ?? []) as SeasonStanding[]
@@ -576,5 +563,5 @@ export function draftRoundOf(pickIndex: number, pickOrderLength: number): { roun
   }
 }
 
-/** 自分の部のチーム数。「リーグの規模」を teams.length(52) で見ないための入口。gameStore から移設 */
-export const myDivSize = (st: { teams: import('../types').Team[]; playerTeamId: string }) => DIVISION_SIZE[divisionOf(myClub(st))]
+/** 自分の部のチーム数。「リーグの規模」を日本の52クラブの数で見ないための入口。gameStore から移設 */
+export const myDivSize = (st: { clubs: readonly WorldClub[]; playerTeamId: string }) => DIVISION_SIZE[divisionOf(jpelClubById(st.clubs, st.playerTeamId))]

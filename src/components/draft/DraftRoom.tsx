@@ -19,7 +19,7 @@ import { draftRoundOf, DRAFT_ROUNDS } from '../../utils/league'
 import { SpecChip, ForeignChip } from '../player/PlayerChips'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
-import { myClub, teamById } from '../../utils/world'
+import { clubById, jpelClubs, myClub } from '../../utils/world'
 
 
 type SortKey = 'ovr' | 'potential' | 'age'
@@ -62,7 +62,8 @@ const SELECT_STYLE: React.CSSProperties = {
 
 
 export default function DraftRoom() {
-  const { draftState, playerTeamId, teams, players, cpuPick, playerPick, advanceDraft, currentSeason } = useGameStore()
+  const { draftState, playerTeamId, clubs, players, cpuPick, playerPick, advanceDraft, currentSeason } = useGameStore()
+  const jpel = jpelClubs(clubs)
   const longPress = usePlayerLongPress()
   const navigate = useNavigate()
   const adH = useAdHeight()
@@ -126,7 +127,7 @@ export default function DraftRoom() {
       const after = useGameStore.getState().draftState
       if (after && after.picks.length > prevLen) {
         const pk  = after.picks[after.picks.length - 1]
-        const team = teamById(state.teams, pk.teamId)
+        const team = clubById(state.clubs, pk.teamId)
         const p   = state.players.find(pl => pl.id === pk.playerId)
         setPickLog(prev => [...prev, {
           pickNum: pk.pickNumber, teamId: pk.teamId,
@@ -157,7 +158,7 @@ export default function DraftRoom() {
         <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 8 }}>
           {[5, 4, 3, 2, 1].map(pos => {
             const revealed = lotteryRevealed >= 6 - pos
-            const t = teamById(teams, topFive[pos - 1])
+            const t = clubById(clubs, topFive[pos - 1])
             const isMine = t?.id === playerTeamId
             return (
               <div key={pos} style={{
@@ -194,13 +195,13 @@ export default function DraftRoom() {
     )
   }
 
-  const currentTeam  = teamById(teams, pickOrder[currentPick])
+  const currentTeam  = clubById(clubs, pickOrder[currentPick])
   const { round, pickInRound } = draftRoundOf(currentPick, pickOrder.length)
   // 1巡の件数（＝参加チーム数）。draftRoundOf と同じ数え方を指名ボードでも使う
   const perRound = Math.max(1, Math.round(pickOrder.length / DRAFT_ROUNDS))
   const myPicksDone  = picks.filter(p => p.teamId === playerTeamId).length
   const myPicksTotal = pickOrder.filter(id => id === playerTeamId).length
-  const playerTeamObj = myClub({ teams, playerTeamId })
+  const playerTeamObj = myClub({ clubs, playerTeamId })
 
   const specOrder: readonly Specialty[] = SPECIALTIES
   const myRosterSpecs = [
@@ -249,7 +250,7 @@ export default function DraftRoom() {
       const after = useGameStore.getState().draftState
       if (after && after.picks.length > prevLen) {
         const pk   = after.picks[after.picks.length - 1]
-        const team = teamById(state.teams, pk.teamId)
+        const team = clubById(state.clubs, pk.teamId)
         const p    = state.players.find(pl => pl.id === pk.playerId)
         setPickLog(prev => [...prev, {
           pickNum: pk.pickNumber, teamId: pk.teamId,
@@ -288,7 +289,7 @@ export default function DraftRoom() {
     // ドラフト終了の画面は「指名した選手の契約を決める」ためにある。
     // 1人も指名していない年は用が無いので画面ごと出さず、そのままシーズンへ戻す
     if (!picks.some(pk => pk.teamId === playerTeamId)) return <DraftAutoFinish onFinish={() => { advanceDraft(); navigate('/', { replace: true }) }} />
-    return <DraftComplete picks={picks} teams={teams} playerTeamId={playerTeamId} onFinish={() => { advanceDraft(); navigate('/', { replace: true }) }} />
+    return <DraftComplete picks={picks} jpel={jpel} playerTeamId={playerTeamId} onFinish={() => { advanceDraft(); navigate('/', { replace: true }) }} />
   }
 
   const stripStart    = Math.max(0, currentPick - 2)
@@ -430,7 +431,7 @@ export default function DraftRoom() {
             const isCurrent   = idx === currentPick
             const isMe        = teamId === playerTeamId
             const isPast      = idx < currentPick
-            const t           = teamById(teams, teamId)
+            const t           = clubById(clubs, teamId)
             const accentColor = isMe ? C.gold : (t?.colors.primary ?? C.border2)
             return (
               <div
@@ -544,7 +545,7 @@ export default function DraftRoom() {
                   onPick={handlePlayerPick}
                   isScouted={scoutedIds.has(p.id)}
                   isRecommend={!isComplete && p.id === recommendId}
-                  buzz={draftBuzz(p, teams, playerTeamId, pickLog, players)}
+                  buzz={draftBuzz(p, jpel, playerTeamId, pickLog, players)}
                 />
               ))}
               {sorted.length === 0 && (
@@ -574,7 +575,7 @@ export default function DraftRoom() {
                   {rOrder.map((teamId, i) => {
                     const pickNum   = (r - 1) * perRound + i + 1
                     const pk        = pickLog.find(p => p.pickNum === pickNum)
-                    const t         = teamById(teams, teamId)
+                    const t         = clubById(clubs, teamId)
                     const isMe      = teamId === playerTeamId
                     const isCurr    = pickNum === currentPick + 1
                     const accentColor = isMe ? C.gold : (t?.colors.primary ?? C.border2)
@@ -619,7 +620,7 @@ export default function DraftRoom() {
             <div style={{ fontSize: F.label, color: C.textDim, padding: '4px 4px 10px', lineHeight: 1.6 }}>
               各チームの補強ニーズと指名状況。自チームが狙う選手との競合を確認しよう。
             </div>
-            {teams.map(t => {
+            {jpel.map(t => {
               const isMe          = t.id === playerTeamId
               const teamPicks     = pickLog.filter(pk => pk.teamId === t.id)
               const needs         = draftTeamNeeds(t.id, pickLog, players)
@@ -852,15 +853,15 @@ function DraftAutoFinish({ onFinish }: { onFinish: () => void }) {
   return null
 }
 
-function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
+function DraftComplete({ picks, jpel, playerTeamId, onFinish }: {
   picks: { pickNumber: number; teamId: string; playerId: string; playerName: string }[]
-  teams: { id: string; name: string; shortName: string; colors: { primary: string; secondary: string } }[]
+  jpel: { id: string; name: string; shortName: string; colors: { primary: string; secondary: string } }[]
   playerTeamId: string
   onFinish: () => void
 }) {
   const adH = useAdHeight()
   const myPicks    = picks.filter(p => p.teamId === playerTeamId)
-  const playerTeam = myClub({ teams, playerTeamId })
+  const playerTeam = myClub({ clubs: jpel, playerTeamId })
   const { players, setDraftContract } = useGameStore()
 
   const myDrafted = myPicks

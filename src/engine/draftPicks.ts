@@ -14,17 +14,17 @@ import { draftPickValue } from '../data/economy'
 import { deficitPickPenaltyHeadline } from '../utils/newsItems'
 import { domesticThroughRankOfTeam } from '../utils/league'
 import { pickExistsAnywhere } from './draftOrder'
-import type { GameState, Team } from '../types'
-import { myClub } from '../utils/world'
+import type { GameState, WorldClub } from '../types'
+import { jpelClubs, mapClubs, myClub } from '../utils/world'
 
 export type DraftPickResult = {
-  teams: Team[]
+  clubs: WorldClub[]
   pickPenaltyNews: { date: string; headline: string; category: 'finance'; relatedIds: string[] }[]
 }
 
 export function issueDraftPicks(args: {
-  /** 予算精算まで終わったクラブ一覧 */
-  teams: Team[]
+  /** 予算精算まで終わったクラブ（世界の並び。指名権を持つのは日本のリーグのクラブ） */
+  clubs: WorldClub[]
   /** 指名順を数えるときの母数（国内クラブの数） */
   numTeams: number
   currentSeason: GameState['currentSeason']
@@ -34,16 +34,17 @@ export function issueDraftPicks(args: {
   /** 自チームの連続赤字年数（3年以上で指名権の強制売却） */
   deficitStreak: number
 }): DraftPickResult {
-  const { teams, numTeams, currentSeason, playerTeamId, newYear, deficitStreak } = args
+  const { clubs, numTeams, currentSeason, playerTeamId, newYear, deficitStreak } = args
+  const jpel = jpelClubs(clubs)
 
-  const teamsWithFuturePicks = teams.map(t => {
+  const teamsWithFuturePicks = jpel.map(t => {
     // 部をまたいで並べるので国内通し順位（1〜52）。下位ほど早い番号になる
     const teamFinalRank = domesticThroughRankOfTeam(currentSeason, t.id)
     const pickNum = Math.max(1, numTeams - teamFinalRank + 1)
     const newPicks: typeof t.draftPicks = []
     for (const yr of [newYear, newYear + 1]) {
       for (const round of [1, 2]) {
-        const alreadyHas = pickExistsAnywhere(teams, t.id, yr, round)
+        const alreadyHas = pickExistsAnywhere(jpel, t.id, yr, round)
         if (!alreadyHas) newPicks.push({ year: yr, round, pickNumber: pickNum, originallyOwnedBy: t.id })
       }
     }
@@ -59,7 +60,7 @@ export function issueDraftPicks(args: {
   // 来季ドラフトの自チーム最上位指名権が、資金力のあるチームへ強制売却される（売却額は補填として入金）
   const pickPenaltyNews: DraftPickResult['pickPenaltyNews'] = []
   if (deficitStreak >= 3) {
-    const meT = myClub({ teams: result, playerTeamId })
+    const meT = myClub({ clubs: result, playerTeamId })
     const myNextPicks = (meT?.draftPicks ?? []).filter(pk => pk.year === newYear)
     const soldPick = [...myNextPicks].sort((a, b) => a.round - b.round || a.pickNumber - b.pickNumber)[0]
     const buyer = [...result].filter(t => t.id !== playerTeamId).sort((a, b) => b.finance.budget - a.finance.budget)[0]
@@ -79,5 +80,6 @@ export function issueDraftPicks(args: {
     }
   }
 
-  return { teams: result, pickPenaltyNews }
+  const byId = new Map(result.map(t => [t.id, t]))
+  return { clubs: mapClubs(clubs, c => byId.get(c.id) ?? c), pickPenaltyNews }
 }

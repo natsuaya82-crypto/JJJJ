@@ -18,12 +18,13 @@ import { readFileSync } from 'node:fs'
 import { useGameStore } from '../src/store/gameStore'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { FOREIGN_LEAGUE_DEFS, INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { generateSeasonRaces } from '../src/data/races'
 import { newSeasonStandings, divisionOf } from '../src/utils/league'
 import { HOME_NATION } from '../src/data/nationalities'
-import type { SeasonStanding, Team, Player, Race } from '../src/types'
+import type { SeasonStanding, Team, Player, Race, WorldClub } from '../src/types'
+import { clubsInLeague, jpelClubById } from '../src/utils/world'
 import { seasonLeaguesFixture } from './seasonFixture'
 
 const problems: string[] = []
@@ -39,19 +40,20 @@ const YEAR = 2029   // 奇数年＝アジア予選の年
 function buildWorld() {
   const base = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
   const cpu = generateCpuRosters(base, YEAR)
-  const fgen = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+  const fgen = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
   const players: Player[] = [...cpu.cpuPlayers, ...fgen.players]
   const standings = newSeasonStandings<SeasonStanding>(base, id => ({ teamId: id, totalPoints: 0, raceResults: [] }))
   const foreignStandings: Record<string, SeasonStanding[]> = {}
-  for (const l of fgen.updatedLeagues) foreignStandings[l.id] = l.clubs.map((c, i) => ({ teamId: c.id, totalPoints: (20 - i) * 5, raceResults: [] }))
+  for (const l of FOREIGN_LEAGUE_DEFS) foreignStandings[l.id] = clubsInLeague(INITIAL_FOREIGN_CLUBS, l.id).map((c, i) => ({ teamId: c.id, totalPoints: (20 - i) * 5, raceResults: [] }))
   const teams = base.map(t => ({ ...t, finance: { ...(t.finance ?? {}), budget: 400_000_000 } })) as Team[]
-  const races = generateSeasonRaces(YEAR, divisionOf(teams.find(t => t.id === MY)!))
+  const clubs: WorldClub[] = [...teams, ...INITIAL_FOREIGN_CLUBS]
+  const races = generateSeasonRaces(YEAR, divisionOf(jpelClubById(clubs, MY)!))
     .map(r => ({ ...r, results: { teamResults: [], segmentResults: [] } }) as Race)
   useGameStore.setState({
-    isInitialized: true, playerTeamId: MY, teams, players, foreignLeagues: fgen.updatedLeagues,
+    isInitialized: true, playerTeamId: MY, clubs, players,
     currentSeason: {
       year: YEAR, phase: 'regular', currentRaceIndex: races.length,
-      leagues: seasonLeaguesFixture({ myDivision: divisionOf(teams.find(t => t.id === MY)!), races, standings, foreignStandings }),
+      leagues: seasonLeaguesFixture({ myDivision: divisionOf(jpelClubById(clubs, MY)!), races, standings, foreignStandings }),
       newsFeed: [], objectives: [],
       incomingOffers: [], transferListings: [], contractRequests: [] },
     pastSeasons: [], worldAthleticsResults: [], worldRepresentatives: [],

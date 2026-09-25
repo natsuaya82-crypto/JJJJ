@@ -59,7 +59,7 @@ export function processRetirements(args: {
   // クラブ側に名簿は無い（在籍は player.teamId 1本）ので、ここは選手だけ触る
   let players: Player[] = playersAfterFA
   for (const id of retiringIds) {
-    const m = movePlayer({ players, teams: [] }, id, '', { year, retire: true })
+    const m = movePlayer({ players, clubs: [] }, id, '', { year, retire: true })
     if (m.ok) players = m.players
   }
 

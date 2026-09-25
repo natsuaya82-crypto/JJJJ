@@ -12,10 +12,12 @@ import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
-import { newSeasonStandings, DIVISIONS, DIVISION_RACES, divisionLeagueId } from '../src/utils/league'
+import { newSeasonStandings, DIVISIONS, DIVISION_RACES, divisionLeagueId, divisionOf } from '../src/utils/league'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
+import { jpelClubs } from '../src/utils/world'
 import { clubSeasonRank } from '../src/utils/clubStanding'
 import { squadIdsOf } from '../src/utils/rosterSync'
-import type { SeasonStanding, Team } from '../src/types'
+import type { SeasonStanding, Team, WorldClub } from '../src/types'
 
 const problems: string[] = []
 const check = (name: string, ok: boolean, detail = '') => {
@@ -26,7 +28,7 @@ const check = (name: string, ok: boolean, detail = '') => {
 const YEAR = 2032
 const base = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
 const cpu = generateCpuRosters(base, YEAR)
-const fgen = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+const fgen = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
 const players = [...cpu.cpuPlayers, ...fgen.players]
 
 // v39 のセーブを組み立てる（team.roster あり／foreignStandings は teamId）
@@ -39,11 +41,13 @@ for (const d of DIVISIONS) for (let r = 0; r < DIVISION_RACES[d]; r++) for (cons
   row.raceResults.push({ raceId: `d${d}-r${r}`, rank: 1 + Math.floor(rnd() * 16), points: pts })
 }
 const foreignStandings: Record<string, SeasonStanding[]> = {}
-for (const l of fgen.updatedLeagues) {
+for (const l of FOREIGN_LEAGUES) {
   foreignStandings[l.id] = l.clubs.map(c => ({ teamId: c.id, totalPoints: Math.round(rnd() * 90), raceResults: [] }))
 }
-const teamsV39 = base.map(t => ({
+// ★v39 の国内クラブは部を `division` に持っていた（`leagueId` は無い）。いまのデータから作るので付け替える
+const teamsV39 = base.map(({ leagueId: _leagueId, ...t }) => ({
   ...t,
+  division: divisionOf({ leagueId: _leagueId }),
   roster: { main: squadIdsOf(players, t.id) },   // v39 まではクラブ側にも名簿があった
   finance: { budget: 500_000_000 },
 }))
@@ -52,7 +56,7 @@ const save: Record<string, unknown> = {
   playerTeamId: 'fukuoka',
   teams: teamsV39,
   players,
-  foreignLeagues: fgen.updatedLeagues,
+  foreignLeagues: FOREIGN_LEAGUES,
   currentSeason: { year: YEAR, races: [], standings, foreignStandings, newsFeed: [], objectives: [] },
   pastSeasons: [{ year: YEAR - 1, races: [], standings, foreignStandings }],
   worldAthleticsResults: [],
@@ -60,7 +64,7 @@ const save: Record<string, unknown> = {
 }
 
 const before = JSON.stringify(save).length
-console.log(`v39 のセーブ：${(before / 1024).toFixed(0)} KB / 選手 ${players.length}人 / クラブ ${base.length + fgen.updatedLeagues.reduce((s, l) => s + l.clubs.length, 0)}`)
+console.log(`v39 のセーブ：${(before / 1024).toFixed(0)} KB / 選手 ${players.length}人 / クラブ ${base.length + INITIAL_FOREIGN_CLUBS.length}`)
 console.log('')
 
 const migrate = (useGameStore.persist.getOptions() as { migrate?: (s: unknown, v: number) => Record<string, unknown> }).migrate
@@ -79,25 +83,25 @@ check('例外なく読み込める', true)
 console.log('')
 console.log('[2] 消えてはいけないもの')
 {
-  const tA = after.teams as Record<string, unknown>[]
+  const tA = jpelClubs(after.clubs as WorldClub[]) as unknown as Record<string, unknown>[]
   const pA = after.players as unknown[]
   const cs = after.currentSeason as { leagues?: Record<string, { standings: unknown[] }> }
   check('選手が1人も消えていない', pA.length === players.length, `${pA.length} / ${players.length}`)
   check('チームが1つも消えていない', tA.length === base.length, `${tA.length} / ${base.length}`)
   check('資金が残っている', tA.every(t => (t.finance as { budget?: number })?.budget === 500_000_000))
   check('国内の順位表が残っている', DIVISIONS.every(d => (cs.leagues?.[divisionLeagueId(d)]?.standings ?? []).length > 0))
-  check('海外の順位表が残っている', fgen.updatedLeagues.every(l => (cs.leagues?.[l.id]?.standings ?? []).length > 0))
+  check('海外の順位表が残っている', FOREIGN_LEAGUES.every(l => (cs.leagues?.[l.id]?.standings ?? []).length > 0))
   // 順位が引けること（画面が見るのと同じ経路）
   const r = clubSeasonRank(after.currentSeason as never, 'fukuoka')
   check('自チームの順位が引ける', r.rank > 0 && r.total === 52, JSON.stringify(r))
-  const fr = clubSeasonRank(after.currentSeason as never, fgen.updatedLeagues[0].clubs[0].id)
+  const fr = clubSeasonRank(after.currentSeason as never, FOREIGN_LEAGUES[0].clubs[0].id)
   check('海外クラブの順位が引ける', fr.rank > 0, JSON.stringify(fr))
 }
 
 console.log('')
 console.log('[3] 落としたもの（クラブ側の名簿）')
 {
-  const tA = after.teams as Record<string, unknown>[]
+  const tA = jpelClubs(after.clubs as WorldClub[]) as unknown as Record<string, unknown>[]
   check('team.roster が消えている', !tA.some(t => 'roster' in t))
   // 在籍は player.teamId から引けること
   const ids = squadIdsOf(after.players as never, 'fukuoka')

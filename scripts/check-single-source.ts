@@ -177,9 +177,11 @@ const RULES: Rule[] = [
   },
   {
     name: '海外クラブの総なめ',
+    // クラブは GameState.clubs の1つの並び（232）。リーグ → clubs を平らにするのは、
+    // 海外の初期データを作る1か所（data/leagues の INITIAL_FOREIGN_CLUBS）と、旧い形を読む移行だけ
     pattern: /flatMap\(\s*\w+\s*=>\s*\w+\??\.clubs\s*(\?\?|\))/,
-    allow: ['src/utils/clubs.ts'],
-    fix: 'clubs.ts の allForeignClubs を使う',
+    allow: ['src/data/leagues.ts', 'src/store/persistence/migrateSave.ts'],
+    fix: '動いている世界は GameState.clubs（utils/world の関数で引く）、初期データは data/leagues の INITIAL_FOREIGN_CLUBS を使う',
   },
   {
     name: '順位表の並べ直し',

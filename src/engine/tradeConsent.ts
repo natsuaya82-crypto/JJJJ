@@ -14,13 +14,12 @@
 // ■ここでやらないこと
 //   ・釣り合っているか（`utils/tradeValue` の `tradeBalance` / `tradeNotLopsided`）
 //   ・ロスター上限・予算・出していい選手か … `tradePlayer` の側の関門
-import { allTieredClubs } from '../utils/world'
 import { tierOfPlayerClub } from '../utils/clubTier'
 import type { ClubTier } from '../utils/clubTier'
 import { playRateOf, prevSeasonOf, type PlayRateSeason } from '../utils/playRate'
 import { playerConsentToMove } from '../utils/playerUtils'
 import type { Destination } from '../utils/transferDecision'
-import type { ForeignLeague, Player, Team } from '../types'
+import type { Player, WorldClub } from '../types'
 
 /**
  * 相手クラブがこれだけ得をするなら、本人の説得材料になる（もらう額面 ÷ 出す額面）。
@@ -46,8 +45,7 @@ export function tradeRefuser(
   incoming: Player[],
   ctx: {
     myTeamId: string
-    teams: Team[]
-    foreignLeagues: ForeignLeague[]
+    clubs: WorldClub[]
     destinationOf: (clubId: string, player: Player) => Destination
     /** 選手の格（utils/playerTier）。store の playerTierOf をそのまま渡すこと */
     playerTierOf: (player: Player) => ClubTier
@@ -58,11 +56,10 @@ export function tradeRefuser(
   },
   bonus: number,
 ): { player: Player; reason: string } | null {
-  const clubs = allTieredClubs(ctx.teams, ctx.foreignLeagues)
   for (const rp of incoming) {
     const { fraction, teamRaces } = playRateOf(rp.id, rp.teamId, ctx.currentSeason,
-      ctx.teams, ctx.foreignLeagues, prevSeasonOf(ctx.pastSeasons, ctx.year))
-    const c = playerConsentToMove(rp, ctx.destinationOf(ctx.myTeamId, rp), tierOfPlayerClub(rp.teamId, clubs),
+      ctx.clubs, prevSeasonOf(ctx.pastSeasons, ctx.year))
+    const c = playerConsentToMove(rp, ctx.destinationOf(ctx.myTeamId, rp), tierOfPlayerClub(rp.teamId, ctx.clubs),
       fraction, teamRaces, bonus, false, ctx.playerTierOf(rp))
     if (!c.ok) return { player: rp, reason: c.reason }
   }

@@ -18,7 +18,7 @@ import { C, alpha, DIV_STAR, glassStyle, SAIRA, F } from '../../styles/tokens'
 import { DIVISION_LABEL, pointSeriesStandings, rankedStandings, seasonDivisionStandings } from '../../utils/league'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
-import { myLeagueRaces } from '../../utils/world'
+import { jpelClubs, myLeagueRaces } from '../../utils/world'
 
 
 type Category = 'jpel' | 'ecl' | 'waqual' | 'wamain' | 'reserve' | 'tt'
@@ -50,7 +50,7 @@ function rowStyle(hl = false, wide = false): React.CSSProperties {
 // 大会別の歴代記録。カテゴリ → 大会 → 年度 → 順位表 → チームの区間配置、とドリルダウンで見る
 export default function ChampionsHistoryPage() {
   const navigate = useNavigate()
-  const { teams, players, currentSeason, pastSeasons, playerTeamId, gmTenures, openPlayerSheet, eventSeasonTops, worldRecords, japanRecords, removedPlayers } = useGameStore()
+  const { clubs, players, currentSeason, pastSeasons, playerTeamId, gmTenures, openPlayerSheet, eventSeasonTops, worldRecords, japanRecords, removedPlayers } = useGameStore()
   // 監督は別のチームへ移れる。過去の年の「自チーム」印は、その年に指揮していたチームで付ける。
   // 今のチームで付けると、自分で獲った優勝から印が消え、移籍先が前に獲った優勝に印が付く（utils/gmTenure.ts）
   const teamIdAt = makeTeamIdAt(gmTenures, playerTeamId)
@@ -246,7 +246,8 @@ export default function ChampionsHistoryPage() {
         const histories = teamHistoriesOf(pastSeasons)
         // ★**部ごとに分ける**（オーナー・2026-08-12「部ごとです」）。合計で並べると
         //   「3部で4回優勝」が「1部で1回優勝」より上に来る。並べ方は compareTitles 1本
-        const champRanking = [...teams]
+        // JPEL の優勝は日本のリーグのクラブ
+        const champRanking = jpelClubs(clubs)
           .map(t => ({ team: t, titles: histories[t.id]?.titles ?? {} }))
           .filter(c => titleRows(c.titles).length > 0)
           .sort((a, b) => compareTitles(a.titles, b.titles))

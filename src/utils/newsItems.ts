@@ -16,11 +16,11 @@
 //   クラブ名には必ず部を添える（clubLabel）。国内クラブだけが部を持つので、
 //   海外クラブはリーグ名を添える。呼ぶ側が国内・海外を気にしなくてよいのが狙い。
 
-import type { Division, Team } from '../types'
+import type { Division, WorldClub } from '../types'
 import { divisionOf, DIVISION_LABEL, DIVISION_SIZE } from './league'
 import { fmtYen } from './money'
 import { eventLabelOf, formatRaceTime } from './eventTime'
-import { teamById } from './world'
+import { jpelClubById } from './world'
 
 /** ニュース1件。gameStore の newsFeed に入る形と同じ */
 export type NewsItem = {
@@ -36,10 +36,11 @@ export type NewsItem = {
 /** クラブの呼び名。国内は「札幌（2部）」、海外は「ロンドン（欧州西）」 */
 export function clubLabel(
   clubId: string,
-  teams: readonly Pick<Team, 'id' | 'shortName' | 'division'>[],
+  clubs: readonly WorldClub[],
   foreign?: { id: string; shortName: string; leagueName?: string },
 ): string {
-  const t = teamById(teams, clubId)
+  // 国内の呼び名は日本のリーグのクラブだけ。海外は foreign で渡す（いまの振る舞い）
+  const t = jpelClubById(clubs, clubId)
   if (t) return `${t.shortName}（${DIVISION_LABEL[divisionOf(t)]}）`
   if (foreign) return foreign.leagueName ? `${foreign.shortName}（${foreign.leagueName}）` : foreign.shortName
   return '他クラブ'

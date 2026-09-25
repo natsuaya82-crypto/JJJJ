@@ -11,8 +11,9 @@
 import { ECL_COURSES } from '../data/eclCourses'
 import { rankedStandings } from '../utils/league'
 import { ovr } from '../utils/playerUtils'
-import type { Player, Race } from '../types'
-import { teamById } from '../utils/world'
+import type { Player, Race, WorldClub } from '../types'
+import { clubById, clubsInLeague } from '../utils/world'
+import { FOREIGN_LEAGUE_DEFS } from '../data/leagues'
 
 /** ECLシリーズに出るチーム1つぶん（国内チームでも海外クラブでも同じ形にそろえる） */
 export type EclSeriesParticipant = {
@@ -33,7 +34,6 @@ const ECL_MONTHS = ['04', '06', '07', '09', '11'] as const
 const ECL_WEATHERS = ['sunny', 'cloudy', 'rainy', 'windy'] as const
 
 type ClubLike = { id: string; name: string; shortName: string; colors: { primary: string; secondary: string } }
-type LeagueLike = { id: string; name: string; clubs: ClubLike[] }
 
 /**
  * 出場チームを決める。JPELの上位2 ＋ 海外各リーグの上位2。
@@ -48,19 +48,19 @@ export function buildEclParticipants(args: {
    * （部ごとにレース数が違うので、混ぜた順位に意味が無い）
    */
   standings: readonly { teamId: string; totalPoints: number }[]
-  teams: readonly { id: string; name: string; shortName: string; colors: { primary: string; secondary: string } }[]
+  /** 世界のクラブ（海外各リーグの顔ぶれもここから引く） */
+  clubs: readonly WorldClub[]
   playerTeamId: string
-  leagues: readonly LeagueLike[]
   /** その年のリーグ（海外リーグの順位表をここから引く） */
   seasonLeagues: Readonly<Record<string, { standings: readonly { teamId: string; totalPoints: number }[] }>>
   /** 戦力での代替に使う。順位表がある年は読まれない */
   players: readonly Player[]
 }): EclSeriesParticipant[] {
-  const { standings, teams, playerTeamId, leagues, seasonLeagues, players } = args
+  const { standings, clubs, playerTeamId, seasonLeagues, players } = args
   const parts: EclSeriesParticipant[] = []
 
   for (const s of rankedStandings(standings).slice(0, ECL_SLOTS_PER_LEAGUE)) {
-    const t = teamById(teams, s.teamId)
+    const t = clubById(clubs, s.teamId)
     if (t) {
       parts.push({
         id: t.id, name: t.name, shortName: t.shortName,
@@ -81,12 +81,13 @@ export function buildEclParticipants(args: {
   const clubStrength = (club: ClubLike) =>
     [...(ovrsByClub.get(club.id) ?? [])].sort((a, b) => b - a).slice(0, 10).reduce((s, v) => s + v, 0)
 
-  for (const league of leagues) {
+  for (const league of FOREIGN_LEAGUE_DEFS) {
     const st = rankedStandings(seasonLeagues[league.id]?.standings ?? []).slice(0, ECL_SLOTS_PER_LEAGUE)
-    const clubs = st.length >= ECL_SLOTS_PER_LEAGUE
-      ? st.map(s => league.clubs.find(c => c.id === s.teamId)).filter((c): c is ClubLike => !!c)
-      : [...league.clubs].sort((a, b) => clubStrength(b) - clubStrength(a)).slice(0, ECL_SLOTS_PER_LEAGUE)
-    for (const club of clubs) {
+    const members = clubsInLeague(clubs, league.id)
+    const picked: ClubLike[] = st.length >= ECL_SLOTS_PER_LEAGUE
+      ? st.map(s => clubById(members, s.teamId)).filter((c): c is WorldClub => !!c)
+      : [...members].sort((a, b) => clubStrength(b) - clubStrength(a)).slice(0, ECL_SLOTS_PER_LEAGUE)
+    for (const club of picked) {
       parts.push({
         id: club.id, name: club.name, shortName: club.shortName,
         isForeign: true, isPlayerTeam: false,

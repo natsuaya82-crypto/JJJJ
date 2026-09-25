@@ -60,7 +60,7 @@ const DEPTH = Array.from({ length: SQUAD_DEPTH_SLOTS }, (_, i) => P(`f${i}`, 95)
 
 // rand を固定して揺れを消す（0.5＝ちょうど真ん中）
 const ctx = (players: Player[], o: Partial<BidContext> = {}): BidContext => ({
-  players: [...players, ...DEPTH], teams: [], listings: [],
+  players: [...players, ...DEPTH], clubs: [], listings: [],
   currentSeason: { year: YEAR, races: [] }, pastSeasons: [],
   raceIndex: 10, rand: () => 0.5, ...o,
 })
@@ -115,7 +115,7 @@ console.log('\n[3b] 主力かどうかは序列1本。割増も POACH_PREMIUM 1�
   //   2部・3部・海外の選手は1人残らず open（＝割増が一度も乗らない）でした。
   const star = P('p1', 80)
   // 名簿に本人しか居ない＝1番手＝戦力
-  const aloneCtx = { players: [star], teams: [], listings: [],
+  const aloneCtx = { players: [star], clubs: [], listings: [],
     currentSeason: { year: YEAR, races: [] }, pastSeasons: [], raceIndex: 10, rand: () => 0.5 } as BidContext
   const mv = marketValueOf(star, aloneCtx)
   check('名簿の1番手は key', keyPlayerStatus(star, aloneCtx) === 'key', keyPlayerStatus(star, aloneCtx))

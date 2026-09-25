@@ -6,7 +6,7 @@
 //
 // 断られたぶんもニュースと通知に残す（黙って消えると「返事が来ない」ように見える）。
 // 乱数は使わない。
-import type { ForeignLeague, LoanRequest, LoanResponse, Player, Season, Team } from '../types'
+import type { LoanRequest, LoanResponse, Player, Season, WorldClub } from '../types'
 import { LOAN_SLOTS } from '../utils/bidGate'
 import { findClub } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
@@ -56,8 +56,7 @@ export function decideLoanRequests(
 
 export function resolveLoanRequests(params: {
   players: Player[]
-  teams: Team[]
-  foreignLeagues: ForeignLeague[]
+  clubs: WorldClub[]
   /** 今季（**このレースの結果まで載せたもの**。消化数が1戦ずれないように） */
   currentSeason: Season
   pastSeasons: PastArg
@@ -66,16 +65,16 @@ export function resolveLoanRequests(params: {
   raceDate: string
 }): {
   players: Player[]
-  teams: Team[]
+  clubs: WorldClub[]
   news: { date: string; headline: string; category: 'trade'; relatedIds: string[] }[]
   responses: LoanResponse[]
 } {
-  const { teams: teams0, foreignLeagues, currentSeason, pastSeasons, playerTeamId, raceIndex, raceDate } = params
+  const { clubs: clubs0, currentSeason, pastSeasons, playerTeamId, raceIndex, raceDate } = params
   const players0 = params.players
   // レンタル要請（移籍市場から出したもの）の応答。相手が承諾なら借用成立、拒否ならニュース。
   const pendingLoanReqs = currentSeason.loanRequests ?? []
   let playersAfterLoan: Player[] = players0
-  let teamsAfterLoan = teams0
+  let clubsAfterLoan = clubs0
   const loanRespNews: { date: string; headline: string; category: 'trade'; relatedIds: string[] }[] = []
   const newLoanResponses: LoanResponse[] = []
   if (pendingLoanReqs.length > 0) {
@@ -83,16 +82,16 @@ export function resolveLoanRequests(params: {
     const decided = decideLoanRequests(players0, playerTeamId, pendingLoanReqs, pl =>
       // ★**走り終わったぶんを載せたシーズンを渡すこと**（呼ぶ側の責任。載っていないと
       //   このレースの結果が無いので、消化数が1戦ずれます）
-      keyPlayerStatus(pl, { players: players0, teams: teams0, foreignLeagues,
+      keyPlayerStatus(pl, { players: players0, clubs: clubs0,
         currentSeason, pastSeasons }) === 'open')
     for (const d of decided) {
-      const ownerShort = findClub(teams0, foreignLeagues, d.player.teamId)?.shortName ?? '相手クラブ'
+      const ownerShort = findClub(clubs0, d.player.teamId)?.shortName ?? '相手クラブ'
       loanRespNews.push({ date: raceDate, headline: loanReplyHeadline({ ownerLabel: ownerShort, playerName: d.player.name, years: d.years, accepted: d.accepted }), category: 'trade', relatedIds: [d.player.id] })
       newLoanResponses.push({ id: `lresp_${d.player.id}_${raceIndex}`, playerId: d.player.id, playerName: d.player.name, ownerShort, accepted: d.accepted, years: d.years })
     }
     // 借用成立も movePlayer に通す（保有元を残して、貸した側の名簿から外す）
     for (const a of decided.filter(d => d.accepted)) {
-      const m = movePlayer({ players: playersAfterLoan, teams: teamsAfterLoan }, a.player.id, playerTeamId, {
+      const m = movePlayer({ players: playersAfterLoan, clubs: clubsAfterLoan }, a.player.id, playerTeamId, {
         year: currentSeason.year,
         until: currentSeason.year + a.years,
         raceIndex: raceIndex + 1,
@@ -100,8 +99,8 @@ export function resolveLoanRequests(params: {
         myTeamId: playerTeamId })
       if (!m.ok) continue
       playersAfterLoan = m.players
-      teamsAfterLoan = m.teams
+      clubsAfterLoan = m.clubs
     }
   }
-  return { players: playersAfterLoan, teams: teamsAfterLoan, news: loanRespNews, responses: newLoanResponses }
+  return { players: playersAfterLoan, clubs: clubsAfterLoan, news: loanRespNews, responses: newLoanResponses }
 }

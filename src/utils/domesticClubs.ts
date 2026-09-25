@@ -1,8 +1,10 @@
-import type { Division, Player, Team } from '../types'
+import type { Division, Player, Team, WorldClub } from '../types'
 import { INITIAL_TEAMS } from '../data/teams'
 import { LOWER_DIVISION_TEAMS } from '../data/teamsLower'
 import { generateCpuRosters } from '../engine/playerGenerator'
 import { tierBudget } from './clubTier'
+import { clubIdSet, divisionLeagueId, jpelClubs, mapClubs, withAddedClubs } from './world'
+import { divisionOf } from './league'
 
 // 国内クラブ52（1部20 + 2部16 + 3部16）の名簿と、足りないぶんを補う処理の1本。
 //
@@ -18,15 +20,15 @@ export const ALL_DOMESTIC_TEAMS: Team[] = [...INITIAL_TEAMS, ...LOWER_DIVISION_T
 
 /** データどおりの部（昇降格を1度もしていない状態の配置） */
 const ORIGINAL_DIVISION = new Map<string, Division>(
-  ALL_DOMESTIC_TEAMS.map(t => [t.id, (t.division ?? 1) as Division]),
+  ALL_DOMESTIC_TEAMS.map(t => [t.id, divisionOf(t)]),
 )
 export function originalDivisionOf(teamId: string): Division {
   return ORIGINAL_DIVISION.get(teamId) ?? 1
 }
 
 /** そのセーブに国内クラブが全部そろっているか */
-export function domesticClubsComplete(teams: readonly { id: string }[]): boolean {
-  const have = new Set(teams.map(t => t.id))
+export function domesticClubsComplete(clubs: readonly WorldClub[]): boolean {
+  const have = clubIdSet(jpelClubs(clubs))
   return ALL_DOMESTIC_TEAMS.every(t => have.has(t.id))
 }
 
@@ -40,7 +42,7 @@ export function domesticClubsComplete(teams: readonly { id: string }[]): boolean
  * すでに全部そろっているセーブでは何もしない（部にも触らない）。
  */
 export function backfillDomesticClubs(params: {
-  teams: Team[]
+  clubs: WorldClub[]
   players: Player[]
   year: number
   /**
@@ -49,11 +51,11 @@ export function backfillDomesticClubs(params: {
    * 監督が去った瞬間に前のクラブが元の部へ引き戻されます（下の理由を参照）
    */
   pinnedTeamIds?: Set<string>
-}): { teams: Team[]; players: Player[]; addedTeams: Team[] } {
-  const { teams, players, year, pinnedTeamIds } = params
-  const have = new Set(teams.map(t => t.id))
+}): { clubs: WorldClub[]; players: Player[]; addedTeams: Team[] } {
+  const { clubs, players, year, pinnedTeamIds } = params
+  const have = clubIdSet(jpelClubs(clubs))
   const missing = ALL_DOMESTIC_TEAMS.filter(t => !have.has(t.id))
-  if (missing.length === 0) return { teams, players, addedTeams: [] }
+  if (missing.length === 0) return { clubs, players, addedTeams: [] }
 
   // 補うクラブの器。予算は格から引く（tierBudget）。データの finance.budget は使わない
   // 施設は持たせない。自チーム以外のレベルは格から出す（utils/facilities の facilitiesOf）。
@@ -81,10 +83,10 @@ export function backfillDomesticClubs(params: {
     // ★**一度でも指揮したクラブは全部そのまま**にすること（`managedTeamIds`）。
     //   いまの自チームだけを外していたので、監督が別のクラブへ移った瞬間に
     //   前のクラブが元の部へ引き戻され、1年で部を2つ飛ぶ「昇格」に見えていた。
-    teams: [
-      ...teams.map(t => (pinnedTeamIds?.has(t.id) ? t : { ...t, division: originalDivisionOf(t.id) })),
-      ...addedTeams,
-    ],
+    clubs: withAddedClubs(
+      mapClubs(clubs, c => (!have.has(c.id) || pinnedTeamIds?.has(c.id) ? c : { ...c, leagueId: divisionLeagueId(originalDivisionOf(c.id)) })),
+      addedTeams,
+    ),
     players: [...players, ...cpuPlayers],
     addedTeams,
   }

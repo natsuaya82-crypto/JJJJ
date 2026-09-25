@@ -9,7 +9,7 @@ import { collectNotifications } from '../../utils/notifItems'
 const EMPTY_IDS: string[] = []
 
 export function useNotifCount(): number {
-  const { currentSeason, players, teams, playerTeamId, lastLoginDate } = useGameStore()
+  const { currentSeason, players, clubs, playerTeamId, lastLoginDate } = useGameStore()
   const clubGifts = useClubGifts()
   const friendReqs = useFriendRequests()
   // ※セレクタで `?? []` すると毎回新しい配列になり無限レンダリングするので、フィールドをそのまま取る
@@ -19,7 +19,7 @@ export function useNotifCount(): number {
   const seenInjuryIds = useGameStore(s => s.seenInjuryIds)
 
   return collectNotifications({
-    currentSeason, players, teams, playerTeamId, lastLoginDate,
+    currentSeason, players, clubs, playerTeamId, lastLoginDate,
     seenJoinIds: seenJoinIds ?? EMPTY_IDS,
     seenInjuryIds: seenInjuryIds ?? EMPTY_IDS,
     pendingGiftsCount: (pendingGifts ?? []).length,

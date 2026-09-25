@@ -8,9 +8,8 @@
  * 「全部残したうえで、行の持ち方を詰める」でどこまで小さくなるかを比べる。
  */
 import { LEAGUE_COURSE_POOL } from '../src/data/races'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { FOREIGN_LEAGUE_DEFS, INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { DIVISIONS, DIVISION_SIZE, DIVISION_RACES, DIVISION_LABEL } from '../src/utils/league'
-import { allForeignClubs } from '../src/utils/clubs'
 
 // 1走者ぶんの実測バイト数（JSON化した文字列の長さ）
 const ROW_NOW = JSON.stringify({ playerId: 'base-0123', timeSec: 1834.213, rank: 4 }).length
@@ -20,8 +19,8 @@ const ROW_PACKED = JSON.stringify(['base-0123', 1834, 4]).length
 const segCounts = LEAGUE_COURSE_POOL.map(c => c.segments.length)
 const AVG_SEGS = segCounts.reduce((s, n) => s + n, 0) / segCounts.length
 
-const fClubs = allForeignClubs(FOREIGN_LEAGUES)
-const leagueCount = FOREIGN_LEAGUES.length
+const fClubs = INITIAL_FOREIGN_CLUBS
+const leagueCount = FOREIGN_LEAGUE_DEFS.length
 
 type Row = { name: string; rows: number; note: string }
 const rows: Row[] = []

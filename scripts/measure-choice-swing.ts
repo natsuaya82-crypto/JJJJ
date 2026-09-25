@@ -33,7 +33,7 @@ for (const race of races) {
   const out = runBackgroundRace({
     race,
     entrants: teams.map(t => ({ id: t.id, roster: players.filter(p => p.teamId === t.id && p.status === 'active') })),
-    players, teams, seasonProgress: 0.5,
+    players, clubs: teams, seasonProgress: 0.5,
   })
   const res = out.race.results!
   for (const sr of res.segmentResults) for (const r of sr.runners) if (r.timeSec > 0) segTimes.push(r.timeSec)

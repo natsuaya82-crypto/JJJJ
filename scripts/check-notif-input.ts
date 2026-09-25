@@ -42,7 +42,7 @@ const player = (id: string, joinedYear?: number) => ({
 }) as never
 
 const season = { year: YEAR, currentRaceIndex: 0, races: [], standings: {} } as never
-const base = { currentSeason: season, teams: [{ id: 'me', name: 'me' }] as never, playerTeamId: 'me' }
+const base = { currentSeason: season, clubs: [{ id: 'me', name: 'me' }] as never, playerTeamId: 'me' }
 
 // ★本番で落ちた形：その年に加入した選手が1人いる
 const withJoiner = { ...base, players: [player('p1', YEAR), player('p2')] }

@@ -60,7 +60,7 @@ const BID = (over: Partial<TransferBid> = {}): TransferBid => ({
 } as TransferBid)
 
 const CTX = (players: Player[], rand = 0.5) => ({
-  players, teams: [], listings: [],
+  players, clubs: [], listings: [],
   currentSeason: { year: 2030, races: [] },
   pastSeasons: [] as never,
   raceIndex: 1,

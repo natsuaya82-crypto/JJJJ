@@ -7,7 +7,7 @@
 //
 // ここは画面から切り離した素の関数にしてある（フックを使わない）ので、
 // 呼び出し側でストアから値を取って渡すこと。
-import type { Season, Player, Team, ExpiredNegKind } from '../types'
+import type { Season, Player, WorldClub, ExpiredNegKind } from '../types'
 import { ROSTER_MAX, teamRosterSize } from '../data/rosterRules'
 import { loginTodayKey } from './loginDate'
 import { saleAnsweredIds } from './saleAnswer'
@@ -94,7 +94,7 @@ export { contractMonthsLeft }
 export type NotifInput = {
   currentSeason: Season
   players: Player[]
-  teams: Team[]
+  clubs: WorldClub[]
   playerTeamId: string
   lastLoginDate?: string
   seenJoinIds: string[]
@@ -230,7 +230,7 @@ export function chatUnseenCount(input: ChatTopicInput, seenIds: readonly string[
 }
 
 export function collectNotifications(input: NotifInput) {
-  const { currentSeason, players, teams, playerTeamId, lastLoginDate, seenJoinIds, seenInjuryIds, pendingGiftsCount, playerCreateCount, clubGiftsCount, friendRequestsCount } = input
+  const { currentSeason, players, clubs, playerTeamId, lastLoginDate, seenJoinIds, seenInjuryIds, pendingGiftsCount, playerCreateCount, clubGiftsCount, friendRequestsCount } = input
 
   // 自チームの現役選手か。退団・引退した選手あての通知（幽霊通知）を数から外すのに使う。
   // ケガ中(status === 'injured')も現役。ここを 'active' だけで見ていたので、
@@ -275,7 +275,7 @@ export function collectNotifications(input: NotifInput) {
     && players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status !== 'retired' && !p.transferListed && !p.loan))
 
   // スポンサー枠（3）が満杯なら、これ以上契約できないのでオファー通知は出さない
-  const myTeam = myClub({ teams, playerTeamId })
+  const myTeam = myClub({ clubs, playerTeamId })
   const sponsorSlotsLeft = 3 - (myTeam?.sponsors?.length ?? 0)
   const sponsorOffers = sponsorSlotsLeft > 0 ? (currentSeason.sponsorOffers ?? []) : []
 

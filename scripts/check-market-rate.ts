@@ -18,17 +18,16 @@ Math.random = rnd
 
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { runTransferMarket } from '../src/engine/transferMarket'
 import { CPU_TICK_TRANSFERS, cpuMarketRounds } from '../src/engine/cpuOffseason'
 import { generateSeasonRaces } from '../src/data/races'
 import { tierOf, tierOfClubId, tierOfPlayerClub } from '../src/utils/clubTier'
 import { buildDestination, regionOfLeague } from '../src/utils/transferDecision'
-import { allTieredClubs } from '../src/utils/world'
-import { allForeignClubs, leagueOfClub } from '../src/utils/clubs'
+import { clubById, isJpelLeague, jpelClubs, jpelClubById } from '../src/utils/world'
 import { ROSTER_MAX, ROSTER_MIN } from '../src/data/rosterRules'
-import type { Player, Season, Team } from '../src/types'
+import type { Player, Season, Team, WorldClub } from '../src/types'
 import { newSeasonStandings } from '../src/utils/league'
 import { seasonLeaguesFixture } from './seasonFixture'
 
@@ -45,20 +44,21 @@ const TOLERANCE = 1.5
 const YEAR = 2030, MY = 'tokyo'
 const base = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
 const cpu = generateCpuRosters(base, YEAR)
-const fgen = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+const fgen = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
 let players: Player[] = [...cpu.cpuPlayers, ...fgen.players]
 // ★自チームと、赤字のCPUを1クラブ仕込む（下の「赤字は消えない」で見る）
 const RED_CPU = base.find(t => t.id !== MY)!.id
 const MY_DEBT = -120_000_000
-let teams = base.map(t => ({ ...t, finance: { ...(t.finance ?? {}),
+const teams = base.map(t => ({ ...t, finance: { ...(t.finance ?? {}),
   budget: t.id === MY ? MY_DEBT : t.id === RED_CPU ? -80_000_000 : 400_000_000 } })) as Team[]
-let leagues = fgen.updatedLeagues
-const CLUBS = allTieredClubs(teams, leagues)
+let clubs: WorldClub[] = [...teams, ...INITIAL_FOREIGN_CLUBS]
+const CLUBS = clubs
 const destinationOf = (clubId: string, player: Player) => {
-  const team = teams.find(t => t.id === clubId)
+  const club = clubById(clubs, clubId)
+  const team = club && isJpelLeague(club.leagueId) ? club : undefined
   const tier = team ? tierOf(team) : (tierOfPlayerClub(clubId, CLUBS) ?? tierOfClubId(clubId))
-  const lg = team ? undefined : leagueOfClub(leagues, clubId)
-  return buildDestination(clubId, tier, players, { isForeign: !team, region: regionOfLeague(lg?.id), player })
+  const lg = team ? undefined : club?.leagueId
+  return buildDestination(clubId, tier, players, { isForeign: !team, region: regionOfLeague(lg), player })
 }
 
 // 1部の日程（03/15〜12/27）＋ ドラフトの直前（翌年2/1）。回数は cpuMarketRounds 任せ
@@ -81,17 +81,17 @@ for (const date of dates) {
   // ★1回ごとに違う日付を渡す（同じ日付を使い回すと2回目以降が空振りする）
   for (const roundDate of step.dates) {
     rounds++
-    const r = runTransferMarket({ players, teams, foreignLeagues: leagues }, {
+    const r = runTransferMarket({ players, clubs }, {
       playerTeamId: MY, year: YEAR, season, pastSeasons: [],
       rosterCapFor: () => ROSTER_MAX, destinationOf,
       excludeIds: new Set<string>(), maxMoves: CPU_TICK_TRANSFERS, date: roundDate })
-    players = r.players; teams = r.teams; leagues = r.foreignLeagues
+    players = r.players; clubs = r.clubs
     total += r.records.length
     perRound.push(r.records.length)
   }
 }
 
-const clubCount = teams.length - 1 + allForeignClubs(leagues).length
+const clubCount = clubs.length - 1
 const perClub = total / clubCount
 console.log(`  1年で ${rounds}回まわり、移籍 ${total}件`)
 console.log(`  1回あたり ${perRound.map(n => n).join(' ')}（上限 ${CPU_TICK_TRANSFERS}）`)
@@ -107,7 +107,7 @@ check('どの回もだいたい同じ件数（年に一度の塊が戻ってい�
   `最少${mn}件 / 最多${mx}件`)
 
 // 1年回しても名簿が壊れない
-const sizes = teams.filter(t => t.id !== MY)
+const sizes = jpelClubs(clubs).filter(t => t.id !== MY)
   .map(t => players.filter(p => p.teamId === t.id && p.status === 'active').length)
 console.log(`  1年後の国内の在籍 最少${Math.min(...sizes)} 中央${[...sizes].sort((a, b) => a - b)[25]} 最多${Math.max(...sizes)}`)
 check(`下限(${ROSTER_MIN}人)を割ったクラブが無い`, Math.min(...sizes) >= ROSTER_MIN, `最少 ${Math.min(...sizes)}人`)
@@ -123,8 +123,8 @@ check(`上限(${ROSTER_MAX}人)を超えたクラブが無い`, Math.max(...size
 //
 //   自チームは市場に並ばない（買いも売りもしない）ので、**1円も動かないのが正しい**。
 //   赤字のCPUは売れば増えるので「そのまま」ではなく「勝手に0にならない」を見ます。
-const myAfter = teams.find(t => t.id === MY)!.finance.budget
-const redAfter = teams.find(t => t.id === RED_CPU)!.finance.budget
+const myAfter = jpelClubById(clubs, MY)!.finance.budget
+const redAfter = jpelClubById(clubs, RED_CPU)!.finance.budget
 console.log(`  1年後の残高 自チーム ${(myAfter / 1e8).toFixed(2)}億 / 赤字CPU ${(redAfter / 1e8).toFixed(2)}億`)
 check('自チームの残高は市場を回しても1円も動かない（赤字が消えない）',
   myAfter === MY_DEBT, `${MY_DEBT.toLocaleString()} → ${myAfter.toLocaleString()}`)

@@ -8,7 +8,7 @@ import { useGameStore } from '../../store/gameStore'
 import { C, SAIRA, F, bottomStack } from '../../styles/tokens'
 import type { Player, TransferListing } from '../../types'
 import { fmtYen } from '../../utils/money'
-import { myClub, allTieredClubs } from '../../utils/world'
+import { myClub } from '../../utils/world'
 import { tierOfPlayerClub } from '../../utils/clubTier'
 import GlassButton from '../ui/GlassButton'
 import { facilitiesOf } from '../../utils/facilities'
@@ -33,19 +33,19 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
   const over = fee > budget
 
   // 本人の意向：クラブが合意しても本人が納得しなければ成立しない（契約段階と同じ判定）ので、入札前に見せる
-  const { players, currentSeason, pastSeasons, teams, playerTeamId, foreignLeagues, destinationOf, playerTierOf } = useGameStore()
+  const { players, currentSeason, pastSeasons, clubs, playerTeamId, destinationOf, playerTierOf } = useGameStore()
   // 行き先の姿は store の destinationOf 1本。**成立したときに実際に使われるものと同じ**。
   // 以前はここに「格」だけを渡していて、中で空のロスターから行き先が作られていた。
   // そのため序列・優勝・ECL・憧れの地域・成長上限が全部抜けた答えを表示していて、
   // 本人の実際の答えと 40.4% 食い違っていた（「前向き」と出るのに断られる）
   const myDest = destinationOf(playerTeamId, player)
-  const srcTier = tierOfPlayerClub(player.teamId, allTieredClubs(teams, foreignLeagues))
-  const scoutLv = facilitiesOf(myClub({ teams, playerTeamId })).scoutOffice
+  const srcTier = tierOfPlayerClub(player.teamId, clubs)
+  const scoutLv = facilitiesOf(myClub({ clubs, playerTeamId })).scoutOffice
   const consentBase = scoutLv * 0.02
   // 出場率は utils/playRate 1本。**store の finalizeTransfer と同じ数字を見ること**
   // （画面が「前向き」と出すのに store が断る、が起きる）
   const { fraction: bFrac, teamRaces: bRaces } = playRateOf(
-    player.id, player.teamId, currentSeason, teams, foreignLeagues, prevSeasonOf(pastSeasons, currentSeason.year))
+    player.id, player.teamId, currentSeason, clubs, prevSeasonOf(pastSeasons, currentSeason.year))
   // 年俸ボーナス（相場1.2倍=+0.1 / 1.5倍=+0.2）でどこまで説得できるかを段階表示
   const mind = playerConsentToMove(player, myDest, srcTier, bFrac, bRaces, consentBase, true, playerTierOf(player)).ok ? 'willing'
     : playerConsentToMove(player, myDest, srcTier, bFrac, bRaces, consentBase + 0.1, true, playerTierOf(player)).ok ? 'salary12'
@@ -56,7 +56,7 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
   // 引き抜き耐性：戦力に入っているか（序列）1本。合否判定(store)と同じ関数を使い、ズレを防ぐ。
   // 出品中は割増を適用しない（クラブが希望額を提示して売りに出しているため open 扱い）。
   const kStatus = listing ? 'open'
-    : keyPlayerStatus(player, { players, teams, foreignLeagues, currentSeason, pastSeasons })
+    : keyPlayerStatus(player, { players, clubs, currentSeason, pastSeasons })
   const isKeyGuard = kStatus === 'key'  // 主力＝`POACH_PREMIUM` の割増
   const isLocked = kStatus === 'locked' // 新人・データ不足で獲得不可
   const base = bidThreshold(val, player.contract.yearsLeft <= 1, isKeyGuard)

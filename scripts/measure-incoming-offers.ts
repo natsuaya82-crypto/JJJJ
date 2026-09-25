@@ -15,13 +15,13 @@ import { generateTransferActivity } from '../src/engine/cpuMarket'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { drawSeasonSchedules } from '../src/data/races'
 import { divisionOf } from '../src/utils/league'
 import { tierBudget, tierOf } from '../src/utils/clubTier'
 import { buildDestination, regionOfLeague } from '../src/utils/transferDecision'
 import { marketValueOf } from '../src/utils/playerUtils'
-import type { ForeignClub, IncomingOffer, Player, Team } from '../src/types'
+import type { ForeignClub, IncomingOffer, Player, Team, WorldClub } from '../src/types'
 
 const MY = 'tokyo'
 const YEAR = 2030
@@ -31,9 +31,10 @@ const teams: Team[] = ([...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[])
   .map(t => ({ ...t, finance: { ...t.finance, budget: tierBudget(t) } }))
 // ★海外クラブは**名簿ごと**用意する。名簿が空だと「穴も序列も出せない」ので
 //   1クラブも打診してこない＝海外の枝を測っていない世界になる（最初に書いた版がこれ）
-const fg = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
-const foreignClubs: ForeignClub[] = fg.updatedLeagues.flatMap(l =>
-  l.clubs.map(c => ({ ...c, leagueId: l.id, finance: { budget: tierBudget(c as never) } }))) as ForeignClub[]
+const fg = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
+const foreignClubs: ForeignClub[] = INITIAL_FOREIGN_CLUBS.map(c => ({ ...c, finance: { budget: tierBudget(c) } }))
+// 世界のクラブは1つの並び（国内52 → 海外180）
+const clubs: WorldClub[] = [...teams, ...foreignClubs]
 const foreignPlayers: Player[] = fg.players
 // ★部によってレース数が違う（1部10戦・2部8戦・3部7戦・`DIVISION_RACE_DATES`）。
 //   **上限は必ず埋まる**ので「打診が来るレース数 × 1レースの上限」がそのまま1年の件数になる。
@@ -47,7 +48,7 @@ const teamById = new Map(teams.map(t => [t.id, t]))
 const foreignById = new Map(foreignClubs.map(c => [c.id, c]))
 // 行き先の姿。store の destinationOf と同じ材料（この世界は順位表を持たない）
 // 市場価値は store の `marketValueOf` と同じ1本
-const mv = (p: Player) => marketValueOf(p, { players: [], teams, currentSeason: { year: YEAR, races: [] } })
+const mv = (p: Player) => marketValueOf(p, { players: [], clubs: teams, currentSeason: { year: YEAR } })
 const destOf = (all: Player[]) => (clubId: string, player: Player) => {
   const c = foreignById.get(clubId)
   const t = c ? tierOf(c as never) : tierOf(teamById.get(clubId)!)
@@ -63,7 +64,7 @@ function runOneYear(players: Player[]) {
   const newPerRace: number[] = []
   for (let i = 0; i < races.length; i++) {
     const r = generateTransferActivity(
-      players, teams, MY, i, [], live, [], new Set(), YEAR, races.length, foreignClubs,
+      players, clubs, MY, i, [], live, [], new Set(), YEAR, races.length,
       () => ({ fraction: 0, teamRaces: 0 }), destOf(players), mv)
     const fresh = r.incomingOffers.filter(o => !live.some(l => l.id === o.id))
     arrived.push(...fresh)

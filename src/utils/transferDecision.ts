@@ -207,7 +207,7 @@ export const ROOKIE_GUARD_RACES = 3
 export function keyPlayerStatus(p: Player, w: PlayRateWorld): 'locked' | 'key' | 'open' {
   // 満了間近・不満は守らない（普通に動く）
   if (p.contract.yearsLeft <= 1 || (p.morale ?? MORALE_DEFAULT) < 45) return 'open'
-  const { teamRaces } = playRateOf(p.id, p.teamId, w.currentSeason, w.teams, w.foreignLeagues,
+  const { teamRaces } = playRateOf(p.id, p.teamId, w.currentSeason, w.clubs,
     prevSeasonOf(w.pastSeasons, w.currentSeason.year))
   // ドラフト当年の新人は、名簿の中の位置がまだ姿になっていないあいだだけ絶対に取れない
   if ((p.draftYear ?? w.currentSeason.year) >= w.currentSeason.year && teamRaces <= ROOKIE_GUARD_RACES) return 'locked'

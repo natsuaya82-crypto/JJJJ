@@ -24,12 +24,12 @@ import { generateLoanOffers } from '../src/engine/cpuMarket'
 import { generateCpuRosters } from '../src/engine/playerGenerator'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { generateSeasonRaces } from '../src/data/races'
 import { ovr } from '../src/utils/playerUtils'
 import { divisionOf } from '../src/utils/league'
 import { tierBudget } from '../src/utils/clubTier'
-import type { ForeignClub, IncomingLoanOffer, Player, Team } from '../src/types'
+import type { IncomingLoanOffer, Player, Team, WorldClub } from '../src/types'
 
 const MY = 'tokyo'
 const YEAR = 2030
@@ -37,8 +37,8 @@ const RUNS = 200   // 200年ぶん回して1年あたりに直す
 
 const teams: Team[] = ([...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[])
   .map(t => ({ ...t, finance: { ...t.finance, budget: tierBudget(t) } }))
-const foreignClubs: ForeignClub[] = FOREIGN_LEAGUES.flatMap(l =>
-  l.clubs.map(c => ({ ...c, leagueId: l.id }))) as ForeignClub[]
+// 世界のクラブは1つの並び（国内52 → 海外180）
+const clubs: WorldClub[] = [...teams, ...INITIAL_FOREIGN_CLUBS]
 const races = generateSeasonRaces(YEAR, divisionOf(teams.find(t => t.id === MY)))
 
 const fmt = (n: number, d = 2) => n.toFixed(d)
@@ -52,7 +52,7 @@ function runOneYear(players: Player[]): IncomingLoanOffer[] {
   let live: IncomingLoanOffer[] = []
   for (let i = 0; i < races.length; i++) {
     const r = generateLoanOffers({
-      players, teams, foreignClubs, playerTeamId: MY, raceIndex: i,
+      players, clubs, playerTeamId: MY, raceIndex: i,
       existingLoans: live,
       races, season: { year: YEAR, races }, currentYear: YEAR,
     })

@@ -138,8 +138,8 @@ export default function RacePanel({
   }, [waiting])
 
   // ── 表示用のチーム・選手 ──
-  const teams: Team[] = useMemo(() => payload.teams.map(asTeam), [payload])
-  const teamMap = useMemo(() => new Map(teams.map(t => [t.id, t])), [teams])
+  const entries: Team[] = useMemo(() => payload.teams.map(asTeam), [payload])
+  const teamMap = useMemo(() => new Map(entries.map(t => [t.id, t])), [entries])
   // ★相手の名前が出るところには段位の紋章を出す（オーナー・2026-08-18「全部です」）。
   //   引くのは `useRatedRanks` 1本で**出場ぶんまとめて**（`FinishPanel` と同じ形）
   const ranks = useRatedRanks(useMemo(() => [...teamMap.keys()], [teamMap]))
@@ -311,7 +311,7 @@ export default function RacePanel({
         </div>
 
         <RaceTrack
-          teams={teams}
+          raceTeams={entries}
           players={players}
           segRunnerIds={segRunnerIds}
           playerTeamId={meId}

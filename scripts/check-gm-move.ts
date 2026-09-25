@@ -30,12 +30,13 @@ import { useGameStore } from '../src/store/gameStore'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { generateSeasonRaces } from '../src/data/races'
 import { DIVISIONS, DIVISION_RACES, divisionOf, newSeasonStandings } from '../src/utils/league'
 import type { Player, Race, SeasonStanding, Team } from '../src/types'
 import { seasonLeaguesFixture } from './seasonFixture'
-import { myLeagueRaces } from '../src/utils/world'
+import { jpelClubById, myLeagueRaces } from '../src/utils/world'
 
 const problems: string[] = []
 const check = (name: string, ok: boolean, detail = '') => {
@@ -53,7 +54,7 @@ const TENURE_FROM = YEAR - 9
 function buildWorld() {
   const base = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
   const cpu = generateCpuRosters(base, YEAR)
-  const fgen = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+  const fgen = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
   const players: Player[] = [...cpu.cpuPlayers, ...fgen.players]
     .map((p, i) => ({ ...p, contract: { ...p.contract, yearsLeft: 1 + (i % 3) } }))
   // ★自チームの選手に移籍方針を付けておく。付いていないと「剥がれたか」を見ても
@@ -69,7 +70,7 @@ function buildWorld() {
     })
   }
   const foreignStandings: Record<string, SeasonStanding[]> = {}
-  for (const l of fgen.updatedLeagues) foreignStandings[l.id] = l.clubs.map((c, i) => ({ teamId: c.id, totalPoints: (20 - i) * 5, raceResults: [] }))
+  for (const l of FOREIGN_LEAGUES) foreignStandings[l.id] = l.clubs.map((c, i) => ({ teamId: c.id, totalPoints: (20 - i) * 5, raceResults: [] }))
 
   const teams = base.map(t => ({ ...t, finance: { ...(t.finance ?? {}), budget: 400_000_000 } })) as Team[]
   const allRaces = generateSeasonRaces(YEAR, divisionOf(teams.find(t => t.id === MY)))
@@ -78,9 +79,8 @@ function buildWorld() {
   useGameStore.setState({
     isInitialized: true,
     playerTeamId: MY,
-    teams,
+    clubs: [...teams, ...INITIAL_FOREIGN_CLUBS],
     players,
-    foreignLeagues: fgen.updatedLeagues,
     gmTenures: [{ teamId: MY, fromYear: TENURE_FROM }],
     gmOffers: [],
     pendingGmMove: null,
@@ -130,7 +130,7 @@ console.log('[③] 予約中はもう退任できない（★13-a 取り消せ�
 
 console.log('')
 console.log('[④] endSeason を通すと移っている')
-const oldTeamName = S().teams.find(t => t.id === MY)?.gmName
+const oldTeamName = jpelClubById(S().clubs, MY)?.gmName
 S().endSeason()
 {
   check('**playerTeamId が新チームになった**', S().playerTeamId === destId, S().playerTeamId)
@@ -145,7 +145,7 @@ S().endSeason()
 console.log('')
 console.log('[⑤] 移った先のもので始まっている')
 {
-  const dest = S().teams.find(t => t.id === destId)
+  const dest = jpelClubById(S().clubs, destId)
   check('新チームが自分のものになっている', !!dest?.isPlayerControlled)
   check('GM名を持って行っている', dest?.gmName === oldTeamName, `${dest?.gmName} / ${oldTeamName}`)
   check('予算が入っている', (S().currentSeason.initialBudget ?? 0) > 0,
@@ -161,7 +161,7 @@ console.log('[⑤] 移った先のもので始まっている')
 console.log('')
 console.log('[⑥] 旧チームは置いていく（★13-c）')
 {
-  const old = S().teams.find(t => t.id === MY)
+  const old = jpelClubById(S().clubs, MY)
   check('旧チームはCPUに戻っている', !old?.isPlayerControlled)
   const stillFlagged = S().players.filter(p => p.teamId === MY && (p.noSale || p.loanListed || p.transferListed))
   check('**旧チームの移籍方針が剥がれている**', stillFlagged.length === 0, `${stillFlagged.length}人`)

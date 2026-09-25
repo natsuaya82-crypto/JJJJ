@@ -9,10 +9,9 @@
 //   他の入口（承諾・逆提示・トレード・引き抜き）は移す瞬間に本人へ聞いているのに、
 //   ここだけ「競り勝ったクラブがいる＝確定」で、本人が断って残る道が無かった。
 // ★自チームから出て行った選手とは1年間交渉不可（lockUntilYear）。
-import type { ForeignLeague, Player, Season, Team, TransferListing, TransferRecord, ExpiredNegotiation } from '../types'
+import type { Player, Season, TransferListing, TransferRecord, ExpiredNegotiation, WorldClub } from '../types'
 import type { ClubTier } from '../utils/clubTier'
 import { MAJOR_NEWS_OVR, tierOfPlayerClub } from '../utils/clubTier'
-import { allTieredClubs } from '../utils/world'
 import { bigClub, findClub } from '../utils/clubs'
 import { movePlayer, type DepartureNotice } from '../utils/movePlayer'
 import { settleForeignFee } from '../utils/clubMoney'
@@ -24,8 +23,7 @@ import { playRateOf, prevSeasonOf, type PlayRateSeason } from '../utils/playRate
 
 export function applySettledTransfers(params: {
   players: Player[]
-  teams: Team[]
-  foreignLeagues: ForeignLeague[]
+  clubs: WorldClub[]
   /** ニュースのOVR表示に使う「動く前」の名簿 */
   origPlayers: Player[]
   currentSeason: Season
@@ -42,17 +40,16 @@ export function applySettledTransfers(params: {
   playerTierOf: (player: Player) => ClubTier
 }): {
   players: Player[]
-  teams: Team[]
+  /** 移籍金を動かしたあとのクラブ（国内は movePlayer・海外は settleForeignFee）。**必ず state に戻すこと** */
+  clubs: WorldClub[]
   records: TransferRecord[]
-  /** 海外クラブの資金を動かしたあとのリーグ。**必ず state に戻すこと**（settleForeignFee） */
-  foreignLeagues: ForeignLeague[]
   departureNotices: DepartureNotice[]
   income: number
   outbidNews: NewsItem[]
   /** 競り勝ったクラブを本人が断って残ったぶんの通知 */
   stayNegs: ExpiredNegotiation[]
 } {
-  const { origPlayers, teams, foreignLeagues, currentSeason, pastSeasons, listings, playerTierOf, txList: cpuTxList, outbidMoves, playerTeamId, raceDate, raceClock, destinationOf } = params
+  const { origPlayers, clubs, currentSeason, pastSeasons, listings, playerTierOf, txList: cpuTxList, outbidMoves, playerTeamId, raceDate, raceClock, destinationOf } = params
   const players = params.players
   const stayNegs: ExpiredNegotiation[] = []
   // CPUトレード反映 ＋ 移籍リスト入りフラグの同期（他チーム選手にも「移籍希望」が立つ）
@@ -69,19 +66,18 @@ export function applySettledTransfers(params: {
   // 所属・名簿の付け替え・移籍金の授受・移籍履歴・退団のお知らせが自チームの操作と同じ形になる。
   // 自チームから出て行った選手とは1年間交渉不可（transferLockedUntilYear）。
   let playersWithCpuTx: Player[] = playersListedSynced
-  let teamsWithCpuTx = teams
+  let clubsNow = clubs
   // ★**海外クラブが絡む移籍金の精算**（`utils/clubMoney` の settleForeignFee 1本）。
-  //   `movePlayer` は `teams`（国内52クラブ）しか知らないので、相手が海外クラブだと
+  //   `movePlayer` は日本のリーグのクラブのお金しか動かさないので、相手が海外クラブだと
   //   片側しかお金が動きません。**`movePlayer` のすぐ外で必ず呼ぶこと**
   //   （国内同士なら何も起きないので、ここで分岐しない）。
   //   ★競り負けの道はここが抜けていて、**海外クラブが競り勝つと移籍金を払わずに
   //     選手を持っていけて**いました（オーナー・2026-08-16 の調べで発覚）。
-  let leaguesAfterFees: ForeignLeague[] = foreignLeagues
   const cpuTxRecords: TransferRecord[] = []
   const myCpuSaleNotices: DepartureNotice[] = []
   let myCpuSaleIncome = 0
   for (const tx of cpuTxList) {
-    const m = movePlayer({ players: playersWithCpuTx, teams: teamsWithCpuTx }, tx.playerId, tx.toTeamId, {
+    const m = movePlayer({ players: playersWithCpuTx, clubs: clubsNow }, tx.playerId, tx.toTeamId, {
       year: currentSeason.year,
       date: raceDate,
       fee: tx.fee,
@@ -90,11 +86,10 @@ export function applySettledTransfers(params: {
       ...(tx.fromTeamId === playerTeamId ? { lockUntilYear: currentSeason.year + 1 } : {}) })
     if (!m.ok) continue
     playersWithCpuTx = m.players
-    teamsWithCpuTx = m.teams
     if (m.record) cpuTxRecords.push(m.record)
     if (m.notice) myCpuSaleNotices.push(m.notice)
     myCpuSaleIncome += m.income
-    leaguesAfterFees = settleForeignFee(leaguesAfterFees, tx.fromTeamId, tx.toTeamId, tx.fee)
+    clubsNow = settleForeignFee(m.clubs, tx.fromTeamId, tx.toTeamId, tx.fee)
   }
 
   // 競り負けた入札。上回ったクラブが実際にその選手を獲る（言うだけで選手が残ると、
@@ -103,17 +98,17 @@ export function applySettledTransfers(params: {
   const outbidNewsItems: NewsItem[] = []
   for (const mv of outbidMoves) {
     const before = playersWithCpuTx.find(p => p.id === mv.playerId)
-    const fromShort = before ? findClub(teamsWithCpuTx, foreignLeagues, before.teamId)?.shortName ?? '' : ''
+    const fromShort = before ? findClub(clubsNow, before.teamId)?.shortName ?? '' : ''
     // ★移す直前に本人の意思をもう一度みる。**移籍の可否は appraiseMove 1本**。
     //   他の入口（承諾・逆提示・トレード・引き抜き）は移す瞬間に本人へ聞いているのに、
     //   ここだけ「競り勝ったクラブがいる＝確定」で、本人が断って残る道が無かった。
     //   競り上げの間に序列や状況が変わることもあるので、ここで聞き直す。
     if (before) {
       const dest = destinationOf(mv.toTeamId, before)
-      const srcTier = tierOfPlayerClub(before.teamId, allTieredClubs(teams, foreignLeagues))
+      const srcTier = tierOfPlayerClub(before.teamId, clubs)
       // ★出場率は utils/playRate 1本。ベタ書きも省略もしないこと（関門が黙って死ぬ）
       const { fraction, teamRaces } = playRateOf(before.id, before.teamId, currentSeason,
-        teams, foreignLeagues, prevSeasonOf(pastSeasons, currentSeason.year))
+        clubs, prevSeasonOf(pastSeasons, currentSeason.year))
       if (!appraiseMove(before, dest, { srcTier, playFraction: fraction, teamRaces,
         playerTier: playerTierOf(before) }).ok) {
         // 本人が断った＝残留。誰の手にも渡らないので、理由を通知に残す
@@ -123,7 +118,7 @@ export function applySettledTransfers(params: {
         continue
       }
     }
-    const m = movePlayer({ players: playersWithCpuTx, teams: teamsWithCpuTx }, mv.playerId, mv.toTeamId, {
+    const m = movePlayer({ players: playersWithCpuTx, clubs: clubsNow }, mv.playerId, mv.toTeamId, {
       year: currentSeason.year,
       date: raceDate,
       fee: mv.fee,
@@ -131,9 +126,8 @@ export function applySettledTransfers(params: {
       myTeamId: playerTeamId })
     if (!m.ok) continue
     playersWithCpuTx = m.players
-    teamsWithCpuTx = m.teams
     if (m.record) cpuTxRecords.push(m.record)
-    leaguesAfterFees = settleForeignFee(leaguesAfterFees, before?.teamId ?? '', mv.toTeamId, mv.fee)
+    clubsNow = settleForeignFee(m.clubs, before?.teamId ?? '', mv.toTeamId, mv.fee)
     outbidNewsItems.push({
       date: raceDate,
       headline: transferHeadline({
@@ -143,13 +137,11 @@ export function applySettledTransfers(params: {
       category: 'trade' as const,
       relatedIds: [mv.playerId],
       // 大ニュースはOVR85以上か格1のクラブが絡んだとき（utils/clubTier 1本）
-      major: (ovr(origPlayers.find(x => x.id === mv.playerId) ?? ({ ratings: {} } as Player)) >= MAJOR_NEWS_OVR) || bigClub({ teams, foreignLeagues }, mv.toTeamId),
+      major: (ovr(origPlayers.find(x => x.id === mv.playerId) ?? ({ ratings: {} } as Player)) >= MAJOR_NEWS_OVR) || bigClub({ clubs }, mv.toTeamId),
       toTeamId: mv.toTeamId })
   }
   return {
-    players: playersWithCpuTx, teams: teamsWithCpuTx, records: cpuTxRecords,
-    // 海外クラブの資金を動かしたぶん。呼ぶ側はこれを state に戻すこと
-    foreignLeagues: leaguesAfterFees,
+    players: playersWithCpuTx, clubs: clubsNow, records: cpuTxRecords,
     departureNotices: myCpuSaleNotices, income: myCpuSaleIncome, outbidNews: outbidNewsItems, stayNegs,
   }
 }

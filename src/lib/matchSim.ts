@@ -198,14 +198,15 @@ export function buildRacePayload(args: {
   teamCount: number
   forfeits?: string[]
 }): MatchRacePayload {
-  const { raceNo, course, startAt, teams, rosters, orders, teamCount } = args
+  // `teams` は部屋の参加者（世界のクラブではない）
+  const { raceNo, course, startAt, teams: entries, rosters, orders, teamCount } = args
   const race = courseToRace(course, raceNo + 1)
 
   // 計算用に選手IDを付け替える
   const simPlayers: Player[] = []
   const runnerInfo = new Map<string, MatchRunnerInfo>()
   const lineups: Record<string, Record<number, string>> = {}
-  for (const t of teams) {
+  for (const t of entries) {
     const roster = rosters[t.id] ?? []
     const byId = new Map(roster.map(p => [p.id, p]))
     const line: Record<number, string> = {}
@@ -226,7 +227,7 @@ export function buildRacePayload(args: {
     lineups[t.id] = line
   }
 
-  const results = simulateRace(race, lineups, teams.map(asTeam), simPlayers, 0)
+  const results = simulateRace(race, lineups, entries.map(asTeam), simPlayers, 0)
 
   // 配点のルールは本編と同じ1本（utils/league）。ただし**人数は開始時のもので固定**する。
   // simulateRace が返す点はそのときの出走数で計算されるので、途中で誰かが抜けると
@@ -256,7 +257,7 @@ export function buildRacePayload(args: {
     race: raceNo,
     courseId: course.id,
     startAt,
-    teams,
+    teams: entries,
     runners: [...runnerInfo.values()],
     segments,
     standings,

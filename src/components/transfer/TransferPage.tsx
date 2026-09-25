@@ -33,7 +33,8 @@ import { fmtYen } from '../../utils/money'
 import { offersAwaitingReply } from '../../utils/notifItems'
 import { SpecChip } from '../player/PlayerChips'
 import PlayerList from '../player/PlayerList'
-import { myClub } from '../../utils/world'
+import { clubMap, clubsInLeague, jpelClubById, jpelClubIdSet, jpelClubs, otherClubs } from '../../utils/world'
+import { FOREIGN_LEAGUE_DEFS } from '../../data/leagues'
 
 const MARKET_SORT_OPTIONS: { value: PlayerSortKey; label: string }[] = [
   { value: 'ovr', label: PLAYER_SORT_LABEL.ovr },
@@ -50,7 +51,7 @@ const MARKET_PAGE = 100
 
 export default function TransferPage() {
   const {
-    teams, players, playerTeamId, currentSeason, foreignLeagues, pastSeasons,
+    clubs, players, playerTeamId, currentSeason, pastSeasons,
     ensureFuturePicks, startAcquisitionOffer,
     submitTransferBid, submitLoanRequest,
     acceptIncomingOffer, declineIncomingOffer,
@@ -134,7 +135,7 @@ export default function TransferPage() {
   const { results: offerResults, push: pushOfferResult, dismiss: dismissOfferResult } = useOfferResults()
 
 
-  const myTeam = myClub({ teams, playerTeamId })
+  const myTeam = jpelClubById(clubs, playerTeamId)
   if (!myTeam) return null
 
   // 補強不可の判定は `utils/bidGate` の各 `*BlockReason` の中（`data/economy` の `reinforcementBanned` 1本）。**同じ式をここに書き写さないこと**
@@ -176,21 +177,20 @@ export default function TransferPage() {
       />
 
       {tab === 'market' && (() => {
-        const allLeagues = foreignLeagues ?? []
-
+        const cpuJpel = otherClubs(jpelClubs(clubs), playerTeamId)
         const leagueOptions = [
           { id: 'jpel', name: '日本 (JPEL)' },
-          ...allLeagues.map(l => ({ id: l.id, name: l.name })),
+          ...FOREIGN_LEAGUE_DEFS.map(l => ({ id: l.id, name: l.name })),
         ]
         const clubsForLeague: { id: string; name: string }[] =
           mktLeague === 'all'
             ? [
-                ...teams.filter(t => t.id !== playerTeamId).map(t => ({ id: t.id, name: t.name })),
-                ...allLeagues.flatMap(l => l.clubs.map(c => ({ id: c.id, name: c.name }))),
+                ...cpuJpel.map(t => ({ id: t.id, name: t.name })),
+                ...FOREIGN_LEAGUE_DEFS.flatMap(l => clubsInLeague(clubs, l.id).map(c => ({ id: c.id, name: c.name }))),
               ].sort((a, b) => a.name.localeCompare(b.name))
             : mktLeague === 'jpel'
-            ? teams.filter(t => t.id !== playerTeamId).map(t => ({ id: t.id, name: t.name })).sort((a, b) => a.name.localeCompare(b.name))
-            : (allLeagues.find(l => l.id === mktLeague)?.clubs ?? []).map(c => ({ id: c.id, name: c.name }))
+            ? cpuJpel.map(t => ({ id: t.id, name: t.name })).sort((a, b) => a.name.localeCompare(b.name))
+            : (FOREIGN_LEAGUE_DEFS.some(l => l.id === mktLeague) ? clubsInLeague(clubs, mktLeague) : []).map(c => ({ id: c.id, name: c.name }))
 
         // 枠で囲まない。下の細い線と文字だけで組む（レート戦・ロスターと同じ）
         const cell: React.CSSProperties = {
@@ -287,10 +287,8 @@ export default function TransferPage() {
         const listings = currentSeason.transferListings ?? []
         const listedIds = new Set(listings.map(l => l.playerId))
 
-        const jpelTeamIds = new Set(teams.map(t => t.id))
-        const allLeagues = foreignLeagues ?? []
-        const foreignClubToLeague: Record<string, string> = {}
-        for (const lg of allLeagues) for (const club of lg.clubs) foreignClubToLeague[club.id] = lg.id
+        const jpelTeamIds = jpelClubIdSet(clubs)
+        const leagueIdByClub = clubMap(clubs, c => c.leagueId)
 
         // 一覧に出す＝入札できる、なので判定は入札と同じものを使う（utils/transferEligibility.ts）。
         // ここに判定が無く、レンタルで貸している自分の選手や、よそが借りている選手まで
@@ -322,7 +320,7 @@ export default function TransferPage() {
               // 主力（データ上よく出場）は自チームが更新するので「契約切れ」候補から除外（移籍リスト入りは対象）
               // 出場率は「そのクラブが走っている日程」で数える1本（utils/playRate）。
               // 自分の部の日程で数えると、1部・2部の選手は全員0＝全員が主力でない扱いになる
-              const { fraction: frac, teamRaces: tr } = playRateOf(p.id, p.teamId, currentSeason, teams, foreignLeagues, prevSeasonOf(pastSeasons, currentSeason.year))
+              const { fraction: frac, teamRaces: tr } = playRateOf(p.id, p.teamId, currentSeason, clubs, prevSeasonOf(pastSeasons, currentSeason.year))
               // 走れているかを聞くのは `transferDecision` の `playingStatus` 1本
               return !!p.transferListed || playingStatus({ fraction: frac, teamRaces: tr }) !== 'playing'
             }
@@ -331,7 +329,7 @@ export default function TransferPage() {
           .filter(p => {
             if (f.league === 'all') return true
             if (f.league === 'jpel') return jpelTeamIds.has(p.teamId)
-            return foreignClubToLeague[p.teamId] === f.league
+            return leagueIdByClub.get(p.teamId) === f.league
           })
           .filter(p => f.team === 'all' || p.teamId === f.team)
           .filter(p => {
@@ -671,7 +669,7 @@ export default function TransferPage() {
             {(() => {
               // 直近オフに使う指名権(今シーズン+1)は売却不可。2シーズン以上先の未来指名権のみ売れる。
               const myPicks = (myTeam?.draftPicks ?? []).filter(pk => pk.year > currentSeason.year + 1)
-              const cpuTeamsList = teams.filter(t => t.id !== playerTeamId)
+              const cpuTeamsList = otherClubs(jpelClubs(clubs), playerTeamId)
               if (myPicks.length === 0) return null
               return (
                 <div style={{ marginTop: '22px' }}>
@@ -753,7 +751,7 @@ export default function TransferPage() {
         <div style={{ padding: '4px 18px' }}>
               <div style={{ fontSize: F.tiny, color: C.cyan, letterSpacing: '2px', fontWeight: '800', marginBottom: '12px', fontFamily: SAIRA }}>選手トレード — 取引相手チームを選択（国内のみ）</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  {teams.filter(t => t.id !== playerTeamId).map(t => {
+                  {otherClubs(jpelClubs(clubs), playerTeamId).map(t => {
                       // 所属は player.teamId が正（rosterSync）。roster配列だとズレたチームの平均OVRが狂う
                       const theirMain = squadPlayersOf(players, t.id)
                       const avgOvr = theirMain.length > 0 ? Math.round(theirMain.reduce((s, p) => s + ovr(p), 0) / theirMain.length) : 0

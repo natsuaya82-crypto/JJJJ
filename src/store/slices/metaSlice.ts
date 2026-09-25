@@ -3,7 +3,7 @@
 import type { GameStore, SetGame } from '../gameStore'
 import { loginPrevKey, loginTodayKey } from '../../utils/loginDate'
 import { ADS_PER_DAY, AD_REWARD_JEWELS, getAdDay } from '../../utils/ads'
-import { myClub, withMyClub, teamById } from '../../utils/world'
+import { myClub, withMyClub } from '../../utils/world'
 import { findClub } from '../../utils/clubs'
 import { canRegisterHof, isHofEligible, registerHof, removeHof } from '../../utils/hofRoster'
 import { MY_PLAYER_POINTS_GRANT, myPlayerBlockReason, myPlayerCaps } from '../../utils/myPlayer'
@@ -50,9 +50,7 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
     // 登録していい相手かは hofRoster の1本（レンタルで借りている選手は入れない）
     if (!isHofEligible(p, state.playerTeamId)) return false
     if (!canRegisterHof(state.hofRoster, playerId)) return false
-    const teamName = teamById(state.teams, p.teamId)?.name
-      ?? findClub(state.teams, state.foreignLeagues ?? [], p.teamId)?.name
-      ?? '—'
+    const teamName = findClub(state.clubs, p.teamId)?.name ?? '—'
     set({ hofRoster: registerHof(state.hofRoster, p, state.currentSeason.year, teamName) })
     return true
   },
@@ -189,7 +187,7 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
   updateMyTeam: (patch) => {
     set(s => ({
-      teams: withMyClub(s, t => ({
+      clubs: withMyClub(s, t => ({
         ...t,
         ...(patch.name !== undefined ? { name: patch.name } : {}),
         ...(patch.shortName !== undefined ? { shortName: patch.shortName } : {}),
@@ -250,14 +248,14 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
       isMyPlayer: true,
       yearsPro: 0 } as unknown as import('../../types').Player
     const moved = movePlayer(
-      { players: [...state.players, newPlayer], teams: state.teams },
+      { players: [...state.players, newPlayer], clubs: state.clubs },
       id, state.playerTeamId,
       { year: state.currentSeason.year, history: false },
     )
     if (!moved.ok) return false
     set({
       players: moved.players,
-      teams: moved.teams,
+      clubs: moved.clubs,
       playerCreateGrants: grants.slice(1) })
     return true
   },

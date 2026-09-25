@@ -134,11 +134,11 @@ const storeLike = {
   activeRacePhase: 'results', activeRaceSim: { tick: 3 }, activeRaceResults: { x: 1 },
   activeRaceLockedRace: { id: 'r1' }, activeRaceLockedRaceIndex: 4, setupData: { teamId: 't1' },
   // 消えたら困る
-  isInitialized: true, playerTeamId: 't1', players: [{ id: 'p1' }], teams: [{ id: 't1' }],
+  isInitialized: true, playerTeamId: 't1', players: [{ id: 'p1' }], clubs: [{ id: 't1' }, { id: 'l1c1' }],
   currentSeason: { year: 2046 }, pastSeasons: [{ year: 2045 }], draftState: { round: 1 },
   raceLineup: { 1: 'p1' }, lastRaceLineup: { 1: 'p2' }, seenJoinIds: ['a'], seenInjuryIds: ['b'],
   raceStrategy: 'balanced', raceTeamTalk: 'best', jewels: 120, adsRemoved: true,
-  foreignLeagues: [{ id: 'l1' }], transferHistory: [], worldAthleticsResults: [],
+  transferHistory: [], worldAthleticsResults: [],
 }
 const stripped = stripEphemeral(storeLike) as Record<string, unknown>
 for (const k of EPHEMERAL_KEYS) check(`${k} を保存しない`, !(k in stripped))
@@ -146,7 +146,7 @@ for (const k of EPHEMERAL_KEYS) check(`${k} を保存しない`, !(k in stripped
 const lost = Object.keys(storeLike).filter(k => !(EPHEMERAL_KEYS as readonly string[]).includes(k) && !(k in stripped))
 check('それ以外は全部残っている', lost.length === 0, `消えている: ${lost.join(', ')}`)
 // 出走メンバーの下書きは「作りかけだが閉じても残ってほしい物」。除外してはいけない
-for (const k of ['raceLineup', 'lastRaceLineup', 'draftState', 'seenJoinIds', 'currentSeason', 'pastSeasons', 'players', 'teams']) {
+for (const k of ['raceLineup', 'lastRaceLineup', 'draftState', 'seenJoinIds', 'currentSeason', 'pastSeasons', 'players', 'clubs']) {
   check(`${k} は必ず保存される`, k in stripped)
 }
 check('元の状態を書き換えていない', 'openPlayerId' in storeLike)

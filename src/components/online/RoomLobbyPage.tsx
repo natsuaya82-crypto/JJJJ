@@ -31,6 +31,7 @@ import { useRatedRanks } from '../../lib/useRatedRanks'
 import { RankBadge } from '../rated/ratedUi'
 import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
 import GlassButton from '../ui/GlassButton'
+import { jpelClubs } from '../../utils/world'
 
 
 /** ホストがルールを決める持ち時間 */
@@ -434,7 +435,8 @@ export default function RoomLobbyPage() {
     if (count <= 0) return
     const st = useGameStore.getState()
     const used = new Set(teamInfosRef.current.map(t => t.name))
-    const pool = (st.teams ?? []).filter(t => t.id !== st.playerTeamId && !used.has(t.name))
+    // 借りるのは日本のリーグのクラブ
+    const pool = jpelClubs(st.clubs).filter(t => t.id !== st.playerTeamId && !used.has(t.name))
     // 適当に混ぜて先頭から取る
     const shuffled = [...pool]
     for (let i = shuffled.length - 1; i > 0; i--) {

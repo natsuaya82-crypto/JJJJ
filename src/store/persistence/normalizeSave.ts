@@ -10,15 +10,14 @@
 import type { GameStore } from '../gameStore'
 import { ECL_COURSES } from '../../data/eclCourses'
 import { DEFICIT_RESCUE_BUDGET } from '../../data/economy'
-import { FOREIGN_LEAGUES } from '../../data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../../data/leagues'
 import { natStrengthRegion } from '../../data/nationalities'
 import { eclDateBetweenLeagueRaces } from '../../engine/eclSeries'
 import { WA_HOST_CITY } from '../../engine/worldAthletics'
 import { type Nationality, type Player } from '../../types'
-import { allForeignClubs } from '../../utils/clubs'
 import { fmtYen } from '../../utils/money'
 import { deficitRescueHeadline } from '../../utils/newsItems'
-import { myLeagueRaces } from '../../utils/world'
+import { clubMap, isJpelLeague, jpelClubIdSet, mapClubs, myLeagueRaces } from '../../utils/world'
 
 export function normalizeLoadedSave(p: Partial<GameStore>): void {
   // 監督の在任履歴が無い旧セーブは「最初のシーズンからずっと今のチーム」として1件だけ入れる。
@@ -84,7 +83,7 @@ export function normalizeLoadedSave(p: Partial<GameStore>): void {
   // 生成側の強化（ASIA上限84→90等）は新規選手にしか効かないため、現存選手も同じ水準へ引き上げて
   // アジア予選を即座に接戦化する。日本人と、日本リーグ所属の外国人（国内バランス維持）は対象外
   if (Array.isArray(p.players) && ((p as { balancePatch?: number }).balancePatch ?? 0) < 1) {
-    const jpelTeamIds = new Set((p.teams ?? []).map(t => t.id))
+    const jpelTeamIds = jpelClubIdSet(p.clubs)
     p.players = p.players.map(pl => {
       if (!pl.ratings || pl.nationality === 'JPN' || pl.status === 'retired') return pl
       const region = natStrengthRegion(pl.nationality)
@@ -103,14 +102,12 @@ export function normalizeLoadedSave(p: Partial<GameStore>): void {
   }
   // 海外クラブ名を静的データ（foreignLeagues.ts）の最新名に同期する（冪等）。
   // 「〜AC」ばかりに平坦化された旧名を、既存セーブでも個性名へ差し替えるための処理
-  if (Array.isArray(p.foreignLeagues)) {
-    const staticClub = new Map(allForeignClubs(FOREIGN_LEAGUES).map(c => [c.id, c]))
-    p.foreignLeagues = p.foreignLeagues.map(l => ({
-      ...l,
-      clubs: l.clubs.map(c => {
-        const sc = staticClub.get(c.id)
-        return sc && (sc.name !== c.name || sc.shortName !== c.shortName) ? { ...c, name: sc.name, shortName: sc.shortName } : c
-      }) }))
+  if (Array.isArray(p.clubs)) {
+    const staticClub = clubMap(INITIAL_FOREIGN_CLUBS, c => c)
+    p.clubs = mapClubs(p.clubs, c => {
+      const sc = staticClub.get(c.id)
+      return sc && (sc.name !== c.name || sc.shortName !== c.shortName) ? { ...c, name: sc.name, shortName: sc.shortName } : c
+    })
   }
   // ── 旧仕様の赤字判定バグで詰んだセーブの救済（1回だけ・deficitRescue=1）──
   // 旧 seasonOperatingResult は連続赤字ペナルティ適用「後」の減額グラントで黒字/赤字を判定していたため、
@@ -118,11 +115,13 @@ export function normalizeLoadedSave(p: Partial<GameStore>): void {
   // 補強禁止が永久に続き、さらに毎年ドラフト最上位指名権を失う状態に陥っていた。
   // 修正版の判定に切り替えるだけでは既に積み上がったカウントと借金は消えないため、
   // 全チームの連続赤字カウントをリセットし、残高マイナスのチームを救済ラインまで戻す。
-  if (Array.isArray(p.teams) && ((p as { deficitRescue?: number }).deficitRescue ?? 0) < 1) {
+  if (Array.isArray(p.clubs) && ((p as { deficitRescue?: number }).deficitRescue ?? 0) < 1) {
     let rescuedMe = false
     let myStreak = 0
     let myOldBudget = 0
-    p.teams = p.teams.map(t => {
+    // 救済するのは日本のリーグのクラブ（当時の入れ物＝国内52クラブ）
+    p.clubs = mapClubs(p.clubs, t => {
+      if (!isJpelLeague(t.leagueId) || !t.finance) return t
       const streak = t.finance?.deficitStreak ?? 0
       const bal = t.finance?.budget ?? 0
       if (streak === 0 && bal >= 0) return t

@@ -443,6 +443,14 @@ export type ForeignClub = Partial<Omit<Team, 'id' | 'name' | 'shortName' | 'colo
   // 一覧が要るときは utils/rosterSync の clubMemberIds() で引く
 }
 
+/**
+ * クラブの実体。**国内の52も海外の180も同じ1つの並び（`GameState.clubs`）に入る。**
+ * 国内でしか埋まっていない項目があるので型は2つの和だが、置き場所は1つ。
+ * 探す・書くのは utils/world.ts（と utils/clubs.ts）だけ。
+ */
+export type WorldClub = Team | ForeignClub
+
+/** 海外リーグの初期データ（data/foreignLeagues）の形。**セーブには持たない**（クラブは `clubs`・リーグは data/leagues） */
 export type ForeignLeague = {
   id: string
   name: string
@@ -537,15 +545,19 @@ export type Rank = 'D' | 'C' | 'B' | 'A' | 'S' | 'SS' | 'SSS'
 //     ・移籍資金 … 置き場所が無いので処理のたびに満タンに戻る
 //   同じ種類のバグが何度も出たのはこれが原因。**入れ物を揃えれば偽物を作る理由が消える。**
 //
-// ■違うのは地域だけ
-//   `leagueId` と `country` が「どこのクラブか」。それ以外の扱いは同じ。
-//   国内は leagueId='jpel' / country='JPN'。
+// ■違うのは所属リーグだけ
+//   `leagueId` が「どこのリーグのクラブか」（`Season.leagues` のキーと同じID）。それ以外の扱いは同じ。
+//   国内は部ごとのリーグ（`jpel-1` / `jpel-2` / `jpel-3`）。
+//   国内も海外も同じ1つの並び（`GameState.clubs`）に入る。
 export type Team = {
   id: string
   name: string
   shortName: string
-  /** 所属リーグ。国内は 'jpel'、海外は data/foreignLeagues の ID。**唯一の地域の違い** */
-  leagueId?: string
+  /**
+   * 所属リーグ。**部もここが持つ**（国内は `jpel-<部>`、海外は data/foreignLeagues の ID）。
+   * 部を読むときは utils/league の `divisionOf` を通すこと。昇降格はここを書き換える。
+   */
+  leagueId: LeagueId
   /** クラブの国。国内は 'JPN' */
   country?: Nationality
   city: string
@@ -565,15 +577,6 @@ export type Team = {
     originallyOwnedBy: string
   }[]
   initialRank: number
-  /**
-   * 所属する部（1部・2部・3部）。
-   *
-   * 未設定は1部として扱う。build 88 までのセーブには入っていないため、
-   * 読む側は必ず divisionOf()（utils/league.ts）を通すこと。
-   * ここを直接 team.division と読むと、古いセーブで undefined になって
-   * 「どの部にも属さないチーム」が生まれる。
-   */
-  division?: Division
   /**
    * クラブの格（1が頂点・10が最下層）。年間予算＝初期ロスターの強さを決める。
    * 読む側は必ず tierOf()（utils/clubTier.ts）を通すこと。無ければ initialRank から引く。
@@ -995,7 +998,12 @@ export type GameState = {
   currentSeason: Season
   // 終わったシーズンの記録。Season 全部ではなく ArchivedSeason（残す物だけ）で持つ
   pastSeasons: ArchivedSeason[]
-  teams: Team[]
+  /**
+   * **世界のクラブ232（日本52＋海外180）。1つの並び。**
+   * 並びは「日本のリーグ → 海外9リーグ（data/foreignLeagues の順）」。
+   * 探すのも書くのも utils/world.ts だけ（自チームは `myClub` / `withMyClub`）。
+   */
+  clubs: WorldClub[]
   players: Player[]
   growthReport: { year: number; entries: GrowthEntry[] } | null
   seasonBudgetNotice?: { year: number; budget: number } | null  // シーズン終了で確定した来期予算（ホームで一度だけポップ表示）
@@ -1043,7 +1051,6 @@ export type GameState = {
    * **判定は移籍と同じ appraiseMove 1本**（愛着の向き先が監督に変わるだけ）
    */
   sponsors: Sponsor[]
-  foreignLeagues: ForeignLeague[]
   // 世界選手権の日本駅伝代表（監督が候補50から20人選抜。翌年以降は前年をベースに入替）。
   worldSquad?: { year: number; playerIds: string[] }
   // 世界選手権／予選の年次結果（新しい順に積む）。型はエンジン側で定義。

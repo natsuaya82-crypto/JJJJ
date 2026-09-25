@@ -20,7 +20,8 @@
 import { backfillDomesticClubs, originalDivisionOf } from '../src/utils/domesticClubs'
 import { managedTeamIds } from '../src/utils/gmTenure'
 import { ALL_DOMESTIC_TEAMS } from '../src/utils/domesticClubs'
-import type { GmTenure, Player, Team } from '../src/types'
+import { divisionLeagueId, divisionOfLeague, jpelClubById } from '../src/utils/world'
+import type { GmTenure, Player, Team, WorldClub } from '../src/types'
 
 let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
@@ -38,18 +39,19 @@ check('元の部が3部ではないクラブを選べた', originalDivisionOf(OL
 
 // 「プレイヤーが指揮していて3部まで落ちた」状態を作る。
 // ★クラブを1つ抜いておく（backfill は欠けが無いと何もしないので、抜かないと素通りする）
-const teams: Team[] = ALL_DOMESTIC_TEAMS
+const clubs: Team[] = ALL_DOMESTIC_TEAMS
   .filter(t => t.id !== ALL_DOMESTIC_TEAMS[ALL_DOMESTIC_TEAMS.length - 1].id)
-  .map(t => ({ ...t, division: t.id === OLD.id ? 3 : t.division })) as Team[]
+  .map(t => ({ ...t, leagueId: t.id === OLD.id ? divisionLeagueId(3) : t.leagueId })) as Team[]
 const players: Player[] = []
 
-const divOf = (out: { teams: Team[] }, id: string) => out.teams.find(t => t.id === id)?.division
+// ★見つからないときは undefined のまま返す（divisionOf は 1 に落とすので、欠けたクラブが「1部」に見えてしまう）
+const divOf = (out: { clubs: WorldClub[] }, id: string) => divisionOfLeague(jpelClubById(out.clubs, id)?.leagueId)
 
 console.log('')
 console.log('[1] 指揮している間は3部のまま（今までどおり）')
 {
   const tenures: GmTenure[] = [{ teamId: OLD.id, fromYear: 2030 }]
-  const out = backfillDomesticClubs({ teams, players, year: 2032,
+  const out = backfillDomesticClubs({ clubs, players, year: 2032,
     pinnedTeamIds: managedTeamIds(tenures, OLD.id) })
   check('自チームの部は3部のまま', divOf(out, OLD.id) === 3, `${divOf(out, OLD.id)}部`)
   // ★母数の確認：固定していないクラブは実際に戻されている世界か
@@ -65,11 +67,11 @@ console.log('[2] **監督が別のクラブへ移っても、前のクラブは3
     { teamId: OLD.id, fromYear: 2030, toYear: 2031 },
     { teamId: NEW.id, fromYear: 2032 },
   ]
-  const out = backfillDomesticClubs({ teams, players, year: 2032,
+  const out = backfillDomesticClubs({ clubs, players, year: 2032,
     pinnedTeamIds: managedTeamIds(tenures, NEW.id) })
   check('**前のクラブが元の部へ引き戻されていない**', divOf(out, OLD.id) === 3,
     `${divOf(out, OLD.id)}部（元は${originalDivisionOf(OLD.id)}部）`)
-  check('いまのクラブも固定されている', divOf(out, NEW.id) === teams.find(t => t.id === NEW.id)?.division)
+  check('いまのクラブも固定されている', divOf(out, NEW.id) === divisionOfLeague(clubs.find(t => t.id === NEW.id)?.leagueId))
 }
 
 console.log('')

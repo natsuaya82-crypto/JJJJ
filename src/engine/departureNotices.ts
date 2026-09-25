@@ -9,7 +9,7 @@
 //     整理後の一覧（`after`）で数えると、消えた選手そのものが見つからない
 //   - 行き先の名前は `findClub` 1本。国内と海外を分けないこと（海外へ移った選手も「出」に出る）
 import { findClub } from '../utils/clubs'
-import type { ForeignLeague, Player, Team, TransferRecord } from '../types'
+import type { Player, TransferRecord, WorldClub } from '../types'
 
 export type DepartureNotice = { id: string; playerId: string; playerName: string; toTeamName: string; reason: 'transfer' | 'fa' }
 
@@ -18,20 +18,19 @@ export function collectDepartures(args: {
   before: Player[]
   /** 整理まで終わったあとの選手一覧 */
   cleanedPlayers: Player[]
-  teams: Team[]
-  foreignLeagues: ForeignLeague[]
+  clubs: WorldClub[]
   playerTeamId: string
   /** 今季の年 */
   year: number
   /** 来季の年 */
   newYear: number
 }): { notices: DepartureNotice[]; records: TransferRecord[] } {
-  const { before, cleanedPlayers, teams, foreignLeagues, playerTeamId, year, newYear } = args
+  const { before, cleanedPlayers, clubs, playerTeamId, year, newYear } = args
 
   // 自チームから居なくなった選手の退団通知（契約満了のFA流出・他クラブへの移籍）。
   // ロスターから黙って消えるのを防ぐ。引退は別途セレモニー・ニュースがあるため除外
   const departureClubName = (teamId: string) =>
-    findClub(teams, foreignLeagues, teamId)?.shortName
+    findClub(clubs, teamId)?.shortName
     ?? null
   const departureNotices = before
     .filter(p => p.teamId === playerTeamId && p.status !== 'retired')

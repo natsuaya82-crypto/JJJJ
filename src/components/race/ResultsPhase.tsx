@@ -41,12 +41,12 @@ const RANK_ROW_STYLE = (rank: number, isPlayer: boolean): React.CSSProperties =>
 }
 
 export function ResultsPhase({
-  race, results, teams, players, playerTeamId, currentSeason, isLastRace,
+  race, results, raceTeams, players, playerTeamId, currentSeason, isLastRace,
   altStandings, onContinue, hideCards, standingsLabel, competition,
 }: {
   race: Race
   results: RaceResults
-  teams: Team[]
+  raceTeams: Team[]
   players: Player[]
   playerTeamId: string
   currentSeason: Season
@@ -93,7 +93,7 @@ export function ResultsPhase({
   const raceExpGains = useGameStore(s => s.raceExpGains) ?? {}
   // このレースで出た区間新記録（区間×選手）。「区間新！」バッジ表示用
   const newSegRecords = useGameStore(s => s.raceNewSegmentRecords) ?? []
-  const teamMap = new Map(teams.map(t => [t.id, t]))
+  const teamMap = new Map(raceTeams.map(t => [t.id, t]))
   const playerMap = new Map(players.map(p => [p.id, p]))
   const playerResult = results.teamRankings.find(r => r.teamId === playerTeamId)
   const leader = results.teamRankings[0]

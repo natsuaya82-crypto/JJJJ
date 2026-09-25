@@ -26,11 +26,10 @@
 //     （`currentSeason.stayOrLeave`）。選ぶまではロスターに残る＝既定は残留。
 //     ここは「その候補を集めて返す」だけ
 //   - 名簿はクラブ側に持たない（在籍は `player.teamId` 1本）ので、触るのは選手だけ
-import { allForeignClubs, domesticTeamIdSet } from '../utils/clubs'
-import type { ForeignLeague } from '../types'
+import { clubIdSet } from '../utils/world'
 import { movePlayer } from '../utils/movePlayer'
 import { isRetiringAge } from '../utils/playerUtils'
-import type { Player, Team } from '../types'
+import type { Player, WorldClub } from '../types'
 
 export type ContractExpiryResult = {
   /** 今季で契約が切れた選手のID（FA化済み） */
@@ -44,19 +43,17 @@ export type ContractExpiryResult = {
 export function processContractExpiry(args: {
   /** 成長処理まで終わった全選手 */
   grownPlayers: Player[]
-  teams: Team[]
-  /** 海外リーグ。**渡すこと**——渡さないと海外の契約が切れず、名簿が膨らみ続ける */
-  foreignLeagues?: ForeignLeague[] | null
+  /** 世界のクラブ（国内52＋海外180）。どちらのクラブに居ても契約は同じに切れる */
+  clubs: WorldClub[]
   playerTeamId: string
   /** 今季の年 */
   year: number
 }): ContractExpiryResult {
-  const { grownPlayers, teams, foreignLeagues, playerTeamId, year } = args
+  const { grownPlayers, clubs, playerTeamId, year } = args
 
   // **国内52＋海外180を同じ1つの集合**にする。どちらのクラブに居ても契約は同じに切れる。
   // 集合で見るのは、消えたクラブのIDが選手に残っていたときに「クラブ所属」と誤らないため
-  const clubIdsFA = domesticTeamIdSet(teams)
-  for (const c of allForeignClubs(foreignLeagues)) clubIdsFA.add(c.id)
+  const clubIdsFA = clubIdSet(clubs)
   // ★**引退する歳の選手は満了に入れない**（2026-09-15）。同じ選手を二重に処分しないため。
   //   以前は逆で、`engine/retirement` 側が「満了の人は引退させない」としていました。
   //   その向きだと 36歳で契約が切れた選手が**FAになるだけ**で、無所属は引退の
@@ -78,7 +75,7 @@ export function processContractExpiry(args: {
 
   let players: Player[] = grownPlayers
   const runFA = (pid: string, to: string) => {
-    const m = movePlayer({ players, teams: [] }, pid, to, { year })
+    const m = movePlayer({ players, clubs: [] }, pid, to, { year })
     if (m.ok) players = m.players
   }
   for (const id of expiredIds) runFA(id, '')

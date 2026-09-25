@@ -19,6 +19,8 @@ import { useGameStore } from '../src/store/gameStore'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
+import { jpelClubById } from '../src/utils/world'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { newSeasonStandings, DIVISIONS, DIVISION_RACES, divisionOf } from '../src/utils/league'
 import { generateSeasonRaces } from '../src/data/races'
@@ -34,7 +36,7 @@ const YEAR = 2030
 const MY = 'tokyo'
 const base = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
 const cpu = generateCpuRosters(base, YEAR)
-const fgen = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+const fgen = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
 let players: Player[] = [...cpu.cpuPlayers, ...fgen.players]
 
 let sd = 11
@@ -50,14 +52,13 @@ for (const d of DIVISIONS) {
   })
 }
 const foreignStandings: Record<string, SeasonStanding[]> = {}
-for (const l of fgen.updatedLeagues) foreignStandings[l.id] = l.clubs.map((c, i) => ({ teamId: c.id, totalPoints: (20 - i) * 5, raceResults: [] }))
+for (const l of FOREIGN_LEAGUES) foreignStandings[l.id] = l.clubs.map((c, i) => ({ teamId: c.id, totalPoints: (20 - i) * 5, raceResults: [] }))
 
 const teams = base.map(t => ({ ...t, finance: { ...(t.finance ?? {}), budget: 400_000_000 } })) as Team[]
 const races = generateSeasonRaces(YEAR, divisionOf(teams.find(t => t.id === MY)!))
 
 useGameStore.setState({
-  isInitialized: true, playerTeamId: MY, teams, players,
-  foreignLeagues: fgen.updatedLeagues,
+  isInitialized: true, playerTeamId: MY, clubs: [...teams, ...INITIAL_FOREIGN_CLUBS], players,
   currentSeason: {
     year: YEAR, phase: 'postseason', currentRaceIndex: races.length,
     leagues: seasonLeaguesFixture({ myDivision: divisionOf(teams.find(t => t.id === MY)!),
@@ -88,7 +89,7 @@ const collect = (): number => {
 const tradeRecords = () =>
   (useGameStore.getState().transferHistory ?? []).filter(r => r.kind === 'trade')
 
-console.log(`世界：国内 ${teams.length}クラブ / 海外 ${fgen.updatedLeagues.reduce((s, l) => s + l.clubs.length, 0)}クラブ / 選手 ${players.length}人\n`)
+console.log(`世界：国内 ${teams.length}クラブ / 海外 ${INITIAL_FOREIGN_CLUBS.length}クラブ / 選手 ${players.length}人\n`)
 
 useGameStore.getState().endSeason()
 collect()
@@ -96,7 +97,7 @@ const beforeOff = seenTrades.size
 useGameStore.getState().beginSeasonDraft()
 const offTrades = collect()
 const nameOf = (id: string) => useGameStore.getState().players.find(p => p.id === id)?.name ?? id
-const shortOf = (id: string) => useGameStore.getState().teams.find(t => t.id === id)?.shortName ?? id
+const shortOf = (id: string) => jpelClubById(useGameStore.getState().clubs, id)?.shortName ?? id
 console.log(`[1] オフ1回（beginSeasonDraft）で成立した CPU間トレード … ${offTrades}件`)
 void beforeOff
 for (const r of tradeRecords().slice(-8)) {
@@ -105,7 +106,7 @@ for (const r of tradeRecords().slice(-8)) {
 
 // ── 門の内訳。0件だったときに「どこで落ちているか」が分からないと直せない ──
 const st = useGameStore.getState()
-const cpuIds = domesticCpuTeamIds(st.players, st.teams, MY)
+const cpuIds = domesticCpuTeamIds(st.players, st.clubs, MY)
 let withSurplus = 0, pairsChecked = 0, needOk = 0, bothOk = 0
 for (const buyerId of cpuIds) {
   const buyRoster = st.players.filter(p => p.teamId === buyerId && p.status === 'active')

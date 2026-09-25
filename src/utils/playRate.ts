@@ -1,6 +1,6 @@
-import type { ForeignLeague, LeagueId, Player, Race, Team } from '../types'
-import { divisionLeagueId, divisionOf, divisionOfLeague, leagueRaces } from './league'
-import { teamById } from './world'
+import type { LeagueId, Player, Race, WorldClub } from '../types'
+import { divisionOfLeague, leagueRaces } from './league'
+import { clubById } from './world'
 
 /**
  * **「そのレースにその選手が走ったか」を数えるのに要る形だけ。**
@@ -49,20 +49,15 @@ export type PlayRateSeason = {
 /**
  * そのクラブが今季走っている日程。**「どのレースを走るクラブか」の引き方はここ1本。**
  *
- * いまそのクラブが所属しているリーグ（国内は部のリーグ、海外はそのリーグ）の日程。
+ * いまそのクラブが所属しているリーグ（`club.leagueId`。国内の部も海外も同じ）の日程。
  */
 export function clubSeasonRaces(
   season: PlayRateSeason,
   clubId: string,
-  teams: readonly Team[],
-  foreignLeagues?: readonly ForeignLeague[],
+  clubs: readonly WorldClub[],
 ): Race[] {
-  const team = teamById(teams, clubId)
-  if (team) return leagueRaces(season, divisionLeagueId(divisionOf(team)))
-  for (const l of foreignLeagues ?? []) {
-    if (l.clubs.some(c => c.id === clubId)) return leagueRaces(season, l.id)
-  }
-  return []
+  const club = clubById(clubs, clubId)
+  return club ? leagueRaces(season, club.leagueId) : []
 }
 
 /**
@@ -103,8 +98,7 @@ export function playRateOf(
   playerId: string,
   clubId: string | undefined,
   season: PlayRateSeason,
-  teams: readonly Team[],
-  foreignLeagues?: readonly ForeignLeague[],
+  clubs: readonly WorldClub[],
   /**
    * 前シーズン。**今季がまだ浅いときはこちらを見る**（下の★）。
    * 渡さなければ今までどおり今季だけで数える。
@@ -112,7 +106,7 @@ export function playRateOf(
   prevSeason?: PlayRateSeason,
 ): { fraction: number; teamRaces: number; races: number } {
   if (!clubId) return { fraction: 0.5, teamRaces: 0, races: 0 }
-  const list = clubSeasonRaces(season, clubId, teams, foreignLeagues)
+  const list = clubSeasonRaces(season, clubId, clubs)
   const teamRaces = racesDone(list)
   // ★**今季が浅いうちは前シーズンの出場率を使う。**
   //   今季だけで数えると、前年フル出場だった選手も開幕から数戦のあいだ「出場率0」になり、
@@ -128,7 +122,7 @@ export function playRateOf(
   //   （オーナー・2026-08-20「めちゃくちゃ走ってるのに、移籍でこのチームで走ってないですって出る」）。
   //   前シーズンを見るのは「**今季まだ何も分からないとき**」だけです。
   if (races === 0 && teamRaces < SETTLED_RACES && prevSeason) {
-    const prevList = clubSeasonRaces(prevSeason, clubId, teams, foreignLeagues)
+    const prevList = clubSeasonRaces(prevSeason, clubId, clubs)
     const prevTeamRaces = racesDone(prevList)
     if (prevTeamRaces > 0) {
       const prevRaces = seasonAppearances(playerId, prevList)
@@ -147,8 +141,7 @@ export function playRateOf(
  */
 export type PlayRateWorld = {
   players: readonly Player[]
-  teams: readonly Team[]
-  foreignLeagues?: readonly ForeignLeague[]
+  clubs: readonly WorldClub[]
   currentSeason: { year: number } & PlayRateSeason
   pastSeasons?: readonly ({ year: number } & PlayRateSeason)[]
 }

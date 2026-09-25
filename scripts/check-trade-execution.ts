@@ -44,13 +44,13 @@ console.log('[1] 指名権は同一性で数える（同じキーが2つ並ん�
   ]
   const theirs = [{ year: YEAR, round: 2, pickNumber: 5, originallyOwnedBy: 'x' }]
   const teams = [
-    { id: 'a', draftPicks: mine },
-    { id: 'b', draftPicks: theirs },
+    { id: 'a', leagueId: 'jpel-1', draftPicks: mine },
+    { id: 'b', leagueId: 'jpel-1', draftPicks: theirs },
   ] as unknown as Team[]
 
   const out = swapDraftPicks(teams, { teamId: 'a', pickKeys: [keyOf(mine[0])] }, { teamId: 'b', pickKeys: [keyOf(theirs[0])] })
-  const aPicks = out.find(t => t.id === 'a')!.draftPicks ?? []
-  const bPicks = out.find(t => t.id === 'b')!.draftPicks ?? []
+  const aPicks = (out.find(t => t.id === 'a') as Team).draftPicks ?? []
+  const bPicks = (out.find(t => t.id === 'b') as Team).draftPicks ?? []
 
   check('出した側に残るのは1つだけ（2つとも消えない）', aPicks.filter(p => keyOf(p) === keyOf(mine[0])).length === 1,
     `${aPicks.filter(p => keyOf(p) === keyOf(mine[0])).length}件`)

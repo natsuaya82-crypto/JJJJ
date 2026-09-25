@@ -1,9 +1,9 @@
 import { rankOfTeam } from '../utils/league'
-import type { GmOffer, GmTenure, Team } from '../types'
+import type { GmOffer, GmTenure, WorldClub } from '../types'
 import { divisionOf, seasonDivisionStandings, type SeasonStandingsLike } from './league'
 import { tierOf, tierOfClubId } from './clubTier'
 import { facilitiesOf, facilityScoutPoints } from './facilities'
-import { teamById } from './world'
+import { clubById, clubIds, clubsInLeague, divisionLeagueId, jpelClubs } from './world'
 
 // ============================================================================
 // 監督（GM）オファー。「シーズンが終わったあと、別のチームから声がかかる」仕組み。
@@ -148,7 +148,7 @@ export function makeGmOffer(params: {
   gmRep: number
   teamCount: number
   nextYear: number
-  teams: Team[]
+  clubs: readonly WorldClub[]
   nextBudgets: Record<string, GmOffer['budgetBreakdown'] & { budget: number }>
   objBonus: number
   rng: () => number
@@ -158,7 +158,7 @@ export function makeGmOffer(params: {
   tenureStartYear?: number
 }): GmOffer | null {
   if (!GM_OFFER_ENABLED) return null
-  const { season, playerTeamId, finalRank, gmRep, teamCount, nextYear, teams, nextBudgets, objBonus, rng } = params
+  const { season, playerTeamId, finalRank, gmRep, teamCount, nextYear, clubs, nextBudgets, objBonus, rng } = params
   const { lastOfferYear, tenureStartYear } = params
   // ★**移籍したら3シーズンは、退任もオファーも無い**（2026-08-12・オーナー判断）。
   //   退任ボタン側は canResignAsGm が同じ GM_RESIGN_MIN_TENURE で止める。**線は1本**。
@@ -167,7 +167,7 @@ export function makeGmOffer(params: {
   if (lastOfferYear != null && nextYear - lastOfferYear < GM_OFFER_COOLDOWN) return null
   if (rng() >= offerChance(finalRank, gmRep, teamCount)) return null
 
-  const tierNow = (id: string) => tierOf(teamById(teams, id))
+  const tierNow = (id: string) => tierOf(clubById(clubs, id))
   const tierSeed = (id: string) => tierOfClubId(id)
   const rankFrac = teamCount > 1 ? Math.min(1, Math.max(0, (finalRank - 1) / (teamCount - 1))) : 0
   // 引いた種類に候補がいなければ他の種類へ回す（せっかく当たった機会を捨てない）
@@ -175,13 +175,14 @@ export function makeGmOffer(params: {
   let kind: GmOfferKind = 'rebuild'
   let candidates: string[] = []
   for (const k of kinds) {
-    const c = offerCandidates(k, teams.map(t => t.id), playerTeamId, tierNow, tierSeed)
+    // 声をかけてくるのは日本のリーグのクラブ（いまの振る舞い）
+    const c = offerCandidates(k, clubIds(jpelClubs(clubs)), playerTeamId, tierNow, tierSeed)
       .filter(id => nextBudgets[id])
     if (c.length > 0) { kind = k; candidates = c; break }
   }
   if (candidates.length === 0) return null
   const teamId = candidates[Math.floor(rng() * candidates.length)] ?? candidates[0]
-  return buildOffer({ teamId, kind, season, teams, nextBudgets, nextYear, objBonus, finalRank })
+  return buildOffer({ teamId, kind, season, clubs, nextBudgets, nextYear, objBonus, finalRank })
 }
 
 /**
@@ -193,7 +194,7 @@ export function buildOffer(a: {
   teamId: string
   kind: GmOfferKind
   season: SeasonStandingsLike<{ teamId: string; totalPoints: number }>
-  teams: Team[]
+  clubs: readonly WorldClub[]
   nextBudgets: Record<string, GmOffer['budgetBreakdown'] & { budget: number }>
   nextYear: number
   objBonus: number
@@ -201,12 +202,12 @@ export function buildOffer(a: {
   finalRank: number
 }): GmOffer {
   const b = a.nextBudgets[a.teamId]
-  const dest = teamById(a.teams, a.teamId)
+  const dest = clubById(a.clubs, a.teamId)
   // 前季順位は**移籍先の部の中での順位**（順位表は部ごとに分かれている）。
   // 来季の目標をここから引き直すので、部をまたいだ順位を使うと目標が的外れになる
   const destDivision = divisionOf(dest)
   const prevRank = rankOfTeam(seasonDivisionStandings(a.season, a.teamId), a.teamId)
-  const destDivisionSize = a.teams.filter(t => divisionOf(t) === destDivision).length
+  const destDivisionSize = clubsInLeague(a.clubs, divisionLeagueId(destDivision)).length
   return {
     teamId: a.teamId,
     year: a.nextYear,
@@ -241,14 +242,15 @@ export function resignOffers(params: {
   playerTeamId: string
   finalRank: number
   nextYear: number
-  teams: Team[]
+  clubs: readonly WorldClub[]
   nextBudgets: Record<string, GmOffer['budgetBreakdown'] & { budget: number }>
   rng: () => number
   tierNow: (id: string) => number
   tierSeed: (id: string) => number
 }): GmOffer[] {
-  const { season, playerTeamId, finalRank, nextYear, teams, nextBudgets, rng, tierNow, tierSeed } = params
-  const ids = teams.map(t => t.id)
+  const { season, playerTeamId, finalRank, nextYear, clubs, nextBudgets, rng, tierNow, tierSeed } = params
+  // 声をかけてくるのは日本のリーグのクラブ（いまの振る舞い）
+  const ids = clubIds(jpelClubs(clubs))
   const out: GmOffer[] = []
   const taken = new Set<string>()
   for (const kind of ['promotion', 'rebuild', 'comeback'] as GmOfferKind[]) {
@@ -257,7 +259,7 @@ export function resignOffers(params: {
     if (c.length === 0) continue
     const teamId = c[Math.floor(rng() * c.length)] ?? c[0]
     taken.add(teamId)
-    out.push(buildOffer({ teamId, kind, season, teams, nextBudgets, nextYear, objBonus: 0, finalRank }))
+    out.push(buildOffer({ teamId, kind, season, clubs, nextBudgets, nextYear, objBonus: 0, finalRank }))
   }
   return out
 }

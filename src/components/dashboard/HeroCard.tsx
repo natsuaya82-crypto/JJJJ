@@ -1,4 +1,4 @@
-import type { Team } from '../../types'
+import type { WorldClub } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useTeamHistory } from '../../lib/useTeamHistory'
 import { topTitleCount } from '../../utils/teamHistory'
@@ -7,7 +7,7 @@ import { panelStyle } from '../ui/Panel'
 
 
 interface Props {
-  team: Team
+  team: WorldClub
   seasonYear: number
   rank: number
   totalRaces: number

@@ -9,7 +9,7 @@
  */
 import { makeIsDomestic, retiredFromOf } from '../src/utils/domesticPlayers'
 import { backfillRetiredTeamIds } from '../src/utils/retiredTeamBackfill'
-import type { ForeignLeague, Player, Team } from '../src/types'
+import type { Player, WorldClub } from '../src/types'
 
 let failed = 0
 const check = (label: string, ok: boolean, detail = '') => {
@@ -17,16 +17,16 @@ const check = (label: string, ok: boolean, detail = '') => {
   else console.log(`  ok  ${label}`)
 }
 
-const teams = [{ id: 't1' }, { id: 't2' }] as unknown as Team[]
-const leagues = [
-  { id: 'kor', clubs: [{ id: 'kor_1' }, { id: 'kor_2' }] },
-  { id: 'ken', clubs: [{ id: 'ken_1' }] },
-] as unknown as ForeignLeague[]
+const teams = [{ id: 't1', leagueId: 'jpel-1' }, { id: 't2', leagueId: 'jpel-1' }] as unknown as WorldClub[]
+const foreignClubs = [
+  { id: 'kor_1', leagueId: 'kor' }, { id: 'kor_2', leagueId: 'kor' },
+  { id: 'ken_1', leagueId: 'ken' },
+] as unknown as WorldClub[]
 
 const P = (id: string, o: Partial<Player> = {}) => ({ id, name: id, teamId: '', status: 'active', ...o }) as unknown as Player
 
 console.log('\n[1] 現役選手の判定（今までと同じであること）')
-const isDomestic = makeIsDomestic(teams, leagues)
+const isDomestic = makeIsDomestic([...teams, ...foreignClubs])
 check('国内チームの現役選手は国内', isDomestic(P('a', { teamId: 't1' })))
 check('海外クラブの現役選手は国内でない', !isDomestic(P('b', { teamId: 'kor_1' })))
 check('FA（無所属）の現役選手は国内扱い', isDomestic(P('c', { teamId: '' })))
@@ -40,7 +40,7 @@ check('旧セーブ（引退時の所属が不明）は今まで通り国内扱�
   isDomestic(P('f', { teamId: '', status: 'retired' })))
 check('もう存在しない古い海外クラブIDでも国内には入れない',
   !isDomestic(P('g', { teamId: '', status: 'retired', retiredTeamId: 'seoul_hangang' })))
-check('海外リーグのデータが無くても落ちない', makeIsDomestic(teams, undefined)(P('h', { teamId: 't1' })))
+check('海外リーグのデータが無くても落ちない', makeIsDomestic(teams)(P('h', { teamId: 't1' })))
 
 console.log('\n[3] 引退時の所属の控え方')
 check('通常は今の所属', retiredFromOf(P('i', { teamId: 't2' })) === 't2')

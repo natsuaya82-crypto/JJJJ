@@ -29,8 +29,9 @@ const YEAR = 2030
 
 // v39 までのセーブはクラブ側にも名簿（roster.main）を持っていた
 const teams = INITIAL_TEAMS.map((t, i) => {
-  const { division: _d, ...rest } = t as Record<string, unknown>
-  return { ...rest, roster: { main: [`ghost-${i}`] } }
+  // v29 当時のクラブには部（division／いまの leagueId）が無い
+  const { leagueId: _l, ...rest } = t as Record<string, unknown>
+  return { ...rest, id: t.id, roster: { main: [`ghost-${i}`] } }
 })
 const players = generateCpuRosters(INITIAL_TEAMS as never, YEAR).cpuPlayers
 

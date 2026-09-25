@@ -47,13 +47,13 @@ const offer = (i: number, playerId: string): IncomingOffer => ({
 } as unknown as IncomingOffer)
 
 const players = [P('a'), P('b'), P('c')]
-const teams = [{ id: MY, shortName: MY, division: 1, tier: 10,
+const clubs = [{ id: MY, shortName: MY, leagueId: 'jpel-1', tier: 10,
   finance: { budget: 1e9, deficitStreak: 0 }, roster: { main: [] } }] as unknown as Team[]
 
 // ★足りない項目があると total が NaN になる（最初に書いた版がそれで落ちた）。
 //   collectNotifications が読む配列は全部入れておく
 const call = (offers: IncomingOffer[]) => collectNotifications({
-  players, teams, playerTeamId: MY,
+  players, clubs, playerTeamId: MY,
   lastLoginDate: undefined, seenJoinIds: [], seenInjuryIds: [],
   pendingGiftsCount: 0, playerCreateCount: 0, clubGiftsCount: 0, friendRequestsCount: 0,
   currentSeason: {

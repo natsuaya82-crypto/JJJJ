@@ -10,7 +10,7 @@
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { simulateContinentalQualifiers, nationStrength, REGION_QUOTA, ekidenCandidates, autoSelectEkiden } from '../src/engine/worldAthletics'
 import { ovr } from '../src/utils/playerUtils'
 import { NATIONALITY_META, natGeoRegion } from '../src/data/nationalities'
@@ -19,7 +19,7 @@ import type { Nationality, Player, Team } from '../src/types'
 const YEAR = 2028
 const teams: Team[] = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
 const domestic = generateCpuRosters(teams, YEAR).cpuPlayers
-const { players: foreign } = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+const { players: foreign } = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
 const players: Player[] = [...domestic, ...foreign]
 
 const label = (n: Nationality) => NATIONALITY_META[n as keyof typeof NATIONALITY_META]?.label ?? n

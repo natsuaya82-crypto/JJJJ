@@ -28,8 +28,7 @@ import { applyRaceBoosts } from '../../engine/raceBoosts'
 import { buildCpuLineups, simulateRace } from '../../engine/raceEngine'
 import { type ExpiredNegotiation, type GameState, type Player, type Ratings, type TransferRecord } from '../../types'
 import { generateDropCards } from '../../utils/cardCombo'
-import { myClub, allTieredClubs, myLeagueId, myLeagueRaces, withLeagueRaces } from '../../utils/world'
-import { allForeignClubs } from '../../utils/clubs'
+import { myClub, myLeagueId, myLeagueRaces, withLeagueRaces } from '../../utils/world'
 import { GM_REP_DEFAULT, withFatigue, withMorale } from '../../utils/condition'
 import { isLiveContract } from '../../utils/contractTalk'
 import { divisionOf, domesticThroughRank, myDivSize, segmentPrizeByTeam, leagueStandingRows, addRaceToStandings } from '../../utils/league'
@@ -79,7 +78,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       }
     }
     const state = get()
-    const { currentSeason, teams, players, playerTeamId } = state
+    const { currentSeason, clubs, players, playerTeamId } = state
     const raceIndex = currentSeason.currentRaceIndex
     // 日程の位置(raceIndex)と、時間の進み(clock)は別物。
     // 期限・回復は「何本走ったか」で数える。ECLも記録会も1本（utils/playerUtils の racesConsumed）。
@@ -97,14 +96,14 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
     // 以前はここと RacePage（中継つきレース）の2箇所に手書きしていて、RacePage 側だけ
     // 部で絞っていなかった（3部なのに52チームで走って48位になっていた）。
     // ★部は見出し（「1部」）と区間記録の名前に使うだけ。日程・順位表はリーグIDで引く
-    const myDivision = divisionOf(myClub({ teams, playerTeamId }))
+    const myDivision = divisionOf(myClub({ clubs, playerTeamId }))
     const lineups: Record<string, Record<number, string>> = {
       [playerTeamId]: lineup,
-      ...buildCpuLineups(teams, players, race, playerTeamId) }
+      ...buildCpuLineups(clubs, players, race, playerTeamId) }
 
-    const playersForSimFinal = applyRaceBoosts(players, teams, playerTeamId, lineup)
+    const playersForSimFinal = applyRaceBoosts(players, clubs, playerTeamId, lineup)
 
-    const results = preComputedResults ?? simulateRace(race, lineups, teams, playersForSimFinal, seasonProgress, playerTeamId, segmentTactics)
+    const results = preComputedResults ?? simulateRace(race, lineups, clubs, playersForSimFinal, seasonProgress, playerTeamId, segmentTactics)
 
 
     // Persist results into race, update standings, advance index
@@ -124,7 +123,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const playerResult = results.teamRankings.find(r => r.teamId === playerTeamId)
       const playerRank = playerResult?.rank ?? 0
       const newsItems = buildRaceNews({
-        race, results, teams, players, playerTeamId, myDivision,
+        race, results, clubs, players, playerTeamId, myDivision,
         currentSeason: state.currentSeason, rivalTeamId: state.rivalTeamId })
 
       // Fatigue + injury (strategy modifier)
@@ -133,7 +132,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       )
       // 疲労の増減は engine/raceFatigue 1本（医療センターはCPUにも効く）
       const updatedPlayers = applyRaceFatigue({
-        players: state.players, racingIds, teams: state.teams,
+        players: state.players, racingIds, clubs: state.clubs,
         raceStrategy: state.raceStrategy, segmentCount: race.segments.length })
 
       // ★順位別のレース賞金と観客収入は廃止した。クラブの収入は「格の年間予算」1本
@@ -177,8 +176,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       // 選手の変化（調子・通算成績・モラル・成長・練習プラン）は engine/raceProgress 1本。
       // 5つを1周のループで見る順序に意味があるので、分けて何周もしないこと
       const progress = applyRaceProgress({
-        players: updatedPlayers, results, racingIds, teams: state.teams,
-        foreignLeagues: state.foreignLeagues,
+        players: updatedPlayers, results, racingIds, clubs: state.clubs,
         playerTeamId, currentSeason: state.currentSeason })
       const finalPlayers = progress.players
       const raceExpGainsMap = progress.raceExpGains
@@ -218,14 +216,14 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
       // CPUからのトレード打診（低頻度・1件まで）。engine/aiTradeOffer 1本
       const newTradeOffers = generateAiTradeOffers({
-        players: state.players, teams: state.teams, foreignLeagues: state.foreignLeagues, playerTeamId,
+        players: state.players, clubs: state.clubs, playerTeamId,
         currentSeason: state.currentSeason, raceIndex,
         hasExistingOffer: existingTrades.length > 0 })
 
       // 区間賞のぶんだけを翌季の予算に繰り越す（レース賞金・観客収入は廃止）。
       // ほかのリーグのぶんは、ほかのリーグを走らせたとき（engine/leagueDay）に積んである
       const raceIncomeAccum = segPrize
-      const teamsWithPrize = state.teams
+      const clubsWithPrize = state.clubs
 
       // Transfer market activity
       const nextRaceIndex = raceIndex + 1
@@ -236,7 +234,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const retiringWishIds = new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId))
       // CPU同士の移籍の成立は engine/cpuTransfers 1本
       const cpuSettle = settleCpuTransfers({
-        players: finalPlayers, teams: state.teams, foreignLeagues: state.foreignLeagues,
+        players: finalPlayers, clubs: state.clubs,
         currentSeason: state.currentSeason, pastSeasons: state.pastSeasons, playerTeamId, raceDate: race.date,
         retiringWishIds, destinationOf: (clubId, p) => get().destinationOf(clubId, p),
         playerTierOf: (p) => get().playerTierOf(p) })
@@ -249,7 +247,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       // 期限が来た話の処理は engine/offerExpiry 1本
       // （有料の打診＝失効通知／フリーの接触＝本人が決断。見る順番に意味がある）
       const expiry = resolveExpiredOffers({
-        players: finalPlayers, teams: state.teams, foreignLeagues: state.foreignLeagues,
+        players: finalPlayers, clubs: state.clubs,
         currentSeason: state.currentSeason, playerTeamId, nextClock, nextRaceIndex,
         ranRaces: updatedRaces, raceDate: race.date, playerTierOf: (p) => get().playerTierOf(p),
         destinationOf: (clubId, p) => get().destinationOf(clubId, p) })
@@ -262,10 +260,9 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       // 買い取りの打診は**国内52＋海外180を1本のループ**で回す（engine/cpuMarket）。
       // クラブはそのまま渡す。**ここで id/name/leagueId/country だけに削っていた**ので、
       // 受け取る側は格も手元資金も見られず、いくらまで出せるかを初期値の格から作り直していた。
-      const foreignClubs = allForeignClubs(state.foreignLeagues)
-      const transferData = generateTransferActivity(finalPlayers, teamsWithPrize, playerTeamId, nextClock, existingListingsFiltered, state.currentSeason.incomingOffers ?? [], state.currentSeason.transferRequests ?? [], retiringWishIds, state.currentSeason.year, updatedRaces.length, foreignClubs,
+      const transferData = generateTransferActivity(finalPlayers, clubsWithPrize, playerTeamId, nextClock, existingListingsFiltered, state.currentSeason.incomingOffers ?? [], state.currentSeason.transferRequests ?? [], retiringWishIds, state.currentSeason.year, updatedRaces.length,
         // 出場率は utils/playRate 1本（本人が受けるかの判定がこれを見る）
-        (pid) => playRateOf(pid, playerTeamId, state.currentSeason, state.teams, state.foreignLeagues,
+        (pid) => playRateOf(pid, playerTeamId, state.currentSeason, state.clubs,
           prevSeasonOf(state.pastSeasons, state.currentSeason.year)),
         // 行き先の姿は store の destinationOf 1本（打診の関門が本人の判定をそのまま呼ぶ）
         (clubId, player) => get().destinationOf(clubId, player),
@@ -274,13 +271,13 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
       // 相手からのレンタル打診（チャットで対応）
       const keptLoanOffers = (state.currentSeason.incomingLoanOffers ?? []).filter(o => o.expiresAtRace > nextClock && finalPlayers.some(p => p.id === o.playerId))
-      const flOffers = generateLoanOffers({ players: finalPlayers, teams: teamsWithPrize, foreignClubs, playerTeamId, raceIndex: nextClock, existingLoans: keptLoanOffers, season: seasonWithRace, retiringIds: retiringWishIds, currentYear: state.currentSeason.year })
+      const flOffers = generateLoanOffers({ players: finalPlayers, clubs: clubsWithPrize, playerTeamId, raceIndex: nextClock, existingLoans: keptLoanOffers, season: seasonWithRace, retiringIds: retiringWishIds, currentYear: state.currentSeason.year })
       const mergedLoanOffers = [...keptLoanOffers, ...flOffers.loanOffers]
 
       // 入札の応答は engine/bidResolution 1本（判定は utils/transferBid の resolveBid）
       const bidResult = resolveTransferBids({
         bids: state.currentSeason.transferBids ?? [],
-        players: finalPlayers, teams: state.teams, foreignLeagues: state.foreignLeagues ?? [],
+        players: finalPlayers, clubs: state.clubs,
         listings: transferData.listings, currentSeason: state.currentSeason, seasonAfterRace: seasonWithRace,
         pastSeasons: state.pastSeasons, raceClock: nextClock, playerTeamId,
         destinationOf: (clubId, p) => get().destinationOf(clubId, p),
@@ -293,7 +290,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const finalPlayerRank = results.teamRankings.find(r => r.teamId === playerTeamId)?.rank ?? myDivSize(state)
       // カードは国内の通し順位で決まる（部内順位だと3部優勝も1部優勝も同じだった）。
       // 部内1位のときだけ1段上げる扱いは utils/cardCombo の中
-      const myDivForCards = divisionOf(myClub({ teams: state.teams, playerTeamId }))
+      const myDivForCards = divisionOf(myClub({ clubs: state.clubs, playerTeamId }))
       const droppedCards = generateDropCards(
         domesticThroughRank(myDivForCards, finalPlayerRank),
         mySegWinCount,
@@ -310,7 +307,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
       // 区間新記録の判定は engine/raceRecords 1本（歴代記録は保存済みの結果から数え直す）
       const segRecords = detectSegmentRecords({
-        race, results, players: state.players, teams: state.teams,
+        race, results, players: state.players, clubs: state.clubs,
         playerTeamId, myDivision, pastSeasons: state.pastSeasons, currentSeason: state.currentSeason })
       const segRecordNewsItems = segRecords.news
       const newSegRecordMarks = segRecords.marks
@@ -322,14 +319,14 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
       // 決まった移籍の反映は engine/applyTransfers 1本（どちらも movePlayer を通る）
       const applied = applySettledTransfers({
-        players: recoveredPlayers, teams: teamsWithPrize, foreignLeagues: state.foreignLeagues,
+        players: recoveredPlayers, clubs: clubsWithPrize,
         origPlayers: state.players, currentSeason: state.currentSeason,
         listings: transferData.listings, txList: cpuTxList, outbidMoves,
         playerTeamId, raceDate: race.date, raceClock: nextClock,
         playerTierOf: (p) => get().playerTierOf(p),
         destinationOf: (clubId, p) => get().destinationOf(clubId, p) })
       const playersWithCpuTx = applied.players
-      const teamsWithCpuTx = applied.teams
+      const clubsWithCpuTx = applied.clubs
       const cpuTxRecords = applied.records
       const myCpuSaleNotices = applied.departureNotices
       const myCpuSaleIncome = applied.income
@@ -338,11 +335,11 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
       // レンタル要請への返事は engine/loanRequests 1本（成立も movePlayer を通る）
       const loanResult = resolveLoanRequests({
-        players: playersWithCpuTx, teams: teamsWithCpuTx, foreignLeagues: state.foreignLeagues,
+        players: playersWithCpuTx, clubs: clubsWithCpuTx,
         currentSeason: seasonWithRace, pastSeasons: state.pastSeasons,
         playerTeamId, raceIndex, raceDate: race.date })
       const playersAfterLoan = loanResult.players
-      const teamsAfterLoan = loanResult.teams
+      const clubsAfterLoan = loanResult.clubs
       const loanRespNews = loanResult.news
       const newLoanResponses = loanResult.responses
 
@@ -404,10 +401,10 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       // フリー移籍の決断で退団する選手を移す（本人が決めたので即時移籍）。
       // 出て行った選手とは1年間交渉不可（すぐ買い戻すのは不自然なので）
       let playersAfterFreeMoves: Player[] = playersWithExpiredLocks
-      let teamsAfterFreeMoves = teamsAfterLoan
+      let clubsAfterFreeMoves = clubsAfterLoan
       const freeMoveRecords: TransferRecord[] = []
       for (const mv of freeMoves) {
-        const m = movePlayer({ players: playersAfterFreeMoves, teams: teamsAfterFreeMoves }, mv.playerId, mv.toTeamId, {
+        const m = movePlayer({ players: playersAfterFreeMoves, clubs: clubsAfterFreeMoves }, mv.playerId, mv.toTeamId, {
           year: state.currentSeason.year,
           date: race.date,
           kind: 'free',
@@ -415,14 +412,13 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
           lockUntilYear: state.currentSeason.year + 1 })
         if (!m.ok) continue
         playersAfterFreeMoves = m.players
-        teamsAfterFreeMoves = m.teams
+        clubsAfterFreeMoves = m.clubs
         if (m.record) freeMoveRecords.push(m.record)
       }
 
       // シーズン中のFA補強は engine/inSeasonFa 1本（オフと同じ pickCpuFreeAgents を通る）
       const faResult = signInSeasonFreeAgents({
-        players: playersAfterFreeMoves, teams: teamsAfterFreeMoves,
-        foreignClubs, foreignLeagues: state.foreignLeagues,
+        players: playersAfterFreeMoves, clubs: clubsAfterFreeMoves,
         currentSeason: seasonWithRace,
         playerTeamId, raceDate: race.date, nextClock,
         // ④本人が行くか（オフの一括処理・現金の移籍・トレードと同じ入口）
@@ -430,13 +426,13 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
         // ここで 0.5 / 0 を手書きしないこと（元クラブが残っている選手も同じ道を通る）
         consents: (fa, clubId) => {
           const { fraction, teamRaces } = playRateOf(fa.id, fa.teamId, state.currentSeason,
-            state.teams, state.foreignLeagues, prevSeasonOf(state.pastSeasons, state.currentSeason.year))
+            state.clubs, prevSeasonOf(state.pastSeasons, state.currentSeason.year))
           return playerConsentToMove(fa, get().destinationOf(clubId, fa),
-            tierOfPlayerClub(fa.teamId, allTieredClubs(state.teams, state.foreignLeagues)),
+            tierOfPlayerClub(fa.teamId, state.clubs),
             fraction, teamRaces, 0, true, get().playerTierOf(fa)).ok
         } })
       playersAfterFreeMoves = faResult.players
-      teamsAfterFreeMoves = faResult.teams
+      clubsAfterFreeMoves = faResult.clubs
       freeMoveRecords.push(...faResult.records)
       const faSignNews = faResult.news
       const faSnipedNegs = faResult.snipedNegs
@@ -445,18 +441,17 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       // 確定処理は次シーズン開幕のままで、ここは発表だけ
       const isFinalRace = raceIndex + 1 >= updatedRaces.length
       const seasonEndNews = isFinalRace ? buildSeasonFinaleNews({
-        players: finalPlayers, teams: state.teams, foreignLeagues: state.foreignLeagues,
+        players: finalPlayers, clubs: state.clubs,
         currentSeason: state.currentSeason,
         races: updatedRaces, playerTeamId, raceDate: race.date }) : []
 
       return {
         players: playersAfterFreeMoves,
-        teams: teamsAfterFreeMoves,
-        // ★**海外クラブの資金を書き戻す。** `movePlayer` は `teams`（国内52）しか
-        //   知らないので、相手が海外クラブのときは `settleForeignFee` が要る
-        //   （`engine/applyTransfers` が呼ぶ）。ここで戻さないと、精算しても捨てられて
+        // ★**海外クラブの資金も入っている。** `movePlayer` は日本のリーグのクラブのお金しか
+        //   動かさないので、相手が海外クラブのときは `settleForeignFee` が要る
+        //   （`engine/applyTransfers` が呼ぶ）。ここで捨てると
         //   **海外クラブは移籍金を払わずに選手を持っていける**。
-        foreignLeagues: applied.foreignLeagues,
+        clubs: clubsAfterFreeMoves,
         // 移籍成立記録（チーム詳細の移籍ページ用）。CPU間売買とフリー移籍の決断をここで記録
         transferHistory: [
           ...(state.transferHistory ?? []),
@@ -543,7 +538,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const skip = new Set(skipPlayerIds ?? [])
       // 誰が走るか・走らせて順位を付けるところは engine/timeTrial 1本
       const runners = timeTrialRunners(
-        { players: state.players, teams: state.teams, foreignLeagues: state.foreignLeagues,
+        { players: state.players, clubs: state.clubs,
           playerTeamId: state.playerTeamId, prospects: state.currentSeason.scoutProspects ?? [] },
         event, skip)
       const ranked = runTimeTrial(runners, event)
@@ -604,12 +599,12 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const recordNewsItems = [...wr.news, ...jr.news]
 
       // チーム歴代記録（選手ごと最速・種目別）。名前と国籍も焼き込む
-      const updatedTeams = updateTeamEventRecords(
-        state.teams, ranked, new Map(state.players.map(p => [p.id, p])), bestKey, state.currentSeason.year)
+      const updatedClubs = updateTeamEventRecords(
+        state.clubs, ranked, new Map(state.players.map(p => [p.id, p])), bestKey, state.currentSeason.year)
 
       return {
         players: updatedPlayers,
-        teams: updatedTeams,
+        clubs: updatedClubs,
         worldRecords: newWorldRecords,
         japanRecords: newJapanRecords,
         trainingCards: rewardCards.length > 0 ? [...(state.trainingCards ?? []), ...rewardCards] : state.trainingCards,

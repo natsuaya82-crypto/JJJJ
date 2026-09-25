@@ -1,8 +1,8 @@
 // season ドメインのアクション（gameStore から分割）。
 
 import type { GameStore, SetGame } from '../gameStore'
-import type { Team } from '../../types'
-import { FOREIGN_LEAGUES } from '../../data/foreignLeagues'
+import type { ForeignClub, WorldClub } from '../../types'
+import { INITIAL_FOREIGN_CLUBS } from '../../data/leagues'
 import { drawSeasonSchedules, generateIndividualEvents, generateSeasonRaces } from '../../data/races'
 import { INITIAL_TEAMS } from '../../data/teams'
 import { ACHIEVEMENT_JEWELS, checkSeasonAchievements, podiumJewels, selectSeasonObjectives } from '../../engine/achievements'
@@ -29,8 +29,7 @@ import { settleBonusClauses } from '../../engine/bonusPayout'
 import { computeSeasonBudgets } from '../../engine/seasonBudget'
 import { tierBudget, tierOf, tierOfClubId } from '../../utils/clubTier'
 import { appraiseGmInvite, gmInviteFeeFor } from '../../utils/gmInvite'
-import { myClub, teamById, allTieredClubs, myLeagueRaces } from '../../utils/world'
-import { allForeignClubs, foreignClubIdSet } from '../../utils/clubs'
+import { clubById, clubIdSet, clubMap, clubsWhere, isJpelLeague, jpelClubById, jpelClubs, mapClubs, myClub, myLeagueRaces, withAddedClubs, withMyClub } from '../../utils/world'
 import { MORALE_DEFAULT, setMorale } from '../../utils/condition'
 import { backfillDomesticClubs } from '../../utils/domesticClubs'
 import { buildOffer, canResignAsGm, makeGmOffer, resignOffers } from '../../utils/gmOffer'
@@ -69,10 +68,10 @@ type Slice = Pick<GameStore,
 function applyGmMove(state: GameStore, offer: GmOffer, inviteId?: string): Partial<GameStore> {
   const oldTeamId = state.playerTeamId
   // 監督名は人について回る。前のチームには元のGM名を戻す
-  const myGmName = teamById(state.teams, oldTeamId)?.gmName
+  const myGmName = myClub(state)?.gmName
     ?? state.setupData?.gmName ?? '監督'
   const oldOriginalGm = INITIAL_TEAMS.find(t => t.id === oldTeamId)?.gmName ?? '新監督'
-  const teams = state.teams.map(t => {
+  const clubs = mapClubs(state.clubs, (t): WorldClub => {
     if (t.id === offer.teamId) return { ...t, isPlayerControlled: true, gmName: myGmName }
     // ★施設は**置いていく**。オファー画面のとおり移籍先のものを引き継ぐので
     //   （施設のレベルは `utils/facilities` の `facilitiesOf`＝格の土台＋建てたぶん）、
@@ -109,13 +108,13 @@ function applyGmMove(state: GameStore, offer: GmOffer, inviteId?: string): Parti
   let inviteSpend = 0
   if (invited) {
     const fee = gmInviteFeeFor({
-      players, teams: state.teams, foreignLeagues: state.foreignLeagues,
+      players, clubs: state.clubs,
       currentSeason: state.currentSeason, fromTeamId: oldTeamId,
       destinationOf: state.destinationOf,
       playerTierOf: state.playerTierOf,
     }, invited.id)
     if (fee != null) {
-      const m = movePlayer({ players, teams }, invited.id, offer.teamId, {
+      const m = movePlayer({ players, clubs }, invited.id, offer.teamId, {
         year: offer.year, date: `${offer.year}-02-01`, fee, myTeamId: offer.teamId })
       if (m.ok) { players = m.players; inviteRecord = m.record; inviteSpend = m.spend }
     }
@@ -130,7 +129,7 @@ function applyGmMove(state: GameStore, offer: GmOffer, inviteId?: string): Parti
     : ecl
   return {
     playerTeamId: offer.teamId,
-    teams,
+    clubs,
     players,
     gmOffers: [],
     // 予約は使い切る（残すと毎年ここへ来る）
@@ -184,8 +183,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
     //   「そもそも人によって違うとかおかしいよね」）。出口（引退・満了・移籍）は
     //   232クラブ全部にあるのだから、床も全部に要ります。自チームだけ床があった頃は、
     //   海外の契約満了を直したとたんに海外クラブが14人まで痩せました。
-    const allClubs = [...state.teams, ...allForeignClubs(state.foreignLeagues)] as Team[]
-    const rescued = fillAllRostersToMin(allClubs, state.currentSeason.year, state.players)
+    const rescued = fillAllRostersToMin(state.clubs, state.currentSeason.year, state.players)
     const players = rescued.length > 0 ? [...state.players, ...rescued] : state.players
     // プレシーズンのドラフト（今季スカウトした代）が終わったので、
     // 今季スカウトする「翌年の代」を新規生成する。前回ドラフト済みの代の残りを置き換える。
@@ -279,8 +277,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         //   下のループは選手の `teamId` から作るので海外180クラブも入っているのに、
         //   **海外は全部 4.2億（格20）で更新判定**＝本来 21.1億の格1が1/5の原資で、
         //   満了した主力が更新されずFAへ流れていました。
-        const renewalClubs = allTieredClubs(state.teams, state.foreignLeagues)
-        const renewalClubById = new Map(renewalClubs.map(c => [c.id, c]))
+        const renewalClubById = clubMap(state.clubs, c => c)
         const cpuTeamIdsRenewal = [...new Set(
           state.players
             .filter(p => p.teamId && p.teamId !== '' && p.teamId !== '__pool__' && p.teamId !== state.playerTeamId && p.status === 'active')
@@ -353,7 +350,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
 
       // 契約満了 → FA、レンタル満了 → 保有元へ返却。engine/contractExpiry 1本
       const expiry = processContractExpiry({
-        grownPlayers, teams: state.teams, foreignLeagues: state.foreignLeagues,
+        grownPlayers, clubs: state.clubs,
         playerTeamId: state.playerTeamId, year: state.currentSeason.year })
       const expiredIds = expiry.expiredIds
       const playersAfterFA = expiry.players
@@ -370,20 +367,25 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // 海外クラブの年次入れ替え（引退を外し、若手を新加入させる）。
       // ただし旧セーブの大再編が保留中なら、この年度更新で新9リーグへ丸ごと置換し旧海外選手は退場させる。
       const pendingRestructure = (state.currentSeason as unknown as { pendingForeignRestructure?: boolean }).pendingForeignRestructure === true
-      const oldForeignClubIds = foreignClubIdSet(state.foreignLeagues)
+      const oldForeignClubIds = clubIdSet(clubsWhere(state.clubs, c => !isJpelLeague(c.leagueId)))
       const removedForeignPlayerIds = pendingRestructure
         ? new Set(state.players.filter(p => oldForeignClubIds.has(p.teamId)).map(p => p.id))
         : new Set<string>()
       const foreignRefresh = pendingRestructure
-        ? (() => { const g = generateForeignLeaguePlayers(FOREIGN_LEAGUES, state.currentSeason.year + 1); return { newPlayers: g.players, updatedLeagues: g.updatedLeagues } })()
-        : refreshForeignLeagues(state.foreignLeagues ?? [], retiringIds, state.currentSeason.year + 1, grownPlayers)
+        ? { newPlayers: generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, state.currentSeason.year + 1).players }
+        : refreshForeignLeagues(clubsWhere(state.clubs, c => !isJpelLeague(c.leagueId)) as ForeignClub[],
+          retiringIds, state.currentSeason.year + 1, grownPlayers)
+      // 来季の世界の土台。大再編のときだけ、海外のクラブを新しい9リーグへ丸ごと入れ替える
+      const refreshedClubs: WorldClub[] = pendingRestructure
+        ? withAddedClubs<WorldClub>(jpelClubs(state.clubs), INITIAL_FOREIGN_CLUBS)
+        : state.clubs
 
       // ★**2部・3部にも若手を入れる**（オーナー・2026-08-16「2.3部にも若手補強しよう。
       //   2人。レベル帯はドラフト外レベル」）。
       //   海外は `refreshForeignLeagues` で毎年1クラブ最大3人入るのに、国内は
       //   **ドラフト（1部20クラブだけ）しか口が無く**、6年で国内の在籍が
       //   1300→729人まで痩せて FA も尽きていた。1部はドラフトで獲るので入れない。
-      const domesticYouth = refreshDomesticYouth(state.teams, state.currentSeason.year + 1, grownPlayers)
+      const domesticYouth = refreshDomesticYouth(state.clubs, state.currentSeason.year + 1, grownPlayers)
 
       // Morale streak system: apply morale bonus/penalty to player team based on season finish
       const myFinalRank = rankOfTeam(seasonDivisionStandings(state.currentSeason, state.playerTeamId), state.playerTeamId)
@@ -391,7 +393,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
 
       // 来季の格と昇降格は engine/promotion 1本
       // （格は「今季走った部」での順位から。部の入れ替えはそのあと）
-      const promo = computePromotion({ teams: state.teams, currentSeason: state.currentSeason, playerTeamId: state.playerTeamId })
+      const promo = computePromotion({ clubs: state.clubs, currentSeason: state.currentSeason, playerTeamId: state.playerTeamId })
       const nextTierOf = promo.nextTierOf
       const nextDivisionOf = promo.nextDivisionOf
       const myNextTier = promo.myNextTier
@@ -399,7 +401,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
 
       // スポンサー契約の年度処理は engine/sponsorSeason 1本
       const sponsorResult = processSeasonSponsors({
-        sponsors: state.sponsors ?? [], teams: state.teams, currentSeason: state.currentSeason,
+        sponsors: state.sponsors ?? [], clubs: state.clubs, currentSeason: state.currentSeason,
         playerTeamId: state.playerTeamId, myFinalRank, myNextTier, newYear })
       const updatedSponsors = sponsorResult.sponsors
       const expiredSponsorIds = sponsorResult.expiredIds
@@ -425,7 +427,6 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
 
       // チームの成績（順位・勝ち点・優勝回数・連続上位）はセーブに書き足さない。
       // 今季の順位表は下で過去シーズンに保存されるので、成績はそこから数え直せる（utils/teamHistory.ts）
-      const updatedTeams = state.teams
 
       // 来季の日程も部ごとに引き直す（25コースのうちファイナル3本は固定、22本を3部で取り合う）。
       // 自分の部は昇降格のあとの部で引く
@@ -436,7 +437,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // 表に出すのは1部の王者だが、2部・3部の優勝も同じ形でニュースに出す
       const championOfDiv = (d: Division) => {
         const top = divisionStandings(state.currentSeason, d)[0]
-        return updatedTeams.find(t => t.id === top?.teamId)
+        return clubById(state.clubs, top?.teamId)
       }
       const divisionChampionNews = DIVISIONS.map(d => {
         const c = championOfDiv(d)
@@ -467,11 +468,10 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // レンタル返却された選手は保有元チームのロスターへ戻す
       // 名簿は所属(player.teamId)から組み直す。契約満了・引退・売れ残りの強制FAで抜けた選手が消え、
       // レンタルから返ってきた選手が戻る。どこか1ヶ所を書き忘れて食い違うことが無くなる
-      const teamsWithFA = updatedTeams.map(t => (
-        t.id === state.playerTeamId && expiredSponsorIds.size > 0
-          ? { ...t, sponsors: (t.sponsors ?? []).filter(id => !expiredSponsorIds.has(id)) }
-          : t
-      ))
+      const clubsWithFA = expiredSponsorIds.size > 0
+        ? withMyClub({ clubs: refreshedClubs, playerTeamId: state.playerTeamId },
+          t => ({ ...t, sponsors: (t.sponsors ?? []).filter(id => !expiredSponsorIds.has(id)) }))
+        : refreshedClubs
 
       // CPU teams do NOT sign FA players here — user gets the FA window during preseason
       // AI will sign remaining FAs when beginSeasonDraft is called
@@ -479,7 +479,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // Check objectives + award scout points + budget rewards
       // 目標の順位は自分の部の中での順位（「3位以内」は自分の部での3位）
       const finalRank = rankOfTeam(myDivRows, state.playerTeamId)
-      const playerBudgetAtSeasonEnd = myClub({ teams: teamsWithFA, playerTeamId: state.playerTeamId })?.finance.budget ?? 0
+      const playerBudgetAtSeasonEnd = myClub({ clubs: clubsWithFA, playerTeamId: state.playerTeamId })?.finance?.budget ?? 0
 
       const aiSigningNews: typeof faNews = []  // AI signing happens at draft start now
 
@@ -534,7 +534,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         .filter(p => p.teamId === state.playerTeamId)
         .reduce((s, p) => s + p.contract.annualSalary, 0)
 
-      const playerTeamObj = myClub({ teams: teamsWithFA, playerTeamId: state.playerTeamId })
+      const playerTeamObj = myClub({ clubs: clubsWithFA, playerTeamId: state.playerTeamId })
       // スポンサー収入は myActiveSponsorIds（契約満了を反映する前のリスト）が基準。
       // teamsWithFA からだと今季で満了したスポンサーが既に外れていて、
       // 最終年ぶんの協賛金をまるごと受け取れていなかった。
@@ -543,11 +543,11 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         .filter(Boolean)
         .reduce((s, sp) => s + sp!.annualPayment, 0)
       const prevRaceIncome = state.currentSeason.seasonRaceIncome ?? 0   // 区間賞のみ
-      const prevStreakMe = playerTeamObj?.finance.deficitStreak ?? 0
+      const prevStreakMe = playerTeamObj?.finance?.deficitStreak ?? 0
 
       // 来季予算の精算は engine/seasonBudget 1本（自チームもCPUも同じ式）
       const budgets = computeSeasonBudgets({
-        players: playersAfterMorale, teams: state.teams, sponsors: state.sponsors ?? [], teamsWithFA,
+        players: playersAfterMorale, clubs: state.clubs, sponsors: state.sponsors ?? [], clubsWithFA,
         currentSeason: state.currentSeason, playerTeamId: state.playerTeamId,
         myNextTier, nextTierOf, nextDivisionOf,
         playerSalaryTotal, playerBudgetAtSeasonEnd, prevRaceIncome, sponsorAnnual,
@@ -556,13 +556,13 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const newBudgetBreakdown = budgets.newBudgetBreakdown
       const newStreakMe = budgets.newStreakMe
       const cpuNextBudgets = budgets.cpuNextBudgets
-      const teamsWithSeasonRewards = budgets.teamsWithSeasonRewards
+      const clubsWithSeasonRewards = budgets.clubsWithSeasonRewards
 
       // 指名権の発行・期限切れの掃除・赤字ペナルティは engine/draftPicks 1本
       const picks = issueDraftPicks({
-        teams: teamsWithSeasonRewards, numTeams: state.teams.length, currentSeason: state.currentSeason,
+        clubs: clubsWithSeasonRewards, numTeams: jpelClubs(state.clubs).length, currentSeason: state.currentSeason,
         playerTeamId: state.playerTeamId, newYear, deficitStreak: newStreakMe })
-      const teamsWithCleanedPicks = picks.teams
+      const clubsWithCleanedPicks = picks.clubs
       const pickPenaltyNews = picks.pickPenaltyNews
 
       const seasonPrizeNews = {
@@ -574,7 +574,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // 監督の通算成績と節目のニュースは engine/dynastyMilestones 1本
       const dynasty = computeDynastyMilestones({
         pastSeasons: state.pastSeasons, currentSeason: state.currentSeason, gmTenures: state.gmTenures,
-        teams: state.teams, playerTeamId: state.playerTeamId, finalRank,
+        clubs: state.clubs, playerTeamId: state.playerTeamId, finalRank,
         playersAfter: playersAfterMorale, playersBefore: state.players })
       const totalChamps = dynasty.totalChamps
       const totalSeasons = dynasty.totalSeasons
@@ -615,17 +615,16 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // 海外リーグの年度処理（優勝+1・格の更新・来季予算・海外内の移籍・日本↔海外の移籍）は
       // engine/foreignSeason 1本。**国内と扱いを分けないこと**という決まりもそちら側
       const fSeason = processForeignSeason({
-        players: playersWithLoanHistory, foreignLeagues: state.foreignLeagues ?? [],
+        players: playersWithLoanHistory,
         leagues: state.currentSeason.leagues,
         // 国内2・3部の若手も、海外の新加入とまったく同じ口から世界へ入れる
         // （入れ方を2本に増やさない）
-        refreshedLeagues: foreignRefresh.updatedLeagues,
         // ★入れ口は1本（CLAUDE.md「2本目の入口を作らないこと」）。自チームの救済ぶんもここへ混ぜる
         // ★自チームの下限の救済はここではなく `startRegularSeason`（開幕の直前）。
         //   ここで足すと、契約満了と引退を当てる**前**の人数を見ることになり、
         //   いちばん普通の経路（満了で割る）でちょうど発火しない
         newForeignPlayers: [...foreignRefresh.newPlayers, ...domesticYouth],
-        removedForeignPlayerIds, teams: teamsWithCleanedPicks,
+        removedForeignPlayerIds, clubs: clubsWithCleanedPicks,
         playerTeamId: state.playerTeamId, newYear })
       // ★移籍はここでは起きません（`engine/transferMarket.ts` の1本を `beginSeasonDraft` で回す）。
       //   ここは格と来季予算を更新し終えた世界を受け取るだけ
@@ -634,22 +633,21 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // セーブの肥大化対策（在籍上限の整理・引退選手の軽量化・出番の無い選手の削除）は
       // engine/savePruning 1本。**実績のある選手は絶対に消さない**という決まりもそちら側
       const pruned = pruneSaveData({
-        players: market.players, foreignLeagues: market.foreignLeagues, state, newYear })
+        players: market.players, state, newYear })
       const cleanedPlayers = pruned.players
       const removedPlayers = pruned.removedPlayers
-      const cappedForeignLeagues = market.foreignLeagues
 
       // 退団のお知らせ（黙って消えるのを防ぐ）は engine/departureNotices 1本
       const dep = collectDepartures({
-        before: state.players, cleanedPlayers, teams: state.teams, foreignLeagues: cappedForeignLeagues,
+        before: state.players, cleanedPlayers, clubs: market.clubs,
         playerTeamId: state.playerTeamId, year: state.currentSeason.year, newYear })
       const departureNotices = dep.notices
       const departureRecords = dep.records
 
       // 今季の記録を保存する形に整える（出場0の選手も埋める）のは engine/seasonArchivePrep 1本
       const arcPrep = prepareSeasonArchive({
-        currentSeason: state.currentSeason, before: state.players, teams: state.teams,
-        prevForeignLeagues: state.foreignLeagues ?? [], playerTeamId: state.playerTeamId })
+        currentSeason: state.currentSeason, before: state.players, clubs: state.clubs,
+        playerTeamId: state.playerTeamId })
       const archivedForeignApps = arcPrep.archivedForeignApps
       const zeroAppearances = arcPrep.zeroAppearances
 
@@ -657,7 +655,6 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // 契約満了のFA化（teamId=''）や長期整理での選手削除がroster配列に残存し、
       // 「名簿に居るのにteamIdが違う/存在しない」不整合になるのを根治する
       // レンタル中（loanあり）の選手は名簿外が正規仕様（teamId=借り手だが借り手の名簿には載せない）
-      const syncedTeams0 = market.teams
 
       // 下部リーグのクラブが入っていない古いセーブに、足りない32クラブを補う。
       // 補うのは来季の器を組んだこの時点＝**次の年から**参加する（今季の順位表は触らない）。
@@ -667,13 +664,13 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       //   選んだクラブの元の部（1部・2部）へ引き戻される。**いまの自チームだけでは足りない**——
       //   監督が移った瞬間に前のクラブが元の部へ戻り、1年で部を2つ飛ぶ「昇格」になる
       const backfilled = backfillDomesticClubs({
-        teams: syncedTeams0, players: cleanedPlayers, year: newYear,
+        clubs: market.clubs, players: cleanedPlayers, year: newYear,
         pinnedTeamIds: managedTeamIds(state.gmTenures, state.playerTeamId) })
-      const syncedTeams = backfilled.teams
+      const syncedClubs = backfilled.clubs
       const playersWithBackfill = backfilled.players
       const backfillNews = backfilled.addedTeams.length === 0 ? [] : [{
         date: `${newYear}-01-05`,
-        headline: divisionsFoundedHeadline(backfilled.addedTeams.length, syncedTeams.length),
+        headline: divisionsFoundedHeadline(backfilled.addedTeams.length, jpelClubs(syncedClubs).length),
         category: 'race' as const,
         relatedIds: [] }]
 
@@ -689,7 +686,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         gmRep: newGmRep,
         teamCount: myDivSize(state),
         nextYear: newYear,
-        teams: syncedTeams,
+        clubs: syncedClubs,
         nextBudgets: cpuNextBudgets,
         objBonus,
         rng: Math.random,
@@ -712,12 +709,11 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const next: Partial<GameStore> = {
         players: playersWithBackfill,
         removedPlayers,
-        teams: syncedTeams,
+        clubs: syncedClubs,
         // 1件でも複数でも同じ入れ物（退任したときは3件まで一度に届く）
         gmOffers: gmOffer ? [gmOffer] : [],
         // 出た年を控えて、次のオファーまで間隔を空ける
         lastGmOfferYear: gmOffer ? newYear : state.lastGmOfferYear,
-        foreignLeagues: cappedForeignLeagues,
         worldTournament: undefined,  // 世界選手権トーナメントは年度で完結（翌年は新規に開催）
         worldRacePlans: undefined,   // コースも毎年引き直し
         // 退団（FA流出・移籍）と海外移籍（クラブ間・日本↔海外）を移籍履歴に記録（移籍ページの日付・移籍金表示用）
@@ -746,13 +742,13 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
           year: newYear,
           currentRaceIndex: 0,
           phase: 'preseason',
-          // 国内3部の日程と順位表。補ったクラブぶんも来季の順位表に並ぶよう、state.teams ではなく
+          // 国内3部の日程と順位表。補ったクラブぶんも来季の順位表に並ぶよう、いまのクラブではなく
           // 補完後を使う。部の割り振りは昇降格を通したあとの部（＝来季走る部）で決まる
           // 海外リーグは日本1部と同じ10日を走る（engine/leagueDay）
           leagues: withForeignSchedules(
-            divisionLeagues(nextSchedules, newSeasonStandings(syncedTeams, teamId => ({
+            divisionLeagues(nextSchedules, newSeasonStandings(syncedClubs, teamId => ({
               teamId, leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [] }))),
-            foreignRefresh.updatedLeagues),
+            syncedClubs),
           collegeRaces: [],
           // スカウトPTの効き目は `utils/facilities` の1本（画面の効き目の表示と同じ式）
           scoutPoints: 5 + objBonus + facilityScoutPoints(facilitiesOf(myClub(state)).scoutOffice),
@@ -786,9 +782,8 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
             const parts = buildEclParticipants({
               // ECLの枠は1部の上位2クラブ
               standings: divisionStandings(state.currentSeason, TOP_DIVISION),
-              teams: state.teams,
+              clubs: refreshedClubs,
               playerTeamId: state.playerTeamId,
-              leagues: foreignRefresh.updatedLeagues,
               seasonLeagues: state.currentSeason.leagues,
               players: market.players })
             if (parts.length < 4) return undefined
@@ -822,14 +817,14 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const booked = state.pendingGmMove
       if (!booked || booked.year !== newYear) return next
       const moved: GameStore = { ...state, ...next } as GameStore
-      const destTeam = syncedTeams.find(t => t.id === booked.teamId)
+      const destTeam = jpelClubById(syncedClubs, booked.teamId)
       if (!destTeam) return { ...next, pendingGmMove: null }
       // ★お金と順位は**移る直前の数字で作り直す**。予約したときの額をそのまま使うと、
       //   1シーズンぶん古い予算で就任してしまう
       const freshOffer = buildOffer({
         teamId: booked.teamId, kind: 'promotion',
         season: { ...state.currentSeason },
-        teams: syncedTeams, nextBudgets: cpuNextBudgets,
+        clubs: syncedClubs, nextBudgets: cpuNextBudgets,
         nextYear: newYear, objBonus: 0, finalRank })
       return { ...next, ...applyGmMove(moved, freshOffer, booked.inviteId) }
     })
@@ -841,13 +836,13 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // 届いている中から選ぶ。1件しか無いときは指定なしでもよい
       const offer = teamId ? (state.gmOffers ?? []).find(o => o.teamId === teamId) : (state.gmOffers ?? [])[0]
       if (!offer) return {}
-      const dest = teamById(state.teams, offer.teamId)
+      const dest = clubById(state.clubs, offer.teamId)
       if (!dest) return { gmOffers: [] }
       // ★**頷いた相手だけを連れて行く関門はここ1つ。**
       //   画面はチャットで同じ関数の答えを見せているだけなので、
       //   ここを通っていない相手（断られた・そもそも聞いていない）は落ちる
       const agreed = inviteId && appraiseGmInvite({
-        players: state.players, teams: state.teams, foreignLeagues: state.foreignLeagues,
+        players: state.players, clubs: state.clubs,
         currentSeason: state.currentSeason, fromTeamId: state.playerTeamId,
         destinationOf: state.destinationOf,
         playerTierOf: state.playerTierOf,
@@ -892,9 +887,8 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       if (!canResignAsGm(state.gmTenures, state.currentSeason.year).ok) return {}
       // 候補クラブの「いま使えるお金」をそのまま持って行く（年度更新を待たない）。
       // 予算は格1本（utils/clubTier）なので、内訳のグラントもそこから出す
-      const tiered = allTieredClubs(state.teams, state.foreignLeagues ?? [])
       const nextBudgets: Record<string, GmOffer['budgetBreakdown'] & { budget: number }> = {}
-      for (const t of state.teams) {
+      for (const t of jpelClubs(state.clubs)) {
         nextBudgets[t.id] = {
           budget: t.finance.budget,
           carryover: 0, grant: tierBudget(t), raceIncome: 0, sponsor: 0, objBonus: 0, expenses: 0 }
@@ -905,10 +899,10 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         finalRank: rankOfTeam(seasonDivisionStandings(state.currentSeason, state.playerTeamId), state.playerTeamId),
         // ★来季（＋1）。就任は次のシーズン開始時（★13）
         nextYear: state.currentSeason.year + 1,
-        teams: state.teams,
+        clubs: state.clubs,
         nextBudgets,
         rng: Math.random,
-        tierNow: id => tierOf(tiered.find(c => c.id === id)),
+        tierNow: id => tierOf(clubById(state.clubs, id)),
         tierSeed: id => tierOfClubId(id) })
       return { gmOffers: offers }
     })

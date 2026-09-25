@@ -1,6 +1,7 @@
 // レース勝利ボーナス等の一時ブースト適用（gameStore から移設）。RacePage と store の両方から使う。
 
-import { type Facilities, type Player, type Team } from '../types'
+import { type Facilities, type Player, type WorldClub } from '../types'
+import { clubMap } from '../utils/world'
 import { withMorale } from '../utils/condition'
 import { facilitiesOf, facilityTacticsStatBonus } from '../utils/facilities'
 import { type TieredTeam } from '../utils/clubTier'
@@ -19,10 +20,10 @@ import { statCapOf } from '../utils/playerUtils'
  */
 export function withFacilityBoost(
   players: Player[],
-  clubs: readonly (TieredTeam & { id?: string; facilities?: Facilities })[],
+  clubs: readonly (TieredTeam & { id: string; facilities?: Facilities })[],
 ): Player[] {
-  if (clubs.length === 0) return players
-  const lvById = new Map(clubs.filter(c => c.id).map(c => [c.id!, facilitiesOf(c).tacticsRoom]))
+  const lvById = clubMap(clubs, c => facilitiesOf(c).tacticsRoom)
+  if (lvById.size === 0) return players
   return players.map(p => {
     const boost = facilityTacticsStatBonus(lvById.get(p.teamId) ?? 0)
     if (boost <= 0 || !p.ratings) return p
@@ -64,9 +65,9 @@ export function lineupChemistry(
 }
 
 export function applyRaceBoosts(
-  players: Player[], teams: Team[], playerTeamId: string, lineup: Record<number, string>,
+  players: Player[], raceClubs: readonly WorldClub[], playerTeamId: string, lineup: Record<number, string>,
 ): Player[] {
-  const boosted = withFacilityBoost(players, teams)
+  const boosted = withFacilityBoost(players, raceClubs)
 
   const lineupPlayerIds = Object.values(lineup).filter(Boolean)
   if (lineupPlayerIds.length === 0) return boosted

@@ -6,7 +6,7 @@ import { isDeclining } from './ageCurve'
 import { clubSalaryTotal } from '../utils/clubMoney'
 import { roundFee, transferCapOf } from '../data/economy'
 import { ROSTER_MAX, ROSTER_MIN } from '../data/rosterRules'
-import { type ForeignClub, type IncomingLoanOffer, type IncomingOffer, type Player, type Specialty, type Team, type TransferListing } from '../types'
+import { type ForeignClub, type IncomingLoanOffer, type IncomingOffer, type Player, type Specialty, type TransferListing, type WorldClub } from '../types'
 import type { Destination } from '../utils/transferDecision'
 import { clubSeasonRank } from '../utils/clubStanding'
 import { tierBudget, tierOf, tierStrength } from '../utils/clubTier'
@@ -23,7 +23,7 @@ import { needsPlayer, squadRankOf, thinSpecialties, wouldMakeLineup } from '../u
 import { MAX_OFFERS_PER_PLAYER, appraiseMove, hasNoPlayingTime, regionOfLeague } from '../utils/transferDecision'
 import { playerTierOf, tierLines } from '../utils/playerTier'
 import { canBePoached, canClubApproachAgain, canGoOverseasDream, canLoanOut, canReceiveFreeContact, isOwnedBy } from '../utils/transferEligibility'
-import { myClub, teamById } from '../utils/world'
+import { clubById, clubIdSet, clubMap, clubsWhere, isJpelLeague, jpelClubs, mapClubs, myClub, otherClubs } from '../utils/world'
 
 export function cpuStrategy(lastRank: number, totalTeams: number, avgAge: number): 'contend' | 'rebuild' | 'balanced' {
   if (avgAge >= 30) return 'contend'          // 主力が高齢＝今のうちに勝負
@@ -80,7 +80,6 @@ export function pickCpuFreeAgents(a: {
   consents?: (player: Player, clubId: string) => boolean
 }): { playerId: string; clubId: string }[] {
   const players = a.players
-  const clubs = a.clubs
   // 人数がここまでは年俸を気にせず埋める。これを超えると年俸が払える範囲だけ
   const FA_FREE_FILL = ROSTER_MIN + 9
   const availableFAs = players
@@ -96,9 +95,8 @@ export function pickCpuFreeAgents(a: {
     return { rank: r.rank > 0 ? r.rank : Math.ceil(total / 2), total }
   }
   // 順番は「順位が下のクラブから」。同順の並びは毎回シャッフル（特定クラブだけが毎年得をしないように）
-  const tierJitter = new Map(clubs.map(c => [c.id, Math.random()]))
-  const cpuTeamsSorted = clubs
-    .filter(c => c.id !== a.playerTeamId)
+  const tierJitter = clubMap(a.clubs, () => Math.random())
+  const cpuTeamsSorted = otherClubs(a.clubs, a.playerTeamId)
     .sort((a, b) => (standingOf(b.id).rank - standingOf(a.id).rank) || (tierJitter.get(a.id)! - tierJitter.get(b.id)!))
 
   // クラブごとの補強の事情（枠・予算・欲しい専門）は最初に1回だけ組み立てる
@@ -236,8 +234,8 @@ export const LOAN_BENCH_PLAY_RATE = 0.35
 
 export function generateLoanOffers(params: {
   players: Player[]
-  teams: Team[]
-  foreignClubs: ForeignClub[]
+  /** 世界のクラブ（国内52＋海外180） */
+  clubs: WorldClub[]
   playerTeamId: string
   raceIndex: number
   existingLoans: IncomingLoanOffer[]
@@ -247,7 +245,7 @@ export function generateLoanOffers(params: {
   retiringIds?: Set<string>   // 引退希望中の選手（打診の対象外）
   currentYear?: number        // 今のシーズン年
 }): { loanOffers: IncomingLoanOffer[] } {
-  const { players, teams, foreignClubs, playerTeamId, raceIndex, existingLoans, season, retiringIds, currentYear } = params
+  const { players, clubs, playerTeamId, raceIndex, existingLoans, season, retiringIds, currentYear } = params
   // 「誰に話を持ちかけていいか」の条件は utils/transferEligibility.ts に集約。
   // 「譲ります」と返事をして決着待ちの選手には、貸出の話も持ちかけない（utils/saleAnswer）
   const eligCtx = { teamId: playerTeamId, currentYear, retiringIds, saleAnsweredIds: saleAnsweredIds(season) }
@@ -267,13 +265,14 @@ export function generateLoanOffers(params: {
   //     オーナー指摘（2026-08-14）「レンタルも、主力の90とかをレンタルしようとしてくるのなに？」。
   //     レース結果に依らない**序列**（走れる7人に入っているか）を先に見ます。
   const myRoster = [...myPlayers].sort(comparePlayers('ovr'))
-  const myPlayFrac = (p: Player) => playRateOf(p.id, playerTeamId, season ?? {}, teams).fraction
+  const myPlayFrac = (p: Player) => playRateOf(p.id, playerTeamId, season ?? {}, clubs).fraction
   const myYoung = myPlayers.filter(p =>
     p.age <= 23 && canLoanOut(p, eligCtx)
     && !wouldMakeLineup(myRoster, p)              // 走れる7人に入っている＝主力。貸さない
     && myPlayFrac(p) < LOAN_BENCH_PLAY_RATE)
   const loanTargetIds = new Set(existingLoans.map(o => o.playerId))
-  const aiTeams = teams.filter(t => t.id !== playerTeamId)
+  // 借りたい・貸したいと言ってくる相手。日本のリーグのCPUクラブ（貸したい側はこちらだけ・いまの振る舞い）
+  const aiTeams = otherClubs(jpelClubs(clubs), playerTeamId)
 
   // 2) レンタル打診：相手（国内/海外）が自チームの選手を借りたい（lend_out）。
   // 貸出歓迎に設定した選手がいれば優先的・高確率（70%）でその中から。いなければ従来どおり低確率で若手に
@@ -285,7 +284,9 @@ export function generateLoanOffers(params: {
       // 若手は**出ていない人の中から**選ぶ（強い順に名指ししない）
       : (youngCands.length > 0 && Math.random() < 0.25 ? youngCands[(raceIndex + youngCands.length) % youngCands.length] : null)
     if (target) {
-      const pool: { id: string; fromForeign: boolean }[] = [...aiTeams.map(t => ({ id: t.id, fromForeign: false })), ...foreignClubs.map(c => ({ id: c.id, fromForeign: true }))]
+      // 借りたいと言ってくるのは国内52＋海外180（自チームを除く）。並びは世界の並びのまま
+      const pool: { id: string; fromForeign: boolean }[] = mapClubs(otherClubs(clubs, playerTeamId),
+        c => ({ id: c.id, fromForeign: !isJpelLeague(c.leagueId) }))
       if (pool.length > 0) {
         const from = pool[(ovr(target) + raceIndex) % pool.length]
         loanOffers.push({ id: `loanout-${raceIndex}-${from.id}-${target.id}`, fromTeamId: from.id, playerId: target.id, direction: 'lend_out', years: 1 + (target.age % 2), expiresAtRace: raceIndex + 3, fromForeign: from.fromForeign })
@@ -301,7 +302,7 @@ export function generateLoanOffers(params: {
     //   自分の部の日程で数えると、他の部のクラブの選手は全員0＝全員が「干されている」に
     //   なり、1部・2部の選手が丸ごとレンタルの出し手候補になっていた
     const playFrac = (pid: string, clubId: string) =>
-      playRateOf(pid, clubId, season ?? {}, teams).fraction
+      playRateOf(pid, clubId, season ?? {}, clubs).fraction
     // ★こちらも序列を先に見る（相手クラブの主力を借りられないように）。
     //   出場率だけだとシーズンの頭に相手の主力が候補へ入る
     const rosterOfClub = (cid: string) => [...(clubIndexOf(players).get(cid) ?? [])]
@@ -324,7 +325,8 @@ export function generateLoanOffers(params: {
 
 export function generateTransferActivity(
   players: Player[],
-  teams: Team[],
+  /** 世界のクラブ（国内52＋海外180）。**打診の関門は国内も海外も同じ1本** */
+  clubs: WorldClub[],
   playerTeamId: string,
   raceIndex: number,
   existingListings: TransferListing[],
@@ -333,7 +335,6 @@ export function generateTransferActivity(
   retiringIds: Set<string> = new Set(),  // 引退希望中の選手（オファー・接触の対象外にする）
   currentYear = 0,                       // 今のシーズン年。加入1年目の選手をオファー対象から外すのに使う
   totalRaces = 0,                        // 今季のレース数。契約残りの月数を出すのに使う（フリー接触の解禁時期）
-  foreignClubs: ForeignClub[] = [],      // 海外180クラブ。**打診の関門は国内52と同じ1本**（下の「自チームへの打診」）
   // 出場率の材料（utils/playRate の playRateOf を包んで渡すこと）。**既定値は置きません**
   // ——置くと「渡し忘れても動く」＝関門が黙って序列だけになるので、渡し忘れが起きます
   playRate: (playerId: string) => { fraction: number; teamRaces: number },
@@ -355,18 +356,15 @@ export function generateTransferActivity(
   //   （オーナー・2026-09-16「1は海外国内は一緒」）。出品するのも、買い手の抽選
   //   （`competingTeams`）に入るのも、自チームの出品へ入札してくるのも、
   //   契約満了間近の選手に接触してくるのも、全部この1本の並びです。
-  //   以前は `teams`（国内52）だけだったので、CPU同士の移籍（`engine/transferMarket`）は
+  //   以前は国内52だけだったので、CPU同士の移籍（`engine/transferMarket`）は
   //   1本化されているのに**シーズン中の出品だけ国内に閉じて**いました＝海外の選手は
   //   移籍リストに一度も並ばず、海外クラブは買い手にもなれませんでした。
   // ★**並びはシャッフルすること。** 下の `competingTeams` は「先頭から3つ」を取るので、
   //   国内52を先に並べると海外180には順番が一度も回りません（打診のループが
   //   シャッフルしているのと同じ理由）。
-  // ★どちらのクラブかは**IDの集合で判定する**。`'leagueId' in club` では見分けられない
-  //   （`Team` にも `leagueId?` があり、国内は 'jpel' が入りうる。型だけ見て分けると、
-  //     セーブによって国内の打診に fromForeign が付く）
-  const foreignClubIds = new Set(foreignClubs.map(c => c.id))
-  const aiTeams: (Team | ForeignClub)[] = [...teams, ...foreignClubs]
-    .filter(t => t.id !== playerTeamId)
+  // ★海外からの打診か（`fromForeign`）は**所属リーグで判定する**（日本のリーグでないクラブ）
+  const foreignClubIds = clubIdSet(clubsWhere(clubs, c => !isJpelLeague(c.leagueId)))
+  const aiTeams: WorldClub[] = otherClubs(clubs, playerTeamId)
     .sort(() => Math.random() - 0.5)
 
   for (const team of aiTeams) {
@@ -495,7 +493,7 @@ export function generateTransferActivity(
 
   // 打診が来るのは `aiTeams`（国内52＋海外180・シャッフル済み）そのまま。
   // ここで海外をもう一度混ぜないこと——同じクラブが2回並んで確率が倍になります
-  const offerClubs: (Team | ForeignClub)[] = raceIndex < OFFER_START_RACE ? [] : aiTeams
+  const offerClubs: WorldClub[] = raceIndex < OFFER_START_RACE ? [] : aiTeams
 
   // ★**声を掛けていいのは、本人が「行く」と答えるクラブだけ**（`appraiseMove` 1本）。
   //
@@ -512,10 +510,9 @@ export function generateTransferActivity(
   //   **関門を写さないこと。** 本人が答えるのと同じ関数をそのまま呼びます
   //   （買う側の取り合い `rivalClubsFor` も同じ形）。`inTierBand` は `appraiseMove` の
   //   中（`outOfBand`）にあるので、ここで別に呼ぶ必要はありません。
-  const myTier = tierOf(myClub({ teams, playerTeamId }) ?? { tier: 20 } as Team)
+  const myTier = tierOf(myClub({ clubs, playerTeamId }) ?? { tier: 20 })
   // 選手の格の線は世界全体から1回だけ組む（utils/playerTier）
-  const myTierLines = tierLines(players, id =>
-    tierOf(teamById(teams, id) ?? foreignClubs.find(c => c.id === id)))
+  const myTierLines = tierLines(players, id => tierOf(clubById(clubs, id)))
 
 
   for (const club of offerClubs) {

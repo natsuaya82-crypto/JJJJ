@@ -2,6 +2,39 @@
  "adsRemoved": "boolean",
  "adsWatchedToday": "undefined",
  "balancePatch": "number",
+ "clubs": {
+  "$len": 232,
+  "$item": {
+   "city?": "string",
+   "colors": {
+    "primary": "string",
+    "secondary": "string"
+   },
+   "country?": "string",
+   "draftPicks?": {
+    "$len": 0
+   },
+   "finance?": {
+    "budget": "number",
+    "deficitStreak": "number"
+   },
+   "founded?": "number",
+   "gmName?": "string",
+   "id": "string",
+   "initialRank?": "number",
+   "isPlayerControlled?": "boolean",
+   "leagueId": "string",
+   "name": "string",
+   "region?": "string",
+   "roster?": {
+    "main": {
+     "$len": 25,
+     "$item": "string"
+    }
+   },
+   "shortName": "string"
+  }
+ },
  "currentSeason": {
   "acquisitionOffers": {
    "$len": 0
@@ -35,10 +68,40 @@
   "leagues": {
    "africa_east": {
     "races": {
-     "$len": 0
+     "$len": 2,
+     "$item": {
+      "conditions": {
+       "elevation": "number",
+       "temperature": "number",
+       "weather": "string"
+      },
+      "date": "string",
+      "id": "string",
+      "location": "string",
+      "name": "string",
+      "results": "undefined",
+      "segments": {
+       "$len": 10,
+       "$item": {
+        "distanceKm": "number",
+        "downhillPct": "number",
+        "index": "number",
+        "recommended": "string",
+        "statWeights": {
+         "mental": "number",
+         "pacing": "number",
+         "recovery": "number",
+         "speed": "number",
+         "stamina": "number"
+        },
+        "uphillPct": "number"
+       }
+      },
+      "type": "string"
+     }
     },
     "standings": {
-     "$len": 2,
+     "$len": 20,
      "$item": {
       "raceResults": {
        "$len": 1,
@@ -47,6 +110,231 @@
         "raceId": "string",
         "rank": "number"
        }
+      },
+      "teamId": "string",
+      "totalPoints": "number"
+     }
+    }
+   },
+   "africa_ns": {
+    "races": {
+     "$len": 2,
+     "$item": {
+      "conditions": {
+       "elevation": "number",
+       "temperature": "number",
+       "weather": "string"
+      },
+      "date": "string",
+      "id": "string",
+      "location": "string",
+      "name": "string",
+      "results": "undefined",
+      "segments": {
+       "$len": 10,
+       "$item": {
+        "distanceKm": "number",
+        "downhillPct": "number",
+        "index": "number",
+        "recommended": "string",
+        "statWeights": {
+         "mental": "number",
+         "pacing": "number",
+         "recovery": "number",
+         "speed": "number",
+         "stamina": "number"
+        },
+        "uphillPct": "number"
+       }
+      },
+      "type": "string"
+     }
+    },
+    "standings": {
+     "$len": 20,
+     "$item": {
+      "raceResults": {
+       "$len": 0
+      },
+      "teamId": "string",
+      "totalPoints": "number"
+     }
+    }
+   },
+   "asia_league": {
+    "races": {
+     "$len": 2,
+     "$item": {
+      "conditions": {
+       "elevation": "number",
+       "temperature": "number",
+       "weather": "string"
+      },
+      "date": "string",
+      "id": "string",
+      "location": "string",
+      "name": "string",
+      "results": "undefined",
+      "segments": {
+       "$len": 10,
+       "$item": {
+        "distanceKm": "number",
+        "downhillPct": "number",
+        "index": "number",
+        "recommended": "string",
+        "statWeights": {
+         "mental": "number",
+         "pacing": "number",
+         "recovery": "number",
+         "speed": "number",
+         "stamina": "number"
+        },
+        "uphillPct": "number"
+       }
+      },
+      "type": "string"
+     }
+    },
+    "standings": {
+     "$len": 20,
+     "$item": {
+      "raceResults": {
+       "$len": 0
+      },
+      "teamId": "string",
+      "totalPoints": "number"
+     }
+    }
+   },
+   "central_america": {
+    "races": {
+     "$len": 2,
+     "$item": {
+      "conditions": {
+       "elevation": "number",
+       "temperature": "number",
+       "weather": "string"
+      },
+      "date": "string",
+      "id": "string",
+      "location": "string",
+      "name": "string",
+      "results": "undefined",
+      "segments": {
+       "$len": 10,
+       "$item": {
+        "distanceKm": "number",
+        "downhillPct": "number",
+        "index": "number",
+        "recommended": "string",
+        "statWeights": {
+         "mental": "number",
+         "pacing": "number",
+         "recovery": "number",
+         "speed": "number",
+         "stamina": "number"
+        },
+        "uphillPct": "number"
+       }
+      },
+      "type": "string"
+     }
+    },
+    "standings": {
+     "$len": 20,
+     "$item": {
+      "raceResults": {
+       "$len": 0
+      },
+      "teamId": "string",
+      "totalPoints": "number"
+     }
+    }
+   },
+   "europe_ne": {
+    "races": {
+     "$len": 2,
+     "$item": {
+      "conditions": {
+       "elevation": "number",
+       "temperature": "number",
+       "weather": "string"
+      },
+      "date": "string",
+      "id": "string",
+      "location": "string",
+      "name": "string",
+      "results": "undefined",
+      "segments": {
+       "$len": 10,
+       "$item": {
+        "distanceKm": "number",
+        "downhillPct": "number",
+        "index": "number",
+        "recommended": "string",
+        "statWeights": {
+         "mental": "number",
+         "pacing": "number",
+         "recovery": "number",
+         "speed": "number",
+         "stamina": "number"
+        },
+        "uphillPct": "number"
+       }
+      },
+      "type": "string"
+     }
+    },
+    "standings": {
+     "$len": 20,
+     "$item": {
+      "raceResults": {
+       "$len": 0
+      },
+      "teamId": "string",
+      "totalPoints": "number"
+     }
+    }
+   },
+   "europe_ws": {
+    "races": {
+     "$len": 2,
+     "$item": {
+      "conditions": {
+       "elevation": "number",
+       "temperature": "number",
+       "weather": "string"
+      },
+      "date": "string",
+      "id": "string",
+      "location": "string",
+      "name": "string",
+      "results": "undefined",
+      "segments": {
+       "$len": 10,
+       "$item": {
+        "distanceKm": "number",
+        "downhillPct": "number",
+        "index": "number",
+        "recommended": "string",
+        "statWeights": {
+         "mental": "number",
+         "pacing": "number",
+         "recovery": "number",
+         "speed": "number",
+         "stamina": "number"
+        },
+        "uphillPct": "number"
+       }
+      },
+      "type": "string"
+     }
+    },
+    "standings": {
+     "$len": 20,
+     "$item": {
+      "raceResults": {
+       "$len": 0
       },
       "teamId": "string",
       "totalPoints": "number"
@@ -157,6 +445,141 @@
       "totalPoints": "number"
      }
     }
+   },
+   "north_america": {
+    "races": {
+     "$len": 2,
+     "$item": {
+      "conditions": {
+       "elevation": "number",
+       "temperature": "number",
+       "weather": "string"
+      },
+      "date": "string",
+      "id": "string",
+      "location": "string",
+      "name": "string",
+      "results": "undefined",
+      "segments": {
+       "$len": 10,
+       "$item": {
+        "distanceKm": "number",
+        "downhillPct": "number",
+        "index": "number",
+        "recommended": "string",
+        "statWeights": {
+         "mental": "number",
+         "pacing": "number",
+         "recovery": "number",
+         "speed": "number",
+         "stamina": "number"
+        },
+        "uphillPct": "number"
+       }
+      },
+      "type": "string"
+     }
+    },
+    "standings": {
+     "$len": 20,
+     "$item": {
+      "raceResults": {
+       "$len": 0
+      },
+      "teamId": "string",
+      "totalPoints": "number"
+     }
+    }
+   },
+   "oceania": {
+    "races": {
+     "$len": 2,
+     "$item": {
+      "conditions": {
+       "elevation": "number",
+       "temperature": "number",
+       "weather": "string"
+      },
+      "date": "string",
+      "id": "string",
+      "location": "string",
+      "name": "string",
+      "results": "undefined",
+      "segments": {
+       "$len": 10,
+       "$item": {
+        "distanceKm": "number",
+        "downhillPct": "number",
+        "index": "number",
+        "recommended": "string",
+        "statWeights": {
+         "mental": "number",
+         "pacing": "number",
+         "recovery": "number",
+         "speed": "number",
+         "stamina": "number"
+        },
+        "uphillPct": "number"
+       }
+      },
+      "type": "string"
+     }
+    },
+    "standings": {
+     "$len": 20,
+     "$item": {
+      "raceResults": {
+       "$len": 0
+      },
+      "teamId": "string",
+      "totalPoints": "number"
+     }
+    }
+   },
+   "south_america": {
+    "races": {
+     "$len": 2,
+     "$item": {
+      "conditions": {
+       "elevation": "number",
+       "temperature": "number",
+       "weather": "string"
+      },
+      "date": "string",
+      "id": "string",
+      "location": "string",
+      "name": "string",
+      "results": "undefined",
+      "segments": {
+       "$len": 10,
+       "$item": {
+        "distanceKm": "number",
+        "downhillPct": "number",
+        "index": "number",
+        "recommended": "string",
+        "statWeights": {
+         "mental": "number",
+         "pacing": "number",
+         "recovery": "number",
+         "speed": "number",
+         "stamina": "number"
+        },
+        "uphillPct": "number"
+       }
+      },
+      "type": "string"
+     }
+    },
+    "standings": {
+     "$len": 20,
+     "$item": {
+      "raceResults": {
+       "$len": 0
+      },
+      "teamId": "string",
+      "totalPoints": "number"
+     }
+    }
    }
   },
   "newsFeed": {
@@ -207,29 +630,6 @@
  },
  "deficitRescue": "number",
  "draftState": "null",
- "foreignLeagues": {
-  "$len": 9,
-  "$item": {
-   "clubs": {
-    "$len": 20,
-    "$item": {
-     "colors": {
-      "primary": "string",
-      "secondary": "string"
-     },
-     "country": "string",
-     "id": "string",
-     "leagueId": "string",
-     "name": "string",
-     "shortName": "string"
-    }
-   },
-   "country": "string",
-   "countryName": "string",
-   "id": "string",
-   "name": "string"
-  }
- },
  "giftGivenVersions": {
   "$len": 0
  },
@@ -504,38 +904,6 @@
  },
  "starredProspects": {
   "$len": 0
- },
- "teams": {
-  "$len": 52,
-  "$item": {
-   "city": "string",
-   "colors": {
-    "primary": "string",
-    "secondary": "string"
-   },
-   "division": "number",
-   "draftPicks": {
-    "$len": 0
-   },
-   "finance": {
-    "budget": "number",
-    "deficitStreak": "number"
-   },
-   "founded": "number",
-   "gmName": "string",
-   "id": "string",
-   "initialRank": "number",
-   "isPlayerControlled": "boolean",
-   "name": "string",
-   "region": "string",
-   "roster?": {
-    "main": {
-     "$len": 25,
-     "$item": "string"
-    }
-   },
-   "shortName": "string"
-  }
  },
  "totalLoginDays": "number",
  "trainingCards": {

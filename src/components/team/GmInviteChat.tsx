@@ -36,7 +36,7 @@ export default function GmInviteChat({ player, dest, onAgreed, onClose }: {
   const adH = useAdHeight()
   const store = useGameStore()
   const verdict = useMemo(() => appraiseGmInvite({
-    players: store.players, teams: store.teams, foreignLeagues: store.foreignLeagues,
+    players: store.players, clubs: store.clubs,
     currentSeason: store.currentSeason, fromTeamId: store.playerTeamId,
     destinationOf: store.destinationOf,
     playerTierOf: store.playerTierOf,

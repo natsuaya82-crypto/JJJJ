@@ -15,11 +15,11 @@ import { buildCareerCounts } from '../src/utils/careerStats'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { FOREIGN_LEAGUE_DEFS, INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { drawSeasonSchedules } from '../src/data/races'
 import { DIVISIONS, divisionLeagueId, newSeasonStandings } from '../src/utils/league'
 import { seasonLeaguesFixture } from './seasonFixture'
-import type { Season, SeasonStanding, Team } from '../src/types'
+import type { Season, SeasonStanding, Team, WorldClub } from '../src/types'
 
 let seed = 20260925
 Math.random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296 }
@@ -27,10 +27,11 @@ Math.random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 
 const YEAR = 2028
 const MY = 'yonago'   // 3部（7戦）。ほかのリーグのほうが戦数が多い側で見る
 const teams: Team[] = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
-const fgen = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+const fgen = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
+const clubs: WorldClub[] = [...teams, ...INITIAL_FOREIGN_CLUBS]
 const players = [...generateCpuRosters(teams, YEAR).cpuPlayers, ...fgen.players]
 const schedules = drawSeasonSchedules(YEAR, Math.random)
-const standings = newSeasonStandings<SeasonStanding>(teams, id => ({ teamId: id, totalPoints: 0, raceResults: [] }))
+const standings = newSeasonStandings<SeasonStanding>(clubs, id => ({ teamId: id, totalPoints: 0, raceResults: [] }))
 const season = {
   year: YEAR, currentRaceIndex: 0,
   leagues: seasonLeaguesFixture({ schedules, standings }),
@@ -39,7 +40,7 @@ const myLeague = divisionLeagueId(3)
 
 // 6月末まで（途中の日付で止まることも見る）
 const THROUGH = `${YEAR}-06-30`
-const out = runLeaguesThrough({ season, players, teams, foreignLeagues: fgen.updatedLeagues, through: THROUGH, skip: myLeague })
+const out = runLeaguesThrough({ season, players, clubs, through: THROUGH, skip: myLeague })
 if (!out) { console.log('✗ 空振り（1本も走らなかった）'); process.exit(1) }
 const L = out.season.leagues
 
@@ -64,7 +65,7 @@ console.log('[1] その日までの開催が全部走り、その日より後は
   check('その日までの開催に走り残しが無い', early === 0, `${early}本`)
   check('その日より後の開催は走っていない', late === 0, `${late}本`)
   check('自チームのリーグは1本も走らせていない', L[myLeague].races.every(r => !r.results))
-  const fl = L[FOREIGN_LEAGUES[0].id]
+  const fl = L[FOREIGN_LEAGUE_DEFS[0].id]
   check('海外リーグの日程は日本1部と同じ10日', fl.races.length === 10
     && fl.races.every((r, i) => r.date === L[divisionLeagueId(1)].races[i].date))
 }
@@ -73,7 +74,7 @@ console.log('[1b] 開催日ちょうどまで走らせると、その日の開�
 {
   // 1部の開幕日。海外9リーグも同じ日に開幕する
   const day = season.leagues[divisionLeagueId(1)].races[0].date
-  const o = runLeaguesThrough({ season, players, teams, foreignLeagues: fgen.updatedLeagues, through: day, skip: myLeague })
+  const o = runLeaguesThrough({ season, players, clubs, through: day, skip: myLeague })
   const onDay = Object.entries(o?.season.leagues ?? {}).filter(([id]) => id !== myLeague)
     .flatMap(([, lg]) => lg.races.filter(r => r.date === day))
   check('その日の開催が全部走っている', onDay.length > 0 && onDay.every(r => !!r.results), `${onDay.filter(r => !r.results).length}本残り／${onDay.length}本`)
@@ -145,13 +146,13 @@ console.log('[5] 日付の順に走る（同じリーグの2戦目は1戦目の�
   }
   check('前の日付を飛ばして走ったレースが無い', bad === 0, `${bad}本`)
   // 同じ日付にもう一度呼んでも何も走らない（二重に走らせない）
-  const again = runLeaguesThrough({ season: out.season, players: out.players, teams, foreignLeagues: fgen.updatedLeagues, through: THROUGH, skip: myLeague })
+  const again = runLeaguesThrough({ season: out.season, players: out.players, clubs, through: THROUGH, skip: myLeague })
   check('同じ日まで2回呼んでも2回目は何も走らない', again === null)
 }
 
 console.log('')
 if (problems.length === 0) {
-  console.log(`✓ ほかのリーグは日付の順に走り、記録と集計は1つも食い違わない（${DIVISIONS.length}部＋海外${FOREIGN_LEAGUES.length}リーグ）`)
+  console.log(`✓ ほかのリーグは日付の順に走り、記録と集計は1つも食い違わない（${DIVISIONS.length}部＋海外${FOREIGN_LEAGUE_DEFS.length}リーグ）`)
   process.exit(0)
 }
 console.log(`✗ ${problems.length}件`)

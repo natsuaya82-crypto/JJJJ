@@ -1,7 +1,8 @@
 // フレンド機能のサーバー窓口。mockFriends.ts の置き換え。
 // UI側の型（Friend / FriendRequest）はモック時代と同じ形のまま維持して、
 // 画面側の書き換えを最小限にしている。
-import type { Division, HofPlayer, Player, Team } from '../types'
+import type { Division, HofPlayer, Player, WorldClub } from '../types'
+import { clubGmName } from '../utils/clubs'
 import { supabase, ensureAuth, OFFLINE_TEXT } from './supabase'
 import { withoutBlocked } from './moderationApi'
 import { defaultLogoIdFor, remoteLogoId } from '../data/logoPresets'
@@ -165,7 +166,7 @@ export async function myCode(): Promise<string> {
  *   古い版の画面から数字が消えるか、新しい版で部が混ざるかのどちらかになる。
  */
 export async function pushMyProfile(
-  team: Team | undefined, avgOvr: number, champs: number,
+  team: WorldClub | undefined, avgOvr: number, champs: number,
   titles: Partial<Record<Division, number>> = {},
 ): Promise<void> {
   if (!team) return
@@ -174,7 +175,7 @@ export async function pushMyProfile(
   const { error } = await supabase.from('profiles').update({
     team_name: team.name,
     short_name: team.shortName,
-    gm_name: team.gmName,
+    gm_name: clubGmName(team),
     // ロゴ未選択のとき logo_01 固定にしていたため、オンライン上で全員同じ絵になっていた。
     // チームIDから決める（ローカルの未選択表示も同じ考え方でハッシュから散らしている）
     logo_id: team.logoId ?? defaultLogoIdFor(team.id),

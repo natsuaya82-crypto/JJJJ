@@ -17,7 +17,7 @@ export const mergeSave = (persistedState: unknown, currentState: GameStore): Gam
     // 旧セーブの海外クラブ名簿(playerIds)の取り込み。通常は migrate v22 で済むが、
     // migrate が途中の年代変換で例外を出すと v22 まで届かないまま version だけ22になる。
     // ここは毎回通るので、取りこぼしたセーブもここで拾える（新しいセーブでは何もしない）
-    if (Array.isArray(p.players)) p.players = restoreTeamIdsFromLegacyClubs(p.players, p.foreignLeagues)
+    if (Array.isArray(p.players)) p.players = restoreTeamIdsFromLegacyClubs(p.players, p.clubs)
     // ── 起動時のつじつま合わせ（store/bootRepair.ts 1本）──
     // 版でゲートせず毎回通す。冪等かつ導出なので、いつどこで壊れても開き直せば直る。
     // 新しい「読み込んだら直すもの」は migrate ではなく bootRepair へ足すこと。
@@ -31,14 +31,13 @@ export const mergeSave = (persistedState: unknown, currentState: GameStore): Gam
       //   （JSの仕様で、明示された key: undefined は後勝ち）。
       //   その結果 players が undefined のまま走り出し、保存のたびに
       //   stripCareerForSave が落ち、選手詳細を開くと必ずクラッシュしていた。
-      if (r.teams) p.teams = r.teams
+      if (r.clubs) p.clubs = r.clubs
       if (r.players) p.players = r.players
       if (r.currentSeason) p.currentSeason = r.currentSeason
       if (r.pastSeasons) p.pastSeasons = r.pastSeasons
-      if (r.foreignLeagues) p.foreignLeagues = r.foreignLeagues
       if (r.repairs.length > 0) console.warn('[save] 起動時に直したもの:', r.repairs.join(' / '))
     }
-    dropLegacyClubRosters(p.foreignLeagues)
+    dropLegacyClubRosters(p.clubs)
     // 読み込んだセーブへの冪等・一回きりの補正はすべて normalizeSave.ts に並べてある
     normalizeLoadedSave(p)
     // ── チーム名簿の自動修復（毎回・冪等）──

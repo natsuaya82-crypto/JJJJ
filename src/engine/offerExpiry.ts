@@ -8,10 +8,9 @@
 // ★本人が行くかの判定は utils/playerUtils の freeContactConsent 1本
 //   （中身は playerConsentToMove ＝ 移籍の同意と同じ式。ここで別の理屈を書かない）。
 import { rosterCapOf, teamRosterSize } from '../data/rosterRules'
-import type { ExpiredNegotiation, ForeignLeague, Player, Race, Season, Team } from '../types'
+import type { ExpiredNegotiation, Player, Race, Season, WorldClub } from '../types'
 import type { ClubTier } from '../utils/clubTier'
 import { tierOfPlayerClub } from '../utils/clubTier'
-import { allTieredClubs } from '../utils/world'
 import { findClub } from '../utils/clubs'
 import { type NewsItem, freeTransferHeadline } from '../utils/newsItems'
 import { freeContactConsent } from '../utils/playerUtils'
@@ -20,8 +19,7 @@ import type { Destination } from '../utils/transferDecision'
 
 export function resolveExpiredOffers(params: {
   players: Player[]
-  teams: Team[]
-  foreignLeagues: ForeignLeague[]
+  clubs: WorldClub[]
   currentSeason: Season
   playerTeamId: string
   /** レース通算数（racesConsumed + 1）。期限はこれで測る */
@@ -41,7 +39,7 @@ export function resolveExpiredOffers(params: {
   freeMoves: { playerId: string; toTeamId: string }[]
   freeMoveNews: NewsItem[]
 } {
-  const { players, teams, foreignLeagues, currentSeason, playerTeamId, nextClock, nextRaceIndex, ranRaces, raceDate, destinationOf, playerTierOf } = params
+  const { players, clubs, currentSeason, playerTeamId, nextClock, nextRaceIndex, ranRaces, raceDate, destinationOf, playerTierOf } = params
   // incomingOffer期限切れ（5試合）→ 失効通知＋1年交渉ロック
   // ※フリー移籍の接触（offeredPrice=0）は対象外：下の「本人決断」で処理する
   const offerExpiredNegs: ExpiredNegotiation[] = []
@@ -64,13 +62,13 @@ export function resolveExpiredOffers(params: {
   ;(currentSeason.incomingOffers ?? []).forEach(o => {
     if (o.offeredPrice !== 0 || o.expiresAtRace > nextClock) return
     const pl = players.find(p => p.id === o.playerId)
-    // ★**クラブは国内52＋海外180から引くこと**（`utils/clubs` の `findClub` 1本）。
+    // ★**クラブは国内52＋海外180の1つの並びから引くこと**（`utils/clubs` の `findClub` 1本）。
     //   接触してくるのは `engine/cpuMarket` の `aiTeams`＝**231クラブ**なので、
-    //   `teams.find(...)` だと海外からの `inc-free-` がここで黙って落ち、
+    //   国内だけを探すと海外からの `inc-free-` がここで黙って落ち、
     //   `freeDecisionNotices` にも `freeMoves` にもニュースにも出ない
     //   ＝**返事が永久に来ない札**になっていました（受け口の `marketSlice` は
     //   `offer.fromForeign` を見て正しく通しているので、期限処理だけ取り残された形）。
-    const suitor = findClub(teams, foreignLeagues, o.fromTeamId)
+    const suitor = findClub(clubs, o.fromTeamId)
     if (!pl || pl.teamId !== playerTeamId || pl.status !== 'active' || !suitor) return
     // 決断までに契約を更新できていれば残留確定（引き留め成功）。
     // 判定は出場実績込みの freeContactConsent（よく走っている選手・愛着のある選手は残留に傾く）
@@ -87,7 +85,7 @@ export function resolveExpiredOffers(params: {
     const isRetiringFl = (currentSeason.retirementRequests ?? []).some(r => r.playerId === pl.id)
     const leaves = suitorSize >= rosterCapOf(0) || isRetiringFl ? false
       : pl.contract.yearsLeft > 1 ? false
-      : freeContactConsent(pl, destinationOf(suitor.id, pl), tierOfPlayerClub(pl.teamId, allTieredClubs(teams, foreignLeagues)), flFrac, nextRaceIndex, playerTierOf(pl))
+      : freeContactConsent(pl, destinationOf(suitor.id, pl), tierOfPlayerClub(pl.teamId, clubs), flFrac, nextRaceIndex, playerTierOf(pl))
     freeDecisionNotices.push({ id: o.id, playerId: pl.id, playerName: pl.name, toTeamName: suitor.shortName, left: leaves })
     if (leaves) freeMoves.push({ playerId: pl.id, toTeamId: suitor.id })
   })

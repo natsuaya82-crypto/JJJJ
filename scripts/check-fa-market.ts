@@ -63,9 +63,18 @@ console.log('[1] FAを獲る判断は1本（pickCpuFreeAgents）')
   const code = store.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
   check('phase（オフ／シーズン中の区別）を持っていない',
     !/phase:\s*'(offseason|inseason)'/.test(code), 'phase が残っている')
+  // 世界のクラブは1つの並び（`clubs`＝国内52＋海外180）。渡すのはその並びそのもの
+  // （`state.clubs`／引数の `clubs`）か、それを `mapClubs` で写しただけのもの（1件も落とさない）。
+  // 国内だけに絞る書き方（jpelClubs／clubsInLeague／isJpelLeague で filter）が混ざったら落とす
+  const clubsArg = (c: string) => /\bclubs:\s*([\w.]+)/.exec(c)?.[1] ?? (/\bclubs\s*,/.test(c) ? 'clubs' : '')
+  const isWorld = (c: string) => {
+    const a = clubsArg(c)
+    if (a === 'state.clubs' || a === 'clubs') return true
+    return !!a && new RegExp(`const ${a} = mapClubs\\(`).test(store)
+  }
   check('どの呼び出しも国内クラブと海外クラブをまとめて渡している',
-    calls.every(c => /clubs: \[\.\.\./.test(c) && /Foreign|foreign/.test(c)),
-    calls.filter(c => !/clubs: \[\.\.\./.test(c)).length + '件が国内だけ')
+    calls.every(c => isWorld(c) && !/jpelClubs\(|clubsInLeague\(|clubsWhere\(/.test(c)),
+    calls.filter(c => !isWorld(c)).length + '件が国内だけ')
 }
 
 console.log('')
@@ -96,14 +105,15 @@ console.log('')
 console.log('[4] 「◯クラブが動いています」は、実際に動くクラブを数えている')
 {
   const src = readFileSync('src/utils/transferRivals.ts', 'utf8')
-  check('国内だけを見ていない（allTieredClubs で国内＋海外）', src.includes('allTieredClubs') && !/return ctx\.teams\s*$/m.test(src))
+  check('国内だけを見ていない（世界のクラブ ctx.clubs で国内＋海外）',
+    /clubsWhere\(ctx\.clubs,/.test(src) && !/jpelClubs\(|clubsInLeague\(|isJpelLeague\(/.test(src))
   check('  獲る理由は needsPlayer と 走れるか（RUNNING_SLOTS）だけ',
     src.includes('needsPlayer(') && src.includes('RUNNING_SLOTS'))
   check('  本人が行くかも見ている（appraiseMove）', src.includes('appraiseMove('))
   // 呼べること（型と実体の確認。中身の件数は名簿次第なので数は問わない）
   const n = rivalClubsFor(
     { id: 'x', teamId: '', specialty: 'ace', age: 26, status: 'active', ratings: {}, contract: { annualSalary: 1 } } as never,
-    { teams: [], players: [], playerTeamId: 'me', foreignLeagues: [], destinationOf: () => ({ clubId: 'c', tier: 10, squadRank: 1, squadSize: 1 }) as never },
+    { clubs: [], players: [], playerTeamId: 'me', destinationOf: () => ({ clubId: 'c', tier: 10, squadRank: 1, squadSize: 1 }) as never },
   )
   check('クラブが0件なら0件（例外にならない）', n.length === 0)
 }

@@ -145,6 +145,13 @@ function runnablePool(roster, segCount) {
   return roster.filter((p) => !blocked.has(p.id));
 }
 
+// src/utils/world.ts
+function clubMap(clubs, fn) {
+  const out = /* @__PURE__ */ new Map();
+  for (const c of clubs ?? []) if (!out.has(c.id)) out.set(c.id, fn(c));
+  return out;
+}
+
 // src/utils/league.ts
 function positionPointsFor(teamCount, rank) {
   return Math.max(1, teamCount + 1 - rank);
@@ -406,9 +413,9 @@ function resolveSegmentEvents(ratings, isLastSeg) {
   }
   return timeMult;
 }
-function simulateRace(race, lineups, teams, players, _seasonProgress, playerTeamId, segmentTactics) {
+function simulateRace(race, lineups, clubs, players, _seasonProgress, playerTeamId, segmentTactics) {
   const teamIds = Object.keys(lineups);
-  const teamMap = new Map(teams.map((t) => [t.id, t]));
+  const teamMap = clubMap(clubs, (t) => t);
   const playerMap = new Map(players.map((p) => [p.id, p]));
   const cumTime = {};
   teamIds.forEach((id) => {
@@ -1296,12 +1303,12 @@ function asTeam(info) {
   };
 }
 function buildRacePayload(args) {
-  const { raceNo, course, startAt, teams, rosters, orders, teamCount } = args;
+  const { raceNo, course, startAt, teams: entries, rosters, orders, teamCount } = args;
   const race = courseToRace(course, raceNo + 1);
   const simPlayers = [];
   const runnerInfo = /* @__PURE__ */ new Map();
   const lineups = {};
-  for (const t of teams) {
+  for (const t of entries) {
     const roster = rosters[t.id] ?? [];
     const byId = new Map(roster.map((p) => [p.id, p]));
     const line = {};
@@ -1324,7 +1331,7 @@ function buildRacePayload(args) {
     }
     lineups[t.id] = line;
   }
-  const results = simulateRace(race, lineups, teams.map(asTeam), simPlayers, 0);
+  const results = simulateRace(race, lineups, entries.map(asTeam), simPlayers, 0);
   const segPts = {};
   const segments = results.segmentResults.map((sr) => {
     for (const r of sr.runners) {
@@ -1347,7 +1354,7 @@ function buildRacePayload(args) {
     race: raceNo,
     courseId: course.id,
     startAt,
-    teams,
+    teams: entries,
     runners: [...runnerInfo.values()],
     segments,
     standings,

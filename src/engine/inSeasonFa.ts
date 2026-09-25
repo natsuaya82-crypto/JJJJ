@@ -9,7 +9,7 @@
 //
 // ★自チームが交渉中だったFAを先に獲られたときは、黙って消さず理由を残す
 //   （札の片付けそのものは utils/talkSync の reconcileTalks の仕事）。
-import type { ExpiredNegotiation, ForeignClub, ForeignLeague, Player, Season, Team, TransferRecord } from '../types'
+import type { ExpiredNegotiation, Player, Season, TransferRecord, WorldClub } from '../types'
 import { rosterCapOf } from '../data/rosterRules'
 import { pickCpuFreeAgents } from './cpuMarket'
 import { findClub } from '../utils/clubs'
@@ -19,9 +19,8 @@ import { faMarketSalary, ovr, newContractYears } from '../utils/playerUtils'
 
 export function signInSeasonFreeAgents(params: {
   players: Player[]
-  teams: Team[]
-  foreignClubs: ForeignClub[]
-  foreignLeagues: ForeignLeague[]
+  /** 世界のクラブ（国内も海外も同じ入口でFAを獲る） */
+  clubs: WorldClub[]
   /** 今季（**このレースの結果まで載せたもの**）。実績の参照に使う */
   currentSeason: Season
   playerTeamId: string
@@ -30,10 +29,10 @@ export function signInSeasonFreeAgents(params: {
   raceDate: string
   /** レース通算数（先を越された通知のIDに使う） */
   nextClock: number
-}): { players: Player[]; teams: Team[]; records: TransferRecord[]; news: NewsItem[]; snipedNegs: ExpiredNegotiation[] } {
-  const { foreignClubs, foreignLeagues, currentSeason, playerTeamId, raceDate, nextClock } = params
+}): { players: Player[]; clubs: WorldClub[]; records: TransferRecord[]; news: NewsItem[]; snipedNegs: ExpiredNegotiation[] } {
+  const { currentSeason, playerTeamId, raceDate, nextClock } = params
   let players = params.players
-  let teams = params.teams
+  let clubs = params.clubs
   const records: TransferRecord[] = []
   // ── シーズン中のFA補強 ─────────────────────────────────
   // ★クラブがFAを獲るのは「必要か」「そこで走れるか」だけ。オフシーズンと同じ
@@ -46,7 +45,7 @@ export function signInSeasonFreeAgents(params: {
   //   1レースで市場が空になることはない。
   const faSignings = pickCpuFreeAgents({
     players: players,
-    clubs: [...teams, ...foreignClubs],
+    clubs,
     playerTeamId,
     season: currentSeason,
     // ★**在籍上限は `data/rosterRules` の `rosterCapOf` 1本。海外だけ別の数にしないこと。**
@@ -68,7 +67,7 @@ export function signInSeasonFreeAgents(params: {
   for (const sg of faSignings) {
     const before = players.find(x => x.id === sg.playerId)
     if (!before) continue
-    const m = movePlayer({ players: players, teams: teams }, sg.playerId, sg.clubId, {
+    const m = movePlayer({ players, clubs }, sg.playerId, sg.clubId, {
       year: currentSeason.year,
       date: raceDate,
       kind: 'free',
@@ -76,9 +75,9 @@ export function signInSeasonFreeAgents(params: {
       contract: { yearsLeft: newContractYears(before, currentSeason.year), annualSalary: faMarketSalary(before), contractType: 'standard' } })
     if (!m.ok) continue
     players = m.players
-    teams = m.teams
+    clubs = m.clubs
     if (m.record) records.push(m.record)
-    const club = findClub(teams, foreignLeagues, sg.clubId)
+    const club = findClub(clubs, sg.clubId)
     if (ovr(before) >= 65) {
       faSignNews.push({
         date: raceDate,
@@ -93,5 +92,5 @@ export function signInSeasonFreeAgents(params: {
         detail: `${club?.shortName ?? '他クラブ'}が先に契約しました` })
     }
   }
-  return { players, teams, records, news: faSignNews, snipedNegs: faSnipedNegs }
+  return { players, clubs, records, news: faSignNews, snipedNegs: faSnipedNegs }
 }

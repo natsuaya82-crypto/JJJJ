@@ -29,17 +29,16 @@ Math.random = rnd
 import { readFileSync } from 'node:fs'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { runTransferMarket } from '../src/engine/transferMarket'
 import { CPU_TICK_TRANSFERS, cpuMarketRounds } from '../src/engine/cpuOffseason'
 import { generateSeasonRaces } from '../src/data/races'
 import { tierOf, tierOfClubId, tierOfPlayerClub } from '../src/utils/clubTier'
 import { buildDestination, regionOfLeague } from '../src/utils/transferDecision'
-import { allTieredClubs } from '../src/utils/world'
-import { leagueOfClub } from '../src/utils/clubs'
+import { clubById, jpelClubById } from '../src/utils/world'
 import { ROSTER_MAX } from '../src/data/rosterRules'
-import type { Player, Season, Team } from '../src/types'
+import type { Player, Season, Team, WorldClub } from '../src/types'
 
 let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
@@ -52,16 +51,18 @@ console.log('[1] 1年まわして、履歴の年数と実際の契約を突き�
   const YEAR = 2030, MY = 'tokyo'
   const base = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
   const cpu = generateCpuRosters(base, YEAR)
-  const fgen = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+  const fgen = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
   let players: Player[] = [...cpu.cpuPlayers, ...fgen.players]
-  let teams = base.map(t => ({ ...t, finance: { ...(t.finance ?? {}), budget: 400_000_000 } })) as Team[]
-  let leagues = fgen.updatedLeagues
-  const CLUBS = allTieredClubs(teams, leagues)
+  let clubs: WorldClub[] = [
+    ...base.map(t => ({ ...t, finance: { ...(t.finance ?? {}), budget: 400_000_000 } })) as Team[],
+    ...INITIAL_FOREIGN_CLUBS,
+  ]
+  const CLUBS = clubs
   const destinationOf = (clubId: string, player: Player) => {
-    const team = teams.find(t => t.id === clubId)
+    const team = jpelClubById(clubs, clubId)
     const tier = team ? tierOf(team) : (tierOfPlayerClub(clubId, CLUBS) ?? tierOfClubId(clubId))
-    const lg = team ? undefined : leagueOfClub(leagues, clubId)
-    return buildDestination(clubId, tier, players, { isForeign: !team, region: regionOfLeague(lg?.id), player })
+    const lgId = team ? undefined : clubById(clubs, clubId)?.leagueId
+    return buildDestination(clubId, tier, players, { isForeign: !team, region: regionOfLeague(lgId), player })
   }
   const races = generateSeasonRaces(YEAR, 1)
   const season = {
@@ -77,7 +78,7 @@ console.log('[1] 1年まわして、履歴の年数と実際の契約を突き�
     if (step.rounds <= 0) continue
     last = step.nextDate
     for (const roundDate of step.dates) {
-      const r = runTransferMarket({ players, teams, foreignLeagues: leagues }, {
+      const r = runTransferMarket({ players, clubs }, {
         playerTeamId: MY, year: YEAR, season, pastSeasons: [],
         rosterCapFor: () => ROSTER_MAX, destinationOf,
         excludeIds: new Set<string>(), maxMoves: CPU_TICK_TRANSFERS, date: roundDate })
@@ -89,7 +90,7 @@ console.log('[1] 1年まわして、履歴の年数と実際の契約を突き�
         else if (rec.years !== p.contract.yearsLeft) mismatch++
         dist.set(p.contract.yearsLeft, (dist.get(p.contract.yearsLeft) ?? 0) + 1)
       }
-      players = r.players; teams = r.teams; leagues = r.foreignLeagues
+      players = r.players; clubs = r.clubs
     }
   }
 

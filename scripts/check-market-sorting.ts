@@ -26,20 +26,19 @@ Math.random = () => { sd = (sd * 1664525 + 1013904223) >>> 0; return sd / 429496
 
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { generateSeasonRaces } from '../src/data/races'
 import { runTransferMarket } from '../src/engine/transferMarket'
 import { tierOf, tierOfClubId, tierOfPlayerClub } from '../src/utils/clubTier'
 import { buildDestination, regionOfLeague, hasNoPlayingTime } from '../src/utils/transferDecision'
-import { allTieredClubs } from '../src/utils/world'
-import { allForeignClubs, leagueOfClub } from '../src/utils/clubs'
+import { clubById, jpelClubById } from '../src/utils/world'
 import { needsPlayer } from '../src/utils/squadNeeds'
 import { clubIndexOf } from '../src/utils/rosterSync'
 import { newContractYears, ovr } from '../src/utils/playerUtils'
 import { ROSTER_MAX, RUNNING_SLOTS, SQUAD_DEPTH_SLOTS } from '../src/data/rosterRules'
 import { CPU_TICK_TRANSFERS } from '../src/engine/cpuOffseason'
-import type { Player, Season, Team } from '../src/types'
+import type { Player, Season, Team, WorldClub } from '../src/types'
 
 let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
@@ -58,10 +57,8 @@ console.log('[1] 出す側の線と買う側の線が同じ')
 const YEAR = 2034, MY = 'chiba'
 const teams = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
 const cpu = generateCpuRosters(teams, YEAR)
-const fgen = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
-const leagues = fgen.updatedLeagues
-const clubs = [...teams, ...allForeignClubs(leagues)]
-const CLUBS = allTieredClubs(teams, leagues)
+const fgen = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
+const clubs: WorldClub[] = [...teams, ...INITIAL_FOREIGN_CLUBS]
 const tierByClub = new Map(clubs.map(c => [c.id, tierOf(c as never)]))
 let players: Player[] = [...cpu.cpuPlayers, ...fgen.players]
   .filter(p => p.status === 'active')
@@ -99,14 +96,14 @@ console.log('\n[3] 市場を3年まわして、強い選手が格下へ流れな
     for (let round = 0; round < 16; round++) {
       const before = new Map(players.map(p => [p.id, p.teamId]))
       const snapshot = players
-      const out = runTransferMarket({ players, teams, foreignLeagues: leagues }, {
+      const out = runTransferMarket({ players, clubs }, {
         playerTeamId: MY, year, season, pastSeasons: [],
         rosterCapFor: () => ROSTER_MAX,
         destinationOf: (clubId: string, player: Player) => {
-          const team = teams.find(x => x.id === clubId)
-          const tier = team ? tierOf(team) : (tierOfPlayerClub(clubId, CLUBS) ?? tierOfClubId(clubId))
-          const lg = team ? undefined : leagueOfClub(leagues, clubId)
-          return buildDestination(clubId, tier, snapshot, { isForeign: !team, region: regionOfLeague(lg?.id), player })
+          const team = jpelClubById(clubs, clubId)
+          const tier = team ? tierOf(team) : (tierOfPlayerClub(clubId, clubs) ?? tierOfClubId(clubId))
+          const lg = team ? undefined : clubById(clubs, clubId)?.leagueId
+          return buildDestination(clubId, tier, snapshot, { isForeign: !team, region: regionOfLeague(lg), player })
         },
         excludeIds: new Set<string>(), maxMoves: CPU_TICK_TRANSFERS,
         date: `${year}-${String(3 + round).padStart(2, '0')}-15`,

@@ -35,18 +35,17 @@ Math.random = rnd
 
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { runTransferMarket } from '../src/engine/transferMarket'
 import { CPU_TICK_TRANSFERS, cpuMarketRounds } from '../src/engine/cpuOffseason'
 import { generateSeasonRaces } from '../src/data/races'
 import { tierOf, tierOfClubId, tierOfPlayerClub } from '../src/utils/clubTier'
 import { buildDestination, regionOfLeague, CONSENT_LINE } from '../src/utils/transferDecision'
-import { allTieredClubs } from '../src/utils/world'
-import { allForeignClubs, leagueOfClub } from '../src/utils/clubs'
+import { clubById, clubsWhere, isJpelLeague, jpelClubById } from '../src/utils/world'
 import { ROSTER_MAX } from '../src/data/rosterRules'
 import { ovr } from '../src/utils/playerUtils'
-import type { Player, Season, Team } from '../src/types'
+import type { Player, Season, Team, WorldClub } from '../src/types'
 
 const YEARS = Number(process.env.YEARS ?? 8)
 const START = 2030
@@ -54,17 +53,17 @@ const MY = 'tokyo'
 
 const base = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
 const cpu = generateCpuRosters(base, START)
-const fgen = generateForeignLeaguePlayers(FOREIGN_LEAGUES, START)
+const fgen = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, START)
 let players: Player[] = [...cpu.cpuPlayers, ...fgen.players]
-let teams = base.map(t => ({ ...t, finance: { ...(t.finance ?? {}), budget: 400_000_000 } })) as Team[]
-let leagues = fgen.updatedLeagues
+const teams = base.map(t => ({ ...t, finance: { ...(t.finance ?? {}), budget: 400_000_000 } })) as Team[]
+let clubs: WorldClub[] = [...teams, ...INITIAL_FOREIGN_CLUBS]
 
-const CLUBS = allTieredClubs(teams, leagues)
+const CLUBS = clubs
 const destinationOf = (clubId: string, player: Player) => {
-  const team = teams.find(t => t.id === clubId)
+  const team = jpelClubById(clubs, clubId)
   const tier = team ? tierOf(team) : (tierOfPlayerClub(clubId, CLUBS) ?? tierOfClubId(clubId))
-  const lg = team ? undefined : leagueOfClub(leagues, clubId)
-  return buildDestination(clubId, tier, players, { isForeign: !team, region: regionOfLeague(lg?.id), player })
+  const lgId = team ? undefined : clubById(clubs, clubId)?.leagueId
+  return buildDestination(clubId, tier, players, { isForeign: !team, region: regionOfLeague(lgId), player })
 }
 
 /** 年の初めの所属。ここを毎年ためて、続けて何年同じところに居たかを数える */
@@ -86,18 +85,18 @@ for (let y = 0; y < YEARS; y++) {
     if (step.rounds <= 0) continue
     last = step.nextDate
     for (let i = 0; i < step.rounds; i++) {
-      const r = runTransferMarket({ players, teams, foreignLeagues: leagues }, {
+      const r = runTransferMarket({ players, clubs }, {
         playerTeamId: MY, year, season, pastSeasons: [],
         rosterCapFor: () => ROSTER_MAX, destinationOf,
         excludeIds: new Set<string>(), maxMoves: CPU_TICK_TRANSFERS, date })
-      players = r.players; teams = r.teams; leagues = r.foreignLeagues
+      players = r.players; clubs = r.clubs
       totalMoves += r.records.length
     }
   }
 }
 homeByYear.push(Object.fromEntries(players.map(p => [p.id, p.teamId])))
 
-const clubCount = teams.length - 1 + allForeignClubs(leagues).length
+const clubCount = teams.length - 1 + clubsWhere(clubs, c => !isJpelLeague(c.leagueId)).length
 const fmt = (n: number, d = 2) => n.toFixed(d)
 
 console.log(`\n════ 移籍の量と在籍の長さ（${YEARS}年ぶん・${clubCount}クラブ）════`)

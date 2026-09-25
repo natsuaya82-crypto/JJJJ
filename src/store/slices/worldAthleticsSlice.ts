@@ -2,6 +2,7 @@
 // レース進行の本体は engine/worldAthletics.ts。ここは状態への適用だけ。
 
 import type { GameStore, SetGame } from '../gameStore'
+import { clubsWhere, isJpelLeague } from '../../utils/world'
 import { courseRegionOfNation } from '../../data/courseNames'
 import { HOME_NATION, natLabel } from '../../data/nationalities'
 import { runBackgroundRace } from '../../engine/backgroundRace'
@@ -74,7 +75,9 @@ export const createWorldAthleticsSlice = (set: SetGame, get: () => GameStore): S
       // 国旗色はその国の先頭クラブのカラーを流用（日本は金）
       const clubColor = (nat: string) => {
         if (nat === 'JPN') return { primary: '#C9A84C', secondary: '#14121F' }
-        for (const l of state.foreignLeagues ?? []) { const c = l.clubs.find(c => c.country === nat); if (c) return c.colors }
+        // 海外のクラブ（日本のリーグでないクラブ）の、世界の並びで最初のもの
+        const c = clubsWhere(state.clubs, x => !isJpelLeague(x.leagueId) && x.country === nat)[0]
+        if (c) return c.colors
         return { primary: '#4B5563', secondary: '#FFFFFF' }
       }
       const participants = nations.map(nat => ({

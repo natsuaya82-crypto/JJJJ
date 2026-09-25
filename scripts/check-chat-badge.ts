@@ -32,7 +32,7 @@ const P = (id: string, over: Record<string, unknown> = {}) => ({
 const world = (season: Record<string, unknown>) => ({
   currentSeason: { year: 2030, races: [], currentRaceIndex: 0, ...season },
   players: [P('p1'), P('p2'), P('p3')],
-  teams: [{ id: MY, name: '自', shortName: '自', sponsors: [] }],
+  clubs: [{ id: MY, name: '自', shortName: '自', leagueId: 'jpel-3', sponsors: [] }],
   playerTeamId: MY,
 } as never)
 

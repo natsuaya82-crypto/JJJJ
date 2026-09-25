@@ -35,15 +35,14 @@
 //
 // ■お金
 //   置き場所は国内も海外も `finance.budget` 1本。ここでは1つの帳簿にまとめて動かし、
-//   最後に `teams` と `foreignLeagues` の両方へ書き戻します。
+//   最後に世界のクラブ（`clubs`）へ書き戻します。
 //   `movePlayer` には `money: false` を渡します（国内側だけ二重に動くのを防ぐため）。
 // ============================================================================
 import { comparePlayers } from '../utils/playerSort'
 import { playerTierOf, tierLines } from '../utils/playerTier'
 import { clubSeasonRaces, playRateOf, type PlayRateSeason } from '../utils/playRate'
 import { buildCareerCounts } from '../utils/careerStats'
-import { allTieredClubs, myLeagueRaces } from '../utils/world'
-import { allForeignClubs } from '../utils/clubs'
+import { clubById, clubMap, isJpelLeague, mapClubs, myLeagueRaces, otherClubs } from '../utils/world'
 import { movePlayer } from '../utils/movePlayer'
 import { roundRobin } from '../utils/roundRobin'
 import { needsPlayer } from '../utils/squadNeeds'
@@ -60,7 +59,7 @@ import {
   transferHeadline, type NewsItem,
 } from '../utils/newsItems'
 import { cpuSpecialtyNeeds } from './cpuMarket'
-import type { ArchivedSeason, ForeignClub, ForeignLeague, Player, Season, Team, TransferRecord } from '../types'
+import type { ArchivedSeason, Player, Season, TransferRecord, WorldClub } from '../types'
 
 /** 1クラブが1回の市場で失う人数の上限（薄くしすぎない） */
 const SELL_PER_CLUB = 2
@@ -72,8 +71,7 @@ type MarketClub = { id: string; tier: ClubTier; domestic: boolean; name: string;
 
 export type TransferMarketResult = {
   players: Player[]
-  teams: Team[]
-  foreignLeagues: ForeignLeague[]
+  clubs: WorldClub[]
   records: TransferRecord[]
   news: NewsItem[]
 }
@@ -83,7 +81,7 @@ export type TransferMarketResult = {
  * 違うのは `maxMoves` と `date` だけ。別実装を作らないこと。
  */
 export function runTransferMarket(
-  world: { players: Player[]; teams: Team[]; foreignLeagues: ForeignLeague[] },
+  world: { players: Player[]; clubs: WorldClub[] },
   ctx: {
     playerTeamId: string
     year: number
@@ -114,22 +112,16 @@ export function runTransferMarket(
   },
 ): TransferMarketResult {
   let players = world.players
-  let teams = world.teams
+  let clubsNow = world.clubs
   const records: TransferRecord[] = []
   const newsRows: { player: Player; from: MarketClub; to: MarketClub; fee: number; rank: number; benched: boolean }[] = []
 
-  const foreignClubs = allForeignClubs(world.foreignLeagues)
-  const foreignById = new Map(foreignClubs.map(c => [c.id, c]))
-  const teamById = new Map(world.teams.map(t => [t.id, t]))
-
   // ── 市場に並ぶクラブ（国内52＋海外180）。自チームは入らない（プレイヤーが決めるので）
-  const clubs: MarketClub[] = [
-    ...world.teams.filter(t => t.id !== ctx.playerTeamId).map(t => ({
-      id: t.id, tier: tierOf(t), domestic: true, name: t.shortName, label: clubLabel(t.id, world.teams) })),
-    ...foreignClubs.map(c => ({
-      id: c.id, tier: tierOf(c), domestic: false, name: c.name, label: c.name })),
-  ]
-  if (clubs.length < 2) return { players, teams, foreignLeagues: world.foreignLeagues, records, news: [] }
+  //    並びは世界の並びのまま。`domestic` は見出しの文面を選ぶためだけに使う
+  const market: MarketClub[] = mapClubs(otherClubs(world.clubs, ctx.playerTeamId), c => isJpelLeague(c.leagueId)
+    ? { id: c.id, tier: tierOf(c), domestic: true, name: c.shortName, label: clubLabel(c.id, world.clubs) }
+    : { id: c.id, tier: tierOf(c), domestic: false, name: c.name, label: c.name })
+  if (market.length < 2) return { players, clubs: clubsNow, records, news: [] }
 
   // ── お金は1つの帳簿。国内も海外も finance.budget が唯一の置き場所
   //    （海外は finance の無い古いセーブだけ、その年に限り格の年間予算から始める）
@@ -143,9 +135,7 @@ export function runTransferMarket(
   //   と書いてあります。丸めるとその決まりが破れます。
   //   赤字のクラブが買えないことは下の `budget[buyClub.id] <= 0` が見ているので、
   //   ここで丸めなくても買う側のふるまいは変わりません。
-  const budget: Record<string, number> = {}
-  for (const t of world.teams) budget[t.id] = t.finance.budget
-  for (const c of foreignClubs) budget[c.id] = c.finance?.budget ?? tierBudget(c)
+  const budget: Record<string, number> = Object.fromEntries(clubMap(world.clubs, c => c.finance?.budget ?? tierBudget(c)))
 
   // ── 買う順番は「格が上のクラブから」。同格なら手元の資金が多い方から。
   //
@@ -163,24 +153,22 @@ export function runTransferMarket(
   //
   //    ★上位クラブへ固まるのを防ぐのは、この順番ではなく**在籍上限**（`rosterCapFor`）と
   //      **1回に獲れる人数**（下の `2 + 2 * tierStrength`）の仕事です。
-  const buyers = [...clubs].sort((a, b) => (a.tier - b.tier) || (budget[b.id] - budget[a.id]))
+  const buyers = [...market].sort((a, b) => (a.tier - b.tier) || (budget[b.id] - budget[a.id]))
 
   // ── 各クラブの名簿（序列順）。**毎回 players を絞り直さないこと。**
   //    232クラブ × 6,000人を買うたびに走査すると、1回の市場で数億回の比較になります
   //    （実測：オフ1回が5分でも終わらなくなりました）。動いた2クラブだけ差し替える
   const rosters = new Map<string, Player[]>()
-  for (const c of clubs) rosters.set(c.id, [])
+  for (const c of market) rosters.set(c.id, [])
   for (const p of players) {
     if (p.status !== 'active') continue
     rosters.get(p.teamId)?.push(p)
   }
   for (const arr of rosters.values()) arr.sort(comparePlayers('ovr'))
-  // 格を引く材料は1回だけ組む（クラブ232件の配列を買うたびに作り直さない）
-  const tieredClubs = allTieredClubs(world.teams, world.foreignLeagues)
 
   const purchases: Record<string, number> = {}
   const sellCounts: Record<string, number> = {}
-  const needsOf = new Map(clubs.map(c => [c.id, new Set(cpuSpecialtyNeeds(c.id, players))]))
+  const needsOf = new Map(market.map(c => [c.id, new Set(cpuSpecialtyNeeds(c.id, players))]))
 
   // 「出場機会を求めて出ていく人」かどうか（見出しの選び分けだけに使う）。
   // 数はレース結果から数え直す1本（utils/careerStats）
@@ -209,14 +197,14 @@ export function runTransferMarket(
   //    ★選手ごとに1回だけ引く。1回の市場で数千回呼ばれるので、毎回レース結果を
   //      走査すると市場が終わらなくなります（動いた選手は excludeIds で二度と来ない）。
   // ── **選手の格**（utils/playerTier）。線は世界全体から引くので、市場を回すたびに1回だけ組む
-  const tierByClub = new Map(tieredClubs.map(c => [c.id, tierOf(c)]))
+  const tierByClub = clubMap(world.clubs, c => tierOf(c))
   const lines = tierLines(players, id => tierByClub.get(id) ?? DOMESTIC_BOTTOM_TIER)
 
   const playRateCache = new Map<string, { fraction: number; teamRaces: number }>()
   const playRateFor = (p: Player) => {
     const hit = playRateCache.get(p.id)
     if (hit) return hit
-    const v = playRateOf(p.id, p.teamId, ctx.season, world.teams, world.foreignLeagues, lastSeason)
+    const v = playRateOf(p.id, p.teamId, ctx.season, world.clubs, lastSeason)
     playRateCache.set(p.id, v)
     return v
   }
@@ -248,7 +236,7 @@ export function runTransferMarket(
       .filter(({ p }) => isOwnedBy(p, sellClub.id) && !ctx.excludeIds.has(p.id)
         && !isTransferLocked(p, ctx.year) && willRelease(p, ctx.date))
   }
-  const sellCandidateCache = new Map<string, SellCandidate[]>(clubs.map(c => [c.id, sellCandidatesOf(c)]))
+  const sellCandidateCache = new Map<string, SellCandidate[]>(market.map(c => [c.id, sellCandidatesOf(c)]))
 
   // ── 市場に出ている選手を1本に並べたもの。**買う側が誰かに関係しない**ので、
   //    232クラブぶんを買うたびに繋ぎ直さない（クラブ232件の配列と、数千件の
@@ -257,7 +245,7 @@ export function runTransferMarket(
   let pool: SellCandidate[] = []
   const rebuildPool = () => {
     pool = []
-    for (const c of clubs) {
+    for (const c of market) {
       const arr = sellCandidateCache.get(c.id)
       if (arr) for (const cand of arr) pool.push(cand)
     }
@@ -298,14 +286,14 @@ export function runTransferMarket(
       //   他の部と海外の212クラブは全員「今季0戦」として値段が付いていました。
       const { fraction: tgtFrac, teamRaces: tgtRaces } = playRateFor(target)
       const tgtPerf = seasonPerfProfile(target.id,
-        clubSeasonRaces(ctx.season, target.teamId, world.teams, world.foreignLeagues), tgtRaces)
+        clubSeasonRaces(ctx.season, target.teamId, world.clubs), tgtRaces)
       const fee = transferFeeFor(target, surplus, tgtPerf)
       const newSalary = surplus ? faMarketSalary(target, tgtPerf)
         : acquisitionDesiredSalary(target, 'scout', tgtFrac, tgtRaces, tgtPerf)
       if (budget[buyClub.id] < fee + newSalary) continue
       // ④本人が行くか。**余剰でも聞く**（出番が無いから必ず頷く、とは限らない）。
       //   主力の引き抜きだけクラブが割増で合意済み＝clubBlessed で「主力だから残りたい」を外す
-      const srcTier = tierOfPlayerClub(target.teamId, tieredClubs)
+      const srcTier = tierOfPlayerClub(target.teamId, world.clubs)
       // ★**選手の格も渡すこと。** 落ちていい幅（選手の格 + TIER_FALL_LIMIT）の関門がこれを見ます
       //   （`utils/playerTier`）。線は上で1回だけ組んである
       if (!playerConsentToMove(target, ctx.destinationOf(buyClub.id, target), srcTier,
@@ -313,7 +301,7 @@ export function runTransferMarket(
 
       // 所属・加入年・移籍履歴・移籍リストの札はがしは movePlayer 1本。
       // お金だけは上の帳簿で見ているので money: false（国内側だけ二重に動くのを防ぐ）
-      const moved = movePlayer({ players, teams }, target.id, buyClub.id, {
+      const moved = movePlayer({ players, clubs: clubsNow }, target.id, buyClub.id, {
         year: ctx.year,
         date: ctx.date,
         fee, money: false,
@@ -329,7 +317,7 @@ export function runTransferMarket(
       budget[sellClub.id] += fee
       players = moved.players.map(p =>
         p.id !== target.id ? p : { ...p, contract: { ...p.contract, faEligibleYear: ctx.year + 2 } })
-      teams = moved.teams
+      clubsNow = moved.clubs
       // 名簿は動いた2クラブだけ差し替える（全体を組み直さない）
       const movedPlayer = players.find(p => p.id === target.id)!
       rosters.set(sellClub.id, sellRoster.filter(p => p.id !== target.id))
@@ -353,20 +341,14 @@ export function runTransferMarket(
   }
 
   roundRobin(buyers, buyOnePlayer)
-  if (moves === 0) return { players, teams, foreignLeagues: world.foreignLeagues, records, news: [] }
+  if (moves === 0) return { players, clubs: clubsNow, records, news: [] }
 
   // ── お金の書き戻し。**ここを飛ばすと使っても減らない**
-  const nextTeams = teams.map(t =>
-    budget[t.id] === undefined || budget[t.id] === t.finance.budget
-      ? t : { ...t, finance: { ...t.finance, budget: budget[t.id] } })
-  const nextLeagues = world.foreignLeagues.map(l => ({
-    ...l,
-    clubs: l.clubs.map((c: ForeignClub) =>
-      budget[c.id] === undefined || budget[c.id] === (c.finance?.budget ?? tierBudget(c))
-        ? c : { ...c, finance: { ...c.finance, budget: budget[c.id] } }),
-  }))
+  const nextClubs = mapClubs(clubsNow, (c): WorldClub =>
+    budget[c.id] === undefined || budget[c.id] === (c.finance?.budget ?? tierBudget(c))
+      ? c : { ...c, finance: { ...c.finance, budget: budget[c.id] } })
 
-  return { players, teams: nextTeams, foreignLeagues: nextLeagues, records, news: buildNews() }
+  return { players, clubs: nextClubs, records, news: buildNews() }
 
   // ── 見出し。**判断はここまでで終わっていて、ここから先は文面だけ**
   function buildNews(): NewsItem[] {
@@ -377,7 +359,7 @@ export function runTransferMarket(
       .map(({ player: p, from, to, fee, rank, benched }) => {
         const relatedIds = [p.id]
         const crossBorder = from.domestic !== to.domestic
-        const big = isBigClub(to.domestic ? teamById.get(to.id) : foreignById.get(to.id))
+        const big = isBigClub(clubById(world.clubs, to.id))
         if (crossBorder) {
           // 日本から世界最高峰へ渡った。列島が沸くやつ
           if (!to.domestic && big && ovr(p) >= MAJOR_NEWS_OVR) {
@@ -390,14 +372,14 @@ export function runTransferMarket(
             date, category: 'trade' as const, relatedIds, major: ovr(p) >= MAJOR_NEWS_OVR || big,
             headline: crossBorderHeadline({
               playerName: p.name, playerOvr: ovr(p), fee, dir: to.domestic ? 'in' : 'out',
-              stepUp: !to.domestic && isStepUp(teamById.get(from.id), foreignById.get(to.id)),
+              stepUp: !to.domestic && isStepUp(clubById(world.clubs, from.id), clubById(world.clubs, to.id)),
               fromName: from.name, toName: to.name }),
           }
         }
         // 序列から落ちて出番が無くなった選手は、その事情がわかる見出しにする
         return {
           date, category: 'trade' as const, relatedIds,
-          major: ovr(p) >= MAJOR_NEWS_OVR || big || isBigClub(from.domestic ? teamById.get(from.id) : foreignById.get(from.id)),
+          major: ovr(p) >= MAJOR_NEWS_OVR || big || isBigClub(clubById(world.clubs, from.id)),
           headline: benched
             ? seekPlayingTimeHeadline({ playerName: p.name, age: p.age, fromLabel: from.label, toLabel: to.label })
             : transferHeadline({ playerName: p.name, playerOvr: ovr(p), fee, fromLabel: from.label, toLabel: to.label }),

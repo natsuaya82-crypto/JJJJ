@@ -19,7 +19,8 @@ import { seasonAwardsOf } from '../utils/awards'
 import { eclHistoryOf } from '../utils/eclHistory'
 import { movePlayer } from '../utils/movePlayer'
 import { segmentRecordsOf } from '../utils/segmentRecords'
-import type { ForeignLeague, GameState, Nationality, Player } from '../types'
+import type { GameState, Nationality, Player } from '../types'
+import { jpelClubs } from '../utils/world'
 import { DIVISIONS, divisionLeagueId, leagueRaces } from '../utils/league'
 
 export type PruneResult = {
@@ -31,8 +32,6 @@ export type PruneResult = {
 export function pruneSaveData(args: {
   /** 移籍処理まで終わった選手一覧 */
   players: Player[]
-  /** 移籍処理まで終わった海外リーグ */
-  foreignLeagues: ForeignLeague[]
   /** 今季の状態（読むだけ） */
   state: GameState
   /** 来季の年 */
@@ -63,7 +62,7 @@ export function pruneSaveData(args: {
   // 引退そのものは movePlayer の分岐に任せる（上の引退処理を通っていない経路もここに来るため）。
   // ここに残すのはセーブを軽くするためのデータ削りだけ
   const leanRetired = (p: Player, retiredYear = st.currentSeason.year): Player => {
-    const moved = movePlayer({ players: [p], teams: [] }, p.id, '', { year: retiredYear, retire: true })
+    const moved = movePlayer({ players: [p], clubs: [] }, p.id, '', { year: retiredYear, retire: true })
     const q: Record<string, unknown> = { ...(moved.ok ? moved.players[0] : p) }
     for (const k of LEAN_DROP_KEYS) delete q[k]
     return q as unknown as Player
@@ -89,7 +88,7 @@ export function pruneSaveData(args: {
     for (const co of rec.coHolders ?? []) protectedIds.add(co.playerId)
   }
   for (const g of st.eventSeasonTops ?? []) for (const t of g.top) protectedIds.add(t.playerId)
-  for (const t of st.teams) {
+  for (const t of jpelClubs(st.clubs)) {
     for (const list of Object.values(t.eventRecords ?? {})) for (const r of list ?? []) protectedIds.add(r.playerId)
   }
   // 年度MVP・新人王はセーブに持たず、過去シーズンのレース結果から選び直す（utils/awards.ts）

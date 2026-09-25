@@ -135,7 +135,7 @@ function FeeCounterCard({ bid, player, targetTeamName, cardStyle, inset, onAccep
 
 export default function NotificationsPage() {
   const navigate = useNavigate()
-  const { teams, players, currentSeason, playerTeamId, lastLoginDate, marketValueOf } = useGameStore()
+  const { clubs, players, currentSeason, playerTeamId, lastLoginDate, marketValueOf } = useGameStore()
   const clubIndex = useClubIndex()
   const acceptFeeCounter = useGameStore(s => s.acceptFeeCounter)
   const rejectTransferBid = useGameStore(s => s.rejectTransferBid)
@@ -183,7 +183,7 @@ export default function NotificationsPage() {
     loginUnclaimed, expiredNegotiations, loanResponses,
     injuryKey, total,
   } = collectNotifications({
-    currentSeason, players, teams, playerTeamId, lastLoginDate,
+    currentSeason, players, clubs, playerTeamId, lastLoginDate,
     seenJoinIds,
     seenInjuryIds: seenInjuryIdsRaw ?? EMPTY_IDS,
     pendingGiftsCount: pendingGifts.length,
@@ -196,7 +196,7 @@ export default function NotificationsPage() {
   const renewalWaiting = renewalPlayers.filter(r => r.req).length
   // 数えるのは `data/rosterRules` の `teamRosterSize` 1本（上限を止める側と同じ条件）
   const myRosterCount = teamRosterSize(players, playerTeamId)
-  const myTeamFinance = myClub({ teams, playerTeamId })?.finance
+  const myTeamFinance = myClub({ clubs, playerTeamId })?.finance
 
   // 通知から用件を片付けるための操作
   const dismissFreeTransferNotice = useGameStore(s => s.dismissFreeTransferNotice)

@@ -12,16 +12,17 @@ import { useGameStore } from '../src/store/gameStore'
 import { runCpuReleases } from '../src/engine/cpuOffseason'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { FOREIGN_LEAGUE_DEFS, INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { newSeasonStandings, DIVISIONS, DIVISION_RACES, divisionOf } from '../src/utils/league'
+import { clubsInLeague, clubsWhere, isJpelLeague, jpelClubs } from '../src/utils/world'
 import { generateSeasonRaces } from '../src/data/races'
 import { ROSTER_MIN, ROSTER_MAX, RUNNING_SLOTS, CPU_SELL_FLOOR } from '../src/data/rosterRules'
 import { isSurplus } from '../src/utils/transferDecision'
 import { tierOf } from '../src/utils/clubTier'
 import { ovr, retirementAgeOf, calcTransferValue, marketValueOf } from '../src/utils/playerUtils'
 import { POACH_PREMIUM } from '../src/data/economy'
-import type { SeasonStanding, Team, Player } from '../src/types'
+import type { SeasonStanding, Team, Player, WorldClub } from '../src/types'
 import { seasonLeaguesFixture } from './seasonFixture'
 
 const problems: string[] = []
@@ -34,7 +35,7 @@ const YEAR = 2030
 const MY = 'tokyo'
 const base = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
 const cpu = generateCpuRosters(base, YEAR)
-const fgen = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+const fgen = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
 let players: Player[] = [...cpu.cpuPlayers, ...fgen.players]
 
 // 契約年数をばらけさせる（満了が出ないと契約更新の枝を通らない）
@@ -51,21 +52,22 @@ for (const d of DIVISIONS) {
   })
 }
 const foreignStandings: Record<string, SeasonStanding[]> = {}
-for (const l of fgen.updatedLeagues) foreignStandings[l.id] = l.clubs.map((c, i) => ({ teamId: c.id, totalPoints: (20 - i) * 5, raceResults: [] }))
+for (const l of FOREIGN_LEAGUE_DEFS) foreignStandings[l.id] = clubsInLeague(INITIAL_FOREIGN_CLUBS, l.id).map((c, i) => ({ teamId: c.id, totalPoints: (20 - i) * 5, raceResults: [] }))
 
 const teams = base.map(t => ({ ...t, finance: { ...(t.finance ?? {}), budget: 400_000_000 } })) as Team[]
+// 世界のクラブは1つの並び（国内52 → 海外180）
+const clubs: WorldClub[] = [...teams, ...INITIAL_FOREIGN_CLUBS]
 const races = generateSeasonRaces(YEAR, divisionOf(teams.find(t => t.id === MY)!))
 
 const before = new Map(teams.map(t => [t.id, players.filter(p => p.teamId === t.id && p.status === 'active').length]))
-console.log(`開始：選手 ${players.length}人 / 国内 ${teams.length}クラブ / 海外 ${fgen.updatedLeagues.reduce((s, l) => s + l.clubs.length, 0)}クラブ`)
+console.log(`開始：選手 ${players.length}人 / 国内 ${teams.length}クラブ / 海外 ${INITIAL_FOREIGN_CLUBS.length}クラブ`)
 console.log('')
 
 useGameStore.setState({
   isInitialized: true,
   playerTeamId: MY,
-  teams,
+  clubs,
   players,
-  foreignLeagues: fgen.updatedLeagues,
   currentSeason: {
     year: YEAR, phase: 'postseason', currentRaceIndex: races.length,
     leagues: seasonLeaguesFixture({
@@ -102,14 +104,15 @@ check('beginSeasonDraft が例外なく走り切る', threw === null, threw ?? '
 if (threw) { console.log(`✗ ${threw}`); process.exit(1) }
 
 const after = useGameStore.getState()
+const afterTeams = jpelClubs(after.clubs)
 const roster = (id: string) => after.players.filter(p => p.teamId === id && p.status === 'active')
 
 console.log('')
 console.log('[2] ロスターが溶けていないか（国内52クラブ）')
 {
-  const sizes = after.teams.map(t => roster(t.id).length)
-  const under = after.teams.filter(t => roster(t.id).length < ROSTER_MIN)
-  const over = after.teams.filter(t => roster(t.id).length > ROSTER_MAX)
+  const sizes = afterTeams.map(t => roster(t.id).length)
+  const under = afterTeams.filter(t => roster(t.id).length < ROSTER_MIN)
+  const over = afterTeams.filter(t => roster(t.id).length > ROSTER_MAX)
   console.log(`  在籍  最少 ${Math.min(...sizes)}人 / 中央 ${sizes.slice().sort((a, b) => a - b)[26]}人 / 最多 ${Math.max(...sizes)}人`)
   for (const t of under.slice(0, 5)) console.log(`    ${t.shortName} ${roster(t.id).length}人`)
   check(`下限(${ROSTER_MIN}人)を割ったクラブが無い`, under.length === 0, `${under.length}クラブ`)
@@ -120,7 +123,7 @@ console.log('[2] ロスターが溶けていないか（国内52クラブ）')
   //     1つ目 … 決まりそのものを数で留める（16人以上でなければならない）
   //     2つ目 … 実際にその決まりどおり動いているか
   check('「15人以下にはできない」＝ 出す側の下限は16人以上', CPU_SELL_FLOOR >= 16, `いま ${CPU_SELL_FLOOR}`)
-  const thin = after.teams.filter(t => roster(t.id).length < CPU_SELL_FLOOR)
+  const thin = afterTeams.filter(t => roster(t.id).length < CPU_SELL_FLOOR)
   check(`売って ${CPU_SELL_FLOOR}人を下回ったクラブが無い`, thin.length === 0,
     thin.map(t => `${t.shortName} ${roster(t.id).length}人`).join(' , '))
 }
@@ -128,7 +131,7 @@ console.log('[2] ロスターが溶けていないか（国内52クラブ）')
 console.log('')
 console.log('[3] 海外クラブ（180）も同じ')
 {
-  const fClubs = after.foreignLeagues.flatMap(l => l.clubs)
+  const fClubs = clubsWhere(after.clubs, c => !isJpelLeague(c.leagueId))
   const sizes = fClubs.map(c => roster(c.id).length)
   const under = fClubs.filter(c => roster(c.id).length < ROSTER_MIN)
   console.log(`  在籍  最少 ${Math.min(...sizes)}人 / 中央 ${sizes.slice().sort((a, b) => a - b)[90]}人 / 最多 ${Math.max(...sizes)}人`)
@@ -138,7 +141,7 @@ console.log('[3] 海外クラブ（180）も同じ')
 console.log('')
 console.log('[4] 格が高いクラブほど名簿が強いか（格が効いているか）')
 {
-  const rows = after.teams.map(t => {
+  const rows = afterTeams.map(t => {
     const r = roster(t.id)
     return { tier: tierOf(t), avg: r.length ? r.reduce((s, p) => s + ovr(p), 0) / r.length : 0 }
   }).filter(x => x.avg > 0)
@@ -174,7 +177,7 @@ console.log('[5] 選手が消えていないか')
 console.log('')
 console.log('[6] 在籍の増減（国内・上位10クラブ）')
 {
-  const rows = after.teams.map(t => ({ t, b: before.get(t.id) ?? 0, a: roster(t.id).length })).sort((x, y) => (y.a - y.b) - (x.a - x.b))
+  const rows = afterTeams.map(t => ({ t, b: before.get(t.id) ?? 0, a: roster(t.id).length })).sort((x, y) => (y.a - y.b) - (x.a - x.b))
   for (const r of [...rows.slice(0, 3), ...rows.slice(-3)]) {
     console.log(`  ${r.t.shortName.padEnd(8)} 格${String(tierOf(r.t)).padStart(2)}  ${r.b} → ${r.a}`)
   }
@@ -201,8 +204,7 @@ console.log('[7] 「余剰か」の枝が両方とも生きているか')
   // ★**値段は `playerUtils.marketValueOf` 1本**（市場が使ったのとまったく同じ材料）。
   //   ここで `calcTransferValue(p, perfOf(...))` を組み立て直すと、材料が1つでも違った
   //   ときに「割増が0件」に見えて、直したのは点検のほうだった、が起きます
-  const perfWorld = { players: after.players, teams: after.teams,
-    foreignLeagues: after.foreignLeagues, currentSeason: done }
+  const perfWorld = { players: after.players, clubs: after.clubs, currentSeason: done }
   let plain = 0, premium = 0, other = 0
   for (const r of recs) {
     const p = byId.get(r.playerId); if (!p) continue
@@ -246,7 +248,7 @@ console.log('[9] 解雇の下限は1本（理由ごとに線を持たない）')
   } as Player)
   const thinRoster = Array.from({ length: CPU_SELL_FLOOR }, (_, i) => mk(i, i < 5))
   const out = runCpuReleases(
-    { players: thinRoster, teams: [thinTeam], foreignLeagues: [] },
+    { players: thinRoster, clubs: [thinTeam] },
     { playerTeamId: MY, year: YEAR, rosterCapFor: () => ROSTER_MAX })
   const left = out.players.filter(p => p.teamId === THIN && p.status !== 'retired').length
   // 空振りの緑よけ：この世界で「衰えた選手」の枝が本当に当たることを先に確かめる
@@ -257,7 +259,7 @@ console.log('[9] 解雇の下限は1本（理由ごとに線を持たない）')
   // もう1件：下限より1人多いクラブは、切れるのは1人だけ
   const oneOver = [...thinRoster, mk(99, true)]
   const out2 = runCpuReleases(
-    { players: oneOver, teams: [thinTeam], foreignLeagues: [] },
+    { players: oneOver, clubs: [thinTeam] },
     { playerTeamId: MY, year: YEAR, rosterCapFor: () => ROSTER_MAX })
   const left2 = out2.players.filter(p => p.teamId === THIN && p.status !== 'retired').length
   check(`${CPU_SELL_FLOOR + 1} 人なら1人だけ切って下限で止まる`, left2 === CPU_SELL_FLOOR, `${left2}人`)

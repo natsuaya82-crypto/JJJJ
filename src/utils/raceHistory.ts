@@ -1,6 +1,7 @@
 import type { LeagueId, Race } from '../types'
 import { DIVISIONS, divisionInSeason, divisionLeagueId, divisionOfLeague, leagueRaces } from './league'
 import { waRaceRows, type WaResultLike } from './waRaces'
+import { leagueById } from '../data/leagues'
 
 // 「その選手が走ったレースを、どの大会のものとして並べるか」を決める唯一の場所。
 //
@@ -52,9 +53,7 @@ export function ranRaces(o: {
   seasons: readonly (RaceHistorySeason | undefined)[]
   waResults?: readonly WaResultLike[]
   playerTeamId: string
-  foreignLeagues?: readonly { id: string; name: string }[]
 }): RanRace[] {
-  const leagueName = new Map((o.foreignLeagues ?? []).map(l => [l.id, l.name]))
   const out: RanRace[] = []
   const push = (year: number, league: string, order: number, races: readonly Race[] | undefined) => {
     for (const race of done(races)) out.push({ year, league, order, race })
@@ -72,7 +71,7 @@ export function ranRaces(o: {
     push(s.year, 'ECL', LEAGUE_ORDER.ecl, [...(s.eclSeries?.races ?? []), ...(s.eclRace ? [s.eclRace] : [])])
     for (const [lid, lg] of Object.entries(s.leagues ?? {})) {
       if (divisionOfLeague(lid) != null) continue   // 国内の部は上で入れてある
-      push(s.year, leagueName.get(lid) ?? lid, LEAGUE_ORDER.foreign, lg.races)
+      push(s.year, leagueById(lid)?.name ?? lid, LEAGUE_ORDER.foreign, lg.races)
     }
   }
   // 世界大会は置き場所が新旧2つあるので utils/waRaces から受け取る（そこが吸収する）

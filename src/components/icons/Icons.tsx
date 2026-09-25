@@ -3,7 +3,7 @@ import { useGameStore } from '../../store/gameStore'
 import { logoPresetSrc, teamLogoIdOf } from '../../data/logoPresets'
 import { INITIAL_TEAMS } from '../../data/teams'
 import { LOWER_DIVISION_TEAMS } from '../../data/teamsLower'
-import { teamById } from '../../utils/world'
+import { clubById } from '../../utils/world'
 
 type LogoFn = (p: string, s: string) => React.ReactElement
 
@@ -537,7 +537,7 @@ export function TeamLogoSVG({ primary, secondary, shortName, size = 48, teamId, 
   primary: string; secondary: string; shortName: string; size?: number; teamId?: string; logoId?: string
 }) {
   // プレイヤーが選んだプリセットロゴを最優先。logoId を明示指定（プレビュー等）が無ければ、teamId から自チームの選択を引く。
-  const storeLogoId = useGameStore(s => teamId ? teamById(s.teams, teamId)?.logoId : undefined)
+  const storeLogoId = useGameStore(s => teamId ? clubById(s.clubs, teamId)?.logoId : undefined)
   // 国代表チーム（nat_JPN等）はクラブロゴではなく国旗を表示する（レース中・区間結果・順位表すべて共通）
   if (teamId?.startsWith('nat_')) {
     const w = Math.round(size * 1.2)

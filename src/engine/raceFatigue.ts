@@ -6,7 +6,8 @@
 //
 // 0〜100に収めるのは utils/condition の withFatigue 1本（ここでは幅だけ決める）。
 // 乱数は使わない。
-import type { Player, Team } from '../types'
+import type { Player, WorldClub } from '../types'
+import { clubMap } from '../utils/world'
 import { withFatigue } from '../utils/condition'
 import { facilitiesOf, facilityMedFatigueMultiplier } from '../utils/facilities'
 
@@ -16,15 +17,15 @@ export function applyRaceFatigue(params: {
   players: Player[]
   /** そのレースを走った選手 */
   racingIds: Set<string>
-  teams: Team[]
+  clubs: readonly WorldClub[]
   raceStrategy: RaceStrategy | undefined
   /** そのレースの区間数（長いレースほど溜まる） */
   segmentCount: number
 }): Player[] {
-  const { players, racingIds, teams, raceStrategy, segmentCount } = params
+  const { players, racingIds, clubs, raceStrategy, segmentCount } = params
   const stratMult = raceStrategy === 'aggressive' ? 1.4 : raceStrategy === 'conservative' ? 0.65 : 1.0
   // ★施設は `facilitiesOf` 1本（格から出る土台＋自分で建てたぶん）
-  const medLvByTeam = new Map(teams.map(t => [t.id, facilitiesOf(t).medicalCenter]))
+  const medLvByTeam = clubMap(clubs, t => facilitiesOf(t).medicalCenter)
   const baseFatigueGain = Math.min(14, 4 + segmentCount * 1.5) * stratMult
 
   return players.map(p => {

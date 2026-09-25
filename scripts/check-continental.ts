@@ -23,7 +23,7 @@ Math.random = () => { __seed = (__seed * 1664525 + 1013904223) >>> 0; return __s
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import {
   startContinentalQualifiers, advanceContinentalQualifiers, finishContinentalQualifiers,
   runContinentalQualifiers, ekidenCandidates, autoSelectEkiden, REGION_QUOTA,
@@ -47,7 +47,7 @@ for (const seed of SEEDS) {
 console.log(`===== 世界 seed=${seed} =====`)
 __seed = seed
 const domestic = generateCpuRosters(teams, YEAR).cpuPlayers
-const { players: foreign } = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+const { players: foreign } = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
 const players: Player[] = [...domestic, ...foreign]
 
 // ── 1回ぶんを開幕→3戦→決着まで回す（本編と同じ順番）──

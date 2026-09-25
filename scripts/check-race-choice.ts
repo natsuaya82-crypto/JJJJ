@@ -199,7 +199,7 @@ console.log('\n[4] 自分と相手が同じ目盛り（相手も自然消耗を�
       const evs = generateSegmentEvents({
         seg, playerBaseTime: base, cpuTimesForSeg: cpuTimes, cumulativeTimes: cum,
         isFirstSeg: i % 7 === 0, isLastSeg: false, player: me, totalSegs: 7,
-        players: [me, ...cpus], cpuLineups, teams })
+        players: [me, ...cpus], cpuLineups, clubs: teams })
       for (const e of evs) if (e.opponentOvr != null) gaps.push(myStamina - e.opponentOvr)
     }
     const lo = Math.min(...gaps), hi = Math.max(...gaps)
@@ -230,7 +230,7 @@ console.log('\n[4] 自分と相手が同じ目盛り（相手も自然消耗を�
       seg, playerBaseTime: 3000, cpuTimesForSeg: { tw: 3000 },
       cumulativeTimes: { __player__: 9000, tw: 9000 },
       isFirstSeg: false, isLastSeg: false, player: me, totalSegs: 7,
-      players: [me, twin], cpuLineups: twinLineups, teams: [T('my'), T('tw')] })
+      players: [me, twin], cpuLineups: twinLineups, clubs: [T('my'), T('tw')] })
     const twinGaps = evs2.filter(e => e.opponentOvr != null).map(e => myStamina - e.opponentOvr!)
     // 開いてよいのは**得意タイプのぶんだけ**（`withSpecBonus` が相手から SPEC_BONUS を引く）。
     // 相手の消耗を引き忘れると距離ぶんずれる（10kmで13・20kmで26・22kmで29）。
@@ -310,7 +310,7 @@ console.log('\n[6] 得意な適性が成功率に効く（文言を変えるだ�
       for (const e of generateSegmentEvents({
         seg, playerBaseTime: 3000, cpuTimesForSeg: cpuTimes, cumulativeTimes: cum,
         isFirstSeg: false, isLastSeg: false, player: me, totalSegs: 7,
-        players: [me, ...cpus], cpuLineups, teams })) {
+        players: [me, ...cpus], cpuLineups, clubs: teams })) {
         if (e.id.startsWith('mountain_ascent') && e.opponentOvr != null) {
           sum += choiceSuccessProb('aggressive', myStam, e.opponentOvr); n++
         }
@@ -351,7 +351,7 @@ console.log('\n[7] ラスト勝負が実際に出る（発火地点だけあっ�
     return generateSegmentEvents({
       seg, playerBaseTime: 3000, cpuTimesForSeg: cpuTimes, cumulativeTimes: cum,
       isFirstSeg: false, isLastSeg, player: me, totalSegs: 7,
-      players: [me, ...cpus], cpuLineups, teams })
+      players: [me, ...cpus], cpuLineups, clubs: teams })
   }
   const seen = new Map<string, number>()
   const ratios: number[] = []

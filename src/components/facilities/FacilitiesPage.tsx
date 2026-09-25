@@ -100,12 +100,12 @@ const UPGRADE_COSTS = FACILITY_UPGRADE_COSTS
 const MAX_LV = FACILITY_MAX_LEVEL
 
 export default function FacilitiesPage() {
-  const teams = useGameStore(s => s.teams)
+  const clubs = useGameStore(s => s.clubs)
   const playerTeamId = useGameStore(s => s.playerTeamId)
   const upgradeFacility = useGameStore(s => s.upgradeFacility)
   const jewels = useGameStore(s => s.jewels)
 
-  const myTeam = myClub({ teams, playerTeamId })
+  const myTeam = myClub({ clubs, playerTeamId })
 
   if (!myTeam) return null
   // ★施設は `facilitiesOf` を通す（格から出る土台＋自分で建てたぶん）

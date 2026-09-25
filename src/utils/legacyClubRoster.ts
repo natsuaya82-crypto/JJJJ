@@ -13,16 +13,14 @@ import type { Player } from '../types'
 // ============================================================================
 
 type LegacyClub = { id: string; playerIds?: string[] }
-type LegacyLeague = { clubs?: LegacyClub[] }
 
-// 名簿にしか残っていない所属を選手側へ戻す。書き換えが要らなければ元の配列をそのまま返す
-export function restoreTeamIdsFromLegacyClubs(players: Player[], leagues: unknown): Player[] {
-  if (!Array.isArray(players) || !Array.isArray(leagues)) return players
+// 名簿にしか残っていない所属を選手側へ戻す。書き換えが要らなければ元の配列をそのまま返す。
+// `legacyClubs` はクラブの並び（旧い形のセーブでは海外リーグのクラブを並べたもの）
+export function restoreTeamIdsFromLegacyClubs(players: Player[], legacyClubs: unknown): Player[] {
+  if (!Array.isArray(players) || !Array.isArray(legacyClubs)) return players
   const clubByPlayer = new Map<string, string>()
-  for (const l of leagues as LegacyLeague[]) {
-    for (const c of (l?.clubs ?? [])) {
-      for (const pid of (c?.playerIds ?? [])) clubByPlayer.set(pid, c.id)
-    }
+  for (const c of legacyClubs as LegacyClub[]) {
+    for (const pid of (c?.playerIds ?? [])) clubByPlayer.set(pid, c.id)
   }
   if (clubByPlayer.size === 0) return players
   let changed = false
@@ -38,11 +36,9 @@ export function restoreTeamIdsFromLegacyClubs(players: Player[], leagues: unknow
 }
 
 // クラブ側の名簿を消す（セーブに残り続けないように）
-export function dropLegacyClubRosters(leagues: unknown): void {
-  if (!Array.isArray(leagues)) return
-  for (const l of leagues as LegacyLeague[]) {
-    for (const c of (l?.clubs ?? [])) {
-      if (c && 'playerIds' in c) delete c.playerIds
-    }
+export function dropLegacyClubRosters(legacyClubs: unknown): void {
+  if (!Array.isArray(legacyClubs)) return
+  for (const c of legacyClubs as LegacyClub[]) {
+    if (c && 'playerIds' in c) delete c.playerIds
   }
 }

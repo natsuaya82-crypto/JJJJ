@@ -43,7 +43,7 @@ type GateSeason = Parameters<typeof eligibilityCtx>[0]
 export type BidGateCtx = {
   currentSeason: GateSeason
   /** 自チーム（赤字ペナルティを見る） */
-  myTeam: { finance: { budget: number; deficitStreak?: number } } | undefined
+  myTeam: { finance?: { budget: number; deficitStreak?: number } } | undefined
   myTeamId: string
   /** 今季その選手に出した入札（決着したものも含めて全部） */
   bidsOnPlayer: readonly { status: string }[]

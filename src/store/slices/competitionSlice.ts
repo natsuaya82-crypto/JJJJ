@@ -8,9 +8,9 @@ import { runLeaguesThrough } from '../../engine/leagueDay'
 import { cpuMarketRounds, runCpuMarketTick } from '../../engine/cpuOffseason'
 import { decideLoanRequests } from '../../engine/loanRequests'
 import { tradeValueCtxOf } from '../marketOps'
-import { ROSTER_MAX, rosterCapOf } from '../../data/rosterRules'
+import { rosterCapOf } from '../../data/rosterRules'
 import { type LoanResponse, type EclStanding, type ExpiredNegotiation, type GameState, type Player, type TransferRecord } from '../../types'
-import { withMyClub, allTieredClubs, myLeagueRaces, myLeagueId } from '../../utils/world'
+import { clubsWhere, isJpelLeague, withMyClub, myLeagueRaces, myLeagueId } from '../../utils/world'
 import { findClub } from '../../utils/clubs'
 import { TOP_DIVISION, divisionStandings, rankedStandings, pointSeriesStandings } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
@@ -32,8 +32,7 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
   // 走らせ方・数え方は engine/leagueDay の runLeaguesThrough 1本（国内の部も海外も同じ）
   advanceLeaguesTo: (date) => set(state => {
     const out = runLeaguesThrough({
-      season: state.currentSeason, players: state.players, teams: state.teams,
-      foreignLeagues: state.foreignLeagues, through: date,
+      season: state.currentSeason, players: state.players, clubs: state.clubs, through: date,
       skip: myLeagueId(state.currentSeason, state.playerTeamId),
     })
     return out ? { players: out.players, currentSeason: out.season } : {}
@@ -52,36 +51,31 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
     const { rounds, dates, nextDate } = cpuMarketRounds(state.currentSeason.lastCpuMarketDate, date)
     if (rounds <= 0) return {}
     let players = state.players
-    let teams = state.teams
-    let foreignLeagues = state.foreignLeagues ?? []
+    let clubs = state.clubs
     const records: TransferRecord[] = []
     const news: NewsItem[] = []
     // 上限で切り捨てたぶんは繰り越さない（cpuMarketRounds 側の決まり）
     const draftPickCounts = 0
     // ★1回ごとに違う日付を渡すこと。使い回すと2回目以降が空振りする（cpuMarketRounds のコメント）
     for (const roundDate of dates) {
-      const r = runCpuMarketTick({ players, teams, foreignLeagues }, {
+      const r = runCpuMarketTick({ players, clubs }, {
         playerTeamId: state.playerTeamId,
         year: state.currentSeason.year,
         season: state.currentSeason,
         pastSeasons: state.pastSeasons,
-        allTeams: state.teams,
-        foreignLeagues,
-        // 海外クラブはドラフトを取らないので、上限は ROSTER_MAX そのまま
-        rosterCapFor: (id) => (state.teams.some(t => t.id === id) ? rosterCapOf(draftPickCounts) : ROSTER_MAX),
+        // 上限は `rosterCapOf` 1本（シーズン中は空けておく指名権ぶんが無いので、どのクラブも同じ数）
+        rosterCapFor: () => rosterCapOf(draftPickCounts),
         destinationOf: get().destinationOf,
         tradeValueCtx: tradeValueCtxOf(state),
         date: roundDate })
       players = r.players
-      teams = r.teams
-      foreignLeagues = r.foreignLeagues
+      clubs = r.clubs
       records.push(...r.records)
       news.push(...r.news)
     }
     return {
       players,
-      teams,
-      foreignLeagues,
+      clubs,
       transferHistory: [...(state.transferHistory ?? []), ...records].slice(-800),
       currentSeason: {
         ...state.currentSeason,
@@ -105,7 +99,7 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
       const r = resolveBid(bid, {
         players: state.players,
         listings: cs.transferListings ?? [],
-        teams: state.teams, foreignLeagues: state.foreignLeagues,
+        clubs: state.clubs,
         currentSeason: cs,
         pastSeasons: state.pastSeasons,
         raceIndex: raceIdx })
@@ -130,8 +124,8 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
       //   2本に割れていて、本編の側だけ枠を `3` で直書きし、**在籍上限を1行も見ていません**でした
       //   （30人ちょうどで承諾されると31人になり、レンタル選手は解雇できないので戻せない）。
       for (const d of decideLoanRequests(state.players, playerTeamId, pendingLoanReqs, pl =>
-        keyPlayerStatus(pl, { players: state.players, teams: state.teams, foreignLeagues: state.foreignLeagues, currentSeason: cs, pastSeasons: state.pastSeasons }) === 'open')) {
-        const ownerShort = findClub(state.teams, state.foreignLeagues, d.player.teamId)?.shortName
+        keyPlayerStatus(pl, { players: state.players, clubs: state.clubs, currentSeason: cs, pastSeasons: state.pastSeasons }) === 'open')) {
+        const ownerShort = findClub(state.clubs, d.player.teamId)?.shortName
           ?? '相手クラブ'
         if (d.accepted) acceptedLoans.push({ playerId: d.player.id, ownerId: d.player.teamId, years: d.years })
         newLoanResponses.push({ id: `lresp_${d.player.id}_${raceIdx}`, playerId: d.player.id, playerName: d.player.name, ownerShort, accepted: d.accepted, years: d.years })
@@ -144,10 +138,10 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
 
     let players: Player[] = state.players.map(p =>
       lockedIds.includes(p.id) ? { ...p, transferLockedUntilYear: cs.year + 1 } : p)
-    let teams = state.teams
+    let clubs = state.clubs
     // 借用成立は movePlayer に通す（保有元を残して、貸した側の名簿から外す）
     for (const a of acceptedLoans) {
-      const m = movePlayer({ players, teams }, a.playerId, playerTeamId, {
+      const m = movePlayer({ players, clubs }, a.playerId, playerTeamId, {
         year: cs.year,
         until: cs.year + a.years,
         raceIndex: raceIdx,
@@ -155,12 +149,12 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
         myTeamId: playerTeamId })
       if (!m.ok) continue
       players = m.players
-      teams = m.teams
+      clubs = m.clubs
     }
 
     return {
       players,
-      teams,
+      clubs,
       currentSeason: {
         ...cs,
         transferBids: bids,
@@ -191,9 +185,9 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
 
     const iAmIn = participants.some(p => p.isPlayerTeam)
     const result = simulateEclEvent({
-      year, participants, races: [race], teams: state.teams, players: state.players,
-      // 施設は国内52＋海外180をまとめて渡す（ECLは海外クラブも走る）
-      clubs: allTieredClubs(state.teams, state.foreignLeagues ?? []),
+      year, participants, races: [race], players: state.players,
+      // 施設と本拠地の補正は世界のクラブ（ECLは海外クラブも走る）
+      clubs: state.clubs,
       playerLineup: iAmIn && playerLineup ? { teamId: state.playerTeamId, lineup: playerLineup } : undefined })
 
     // ポイント累積（順位点＋区間点）
@@ -256,7 +250,7 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
       }
     }
 
-    let updatedTeams = state.teams
+    let updatedClubs = state.clubs
     let newAch: NonNullable<GameState['achievements']> = []
     let eclResult = state.currentSeason.eclResult
     let eclFinalRank = 0   // 最終戦のみ確定する年間総合順位（ジュエルの総合ボーナス用）
@@ -271,7 +265,7 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
       eclFinalRank = myRank
       const prize = myRank === 1 ? 200_000_000 : myRank === 2 ? 100_000_000 : myRank > 0 ? 50_000_000 : 0
       if (prize > 0) {
-        updatedTeams = withMyClub(state, t => ({ ...t, finance: { ...t.finance, budget: t.finance.budget + prize } }))
+        updatedClubs = withMyClub(state, t => ({ ...t, finance: { ...t.finance, budget: (t.finance?.budget ?? 0) + prize } }))
       }
       const won = champion?.id === state.playerTeamId
       eclWon = won
@@ -331,7 +325,7 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
     const eclJewels = eclJewelGains.reduce((s, g) => s + g.amount, 0)
 
     return {
-      teams: updatedTeams,
+      clubs: updatedClubs,
       players: updatedPlayers,
       // 自チームが出ていない観戦シリーズは裏で自動消化されるので、獲得ゼロのときは
       // 未表示の内訳（前のレースぶん）を消さないようキーごと書かない
@@ -370,14 +364,13 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
       if (cs.eclSeries) return state
       if (seasonDone) return state // 未来の日付が残っていないので今年はもう開催できない
       if ((state.pastSeasons?.length ?? 0) === 0) return state // 初年度は開催なし（仕様）
-      const leagues = state.foreignLeagues ?? []
-      if (leagues.length === 0) return state
+      // 海外のクラブが1つも居ない世界では開催しない
+      if (clubsWhere(state.clubs, c => !isJpelLeague(c.leagueId)).length === 0) return state
       const last = state.pastSeasons[state.pastSeasons.length - 1]
       const parts = buildEclParticipants({
         standings: last ? divisionStandings(last, TOP_DIVISION) : [],
-        teams: state.teams,
+        clubs: state.clubs,
         playerTeamId: state.playerTeamId,
-        leagues,
         seasonLeagues: cs.leagues,
         players: state.players })
       if (parts.length < 4) return state

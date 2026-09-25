@@ -80,7 +80,7 @@ console.log('[2] 0.5 / 0 を手書きしていない')
 //    `appraiseMove` の `unproven`（今のクラブで1戦も走っていない）に当たります。
 const YEAR = 2030
 const HI = 'hi'
-const teams = [{ id: HI, name: HI, shortName: HI, division: 1, tier: 5 }] as unknown as Team[]
+const clubs = [{ id: HI, name: HI, shortName: HI, leagueId: divisionLeagueId(1), tier: 5 }] as unknown as Team[]
 console.log('[3] 今季走っている選手は、前シーズンで上書きされない')
 {
   const mk = (id: string, runners: string[]): Race => ({
@@ -92,13 +92,13 @@ console.log('[3] 今季走っている選手は、前シーズンで上書きさ
   const thisSeason = L([mk('r1', ['p']), mk('r2', ['p']), mk('r3', ['p'])])
   // 前季：同じクラブが10戦。本人はそのクラブに居なかったので0戦
   const prev = L(Array.from({ length: 10 }, (_, i) => mk(`q${i}`, ['other'])))
-  const r = playRateOf('p', HI, thisSeason, teams, [], prev)
+  const r = playRateOf('p', HI, thisSeason, clubs, prev)
   check('⑥ 3戦フル出場なら、前季を渡しても出場率100%', r.fraction === 1 && r.races === 3,
     `fraction=${r.fraction} races=${r.races} teamRaces=${r.teamRaces}`)
   // 空振りでないこと：今季まだ1戦も走っていないなら、前季を見る（本来の目的）
   const notYet = L([mk('r1', ['other']), mk('r2', ['other'])])
   const prevFull = L(Array.from({ length: 10 }, (_, i) => mk(`q${i}`, ['p'])))
-  const r2 = playRateOf('p', HI, notYet, teams, [], prevFull)
+  const r2 = playRateOf('p', HI, notYet, clubs, prevFull)
   check('⑥ 空振りでない（今季まだ走っていなければ前季を見る）', r2.fraction === 1 && r2.teamRaces === 10,
     `fraction=${r2.fraction} teamRaces=${r2.teamRaces}`)
 }

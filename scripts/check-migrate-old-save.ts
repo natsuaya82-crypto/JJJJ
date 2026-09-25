@@ -25,7 +25,7 @@ import { LEAGUE_COURSE_POOL } from '../src/data/races'
 import { ranRaces } from '../src/utils/raceHistory'
 import { waRaceRows } from '../src/utils/waRaces'
 import { buildCareerCounts } from '../src/utils/careerStats'
-import { divisionStandings, DIVISIONS, divisionLeagueId, leagueRaces, leagueStandingRows, divisionInSeason } from '../src/utils/league'
+import { divisionStandings, DIVISIONS, divisionLeagueId, divisionOfLeague, leagueRaces, leagueStandingRows, divisionInSeason } from '../src/utils/league'
 import { clubSeasonRank, clubWonLeague } from '../src/utils/clubStanding'
 import type { Race } from '../src/types'
 
@@ -38,8 +38,9 @@ const check = (name: string, ok: boolean, detail = '') => {
 const YEAR = 2030
 // v39 までのセーブはクラブ側にも名簿（roster.main）を持っていた。v40 で落とす
 const teams = INITIAL_TEAMS.map((t, i) => {
-  const { division: _d, ...rest } = t as Record<string, unknown>
-  return { ...rest, roster: { main: [`ghost-${i}`] } }
+  // v29 当時のクラブには部（division／いまの leagueId）が無い
+  const { leagueId: _l, ...rest } = t as Record<string, unknown>
+  return { ...rest, id: t.id, roster: { main: [`ghost-${i}`] } }
 })
 const players = generateCpuRosters(INITIAL_TEAMS as never, YEAR).cpuPlayers
 
@@ -111,9 +112,12 @@ check('例外なく読み込める', true)
 // ── 部（v31）──
 console.log('')
 console.log('[部]')
-const tAfter = after.teams as { id: string; division?: number }[]
-check('全チームに部が入る', tAfter.every(t => t.division != null), `${tAfter.filter(t => t.division == null).length}件が未設定`)
-check('既存チームは1部', tAfter.every(t => t.division === 1))
+// v47 でクラブは1つの並び（clubs）になり、部は所属リーグ（leagueId＝jpel-<部>）で持つ
+const tAfter = (after.clubs as { id: string; leagueId?: string }[]).filter(c => divisionOfLeague(c.leagueId) != null)
+check('旧い入れ物（teams / foreignLeagues）が残っていない', !('teams' in after) && !('foreignLeagues' in after))
+check('全チームに部が入る', teams.every(t => tAfter.some(c => c.id === t.id)),
+  `${teams.filter(t => !tAfter.some(c => c.id === t.id)).length}件が未設定`)
+check('既存チームは1部', tAfter.length === teams.length && tAfter.every(t => divisionOfLeague(t.leagueId) === 1))
 console.log(`  ※ 2部・3部の32クラブはここでは増えない。シーズンを1回終えたときに入る（utils/domesticClubs）`)
 
 // ── 順位表（v36）──
@@ -162,7 +166,7 @@ if (counts) check('出走が数えられている', [...counts.values()].some(c 
 // ── 残高（v32）──
 console.log('')
 console.log('[予算]')
-const fin = (after.teams as { finance?: { budget?: number; deficitStreak?: number } }[])[0].finance
+const fin = (tAfter as { finance?: { budget?: number; deficitStreak?: number } }[])[0].finance
 check('残高が格の年間予算で入り直している', (fin?.budget ?? 0) > 0, `${fin?.budget}`)
 check('連続赤字が0に戻る', fin?.deficitStreak === 0)
 
@@ -181,7 +185,7 @@ console.log('[チャットの重複]')
 console.log('')
 console.log('[クラブ側の名簿]')
 {
-  const tA = after.teams as Record<string, unknown>[]
+  const tA = tAfter as unknown as Record<string, unknown>[]
   check('team.roster が落ちている', !tA.some(t => 'roster' in t),
     `${tA.filter(t => 'roster' in t).length}件残っている`)
   check('チームの他の項目は残っている', tA.every(t => typeof t.id === 'string' && t.finance != null))

@@ -30,7 +30,7 @@ import {
 import type { ISim, InteractiveSegResult } from '../../engine/interactiveRace'
 import { buildTeamRankings, countSegmentsByTeam } from '../../engine/raceEngine'
 import ScreenPortal from '../ui/ScreenPortal'
-import { myClub, myLeagueRaces } from '../../utils/world'
+import { jpelClubs, myClub, myLeagueRaces } from '../../utils/world'
 
 type Phase = 'lineup' | 'simulating' | 'results'
 
@@ -293,7 +293,7 @@ function buildTeamRankingsForInteractive(
 export default function RacePage() {
   const navigate = useNavigate()
   const {
-    currentSeason, teams, players, playerTeamId,
+    currentSeason, clubs, players, playerTeamId,
     raceLineup, setRaceLineup, clearRaceLineup, runRace,
     raceStrategy, setRaceStrategy,
     setActiveRacePhase, setActiveRaceLocked, setActiveRaceResults,
@@ -305,8 +305,8 @@ export default function RacePage() {
   // リーグ戦のタイムはこの画面で計算して store に渡すため、ここで補正を掛けないと施設の効果が消える。
   // 表示用（ロスター一覧・記録会）には素の players を使い、能力値の見た目は変えない。
   const racePlayers = useMemo(
-    () => applyRaceBoosts(players, teams, playerTeamId, raceLineup),
-    [players, teams, playerTeamId, raceLineup],
+    () => applyRaceBoosts(players, clubs, playerTeamId, raceLineup),
+    [players, clubs, playerTeamId, raceLineup],
   )
 
   // ★**結果画面から離れて戻ってきたら、見ていた結果へ戻す。**
@@ -436,12 +436,12 @@ export default function RacePage() {
 
     const playerPlayerId = raceLineup[segIdx]
     const playerObj = racePlayers.find(p => p.id === playerPlayerId)
-    const playerTeam = myClub({ teams, playerTeamId })
+    const playerTeam = myClub({ clubs, playerTeamId })
     const seasonProgress = raceIndex / myLeagueRaces(currentSeason, playerTeamId).length
     const totalSegs = activeRace.segments.length
 
     const cpuTimesForSeg = calcCpuTimesForSeg(
-      seg, teams, sim.cpuLineups, racePlayers, playerTeamId,
+      seg, clubs, sim.cpuLineups, racePlayers, playerTeamId,
       activeRace, seasonProgress, totalSegs,
     )
 
@@ -474,7 +474,7 @@ export default function RacePage() {
           totalSegs,
           players: racePlayers,
           cpuLineups: sim.cpuLineups,
-          teams,
+          clubs,
         })
       : []
 
@@ -501,7 +501,7 @@ export default function RacePage() {
     setActiveRaceLocked(currentRace, raceIndex)
 
     // 出走するのは自分と同じ部のチームだけ。判定は engine/raceEngine.ts の1本
-    const cpuLineups = buildCpuLineups(teams, players, currentRace, playerTeamId)
+    const cpuLineups = buildCpuLineups(clubs, players, currentRace, playerTeamId)
 
     const initialSim: ISim = {
       cpuLineups,
@@ -565,7 +565,7 @@ export default function RacePage() {
 
     const playerPlayerId = raceLineup[sim.currentSegIdx]
     const playerObj2 = racePlayers.find(p => p.id === playerPlayerId)
-    const playerTeam2 = myClub({ teams, playerTeamId })
+    const playerTeam2 = myClub({ clubs, playerTeamId })
     const seg2 = race.segments.find(s => s.index === sim.currentSegIdx)
     const seasonProgress2 = raceIndex / myLeagueRaces(currentSeason, playerTeamId).length
     const totalSegs2 = race.segments.length
@@ -694,9 +694,9 @@ export default function RacePage() {
       if (doneSeg.has(seg.index)) continue
       const pid = raceLineup[seg.index]
       const playerObj = racePlayers.find(p => p.id === pid)
-      const playerTeam = myClub({ teams, playerTeamId })
+      const playerTeam = myClub({ clubs, playerTeamId })
 
-      const cpuTimes = calcCpuTimesForSeg(seg, teams, sim.cpuLineups, racePlayers, playerTeamId, race, seasonProgress, totalSegs)
+      const cpuTimes = calcCpuTimesForSeg(seg, clubs, sim.cpuLineups, racePlayers, playerTeamId, race, seasonProgress, totalSegs)
       // スキップ区間もCPUと同じ消耗込み計算で見積もる
       const skSegOvr = playerObj ? calcSegOvr(playerObj, seg) : 50
       const skSegStamina = Math.max(1, skSegOvr - calcNaturalDrain(skSegOvr, seg.distanceKm))
@@ -740,7 +740,7 @@ export default function RacePage() {
     setLockedRaceIndex(raceIndex)
     setActiveRaceLocked(currentRace, raceIndex)
     const race = currentRace
-    const cpuLineups = buildCpuLineups(teams, players, race, playerTeamId)
+    const cpuLineups = buildCpuLineups(clubs, players, race, playerTeamId)
     const seasonProgress = raceIndex / myLeagueRaces(currentSeason, playerTeamId).length
     const totalSegs = race.segments.length
     let completedSegs: ReturnType<typeof finalizeSegment>[] = []
@@ -749,8 +749,8 @@ export default function RacePage() {
     for (const seg of race.segments) {
       const pid = raceLineup[seg.index]
       const playerObj = racePlayers.find(p => p.id === pid)
-      const playerTeam = myClub({ teams, playerTeamId })
-      const cpuTimes = calcCpuTimesForSeg(seg, teams, cpuLineups, racePlayers, playerTeamId, race, seasonProgress, totalSegs)
+      const playerTeam = myClub({ clubs, playerTeamId })
+      const cpuTimes = calcCpuTimesForSeg(seg, clubs, cpuLineups, racePlayers, playerTeamId, race, seasonProgress, totalSegs)
       const skSegOvr = playerObj ? calcSegOvr(playerObj, seg) : 50
       const skSegStamina = Math.max(1, skSegOvr - calcNaturalDrain(skSegOvr, seg.distanceKm))
       const pBase = playerObj
@@ -824,7 +824,7 @@ export default function RacePage() {
 
     // ライブ表示用：現在のスタミナ・イベント補正を反映した投影最終タイム（実結果と一致させる）
     const livePlayerObj = racePlayers.find(p => p.id === raceLineup[segIdx])
-    const livePlayerTeam = myClub({ teams, playerTeamId })
+    const livePlayerTeam = myClub({ clubs, playerTeamId })
     const liveSeg = race.segments.find(s => s.index === segIdx)
     const liveSeasonProgress = raceIndex / myLeagueRaces(currentSeason, playerTeamId).length
     const livePlayerTime = livePlayerObj && liveSeg
@@ -832,12 +832,12 @@ export default function RacePage() {
       : iSim.playerBaseTime
 
     // 画面に並べるのは**そのレースを走っているクラブだけ**（engine/raceEngine の1本）
-    const raceTeams = racingTeams(teams, iSim.cpuLineups, playerTeamId)
+    const raceTeams = racingTeams(jpelClubs(clubs), iSim.cpuLineups, playerTeamId)
 
     return (
       <SimPhase
         race={race}
-        teams={raceTeams}
+        raceTeams={raceTeams}
         players={players}
         playerTeamId={playerTeamId}
         pendingEvent={iSim.pendingEvents[0] ?? null}
@@ -865,7 +865,7 @@ export default function RacePage() {
     <ResultsPhase
       race={race}
       results={results}
-      teams={teams}
+      raceTeams={jpelClubs(clubs)}
       players={players}
       playerTeamId={playerTeamId}
       currentSeason={currentSeason}

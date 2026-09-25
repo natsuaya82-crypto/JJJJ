@@ -20,16 +20,15 @@ import { RELEASE_CHANCE, willRelease, buildDestination, regionOfLeague } from '.
 import { newContractYears, calcTransferValue } from '../src/utils/playerUtils'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { generateSeasonRaces } from '../src/data/races'
 import { runTransferMarket } from '../src/engine/transferMarket'
 import { tierOf, tierOfClubId, tierOfPlayerClub } from '../src/utils/clubTier'
-import { allTieredClubs } from '../src/utils/world'
-import { leagueOfClub } from '../src/utils/clubs'
+import { clubById, jpelClubById } from '../src/utils/world'
 import { ROSTER_MAX } from '../src/data/rosterRules'
 import { CPU_TICK_TRANSFERS } from '../src/engine/cpuOffseason'
-import type { Player, Season, Team } from '../src/types'
+import type { Player, Season, Team, WorldClub } from '../src/types'
 
 let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
@@ -91,9 +90,8 @@ console.log('\n[3] 市場が実際に見ている（長い契約ほど動かな�
   const YEAR = 2034, MY = 'chiba'
   const teams = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
   const cpu = generateCpuRosters(teams, YEAR)
-  const fgen = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
-  const leagues = fgen.updatedLeagues
-  const CLUBS = allTieredClubs(teams, leagues)
+  const fgen = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
+  const clubs: WorldClub[] = [...teams, ...INITIAL_FOREIGN_CLUBS]
   // 契約年数は newContractYears で配る（生成直後は2〜4年に偏っていて5年が1人もいない）
   let players: Player[] = [...cpu.cpuPlayers, ...fgen.players]
     .map(p => ({ ...p, contract: { ...p.contract, yearsLeft: newContractYears(p, YEAR) } }))
@@ -109,14 +107,14 @@ console.log('\n[3] 市場が実際に見ている（長い契約ほど動かな�
   for (let round = 0; round < 8; round++) {
     const before = new Map(players.map(p => [p.id, { club: p.teamId, yl: p.contract.yearsLeft }]))
     const snapshot = players
-    const out = runTransferMarket({ players, teams, foreignLeagues: leagues }, {
+    const out = runTransferMarket({ players, clubs }, {
       playerTeamId: MY, year: YEAR, season, pastSeasons: [],
       rosterCapFor: () => ROSTER_MAX,
       destinationOf: (clubId: string, player: Player) => {
-        const team = teams.find(x => x.id === clubId)
-        const tier = team ? tierOf(team) : (tierOfPlayerClub(clubId, CLUBS) ?? tierOfClubId(clubId))
-        const lg = team ? undefined : leagueOfClub(leagues, clubId)
-        return buildDestination(clubId, tier, snapshot, { isForeign: !team, region: regionOfLeague(lg?.id), player })
+        const team = jpelClubById(clubs, clubId)
+        const tier = team ? tierOf(team) : (tierOfPlayerClub(clubId, clubs) ?? tierOfClubId(clubId))
+        const lg = team ? undefined : clubById(clubs, clubId)?.leagueId
+        return buildDestination(clubId, tier, snapshot, { isForeign: !team, region: regionOfLeague(lg), player })
       },
       // ★1回ごとに違う日付を渡すこと。同じ日付を使い回すと2回目以降が空振りする
       //   （`cpuMarketRounds` が1回ごとの日付を返すのはこのため）

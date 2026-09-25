@@ -45,7 +45,7 @@ function player(id: string, teamId: string, o: number, specialty = 'long'): Play
   } as unknown as Player
 }
 const team = (id: string): Team =>
-  ({ id, name: id, shortName: id, division: 1, finance: { budget: 500_000_000 }, draftPicks: [] } as unknown as Team)
+  ({ id, name: id, shortName: id, leagueId: 'jpel-1', finance: { budget: 500_000_000 }, draftPicks: [] } as unknown as Team)
 
 const CTX: TradeValueCtx = { races: [], teamRaces: 0, currentSeason: { year: YEAR, races: [] }, pastSeasons: [] } as unknown as TradeValueCtx
 const teams = [team('my'), team('a'), team('b')]
@@ -70,13 +70,13 @@ const movedOf = (before: Player[], after: Player[]) =>
   after.filter(p => before.find(x => x.id === p.id)!.teamId !== p.teamId)
 
 const run = (players: Player[], extra: Record<string, unknown> = {}) =>
-  runCpuTrades({ players, teams }, { playerTeamId: 'my', year: YEAR, tradeValueCtx: CTX, excludeIds: new Set<string>(), ...extra })
+  runCpuTrades({ players, clubs: teams }, { playerTeamId: 'my', year: YEAR, tradeValueCtx: CTX, excludeIds: new Set<string>(), ...extra })
 
 console.log('[1] 4つの問いが全部通れば成立する')
 {
   const players = world()
   const excludeIds = new Set<string>()
-  const out = runCpuTrades({ players, teams }, { playerTeamId: 'my', year: YEAR, tradeValueCtx: CTX, excludeIds })
+  const out = runCpuTrades({ players, clubs: teams }, { playerTeamId: 'my', year: YEAR, tradeValueCtx: CTX, excludeIds })
   const moved = movedOf(players, out.players)
   check('穴のあるクラブが、相手の控えを選手で買える', moved.length === 2, `動いた選手 ${moved.length}人`)
   check('  もらったのは穴の空いていたタイプ',
@@ -122,7 +122,7 @@ console.log('[2] 条件を1つずつ外すと成立しなくなる')
   // ④ 本人が断れば成立しない
   const refuse = (): Destination => ({ tier: 20, squadRank: 30, playFraction: 0, teamRaces: 10 } as unknown as Destination)
   const players = world()
-  const out = run(players, { destinationOf: refuse, allTeams: teams, foreignLeagues: [] })
+  const out = run(players, { destinationOf: refuse })
   check('④ 本人が断れば成立しない', movedOf(players, out.players).length === 0, `動いた選手 ${movedOf(players, out.players).length}人`)
 }
 

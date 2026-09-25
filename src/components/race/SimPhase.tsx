@@ -14,7 +14,7 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { useSegmentRecords } from '../../lib/useSegmentRecords'
 import { FaceOrDot } from './SegmentDetailCard'
 import ScreenPortal from '../ui/ScreenPortal'
-import { teamById } from '../../utils/world'
+import { clubById } from '../../utils/world'
 
 
 function computeAnimGaps(
@@ -77,7 +77,7 @@ function checkEventTrigger(
 
 type Props = {
   race: Race
-  teams: Team[]
+  raceTeams: Team[]
   players: Player[]
   playerTeamId: string
   pendingEvent: RaceSegmentEvent | null
@@ -101,7 +101,7 @@ type Props = {
 
 // ランナー位置計算（総合順位ベース）
 function calcRunnerPositions(
-  teams: Team[],
+  raceTeams: Team[],
   playerTeamId: string,
   playerBaseTime: number,
   cpuTimesForSeg: Record<string, number>,
@@ -111,9 +111,9 @@ function calcRunnerPositions(
 ): { teamId: string; km: number; segTime: number; overallTotal: number }[] {
   const segTimeOf = (id: string) => id === playerTeamId ? playerBaseTime : (cpuTimesForSeg[id] ?? playerBaseTime)
   // 区間内の見た目位置用：区間先頭走者（最速）を基準
-  const validTimes = teams.map(t => segTimeOf(t.id)).filter(s => s > 0)
+  const validTimes = raceTeams.map(t => segTimeOf(t.id)).filter(s => s > 0)
   const segLeaderTime = validTimes.length > 0 ? Math.min(...validTimes) : 1
-  return teams.map(t => {
+  return raceTeams.map(t => {
     const segTime = segTimeOf(t.id)
     // 区間内の到達距離（バー用）
     const distRatio = segTime > 0 ? segLeaderTime / segTime : 1
@@ -126,10 +126,10 @@ function calcRunnerPositions(
 
 // レーストラック表示
 export function RaceTrack({
-  teams, players, segRunnerIds, playerTeamId, playerBaseTime, cpuTimesForSeg, baselineCumulative,
+  raceTeams, players, segRunnerIds, playerTeamId, playerBaseTime, cpuTimesForSeg, baselineCumulative,
   kmRatio, distanceKm, segCol, currentSegIdx, race,
 }: {
-  teams: Team[]
+  raceTeams: Team[]
   players?: Player[]
   segRunnerIds?: Record<string, string>
   playerTeamId: string
@@ -143,7 +143,7 @@ export function RaceTrack({
   race: Race
 }) {
   const longPress = usePlayerLongPress()
-  const positions = calcRunnerPositions(teams, playerTeamId, playerBaseTime, cpuTimesForSeg, baselineCumulative, kmRatio, distanceKm)
+  const positions = calcRunnerPositions(raceTeams, playerTeamId, playerBaseTime, cpuTimesForSeg, baselineCumulative, kmRatio, distanceKm)
   // positions[0] が総合首位
   const leaderTotal = positions[0]?.overallTotal ?? 0
   const hasData = playerBaseTime > 0 && Object.keys(cpuTimesForSeg).length > 0
@@ -207,7 +207,7 @@ export function RaceTrack({
         <div style={{ padding: '4px 0' }}>
           <div style={{ padding: '4px 12px 2px', fontSize: F.tiny, color: C.textDim, letterSpacing: 2, fontWeight: 700 }}>総合順位</div>
           {positions.map((pos, rank) => {
-            const t = teamById(teams, pos.teamId)
+            const t = clubById(raceTeams, pos.teamId)
             if (!t) return null
             const isMe = pos.teamId === playerTeamId
             const pct = distanceKm > 0 ? (pos.km / distanceKm) * 100 : 0
@@ -299,14 +299,14 @@ export function RaceTrack({
 }
 
 export function SimPhase({
-  race, teams, players, playerTeamId,
+  race, raceTeams, players, playerTeamId,
   pendingEvent, pendingEventsCount: _pendingEventsCount, lowStaminaHint,
   currentSegIdx, completedSegResults, cumulativeTime, cpuTimesForSeg, playerBaseTime, segStamina, segPts,
   showingSegResult, lastSegResult, segRunnerIds,
   onChoiceMade, onAdvance, onSkip: _onSkip, onSkipSegment,
 }: Props) {
   const adH = useAdHeight()
-  const teamMap = new Map(teams.map(t => [t.id, t]))
+  const teamMap = new Map(raceTeams.map(t => [t.id, t]))
   const playerMap = new Map(players.map(p => [p.id, p]))
 
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null)
@@ -610,7 +610,7 @@ export function SimPhase({
       {/* レーストラック（アニメーション完了まで表示） */}
       {currentSeg && showTrack && (
         <RaceTrack
-          teams={teams}
+          raceTeams={raceTeams}
           players={players}
           segRunnerIds={segRunnerIds}
           playerTeamId={playerTeamId}

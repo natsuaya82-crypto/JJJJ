@@ -34,17 +34,17 @@ function Row({ label, value, color, sub }: { label: string; value: string; color
 
 export default function BudgetPage() {
   const navigate = useNavigate()
-  const { teams, players, playerTeamId, currentSeason, sponsors } = useGameStore()
+  const { clubs, players, playerTeamId, currentSeason, sponsors } = useGameStore()
   const longPress = usePlayerLongPress()
 
-  const myTeam = myClub({ teams, playerTeamId })
+  const myTeam = myClub({ clubs, playerTeamId })
   // 過去シーズンの成績はセーブに持たず、順位表から数え直す（utils/teamHistory.ts）
   const myHistory = useTeamHistory(playerTeamId)
   const myPlayers = players.filter(p => p.teamId === playerTeamId)
   // フラット化：1軍/2軍の区別なし。全ロスターをまとめて扱う
   const rosterPlayers = myPlayers.filter(p => p.status !== 'retired')
 
-  const budget = myTeam?.finance.budget ?? 0
+  const budget = myTeam?.finance?.budget ?? 0
   const squadSalaryTotal = rosterPlayers.reduce((s, p) => s + p.contract.annualSalary, 0)
 
   const myTeamSponsorIds = myTeam?.sponsors ?? []
@@ -72,7 +72,7 @@ export default function BudgetPage() {
   const bdRaw = currentSeason.budgetBreakdown
   const bd = bdRaw ? { ...bdRaw, carryover: bdRaw.carryover - (bdRaw.expenses ?? 0), expenses: 0 } : undefined
   const banned = reinforcementBanned(myTeam)
-  const deficitStreak = myTeam?.finance.deficitStreak ?? 0
+  const deficitStreak = myTeam?.finance?.deficitStreak ?? 0
 
   const budgetColor = budget < 30000000 ? C.red : budget < 80000000 ? C.orange : C.green
 

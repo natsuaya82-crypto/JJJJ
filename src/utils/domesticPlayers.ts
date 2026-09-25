@@ -1,4 +1,4 @@
-import type { ForeignLeague, Player, Team } from '../types'
+import type { Player, WorldClub } from '../types'
 import { makeClubIndex } from './clubs'
 
 // ============================================================================
@@ -30,9 +30,9 @@ type DomesticInput = Pick<Player, 'teamId' | 'status' | 'retiredTeamId'>
 
 // 国内記録に数えてよい選手かどうかを返す関数を作る。
 // 画面側はこれを1回作って使い回す（毎回セットを作り直さないため）。
-export function makeIsDomestic(teams: Team[] | undefined, foreignLeagues: ForeignLeague[] | undefined) {
-  // 国内か海外かは「そのクラブの国」を見るだけ。国内チームも海外クラブも同じ索引から引く
-  const index = makeClubIndex(teams, foreignLeagues)
+export function makeIsDomestic(clubs: readonly WorldClub[] | undefined) {
+  // 国内か海外かは「そのクラブの所属リーグ」を見るだけ。国内チームも海外クラブも同じ索引から引く
+  const index = makeClubIndex(clubs)
 
   return (p: DomesticInput): boolean => {
     if (p.status === 'retired') {

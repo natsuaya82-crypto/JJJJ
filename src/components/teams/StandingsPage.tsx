@@ -2,7 +2,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useStickyTab } from '../../lib/useStickyTab'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
-import { myClub, teamById } from '../../utils/world'
+import { clubById, myClub } from '../../utils/world'
 import { clubRoutePath } from '../../utils/clubs'
 import { LeagueLogoSVG } from '../icons/Icons'
 import PageHeader from '../ui/PageHeader'
@@ -22,9 +22,9 @@ const divisionOfLeague = (league: string | undefined): Division | undefined => {
 export default function StandingsPage() {
   const navigate = useNavigate()
   const { league } = useParams<{ league: string }>()
-  const { teams, currentSeason, playerTeamId } = useGameStore()
+  const { clubs, currentSeason, playerTeamId } = useGameStore()
   // 部の指定が無いとき（ホームのFULL→）は自チームのいる部。いちばん見たいのは自分の部なので
-  const myDivision = divisionOf(myClub({ teams, playerTeamId }))
+  const myDivision = divisionOf(myClub({ clubs, playerTeamId }))
   // ECLで開いたときは切り替えを出さない
   const isEcl = league === 'ecl'
   // ★見ている部は**URLに覚えさせる**（`?div=3`）。`useState` だとクラブ詳細へ行って
@@ -45,7 +45,7 @@ export default function StandingsPage() {
     standings: { teamId: string; totalPoints: number; raceResults: { rank: number }[] }[],
   ): StandRow[] =>
     rankedStandings(standings).map(s => {
-      const team = teamById(teams, s.teamId)
+      const team = clubById(clubs, s.teamId)
       return {
         id: s.teamId, name: team?.name ?? '?', shortName: team?.shortName ?? '?',
         primary: team?.colors.primary ?? C.blue, secondary: team?.colors.secondary ?? '#777', teamId: team?.id,

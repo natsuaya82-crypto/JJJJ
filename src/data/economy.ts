@@ -241,8 +241,8 @@ export function feeRatingOf(ratio: number): FeeRating {
 
 // 補強禁止判定：前季までの連続赤字ペナルティ中、または現在の残高がマイナスの間は
 // 新規補強（FA・移籍金・引き抜き・レンタル・海外獲得）を止める。ドラフト・契約更新は可。
-export function reinforcementBanned(team: { finance: { budget: number; deficitStreak?: number } } | undefined): boolean {
-  if (!team) return false
+export function reinforcementBanned(team: { finance?: { budget: number; deficitStreak?: number } } | undefined): boolean {
+  if (!team?.finance) return false
   // 3シーズン連続赤字で補強禁止。または現在の残高がマイナスの間も禁止。
   return (team.finance.deficitStreak ?? 0) >= 3 || team.finance.budget < 0
 }

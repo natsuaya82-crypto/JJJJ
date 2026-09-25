@@ -10,18 +10,16 @@
  * 実際に生成して数える。
  */
 import { generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { tierBudget, tierOf } from '../src/utils/clubTier'
 import { facilityUpkeepOf } from '../src/utils/facilities'
 import { operatingCostOf, computeNextSeasonBudget } from '../src/data/economy'
-import { allForeignClubs } from '../src/utils/clubs'
 import type { ForeignClub, Player } from '../src/types'
 
 const YEAR = 2030
-const { players, updatedLeagues } = generateForeignLeaguePlayers(FOREIGN_LEAGUES as never, YEAR) as unknown as
-  { players: Player[]; updatedLeagues: typeof FOREIGN_LEAGUES }
+const { players } = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
 
-const clubs = allForeignClubs(updatedLeagues as never) as ForeignClub[]
+const clubs: ForeignClub[] = [...INITIAL_FOREIGN_CLUBS]
 const salaryByClub = new Map<string, number>()
 const sizeByClub = new Map<string, number>()
 for (const p of players) {

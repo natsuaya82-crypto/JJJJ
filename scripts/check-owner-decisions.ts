@@ -32,7 +32,7 @@ console.log('[A-5] 大陸予選の代表20人がセーブ整理から守られ�
   const plain = mk('plain-1')
   const base = {
     players: [contOnly, plain],
-    teams: [],
+    clubs: [],
     playerTeamId: 'my',
     currentSeason: { year: YEAR, races: [], currentRaceIndex: 0 },
     pastSeasons: [],
@@ -44,7 +44,7 @@ console.log('[A-5] 大陸予選の代表20人がセーブ整理から守られ�
       continentals: [{ region: 'アフリカ', standings: [], advanced: [], squads: { nat_KEN: ['cont-1'] } }],
     }],
   } as never
-  const out = pruneSaveData({ players: base.players, foreignLeagues: [], state, newYear: YEAR + 1 })
+  const out = pruneSaveData({ players: base.players, state, newYear: YEAR + 1 })
   const kept = new Set(out.players.map(p => p.id))
   check('大陸代表だった選手は残る', kept.has('cont-1'),
     '大陸予選の squads が protectedIds に入っていない＝代表の記録とバッジが静かに消える')

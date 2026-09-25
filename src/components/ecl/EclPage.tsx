@@ -199,7 +199,7 @@ export default function EclPage() {
       <RaceSimPanel
         race={lockedRace}
         results={results}
-        teams={pseudoTeams}
+        raceTeams={pseudoTeams}
         players={players}
         playerTeamId={playerTeamId}
         onDone={() => setPhase(playerQualified ? 'results' : 'view')}
@@ -213,7 +213,7 @@ export default function EclPage() {
       <ResultsPhase
         race={lockedRace}
         results={results}
-        teams={pseudoTeams}
+        raceTeams={pseudoTeams}
         players={players}
         playerTeamId={playerTeamId}
         currentSeason={currentSeason}

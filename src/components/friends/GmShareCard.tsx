@@ -1,4 +1,4 @@
-import type { Team } from '../../types'
+import type { WorldClub } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useTeamHistory } from '../../lib/useTeamHistory'
 import { topTitleCount } from '../../utils/teamHistory'
@@ -10,7 +10,7 @@ const GOLD = CARD.gold
 
 // SNS共有用のGMカード（固定幅・オフスクリーンで描画して html2canvas でキャプチャ）。
 // 選手カードと同じ質感（濃紺グラデ＋金縁＋タスキ）で、フレンドコードを主役に。
-export default function GmShareCard({ team, code }: { team?: Team; code: string }) {
+export default function GmShareCard({ team, code }: { team?: WorldClub; code: string }) {
   const primary = team?.colors.primary ?? '#122440'
   const secondary = team?.colors.secondary ?? GOLD
   // 通算成績はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）

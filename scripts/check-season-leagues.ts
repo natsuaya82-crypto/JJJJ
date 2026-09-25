@@ -25,6 +25,7 @@ import { join } from 'node:path'
 import { withForeignSchedules } from '../src/engine/leagueDay'
 import { drawSeasonSchedules } from '../src/data/races'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { divisionLeagueId, divisionLeagues, newSeasonStandings } from '../src/utils/league'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
@@ -126,7 +127,7 @@ console.log('[5] 海外の日程は日本1部と同じ10日・同じコースの
   const schedules = drawSeasonSchedules(2031, () => 0.37)
   const leagues = withForeignSchedules(
     divisionLeagues(schedules, newSeasonStandings<SeasonStanding>(teams, id => ({ teamId: id, totalPoints: 0, raceResults: [] }))),
-    FOREIGN_LEAGUES as never)
+    [...teams, ...INITIAL_FOREIGN_CLUBS])
   const top = leagues[divisionLeagueId(1)].races
   let dates = 0, courses = 0, ids = 0, jpNames = 0, rows = 0
   for (const l of FOREIGN_LEAGUES) {
@@ -143,7 +144,7 @@ console.log('[5] 海外の日程は日本1部と同じ10日・同じコースの
   check('レースIDは <1部のID>@<リーグID>（同じ日に9リーグが走っても分かれる）', ids === 0, `${ids}リーグ`)
   check('呼び名は地域のもの（国内の名前のまま走らない）', jpNames === 0, `${jpNames}リーグ`)
   check('順位表は全クラブぶん', rows === 0, `${rows}リーグ`)
-  check('何度通しても同じ（冪等）', withForeignSchedules(leagues, FOREIGN_LEAGUES as never) === leagues)
+  check('何度通しても同じ（冪等）', withForeignSchedules(leagues, [...teams, ...INITIAL_FOREIGN_CLUBS]) === leagues)
 }
 
 // ── ⑥ 別ファイルに出した過去シーズンの走行記録が、新しいキーでも旧いキーでも戻る ─────

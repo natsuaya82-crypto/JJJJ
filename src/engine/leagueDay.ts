@@ -5,10 +5,11 @@
 //   海外9リーグは**日本1部と同じ10日・同じコースの並び**を走る（オーナー・2026-09-25）。
 //   コースの呼び名だけそのリーグの地域のもの（`data/courseNames` の `localizeRace`）。
 //   レースIDは `<1部のレースID>@<リーグID>`（同じ日に9リーグが同じコースを走るので分ける）。
-import type { ForeignLeague, LeagueId, LeagueSeason, Player, Race, Season, SeasonStanding, Team } from '../types'
+import type { LeagueId, LeagueSeason, Player, Race, Season, SeasonStanding, WorldClub } from '../types'
 import { courseRegionOfNation, localizeRace } from '../data/courseNames'
 import { TOP_DIVISION, addRaceToStandings, divisionLeagueId, divisionOfLeague } from '../utils/league'
-import { allTieredClubs } from '../utils/world'
+import { clubsInLeague } from '../utils/world'
+import { FOREIGN_LEAGUE_DEFS, type WorldLeague } from '../data/leagues'
 import { playersByClub } from '../utils/rosterSync'
 import { applyCareerAdd, runBackgroundRace } from './backgroundRace'
 import { applyRaceMorale, standingOf } from './raceMorale'
@@ -21,7 +22,7 @@ function templateRaces(leagues: Leagues): Race[] {
 }
 
 /** 手本の1戦を、そのリーグの1戦にする（呼び名は地域のもの・IDはリーグごと） */
-function foreignRaceOf(template: Race, league: Pick<ForeignLeague, 'id' | 'country'>): Race {
+function foreignRaceOf(template: Race, league: Pick<WorldLeague, 'id' | 'country'>): Race {
   const local = localizeRace(template, courseRegionOfNation(league.country as Parameters<typeof courseRegionOfNation>[0]))
   return { ...local, id: `${template.id}@${league.id}` }
 }
@@ -33,16 +34,19 @@ function foreignRaceOf(template: Race, league: Pick<ForeignLeague, 'id' | 'count
  *   手本の同じ番目から足す（旧セーブで自チームの部の日程を借りて走っていた回も消さない）
  * ・順位表が無いリーグは全クラブ 0pt で作る。途中で増えたクラブの行も足す
  */
-export function withForeignSchedules(leagues: Leagues, foreignLeagues: readonly ForeignLeague[] | undefined): Leagues {
+export function withForeignSchedules(leagues: Leagues, clubs: readonly WorldClub[] | undefined): Leagues {
   const template = templateRaces(leagues)
   let out: Leagues | null = null
-  for (const lg of foreignLeagues ?? []) {
+  for (const lg of FOREIGN_LEAGUE_DEFS) {
+    const members = clubsInLeague(clubs, lg.id)
+    // クラブが1つも居ないリーグは組まない（そのリーグを持たない世界）
+    if (members.length === 0) continue
     const cur = leagues[lg.id]
     const races = cur?.races ?? []
     const add = template.slice(races.length).map(t => foreignRaceOf(t, lg))
     const rows = cur?.standings ?? []
     const have = new Set(rows.map(r => r.teamId))
-    const missing: SeasonStanding[] = lg.clubs.filter(c => !have.has(c.id)).map(c => ({ teamId: c.id, totalPoints: 0, raceResults: [] }))
+    const missing: SeasonStanding[] = members.filter(c => !have.has(c.id)).map(c => ({ teamId: c.id, totalPoints: 0, raceResults: [] }))
     if (cur && add.length === 0 && missing.length === 0) continue
     out = out ?? { ...leagues }
     out[lg.id] = { races: [...races, ...add], standings: [...rows, ...missing] }
@@ -80,14 +84,14 @@ function canRunLeagueRace(p: Player): boolean {
 export function runLeaguesThrough(o: {
   season: Season
   players: Player[]
-  teams: Team[]
-  foreignLeagues: ForeignLeague[] | undefined
+  /** 世界のクラブ（海外リーグの顔ぶれ・施設・本拠地の補正） */
+  clubs: WorldClub[]
   /** `YYYY-MM-DD`。この日までの開催を走らせる */
   through: string
   /** 走らせないリーグ（自チームのリーグ。本編で走る） */
   skip?: LeagueId
 }): { season: Season; players: Player[] } | null {
-  const scheduled = withForeignSchedules(o.season.leagues, o.foreignLeagues)
+  const scheduled = withForeignSchedules(o.season.leagues, o.clubs)
   const leagues: Leagues = { ...scheduled }
   const due: { leagueId: LeagueId; index: number; date: string }[] = []
   for (const [leagueId, lg] of Object.entries(leagues)) {
@@ -101,8 +105,7 @@ export function runLeaguesThrough(o: {
   // 日付の順。同じ日はリーグの並び（Array#sort は安定）
   due.sort((a, b) => a.date.localeCompare(b.date))
 
-  // 施設（戦術室）は国内・海外とも所属クラブのもの。本拠地の補正は国内クラブだけ（teams）
-  const allClubs = allTieredClubs(o.teams, o.foreignLeagues)
+  // 施設（戦術室）は国内・海外とも所属クラブのもの
   let players = o.players
   const segPrize = { ...(o.season.seasonSegPrize ?? {}) }
   const awayApps = { ...(o.season.awayAppearances ?? {}) }
@@ -113,7 +116,7 @@ export function runLeaguesThrough(o: {
     const byClub = playersByClub(players)
     const out = runBackgroundRace({
       race: lg.races[d.index],
-      players, teams: o.teams, clubs: allClubs,
+      players, clubs: o.clubs,
       seasonProgress: d.index / lg.races.length,
       entrants: lg.standings.map(s => ({ id: s.teamId, roster: (byClub.get(s.teamId) ?? []).filter(canRunLeagueRace) })),
     })

@@ -1,8 +1,8 @@
-import type { ForeignLeague, Player, Season, Team } from '../types'
+import type { Player, Season, WorldClub } from '../types'
 import { squadRankOf } from './squadNeeds'
 import type { ClubTier } from './clubTier'
 import { appraiseMove, isSurplus, moveDeclineText, type Appraisal, type Destination } from './transferDecision'
-import { teamById, allTieredClubs } from './world'
+import { clubById } from './world'
 import { tierOfPlayerClub } from './clubTier'
 import { comparePlayers } from './playerSort'
 import { perfOf, transferFeeFor } from './playerUtils'
@@ -37,8 +37,7 @@ export type GmInviteVerdict =
 
 export type GmInviteCtx = {
   players: Player[]
-  teams: Team[]
-  foreignLeagues?: ForeignLeague[]
+  clubs: WorldClub[]
   currentSeason: Season
   /** いま指揮しているクラブ（声をかける側） */
   fromTeamId: string
@@ -80,12 +79,11 @@ export function appraiseGmInvite(ctx: GmInviteCtx, playerId: string, destTeamId:
   const p = ctx.players.find(x => x.id === playerId)
   if (!p || p.teamId !== ctx.fromTeamId || p.status !== 'active') return null
 
-  const tieredClubs = allTieredClubs(ctx.teams, ctx.foreignLeagues ?? [])
   // ★出場率は「そのクラブが走っている日程」で数える（utils/playRate の1本）
   const { fraction, teamRaces: ranRaces } = playRateOf(
-    p.id, ctx.fromTeamId, ctx.currentSeason, ctx.teams, ctx.foreignLeagues)
+    p.id, ctx.fromTeamId, ctx.currentSeason, ctx.clubs)
   const a = appraiseMove(p, ctx.destinationOf(destTeamId, p), {
-    srcTier: tierOfPlayerClub(ctx.fromTeamId, tieredClubs),
+    srcTier: tierOfPlayerClub(ctx.fromTeamId, ctx.clubs),
     playFraction: fraction, teamRaces: ranRaces, playerTier: ctx.playerTierOf(p),
     followGm: true })
 
@@ -94,7 +92,7 @@ export function appraiseGmInvite(ctx: GmInviteCtx, playerId: string, destTeamId:
   if (!a.ok) return { ok: false, fee, lead: a.lead, reason: a.reason }
   // 払えなければ連れて行けない。**聞く前にここまで見る**ので、
   // 「ついて行きます」と言われたのに移らない、が起きない
-  const destBudget = teamById(ctx.teams, destTeamId)?.finance.budget ?? 0
+  const destBudget = clubById(ctx.clubs, destTeamId)?.finance?.budget ?? 0
   if (destBudget < fee) {
     // 文面は移籍と同じ1本（ここで書かない）
     return { ok: false, fee, lead: 'fee', reason: moveDeclineText('fee', { dream: '' }) }

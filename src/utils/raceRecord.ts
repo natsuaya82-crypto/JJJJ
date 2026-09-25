@@ -42,11 +42,11 @@ const fromCs = (cs: number) => cs / 100
 
 /** レース結果を詰める。出たクラブの一覧も一緒に渡すこと（走者0人のクラブが消えないように） */
 export function packRace(raceId: string, teamIds: readonly string[], results: RaceResults): PackedRace {
-  const teams = [...teamIds]
-  const idx = new Map(teams.map((t, i) => [t, i]))
+  const ranIds = [...teamIds]
+  const idx = new Map(ranIds.map((t, i) => [t, i]))
   return {
     id: raceId,
-    teams,
+    teams: ranIds,
     segs: results.segmentResults.map(s => [
       s.segmentIndex,
       ...[...s.runners]
@@ -69,15 +69,17 @@ export function packRaceResults(race: Race): PackedRace | undefined {
  * 順位・勝ち点の付け方は本編のレースと同じ関数（buildTeamRankings）を通す。
  */
 export function unpackRace(p: PackedRace): RaceResults {
+  // 詰めた形のキー名（teams）はセーブの形なので変えない。中ではクラブIDの並びとして扱う
+  const { teams: ranIds } = p
   const cumTime: Record<string, number> = {}
   const segCountByTeam: Record<string, number> = {}
   const segPts: Record<string, number> = {}
-  for (const t of p.teams) { cumTime[t] = 0; segCountByTeam[t] = 0; segPts[t] = 0 }
+  for (const t of ranIds) { cumTime[t] = 0; segCountByTeam[t] = 0; segPts[t] = 0 }
 
   const segmentResults: RaceResults['segmentResults'] = p.segs.map(([segmentIndex, ...runners]) => ({
     segmentIndex,
     runners: runners.map(([playerId, teamIdx, cs], i) => {
-      const teamId = p.teams[teamIdx] ?? ''
+      const teamId = ranIds[teamIdx] ?? ''
       const timeSec = fromCs(cs)
       cumTime[teamId] = (cumTime[teamId] ?? 0) + timeSec
       segCountByTeam[teamId] = (segCountByTeam[teamId] ?? 0) + 1
@@ -89,7 +91,7 @@ export function unpackRace(p: PackedRace): RaceResults {
 
   return {
     teamRankings: buildTeamRankings({
-      teamIds: p.teams, cumTime, segCountByTeam, segPts, totalSegs: p.segs.length,
+      teamIds: ranIds, cumTime, segCountByTeam, segPts, totalSegs: p.segs.length,
     }),
     segmentResults,
   }

@@ -143,7 +143,6 @@ export default function PlayerSheet() {
   const eclHistory = useEclHistory()
   const worldRepresentatives = useGameStore(s => s.worldRepresentatives)
   const worldAthleticsResults = useGameStore(s => s.worldAthleticsResults)
-  const foreignLeagues = useGameStore(s => s.foreignLeagues)
   const worldTournament = useGameStore(s => s.worldTournament)
   const eventSeasonTops = useGameStore(s => s.eventSeasonTops)
   const setDisplayBadge = useGameStore(s => s.setDisplayBadge)
@@ -310,7 +309,6 @@ export default function PlayerSheet() {
     seasons: [...pastSeasons, currentSeason],
     waResults: worldAthleticsResults,
     playerTeamId,
-    foreignLeagues,
   })
   const raceGroupMap = new Map<string, RaceEntry[]>()
   const raceGroups: { league: string; order: number; names: string[] }[] = []

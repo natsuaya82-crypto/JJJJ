@@ -12,6 +12,7 @@ import { NAT_LABEL } from '../../data/nationalities'
 import { generateForeignLeaguePlayers, nationalityToForeignCategory } from '../../engine/playerGenerator'
 import { type Nationality, type Player } from '../../types'
 import { normalizeSeasonLeagues, toArchivedShape } from './legacySeason'
+import { normalizeWorldClubs } from './legacyWorld'
 import { normalizeForeignStandings } from '../../utils/clubStanding'
 import { tierBudget } from '../../utils/clubTier'
 import { dropLegacyClubRosters, restoreTeamIdsFromLegacyClubs } from '../../utils/legacyClubRoster'
@@ -144,15 +145,15 @@ export const migrateSave = (persistedState: unknown, version: number) => {
         })
         if (toGenerate.length > 0) {
           const year = ((s.currentSeason as Record<string, unknown>)?.year as number) ?? 2027
-          const gen = generateForeignLeaguePlayers(toGenerate, year)
+          const gen = generateForeignLeaguePlayers(toGenerate.flatMap(l => l.clubs), year)
           s.players = [...(s.players as unknown[]), ...gen.players]
           // 生成済みクラブを既存リーグへ合流（リーグごと無ければ丸ごと追加）
-          const genByLeague = new Map(gen.updatedLeagues.map(l => [l.id, l]))
+          const genByLeague = new Map(toGenerate.map(l => [l.id, l]))
           const merged = saved.map(sl => {
             const gl = genByLeague.get(sl.id)
             return gl ? { ...sl, clubs: [...sl.clubs, ...gl.clubs] } : sl
           })
-          for (const gl of gen.updatedLeagues) {
+          for (const gl of toGenerate) {
             if (!merged.some(l => l.id === gl.id)) merged.push(gl as unknown as (typeof merged)[0])
           }
           s.foreignLeagues = merged
@@ -268,8 +269,10 @@ export const migrateSave = (persistedState: unknown, version: number) => {
     // 捨てる前に1回だけ、名簿にしか載っていない選手の所属を teamId へ戻す
     // （旧バージョンで契約満了のFA化が海外選手にも効いてしまったセーブの救済）。
     if (version < 22) {
-      s.players = restoreTeamIdsFromLegacyClubs(s.players as Player[], s.foreignLeagues)
-      dropLegacyClubRosters(s.foreignLeagues)
+      const legacyClubs = (Array.isArray(s.foreignLeagues) ? s.foreignLeagues as { clubs?: unknown[] }[] : [])
+        .flatMap(l => l?.clubs ?? [])
+      s.players = restoreTeamIdsFromLegacyClubs(s.players as Player[], legacyClubs)
+      dropLegacyClubRosters(legacyClubs)
     }
     // v23: 2軍の枠を廃止。選手の rosterTier / dualRegistered と
     // チームの roster.second を捨てる（second に居た選手は main へ寄せる）。
@@ -633,6 +636,12 @@ export const migrateSave = (persistedState: unknown, version: number) => {
         s.pastSeasons = (s.pastSeasons as Record<string, unknown>[]).map(ps => normalizeSeasonLeagues(ps, myTeamId))
       }
     }
+    // v47: クラブを**232の1つの並び**（`clubs`）へ。それまでは国内の `teams`（52）と
+    //   海外の `foreignLeagues[].clubs`（180）の2つの入れ物に割れていた。
+    //   国内の部（`division`）は所属リーグ（`leagueId`＝`jpel-<部>`）へ移す。
+    //   リーグの名前・国はデータ（data/leagues）が持つので、セーブからは落とす。
+    //   均し方は store/persistence/legacyWorld の normalizeWorldClubs 1本。
+    if (version < 47) normalizeWorldClubs(s)
     return s
   } catch (e) {
     // 旧セーブの変換中に例外が出ても読み込み自体は失敗させず、変換前のデータをそのまま渡す。

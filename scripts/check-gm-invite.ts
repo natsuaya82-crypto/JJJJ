@@ -33,15 +33,16 @@ import { readFileSync } from 'node:fs'
 import { useGameStore } from '../src/store/gameStore'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { FOREIGN_LEAGUE_DEFS, INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { generateSeasonRaces } from '../src/data/races'
 import { DIVISIONS, DIVISION_RACES, divisionOf, newSeasonStandings } from '../src/utils/league'
+import { clubsInLeague } from '../src/utils/world'
 import { appraiseMove, buildDestination } from '../src/utils/transferDecision'
 import { appraiseGmInvite } from '../src/utils/gmInvite'
 import { gmInviteNoLine } from '../src/utils/chatLines'
 import { ovr, retirementAgeOf } from '../src/utils/playerUtils'
-import type { Player, Race, SeasonStanding, Team } from '../src/types'
+import type { Player, Race, SeasonStanding, Team, WorldClub } from '../src/types'
 import { seasonLeaguesFixture } from './seasonFixture'
 
 const problems: string[] = []
@@ -57,7 +58,7 @@ const TENURE_FROM = YEAR - 9
 function buildWorld() {
   const base = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
   const cpu = generateCpuRosters(base, YEAR)
-  const fgen = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+  const fgen = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
   const players: Player[] = [...cpu.cpuPlayers, ...fgen.players]
     .map((p, i) => ({ ...p, contract: { ...p.contract, yearsLeft: 1 + (i % 3) } }))
 
@@ -70,7 +71,7 @@ function buildWorld() {
     })
   }
   const foreignStandings: Record<string, SeasonStanding[]> = {}
-  for (const l of fgen.updatedLeagues) foreignStandings[l.id] = l.clubs.map((c, i) => ({ teamId: c.id, totalPoints: (20 - i) * 5, raceResults: [] }))
+  for (const l of FOREIGN_LEAGUE_DEFS) foreignStandings[l.id] = clubsInLeague(INITIAL_FOREIGN_CLUBS, l.id).map((c, i) => ({ teamId: c.id, totalPoints: (20 - i) * 5, raceResults: [] }))
 
   // ★移籍金を払える世界にしておく。払えないと「断られた」ではなく「金が無い」で
   //   止まり、②が一度も通らないまま緑になる
@@ -79,8 +80,8 @@ function buildWorld() {
   const races: Race[] = allRaces.map(r => ({ ...r, results: { teamResults: [], segmentResults: [] } }) as Race)
 
   useGameStore.setState({
-    isInitialized: true, playerTeamId: MY, teams, players,
-    foreignLeagues: fgen.updatedLeagues,
+    isInitialized: true, playerTeamId: MY, players,
+    clubs: [...teams, ...INITIAL_FOREIGN_CLUBS] as WorldClub[],
     gmTenures: [{ teamId: MY, fromYear: TENURE_FROM }],
     gmOffers: [], pendingGmMove: null,
     currentSeason: {
@@ -105,7 +106,7 @@ function runInvite(pickPlayer: (roster: Player[]) => Player | undefined) {
   //   実際に動かすのは applyGmMove で、そちらも同じ関数を通る
   const st = S()
   const verdict = target ? appraiseGmInvite({
-    players: st.players, teams: st.teams, foreignLeagues: st.foreignLeagues,
+    players: st.players, clubs: st.clubs,
     currentSeason: st.currentSeason, fromTeamId: MY, destinationOf: st.destinationOf,
     playerTierOf: st.playerTierOf,
   }, target.id, destId) : null

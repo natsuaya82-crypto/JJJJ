@@ -17,9 +17,10 @@
 import { useGameStore } from '../src/store/gameStore'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { FOREIGN_LEAGUE_DEFS, INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { newSeasonStandings, DIVISIONS, DIVISION_RACES, divisionOf } from '../src/utils/league'
+import { clubsInLeague } from '../src/utils/world'
 import { generateSeasonRaces } from '../src/data/races'
 import type { SeasonStanding, Team, Player } from '../src/types'
 import { seasonLeaguesFixture } from './seasonFixture'
@@ -28,7 +29,7 @@ const YEAR = 2030
 const MY = 'tokyo'
 const base = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
 const cpu = generateCpuRosters(base, YEAR)
-const fgen = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+const fgen = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
 let players: Player[] = [...cpu.cpuPlayers, ...fgen.players]
 
 let sd = 11
@@ -44,14 +45,14 @@ for (const d of DIVISIONS) {
   })
 }
 const foreignStandings: Record<string, SeasonStanding[]> = {}
-for (const l of fgen.updatedLeagues) foreignStandings[l.id] = l.clubs.map((c, i) => ({ teamId: c.id, totalPoints: (20 - i) * 5, raceResults: [] }))
+for (const l of FOREIGN_LEAGUE_DEFS) foreignStandings[l.id] = clubsInLeague(INITIAL_FOREIGN_CLUBS, l.id).map((c, i) => ({ teamId: c.id, totalPoints: (20 - i) * 5, raceResults: [] }))
 
 const teams = base.map(t => ({ ...t, finance: { ...(t.finance ?? {}), budget: 400_000_000 } })) as Team[]
 const races = generateSeasonRaces(YEAR, divisionOf(teams.find(t => t.id === MY)!))
 
 useGameStore.setState({
-  isInitialized: true, playerTeamId: MY, teams, players,
-  foreignLeagues: fgen.updatedLeagues,
+  isInitialized: true, playerTeamId: MY, players,
+  clubs: [...teams, ...INITIAL_FOREIGN_CLUBS],
   currentSeason: {
     year: YEAR, phase: 'postseason', currentRaceIndex: races.length,
     leagues: seasonLeaguesFixture({ myDivision: divisionOf(teams.find(t => t.id === MY)!),
@@ -62,8 +63,8 @@ useGameStore.setState({
   pastSeasons: [], worldAthleticsResults: [], worldRepresentatives: [],
 } as never)
 
-// 海外クラブのIDを集めておく（`'leagueId' in club` では国内と区別できない）
-const foreignIds = new Set(fgen.updatedLeagues.flatMap(l => l.clubs.map(c => c.id)))
+// 海外クラブのIDを集めておく（日本のリーグでないクラブ）
+const foreignIds = new Set(INITIAL_FOREIGN_CLUBS.map(c => c.id))
 const isForeign = (id: string) => foreignIds.has(id)
 
 const seen = new Set<string>()

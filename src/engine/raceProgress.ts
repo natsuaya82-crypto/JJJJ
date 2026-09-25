@@ -11,9 +11,9 @@
 //
 // ★乱数は引数で受ける（既定は Math.random）。1人につき「調子の引き直し」1回、
 //   練習プランが効く条件のときだけもう1回。順序は切り出し前と同じ。
-import type { CardStatKey, ForeignLeague, Player, RaceResults, Season, Team } from '../types'
+import type { CardStatKey, Player, RaceResults, Season, WorldClub } from '../types'
 import { withFatigue } from '../utils/condition'
-import { myClub, allTieredClubs, myLeagueRaces } from '../utils/world'
+import { myClub, myLeagueRaces } from '../utils/world'
 import { ANNUAL_BASE_EXP, tierOfPlayerClub } from '../utils/clubTier'
 import { GROW_STAT_KEYS, applyGrowth, growWorldPlayer } from './growth'
 import { facilitiesOf } from '../utils/facilities'
@@ -31,14 +31,13 @@ export function applyRaceProgress(params: {
   results: RaceResults
   /** そのレースを走った選手 */
   racingIds: Set<string>
-  teams: Team[]
-  /** 海外リーグ。CPU・海外の成長の速さ（クラブの格）を引くのに要る */
-  foreignLeagues?: ForeignLeague[]
+  /** 世界のクラブ。CPU・海外の成長の速さ（クラブの格）を引くのに要る */
+  clubs: WorldClub[]
   playerTeamId: string
   currentSeason: Season
   rng?: () => number
 }): { players: Player[]; raceExpGains: Record<string, Partial<Record<CardStatKey, number>>> } {
-  const { players, results, racingIds, teams, foreignLeagues, playerTeamId, currentSeason, rng = Math.random } = params
+  const { players, results, racingIds, clubs, playerTeamId, currentSeason, rng = Math.random } = params
   // ★チームトーク（レース前に「楽しくいこう／勝ちにいく」で士気 +5／+10）は**廃止**
   //   （オーナー・2026-08-12「チームトークは無くした」）。
   //   選ぶ画面がどこにも無く、build 121 から一度も効いていなかった枝。
@@ -46,16 +45,15 @@ export function applyRaceProgress(params: {
   // 強化合宿: 自チームのレース獲得EXP ×(1 + Lv×6%)
   // ★施設は `facilitiesOf` を通す（格から出る土台＋自分で建てたぶん）。
   //   `facilities` を直接読むと、建てていない施設が0になって**維持費だけ払う**形になる
-  const campLv = facilitiesOf(myClub({ teams, playerTeamId })).trainingCamp
+  const campLv = facilitiesOf(myClub({ clubs, playerTeamId })).trainingCamp
   // ★CPU・海外の成長の速さはそのクラブの格から（`tierGrowthRate`）。
   //   **232クラブの配列は1回だけ組み、格はクラブごとに1回だけ引くこと**——
   //   5,800人ぶん引き直すと1レースが数秒になります
-  const tieredClubs = allTieredClubs(teams, foreignLeagues ?? [])
   const tierCache = new Map<string, number>()
   const tierOfClub = (id: string) => {
     const hit = tierCache.get(id)
     if (hit != null) return hit
-    const v = tierOfPlayerClub(id, tieredClubs) ?? 20
+    const v = tierOfPlayerClub(id, clubs) ?? 20
     tierCache.set(id, v)
     return v
   }

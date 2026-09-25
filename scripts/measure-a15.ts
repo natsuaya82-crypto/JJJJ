@@ -19,9 +19,10 @@ import { ovr } from '../src/utils/playerUtils'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { newSeasonStandings, DIVISIONS, DIVISION_RACES, divisionOf, divisionLeagueId } from '../src/utils/league'
-import { myLeagueRaces } from '../src/utils/world'
+import { myLeagueRaces, jpelClubs } from '../src/utils/world'
 import { drawSeasonSchedules } from '../src/data/races'
 import type { SeasonStanding, Team, Player, Race } from '../src/types'
 import { simulateRace, bgLineup } from '../src/engine/raceEngine'
@@ -30,7 +31,7 @@ const YEAR = 2030
 const MY = 'tokyo'
 const base = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
 const cpu = generateCpuRosters(base, YEAR)
-const fgen = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+const fgen = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
 let players: Player[] = [...cpu.cpuPlayers, ...fgen.players]
 
 let sd = 11
@@ -46,7 +47,7 @@ for (const d of DIVISIONS) {
   })
 }
 const foreignStandings: Record<string, SeasonStanding[]> = {}
-for (const l of fgen.updatedLeagues) foreignStandings[l.id] = l.clubs.map((c, i) => ({ teamId: c.id, totalPoints: (20 - i) * 5, raceResults: [] }))
+for (const l of FOREIGN_LEAGUES) foreignStandings[l.id] = l.clubs.map((c, i) => ({ teamId: c.id, totalPoints: (20 - i) * 5, raceResults: [] }))
 
 const teams = base.map(t => ({ ...t, finance: { ...(t.finance ?? {}), budget: 400_000_000 } })) as Team[]
 // ★**出場記録を入れること。** 空の results で回すと playRate が全員0になり、
@@ -68,7 +69,7 @@ const leagues: Record<string, { races: Race[]; standings: SeasonStanding[] }> = 
 for (const d of DIVISIONS) {
   leagues[divisionLeagueId(d)] = { races: runDiv(sched[d], teams.filter(t => divisionOf(t) === d)), standings: standings[d] }
 }
-for (const l of fgen.updatedLeagues) {
+for (const l of FOREIGN_LEAGUES) {
   const clubTeams = l.clubs.map(c => ({ id: c.id } as Team))
   leagues[l.id] = { standings: foreignStandings[l.id], races: sched[1].slice(0, 8).map((r, k) => {
     const lineups: Record<string, Record<number, string>> = {}
@@ -78,8 +79,7 @@ for (const l of fgen.updatedLeagues) {
 }
 
 useGameStore.setState({
-  isInitialized: true, playerTeamId: MY, teams, players,
-  foreignLeagues: fgen.updatedLeagues,
+  isInitialized: true, playerTeamId: MY, clubs: [...teams, ...INITIAL_FOREIGN_CLUBS], players,
   currentSeason: {
     year: YEAR, phase: 'postseason', currentRaceIndex: races.length,
     leagues, newsFeed: [], objectives: [],
@@ -89,7 +89,7 @@ useGameStore.setState({
 } as never)
 
 // 海外クラブのIDを集めておく（`'leagueId' in club` では国内と区別できない）
-const foreignIds = new Set(fgen.updatedLeagues.flatMap(l => l.clubs.map(c => c.id)))
+const foreignIds = new Set(INITIAL_FOREIGN_CLUBS.map(c => c.id))
 const isForeign = (id: string) => foreignIds.has(id)
 
 const seen = new Set<string>()
@@ -126,7 +126,7 @@ function simulateAll() {
       if (r.results) return r
       const lineups: Record<string, Record<number, string>> = {}
       for (const id of clubIds) lineups[id] = bgLineup(ps.filter(p => p.teamId === id && p.status === 'active'), r)
-      return { ...r, results: simulateRace(r, lineups, st.teams, ps, 0.5) }
+      return { ...r, results: simulateRace(r, lineups, jpelClubs(st.clubs), ps, 0.5) }
     })
   }
   const cs = st.currentSeason
@@ -169,14 +169,14 @@ seen.clear()
 const seasonAtMeasure = { ...useGameStore.getState().currentSeason }
 const all: Row[] = []
 // ★動かす前の姿を控える（動いたあとに読むと、所属も序列も変わっている）
-const st0 = { players: useGameStore.getState().players, teams: useGameStore.getState().teams, foreignLeagues: useGameStore.getState().foreignLeagues }
+const st0 = { players: useGameStore.getState().players, clubs: useGameStore.getState().clubs }
 const rosterOf = new Map<string, typeof st0.players>()
 for (const p of st0.players) { if (!p.teamId) continue; const a = rosterOf.get(p.teamId) ?? []; a.push(p); rosterOf.set(p.teamId, a) }
 
 useGameStore.getState().endSeason(); all.push(...collect())
 // ★格は endSeason で動く（国内は前年順位から引き直す）。**市場が見るのは動いたあとの格**なので、
 //   ここで控えないと方向（格上／格下）が市場の判断とズれる（実測で611件中43件）
-const tiersAfterEnd = { teams: useGameStore.getState().teams, foreignLeagues: useGameStore.getState().foreignLeagues }
+const tiersAfterEnd = { clubs: useGameStore.getState().clubs }
 useGameStore.getState().beginSeasonDraft(); all.push(...collect())
 
 useGameStore.setState({ currentSeason: { ...useGameStore.getState().currentSeason, phase: 'regular', currentRaceIndex: 0 } } as never)
@@ -191,11 +191,10 @@ for (let i = 0; i < 12; i++) {
 
 
 // ── ここから A-15★ の集計 ────────────────────────────────
-import { allTieredClubs } from '../src/utils/world'
 import { tierOfPlayerClub } from '../src/utils/clubTier'
 import { needsPlayer, squadRankOf } from '../src/utils/squadNeeds'
 
-const clubsAll = allTieredClubs(tiersAfterEnd.teams, tiersAfterEnd.foreignLeagues)
+const clubsAll = tiersAfterEnd.clubs
 const tierOf = (teamId: string) => tierOfPlayerClub(teamId, clubsAll)
 const band = (o: number) => o >= 85 ? '85+' : o >= 78 ? '78-84' : o >= 71 ? '71-77' : '〜70'
 const aband = (a: number) => a <= 23 ? '〜23' : a <= 28 ? '24-28' : a <= 32 ? '29-32' : '33〜'

@@ -8,7 +8,7 @@
 //   （毎年まったく同じ顔ぶれが並ぶのを防ぐ）。
 //
 // 乱数は generateSponsorOffers の中だけ。ここでは引かない。
-import type { Season, SponsorOffer, Sponsor, Team } from '../types'
+import type { Season, SponsorOffer, Sponsor, WorldClub } from '../types'
 import { roundSalary } from '../data/economy'
 import { generateSponsorOffers } from '../data/sponsors'
 import type { ClubTier } from '../utils/clubTier'
@@ -17,7 +17,7 @@ import { myClub, myLeagueRaces } from '../utils/world'
 
 export function processSeasonSponsors(params: {
   sponsors: Sponsor[]
-  teams: Team[]
+  clubs: WorldClub[]
   currentSeason: Season
   playerTeamId: string
   /** 自チームの今季の最終順位（部内） */
@@ -26,9 +26,9 @@ export function processSeasonSponsors(params: {
   myNextTier: ClubTier
   newYear: number
 }): { sponsors: Sponsor[]; expiredIds: Set<string>; news: NewsItem[]; offers: SponsorOffer[]; activeIds: string[] } {
-  const { sponsors, teams, currentSeason, playerTeamId, myFinalRank, myNextTier, newYear } = params
+  const { sponsors, clubs, currentSeason, playerTeamId, myFinalRank, myNextTier, newYear } = params
   // Sponsor contract processing
-  const myActiveSponsorIds = myClub({ teams, playerTeamId })?.sponsors ?? []
+  const myActiveSponsorIds = myClub({ clubs, playerTeamId })?.sponsors ?? []
   const mySegWins = myLeagueRaces(currentSeason, playerTeamId)
     .filter(r => r.results)
     .flatMap(r => r.results!.segmentResults)

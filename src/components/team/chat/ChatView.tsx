@@ -5,7 +5,7 @@ import ActionSheet from '../../ui/ActionSheet'
 import { useGameStore } from '../../../store/gameStore'
 import { useClubIndex } from '../../../lib/useClubIndex'
 import PlayerFace from '../../player/PlayerFace'
-import { allTieredClubs, myLeagueRaces } from '../../../utils/world'
+import { myLeagueRaces } from '../../../utils/world'
 import { clubRoutePath, type Club } from '../../../utils/clubs'
 import { usePlayerLongPress } from '../../player/usePlayerLongPress'
 import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, freeContactConsent } from '../../../utils/playerUtils'
@@ -45,7 +45,7 @@ export function ChatView({
 }) {
   const clubIndex = useClubIndex()
   const {
-    currentSeason, teams, players, playerTeamId, pastSeasons, playerTierOf,
+    currentSeason, clubs, players, playerTeamId, pastSeasons, playerTierOf,
     initiateContractRenewal, submitContractRenewalOffer,
     acceptContractCounter, reNegotiateContract,
     acceptRetirement, dismissRetirementRequest,
@@ -57,8 +57,6 @@ export function ChatView({
     acceptIncomingOffer, counterAllIncomingOffers, declineIncomingOffer,
     acceptIncomingLoanOffer, declineIncomingLoanOffer, resolveStayOrLeave, destinationOf,
   } = useGameStore()
-  // 海外クラブの格も毎年動くので、格を引くときは国内＋海外をまとめて渡す（allTieredClubs）
-  const foreignLeagues = useGameStore(s => s.foreignLeagues)
   const longPress = usePlayerLongPress()
   void openPlayerSheet
 
@@ -110,7 +108,7 @@ export function ChatView({
   // **この選手の今季の出場は、この画面で1回だけ引く**（utils/playRate 1本）。
   // 取り合いの件数（rivalClubsFor）とフリー移籍の傾き（freeContactConsent）が同じ数字を見る
   const { fraction: myFrac, teamRaces: myRaces } = playRateOf(
-    player.id, player.teamId, currentSeason, teams, foreignLeagues, prevSeasonOf(pastSeasons, currentSeason.year))
+    player.id, player.teamId, currentSeason, clubs, prevSeasonOf(pastSeasons, currentSeason.year))
   // 退団予定にしたのに行き先が決まらなかった選手（シーズン終了時に積まれる）
   const undecided = (currentSeason.stayOrLeave ?? []).some(x => x.playerId === player.id)
   const incomingOffer = rankedOffers[0]?.offer ?? null
@@ -160,7 +158,7 @@ export function ChatView({
   // 獲得オファーが立っているときだけ数える
   const acqRivalCount = isAcq && acqOffer
     ? rivalClubsFor(player, {
-        teams, players, playerTeamId, foreignLeagues: foreignLeagues ?? [],
+        clubs, players, playerTeamId,
         // 出場率は utils/playRate 1本（store 側の数え方と揃える）
         playFraction: myFrac, teamRaces: myRaces, playerTier: playerTierOf(player),
         destinationOf: (clubId, p) => destinationOf(clubId, p),
@@ -681,7 +679,7 @@ export function ChatView({
       // 出場率は「そのクラブが走っている日程」で数える1本（utils/playRate）。
       // 決断のときと同じ数字でないと、画面の予告と結果が食い違う
       // 行き先は store の destinationOf 1本（決断のときに使われるものと同じ）
-      return freeContactConsent(player, destinationOf(freeContact.fromTeamId, player), tierOfPlayerClub(player.teamId, allTieredClubs(teams, foreignLeagues)), myFrac, myRaces, playerTierOf(player))
+      return freeContactConsent(player, destinationOf(freeContact.fromTeamId, player), tierOfPlayerClub(player.teamId, clubs), myFrac, myRaces, playerTierOf(player))
     })()
 
     const buildContractButtons = (): ReplyBtns | null => {

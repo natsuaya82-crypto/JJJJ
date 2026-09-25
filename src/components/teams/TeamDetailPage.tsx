@@ -10,7 +10,8 @@ import { teamHistoryOf, titleRows } from '../../utils/teamHistory'
 
 // 予算は格1本、施設も1本（国内CPUも海外も同じ決まり）
 import { tierBudget } from '../../utils/clubTier'
-import { teamById, leagueById, myLeagueRaces } from '../../utils/world'
+import { clubById, clubsInLeague, jpelClubById, myLeagueRaces } from '../../utils/world'
+import { leagueById } from '../../data/leagues'
 import { clubCity, clubFounded, clubGmName } from '../../utils/clubs'
 import { facilitiesOf, FACILITY_LABEL } from '../../utils/facilities'
 import { useClubIndex } from '../../lib/useClubIndex'
@@ -120,9 +121,7 @@ export default function TeamDetailPage() {
 }
 
 function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; leagueId?: string; clubId?: string }) {
-  const { teams, players, currentSeason, playerTeamId, pastSeasons, openPlayerSheet } = useGameStore()
-  const foreignLeaguesRaw = useGameStore(s => s.foreignLeagues)
-  const foreignLeagues = foreignLeaguesRaw ?? []
+  const { clubs, players, currentSeason, playerTeamId, pastSeasons, openPlayerSheet } = useGameStore()
   const clubIndex = useClubIndex()
   const transferHistory = useGameStore(s => s.transferHistory)
   const removedPlayers = useGameStore(s => s.removedPlayers)
@@ -164,9 +163,9 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   //   後ろに置くとフック数が変わって「Rendered fewer hooks than expected」で白画面になる。
 
   const isForeign = !!clubId
-  const league = isForeign ? leagueById(foreignLeagues, leagueId) : undefined
-  const club = isForeign ? league?.clubs.find(c => c.id === clubId) : undefined
-  const domesticTeam = !isForeign ? teamById(teams, teamId) : undefined
+  const league = isForeign ? leagueById(leagueId) : undefined
+  const club = isForeign && league ? clubById(clubsInLeague(clubs, league.id), clubId) : undefined
+  const domesticTeam = !isForeign ? jpelClubById(clubs, teamId) : undefined
 
   // 国内チーム or 海外クラブを共通の表示モデルに正規化する
   const id = isForeign ? clubId! : teamId!

@@ -127,9 +127,17 @@ check('merge が例外なく通る', true)
 const fp = fixture.state.players as unknown[]
 const mp = merged.players as unknown[]
 check('選手が消えていない', Array.isArray(mp) && mp.length >= fp.length, `${fp.length} → ${Array.isArray(mp) ? mp.length : '無し'}`)
-const ft = fixture.state.teams as unknown[]
-const mt = merged.teams as unknown[]
-check('チームが消えていない', Array.isArray(mt) && mt.length >= ft.length, `${ft.length} → ${Array.isArray(mt) ? mt.length : '無し'}`)
+// 旧セーブのクラブ（国内 teams ＋ 海外 foreignLeagues[].clubs）は、移行後は1つの並び（clubs）に入る
+const ft = fixture.state.teams as { id: string }[]
+const ff = ((fixture.state.foreignLeagues ?? []) as { clubs?: { id: string }[] }[]).flatMap(l => l.clubs ?? [])
+const mc = merged.clubs as { id: string; leagueId?: string }[]
+const mcById = new Map((Array.isArray(mc) ? mc : []).map(c => [c.id, c]))
+const lostDomestic = ft.filter(t => !mcById.get(t.id)?.leagueId?.startsWith('jpel-')).map(t => t.id)
+const lostForeign = ff.filter(c => { const l = mcById.get(c.id)?.leagueId; return !l || l.startsWith('jpel-') }).map(c => c.id)
+check('チームが消えていない（国内は日本のリーグ、海外は海外のリーグのまま clubs に入る）',
+  Array.isArray(mc) && lostDomestic.length === 0 && lostForeign.length === 0,
+  `国内${ft.length}・海外${ff.length} → ${Array.isArray(mc) ? `clubs ${mc.length}（国内で消えた${lostDomestic.length}・海外で消えた${lostForeign.length}）` : '無し'}`)
+check('旧い入れ物（teams / foreignLeagues）が残っていない', !('teams' in merged) && !('foreignLeagues' in merged))
 check('過去シーズンが消えていない', Array.isArray(merged.pastSeasons) && (merged.pastSeasons as unknown[]).length
   === (fixture.state.pastSeasons as unknown[]).length)
 

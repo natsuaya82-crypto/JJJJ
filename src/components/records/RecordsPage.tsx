@@ -18,7 +18,7 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
 import { DIVISION_LABEL, seasonDivisionStandings, standingRowOf, rankOfTeam, divisionInSeason, type SeasonStandingsLike } from '../../utils/league'
 import Panel from '../ui/Panel'
-import { myClub, teamById, myLeagueRaces } from '../../utils/world'
+import { clubById, myClub, myLeagueRaces } from '../../utils/world'
 
 
 // 記録室の各ページ共通のヘッダー付き外枠（ハブと同じ見た目・横タブは廃止）
@@ -35,21 +35,21 @@ function PageShell({ title, children }: { title: string; children: React.ReactNo
 
 // 自チーム記録（優勝記録・歴代種目別記録・シーズン成績）
 export default function FranchiseRecordsPage() {
-  const { teams, players, pastSeasons, currentSeason, playerTeamId } = useGameStore()
+  const { clubs, players, pastSeasons, currentSeason, playerTeamId } = useGameStore()
   const seasonAwards = useSeasonAwards()
   return (
     <PageShell title="自チーム記録">
-      <FranchiseTab teams={teams} pastSeasons={pastSeasons} currentSeason={currentSeason} playerTeamId={playerTeamId} players={players} seasonAwards={seasonAwards} />
+      <FranchiseTab clubs={clubs} pastSeasons={pastSeasons} currentSeason={currentSeason} playerTeamId={playerTeamId} players={players} seasonAwards={seasonAwards} />
     </PageShell>
   )
 }
 
 // 個人ランキング（通算区間賞・MVP・歴代種目別記録会）
 export function IndividualRecordsPage() {
-  const { teams, players, currentSeason, pastSeasons, foreignLeagues, playerTeamId, gmTenures } = useGameStore()
+  const { clubs, players, currentSeason, pastSeasons, playerTeamId, gmTenures } = useGameStore()
   return (
     <PageShell title="個人ランキング">
-      <PlayersTab players={players} teams={teams} foreignLeagues={foreignLeagues} currentSeason={currentSeason} pastSeasons={pastSeasons}
+      <PlayersTab players={players} clubs={clubs} currentSeason={currentSeason} pastSeasons={pastSeasons}
         playerTeamId={playerTeamId} gmTenures={gmTenures} />
     </PageShell>
   )
@@ -57,10 +57,10 @@ export function IndividualRecordsPage() {
 
 // GMキャリア（評判・キャリア統計・順位推移・育成実績）
 export function GmCareerPage() {
-  const { teams, players, pastSeasons, currentSeason, playerTeamId, gmRep, growthReport, gmTenures } = useGameStore()
+  const { clubs, players, pastSeasons, currentSeason, playerTeamId, gmRep, growthReport, gmTenures } = useGameStore()
   return (
     <PageShell title="GMキャリア">
-      <GmCareerTab gmRep={gmRep ?? 50} pastSeasons={pastSeasons} currentSeason={currentSeason} playerTeamId={playerTeamId} teams={teams} growthReport={growthReport} players={players} gmTenures={gmTenures} />
+      <GmCareerTab gmRep={gmRep ?? 50} pastSeasons={pastSeasons} currentSeason={currentSeason} playerTeamId={playerTeamId} clubs={clubs} growthReport={growthReport} players={players} gmTenures={gmTenures} />
     </PageShell>
   )
 }
@@ -159,15 +159,15 @@ function SectionSwitcher({ sections }: { sections: Section[] }) {
   )
 }
 
-function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players, seasonAwards }: {
-  teams: GameStore['teams']
+function FranchiseTab({ clubs, pastSeasons, currentSeason, playerTeamId, players, seasonAwards }: {
+  clubs: GameStore['clubs']
   pastSeasons: GameStore['pastSeasons']
   currentSeason: GameStore['currentSeason']
   playerTeamId: string
   players: GameStore['players']
   seasonAwards: SeasonAward[]
 }) {
-  const myTeam = myClub({ teams, playerTeamId })
+  const myTeam = myClub({ clubs, playerTeamId })
   const longPress = usePlayerLongPress()
   // 優勝回数・連続上位はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
   //
@@ -433,10 +433,9 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
   ]} />
 }
 
-function PlayersTab({ players, teams, foreignLeagues, currentSeason, pastSeasons, playerTeamId, gmTenures }: {
+function PlayersTab({ players, clubs, currentSeason, pastSeasons, playerTeamId, gmTenures }: {
   players: GameStore['players']
-  teams: GameStore['teams']
-  foreignLeagues: GameStore['foreignLeagues']
+  clubs: GameStore['clubs']
   currentSeason: GameStore['currentSeason']
   pastSeasons: GameStore['pastSeasons']
   playerTeamId: string
@@ -447,7 +446,7 @@ function PlayersTab({ players, teams, foreignLeagues, currentSeason, pastSeasons
   const clubIndex = useClubIndex()
   // 国内（JPEL）の記録として数えてよい選手かの判定は domesticPlayers.ts に集約。
   // 引退すると teamId が空になるので、引退時の所属（retiredTeamId）を見て海外クラブ勢を外す
-  const isDomestic = useMemo(() => makeIsDomestic(teams, foreignLeagues), [teams, foreignLeagues])
+  const isDomestic = useMemo(() => makeIsDomestic(clubs), [clubs])
 
   // キャリア記録は引退含む国内選手のみ
   const careerPlayers = players.filter(p =>
@@ -555,12 +554,12 @@ function PlayersTab({ players, teams, foreignLeagues, currentSeason, pastSeasons
   ]} />
 }
 
-function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, players, gmTenures }: {
+function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, clubs, players, gmTenures }: {
   gmRep: number
   pastSeasons: GameStore['pastSeasons']
   currentSeason: GameStore['currentSeason']
   playerTeamId: string
-  teams: GameStore['teams']
+  clubs: GameStore['clubs']
   growthReport: GameStore['growthReport']
   players: GameStore['players']
   gmTenures: GameStore['gmTenures']
@@ -625,7 +624,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
           <div style={{ fontSize: F.caption, color: C.textSub, lineHeight: 1.7, marginTop: 10 }}>
             {gmTitles.byClub.map(c => (
               <div key={c.teamId}>
-                <span style={{ fontWeight: 800, color: C.text }}>{teamById(teams, c.teamId)?.shortName ?? '—'}</span>
+                <span style={{ fontWeight: 800, color: C.text }}>{clubById(clubs, c.teamId)?.shortName ?? '—'}</span>
                 <span style={{ marginLeft: 6 }}>{c.wins.length}回</span>
                 <span style={{ marginLeft: 6, color: C.textGhost, fontFamily: SAIRA }}>
                   {c.wins.map(w => `${DIVISION_LABEL[w.division]}${w.year}`).join(' / ')}
@@ -664,7 +663,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
         if (cur.length > 1) segments.push(cur.join(' '))
         // クラブが変わった年の手前（前の年との中間）に区切りを置く
         const clubBreaks = pts.map((p, i) => (i > 0 && p.teamId !== pts[i - 1].teamId
-          ? { at: (xFor(i - 1) + xFor(i)) / 2, name: teamById(teams, p.teamId)?.shortName ?? '' }
+          ? { at: (xFor(i - 1) + xFor(i)) / 2, name: clubById(clubs, p.teamId)?.shortName ?? '' }
           : null)).filter((b): b is { at: number; name: string } => b != null)
         return (
           <CardPanel>
@@ -692,7 +691,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
                   クラブが変わった最初の年にだけ名前を置く（毎年出すと重なって読めない）。 */}
               {pts.map((p, i) => (i === 0 || p.teamId !== pts[i - 1].teamId) ? (
                 <div key={'cl' + p.year} style={{ position: 'absolute', left: `${xFor(i)}%`, top: '-2px', transform: 'translateX(-50%)', whiteSpace: 'nowrap', fontSize: F.micro, fontWeight: 800, color: C.textSub }}>
-                  {teamById(teams, p.teamId)?.shortName ?? '—'}
+                  {clubById(clubs, p.teamId)?.shortName ?? '—'}
                 </div>
               ) : null)}
             </div>
@@ -724,7 +723,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
         const minOvr = Math.min(...yearEntries.map(e => e.avg))
         const maxOvr = Math.max(...yearEntries.map(e => e.avg))
         const range = maxOvr - minOvr || 1
-        const teamPrimary = myClub({ teams, playerTeamId })?.colors.primary ?? C.blue
+        const teamPrimary = myClub({ clubs, playerTeamId })?.colors.primary ?? C.blue
         return (
           <CardPanel>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
@@ -802,7 +801,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
         <SectionLabel>在任履歴</SectionLabel>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
           {[...tenures].reverse().map(t => {
-            const team = teamById(teams, t.teamId)
+            const team = clubById(clubs, t.teamId)
             const inTenure = allSeasons.filter(s => s.year >= t.fromYear && (t.toYear == null || s.year <= t.toYear))
             const ranks = inTenure.map(s => rankIn(s, t.teamId)).filter((r): r is number => r != null)
             const titles = inTenure.filter(s => s.year !== currentSeason.year && rankIn(s, t.teamId) === 1).length

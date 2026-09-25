@@ -72,8 +72,8 @@ export function draftTeamNeeds(teamId: string, picks: DraftPick[], allPlayers: P
  * **タイプの一覧ではなく、その選手そのものを見ます**（`needsPlayer`）。
  * 一覧で数えていたころは、同じタイプなら誰でも同じ注目度になっていました。
  */
-export function draftBuzz(player: Player, teams: Team[], playerTeamId: string, picks: DraftPick[], allPlayers: Player[]): number {
-  return teams
+export function draftBuzz(player: Player, draftClubs: readonly Team[], playerTeamId: string, picks: DraftPick[], allPlayers: Player[]): number {
+  return draftClubs
     .filter(t => t.id !== playerTeamId)
     .filter(t => needsPlayer(rosterWithPicks(t.id, picks, allPlayers), player, { requireLineup: false }))
     .length

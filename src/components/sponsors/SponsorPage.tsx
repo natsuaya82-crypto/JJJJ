@@ -37,11 +37,11 @@ function targetText(t: SponsorTarget): string {
 }
 
 export default function SponsorPage() {
-  const { sponsors, teams, playerTeamId, currentSeason, acceptSponsorOffer, terminateSponsor } = useGameStore()
+  const { sponsors, clubs, playerTeamId, currentSeason, acceptSponsorOffer, terminateSponsor } = useGameStore()
   // ★見ているタブはURLに覚えさせる（`?tab=offers`。`lib/useStickyTab`）
   const [tab, setTab] = useStickyTab<'active' | 'offers'>('tab', ['active', 'offers'], 'active')
 
-  const myTeam = myClub({ teams, playerTeamId })
+  const myTeam = myClub({ clubs, playerTeamId })
   const teamSponsorIds = myTeam?.sponsors ?? []
   const activeSponsors = teamSponsorIds.map(id => sponsors.find(s => s.id === id)).filter(Boolean) as typeof sponsors
 

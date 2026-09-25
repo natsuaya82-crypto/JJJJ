@@ -19,7 +19,8 @@ import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { generateCpuRosters } from '../src/engine/playerGenerator'
 import { generateSeasonRaces } from '../src/data/races'
 import { buildCpuLineups, racingTeams } from '../src/engine/raceEngine'
-import { divisionOf, teamsInDivision } from '../src/utils/league'
+import { divisionOf } from '../src/utils/league'
+import { clubsInLeague, divisionLeagueId } from '../src/utils/world'
 import type { Player, Team } from '../src/types'
 import { readFileSync } from 'node:fs'
 
@@ -40,7 +41,7 @@ for (const div of [1, 2, 3] as const) {
   const race = generateSeasonRaces(YEAR, div)[0]
   const cpuLineups = buildCpuLineups(teams, players, race, me.id)
   const shown = racingTeams(teams, cpuLineups, me.id)
-  const divTeams = teamsInDivision(teams, div)
+  const divTeams = clubsInLeague(teams, divisionLeagueId(div))
 
   console.log(`\n${div}部（${me.shortName}）: 全クラブ ${teams.length} / 同じ部 ${divTeams.length} / 中継に並ぶ ${shown.length}`)
 
@@ -73,8 +74,8 @@ for (const div of [1, 2, 3] as const) {
   const src = readFileSync('src/components/race/RacePage.tsx', 'utf8')
   const simProps = src.slice(src.indexOf('<SimPhase'), src.indexOf('<SimPhase') + 400)
   console.log('')
-  check('中継の画面が racingTeams を通している', /teams=\{raceTeams\}/.test(simProps) && src.includes('racingTeams('),
-    `SimPhase へ渡している行: ${(simProps.match(/teams=\{[^}]*\}/) ?? ['(見つからない)'])[0]}`)
+  check('中継の画面が racingTeams を通している', /raceTeams=\{raceTeams\}/.test(simProps) && src.includes('racingTeams('),
+    `SimPhase へ渡している行: ${(simProps.match(/raceTeams=\{[^}]*\}/) ?? ['(見つからない)'])[0]}`)
 }
 
 console.log(failed === 0 ? '\n  → OK\n' : `\n  → NG ${failed}件\n`)

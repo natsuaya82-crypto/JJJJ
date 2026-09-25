@@ -11,7 +11,7 @@
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
-import { allForeignClubs } from '../src/utils/clubs'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { tierOf, isBigClub, isStepUp, BIG_CLUB_TIER } from '../src/utils/clubTier'
 import { leaguesOfRegion, regionOfLeague } from '../src/utils/transferDecision'
 import { divisionOf } from '../src/utils/league'
@@ -22,7 +22,7 @@ import { tierBudget } from '../src/utils/clubTier'
 import type { Team } from '../src/types'
 
 const teams = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
-const clubs = allForeignClubs(FOREIGN_LEAGUES)
+const clubs = [...INITIAL_FOREIGN_CLUBS]
 const leagueIdOf = (id: string) => FOREIGN_LEAGUES.find(l => l.clubs.some(c => c.id === id))?.id ?? ''
 
 // 旧の物差し（比較用にここだけ残す）

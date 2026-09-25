@@ -2,7 +2,7 @@
  * **移籍でお金が湧かない・消えない**（国内52＋海外180の合計は動かない）。
  *
  * ■何が起きていたか
- *   `movePlayer` は `teams`（国内52クラブ）しか知りません。そのため相手が海外クラブだと
+ *   `movePlayer` は国内52クラブのお金しか動かしません。そのため相手が海外クラブだと
  *   **片側しかお金が動きませんでした**。
  *
  *     自チームが海外へ売る … 自チームは受け取るが、海外クラブは払っていない（世界のお金が増える）
@@ -19,9 +19,8 @@
 import { readFileSync } from 'node:fs'
 import { settleForeignFee } from '../src/utils/clubMoney'
 import { tierBudget } from '../src/utils/clubTier'
-import { allForeignClubs } from '../src/utils/clubs'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
-import type { ForeignLeague } from '../src/types'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
+import type { WorldClub } from '../src/types'
 
 let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
@@ -30,12 +29,11 @@ const check = (name: string, ok: boolean, detail = '') => {
 }
 const oku = (n: number) => (n / 1e8).toFixed(2)
 
-const seeded: ForeignLeague[] = (FOREIGN_LEAGUES as ForeignLeague[]).map(l => ({
-  ...l, clubs: l.clubs.map(c => ({ ...c, finance: { budget: tierBudget(c) } })) }))
-const total = (ls: ForeignLeague[]) => allForeignClubs(ls).reduce((s, c) => s + (c.finance?.budget ?? tierBudget(c)), 0)
-const budgetOf = (ls: ForeignLeague[], id: string) =>
-  allForeignClubs(ls).find(c => c.id === id)!.finance!.budget
-const [c1, c2] = allForeignClubs(seeded).map(c => c.id)
+const seeded: WorldClub[] = INITIAL_FOREIGN_CLUBS.map(c => ({ ...c, finance: { budget: tierBudget(c) } }))
+const total = (cs: WorldClub[]) => cs.reduce((s, c) => s + (c.finance?.budget ?? tierBudget(c)), 0)
+const budgetOf = (cs: WorldClub[], id: string) =>
+  cs.find(c => c.id === id)!.finance!.budget
+const [c1, c2] = seeded.map(c => c.id)
 const FEE = 300_000_000
 const before = total(seeded)
 
@@ -70,7 +68,7 @@ console.log('[3] 何もしない場合')
   check('移籍金0なら何も動かない', settleForeignFee(seeded, c1, c2, 0) === seeded)
   check('国内同士なら何も動かない', settleForeignFee(seeded, 'a', 'b', FEE) === seeded)
   check('同じクラブなら何も動かない', settleForeignFee(seeded, c1, c1, FEE) === seeded)
-  check('リーグが無くても落ちない', settleForeignFee(undefined, c1, c2, FEE).length === 0)
+  check('クラブが無くても落ちない', settleForeignFee([], c1, c2, FEE).length === 0)
 }
 
 console.log('')

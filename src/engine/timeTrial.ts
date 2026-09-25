@@ -14,8 +14,8 @@
 //   走者の並び順も、順位表をなめる順も変えないこと。
 import { CARD_UNIT_EXP } from '../data/cardShop'
 import { simulateIndividualTime } from './individualRace'
-import { domesticTeamIdSet, foreignClubIdSet } from '../utils/clubs'
-import type { CardRarity, CardStatKey, ForeignLeague, IndividualEvent, Player, Team, TrainingCard } from '../types'
+import { clubIdSet, clubsWhere, isJpelLeague, jpelClubIdSet, mapClubs } from '../utils/world'
+import type { CardRarity, CardStatKey, IndividualEvent, Player, TrainingCard, WorldClub } from '../types'
 import type { EventDistKey } from '../types'
 
 /**
@@ -51,17 +51,16 @@ export function timeTrialFatigueGain(distance: number): number {
 export function timeTrialRunners(
   w: {
     players: Player[]
-    teams: Team[]
-    foreignLeagues: ForeignLeague[]
+    clubs: WorldClub[]
     playerTeamId: string
     prospects: Player[]
   },
   event: Pick<IndividualEvent, 'id'>,
   skip: Set<string>,
 ): Player[] {
-  const domesticIds = domesticTeamIdSet(w.teams)
+  const domesticIds = jpelClubIdSet(w.clubs)
   const foreignAllowed = FOREIGN_TT_KEYS.some(k => event.id.startsWith(k))
-  const foreignIds = foreignAllowed ? foreignClubIdSet(w.foreignLeagues) : new Set<string>()
+  const foreignIds = foreignAllowed ? clubIdSet(clubsWhere(w.clubs, c => !isJpelLeague(c.leagueId))) : new Set<string>()
   const prospects = w.prospects.filter(p =>
     (p.status === 'active' || p.status === 'draft_eligible')
     && !skip.has(p.id)
@@ -123,19 +122,21 @@ const TEAM_EVENT_RECORD_MAX = 30
  * 名前と国籍も焼き込む——選手データが長期整理で消えても、記録が名前ごと残るように。
  */
 export function updateTeamEventRecords(
-  teams: Team[],
+  clubs: WorldClub[],
   ranked: readonly TimeTrialResult[],
   playerById: Map<string, Player>,
   key: EventDistKey,
   year: number,
-): Team[] {
+): WorldClub[] {
   const byTeam = new Map<string, { playerId: string; timeSec: number }[]>()
   for (const r of ranked) {
     const arr = byTeam.get(r.teamId) ?? []
     arr.push({ playerId: r.playerId, timeSec: r.timeSec })
     byTeam.set(r.teamId, arr)
   }
-  return teams.map(t => {
+  // チーム歴代記録を持つのは日本のリーグのクラブ（いまの振る舞い）
+  return mapClubs(clubs, (t): WorldClub => {
+    if (!isJpelLeague(t.leagueId)) return t
     const ups = byTeam.get(t.id)
     if (!ups || ups.length === 0) return t
     const byPlayer = new Map((t.eventRecords?.[key] ?? []).map(e => [e.playerId, e]))

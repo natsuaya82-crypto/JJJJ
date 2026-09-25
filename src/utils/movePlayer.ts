@@ -1,9 +1,9 @@
 import type { ContractType } from '../data/rosterRules'
 import { canSignContract } from '../data/rosterRules'
-import type { Player, Team, TeamRole, TransferRecord } from '../types'
+import type { Player, TeamRole, TransferRecord, WorldClub } from '../types'
 import { retiredFromOf } from './domesticPlayers'
 import { ovr } from './playerUtils'
-import { teamById } from './world'
+import { isJpelLeague, jpelClubById, mapClubs } from './world'
 
 // ============================================================================
 // 「選手がクラブを移る」を扱う唯一の場所。
@@ -20,7 +20,7 @@ import { teamById } from './world'
 //
 // ■考え方
 //   国内(JPEL)も海外リーグも同じ「クラブ」。違うのは国だけなので処理は分けない。
-//   海外クラブは teams に居ないだけで、選手側の teamId は同じように動く。
+//   選手側の teamId は国内も海外も同じように動く。
 //
 //   移動元(from)は渡さずに選手の今の所属から取る。呼び出し側が古い値を渡す事故を無くすため。
 //   レンタル中の選手を戻すときも、今居るクラブ(借り手)が移動元になる。
@@ -67,7 +67,7 @@ export type MoveOptions = {
    *   1年回して数えると移籍1,232件のうち **971件（78.8%）が食い違い**。
    */
   years?: number
-  // 移動先の名前。海外クラブは teams に居ないので呼び出し側から渡す
+  // 移動先の名前。海外クラブは引かない（いまの振る舞い）ので呼び出し側から渡す
   toName?: string
   // 自チームのID。移籍金の収支と退団のお知らせを出すかの判定に使う
   myTeamId?: string
@@ -94,10 +94,10 @@ export type DepartureNotice = {
 }
 
 export type MoveResult = {
-  // 移動できたか。できなかった場合 players/teams は元のまま返す
+  // 移動できたか。できなかった場合 players/clubs は元のまま返す
   ok: boolean
   players: Player[]
-  teams: Team[]
+  clubs: WorldClub[]
   // 実際の移動元（選手の今の所属から取ったもの）
   from: string
   // 移籍履歴に足す1件。残さない移動では null
@@ -114,27 +114,29 @@ export type MoveResult = {
 //   写しがある限り「片方だけ更新して食い違う」が起き続ける（実際にトレードが片落ちしていた）。
 
 // 移籍金を動かす。移動先が払い、移動元が受け取る。
-// 海外クラブは teams に居ないので、その側は自動的に素通りする（片側だけ動く）。
-function withMoney(teams: Team[], fromTeamId: string, toTeamId: string, fee: number): Team[] {
-  if (fee <= 0) return teams
+// 動かすのは日本のリーグのクラブだけで、海外の側は素通りする（片側だけ動く）。
+// 海外の側は呼ぶ側が `utils/clubMoney` の `settleForeignFee` で精算する（いまの振る舞い）。
+function withMoney(clubs: WorldClub[], fromTeamId: string, toTeamId: string, fee: number): WorldClub[] {
+  if (fee <= 0) return clubs
   let changed = false
-  const next = teams.map(t => {
+  const next = mapClubs(clubs, t => {
+    if (!isJpelLeague(t.leagueId) || !t.finance) return t
     if (t.id === toTeamId) { changed = true; return { ...t, finance: { ...t.finance, budget: t.finance.budget - fee } } }
     if (t.id === fromTeamId) { changed = true; return { ...t, finance: { ...t.finance, budget: t.finance.budget + fee } } }
     return t
   })
-  return changed ? next : teams
+  return changed ? next : clubs
 }
 
 export function movePlayer(
-  world: { players: Player[]; teams: Team[] },
+  world: { players: Player[]; clubs: WorldClub[] },
   playerId: string,
   toTeamId: string,
   opts: MoveOptions,
 ): MoveResult {
-  const { players, teams } = world
+  const { players, clubs } = world
   const fail = (from = ''): MoveResult =>
-    ({ ok: false, players, teams, from, record: null, notice: null, spend: 0, income: 0 })
+    ({ ok: false, players, clubs, from, record: null, notice: null, spend: 0, income: 0 })
 
   const player = players.find(p => p.id === playerId)
   if (!player) return fail()
@@ -197,8 +199,8 @@ export function movePlayer(
     return q
   })
 
-  let nextTeams = teams
-  if (opts.money !== false) nextTeams = withMoney(nextTeams, fromTeamId, dest, fee)
+  let nextClubs = clubs
+  if (opts.money !== false) nextClubs = withMoney(nextClubs, fromTeamId, dest, fee)
 
   // ★**画面に出す契約年数は、実際に結んだ契約から出す。**
   //   呼ぶ側が数字を書けるようにしておくと必ずズレる（`years: 2` の手書きが2つあった）。
@@ -223,7 +225,7 @@ export function movePlayer(
     : null
 
   // 退団のお知らせは自チームから出ていくときだけ
-  const toName = opts.toName ?? teamById(teams, dest)?.name ?? ''
+  const toName = opts.toName ?? jpelClubById(clubs, dest)?.name ?? ''
   // 引退は退団のお知らせを出さない（引退のニュースは呼び出し側で別に作っている）
   const leavingMyTeam = !!opts.myTeamId && clubChanged && !opts.retire && fromTeamId === opts.myTeamId
   const notice: DepartureNotice | null = leavingMyTeam
@@ -242,7 +244,7 @@ export function movePlayer(
   return {
     ok: true,
     players: nextPlayers,
-    teams: nextTeams,
+    clubs: nextClubs,
     from: fromTeamId,
     record,
     notice,

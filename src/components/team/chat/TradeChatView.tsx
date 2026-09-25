@@ -20,8 +20,7 @@ import { myClub, myLeagueRaces } from '../../../utils/world'
 // --- 他チーム（所属選手を表示し、選手を選ぶと契約オファー＝交渉を開始） ---
 
 export function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: () => void; initialGetId?: string; initialMode?: 'fee' | 'trade'; onNegotiateContract?: (playerId: string) => void }) {
-  const { players, teams, playerTeamId, currentSeason, pastSeasons, proposeTrade, acceptTradeCounter, dismissTradeNegotiation, destinationOf, playerTierOf } = useGameStore()
-  const foreignLeagues = useGameStore(s => s.foreignLeagues)
+  const { players, clubs, playerTeamId, currentSeason, pastSeasons, proposeTrade, acceptTradeCounter, dismissTradeNegotiation, destinationOf, playerTierOf } = useGameStore()
   // 選べる＝動かせる、になるように候補は成立判定と同じものを使う（utils/transferEligibility.ts）。
   // 以前は相手側を素通しにしていたので、相手が他クラブから借りている選手が「もらう」候補に並び、
   // 選ぶと「いいだろう、その条件で成立だ」と言われるのに選手は動かなかった
@@ -30,7 +29,7 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: Team; onC
   const tradeCtxT = eligibilityCtx(currentSeason, playerTeamId)
   const theirPlayers = players.filter(p => canBePoached(p, ctxForTeam(tradeCtxT, team.id))).sort(comparePlayers('ovr'))
   const myPlayersT = players.filter(p => canTradeAway(p, tradeCtxT)).sort(comparePlayers('ovr'))
-  const myTeam = myClub({ teams, playerTeamId })
+  const myTeam = myClub({ clubs, playerTeamId })
 
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [submitted, setSubmitted] = useState(false)
@@ -48,7 +47,7 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: Team; onC
     // ★**store と同じ材料を渡すこと**（`players` を渡さないと全員が主力扱いになり、
     //   画面の見積もりだけが store の判定とズレます）
     const tvCtx = { races: myLeagueRaces(currentSeason, playerTeamId), teamRaces: currentSeason.currentRaceIndex, players }
-    const keyWorld = { players, teams, foreignLeagues, currentSeason, pastSeasons }
+    const keyWorld = { players, clubs, currentSeason, pastSeasons }
     const getPlayers = [...getP].map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p)
     const givePlayers = [...give].map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p)
     const tradeIn = { outPlayers: givePlayers, inPlayers: getPlayers,
@@ -58,7 +57,7 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: Team; onC
     const hasKey = getPlayers.some(p => keyPlayerStatus(p, keyWorld) !== 'open')
     // 本人が断るかは engine/tradeConsent 1本（成立させる tradePlayer・打診の proposeTrade と同じ）。
     // 行き先も store の destinationOf 1本（トレード成立時に使われるものと同じ）
-    const refuser = tradeRefuser(getPlayers, { myTeamId: playerTeamId, teams, foreignLeagues, destinationOf, playerTierOf,
+    const refuser = tradeRefuser(getPlayers, { myTeamId: playerTeamId, clubs, destinationOf, playerTierOf,
       currentSeason, pastSeasons, year: currentSeason.year }, tradeConsentBonus(ratio))
     const blockMsg = refuser?.reason ?? ''
     const nextRound = (neg?.round ?? 0) + 1

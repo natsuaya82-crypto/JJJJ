@@ -5,8 +5,8 @@ import { type Division, type SeasonStanding, type Team } from '../types'
 import { domesticThroughRank } from '../utils/league'
 import { EMPTY_TEAM_HISTORY, type TeamHistoryMap, teamHistoriesOf } from '../utils/teamHistory'
 
-export function pickExistsAnywhere(teams: Team[], ownerId: string, year: number, round: number): boolean {
-  return teams.some(t => (t.draftPicks ?? []).some(pk => pk.year === year && pk.round === round && pk.originallyOwnedBy === ownerId))
+export function pickExistsAnywhere(holders: readonly Team[], ownerId: string, year: number, round: number): boolean {
+  return holders.some(t => (t.draftPicks ?? []).some(pk => pk.year === year && pk.round === round && pk.originallyOwnedBy === ownerId))
 }
 
 // 指名権番号を「前年成績の逆順」で振るためのマップ。最下位=1（全体1位指名）〜優勝=N。
@@ -31,12 +31,12 @@ function latestRank(t: Team, histories: TeamHistoryMap): number {
 }
 
 /** 成績が悪い順（順位の数字が大きい順）に並べる。ドラフト順の入口2つが同じ並びを使う */
-function worstFirst(teams: Team[], histories: TeamHistoryMap): Team[] {
-  return [...teams].sort((a, b) => latestRank(b, histories) - latestRank(a, histories))
+function worstFirst(draftClubs: Team[], histories: TeamHistoryMap): Team[] {
+  return [...draftClubs].sort((a, b) => latestRank(b, histories) - latestRank(a, histories))
 }
 
-export function standingsPickNumbers(teams: Team[], histories: TeamHistoryMap): Map<string, number> {
-  const sorted = worstFirst(teams, histories)
+export function standingsPickNumbers(draftClubs: Team[], histories: TeamHistoryMap): Map<string, number> {
+  const sorted = worstFirst(draftClubs, histories)
   const map = new Map<string, number>()
   sorted.forEach((t, i) => map.set(t.id, i + 1))
   return map
@@ -45,8 +45,8 @@ export function standingsPickNumbers(teams: Team[], histories: TeamHistoryMap): 
 // 2年目以降のドラフト順（1巡目）を決める加重抽選。
 // 前年下位5チームだけ抽選で全体1〜5位の指名順を決め、残り（6位以降）は前年順位の逆順。
 // teamId → 全体指名順位(1=全体1位) を返す。
-export function draftLotteryOrder(teams: Team[], histories: TeamHistoryMap): Map<string, number> {
-  const sorted = worstFirst(teams, histories)
+export function draftLotteryOrder(draftClubs: Team[], histories: TeamHistoryMap): Map<string, number> {
+  const sorted = worstFirst(draftClubs, histories)
   // 下位5チームの重み（最下位ほど高い＝1位指名を引きやすい）
   const LOTTERY_WEIGHTS = [40, 25, 18, 11, 6]
   const pool = sorted.slice(0, 5).map((t, i) => ({ id: t.id, w: LOTTERY_WEIGHTS[i] ?? 1 }))
@@ -66,9 +66,9 @@ export function draftLotteryOrder(teams: Team[], histories: TeamHistoryMap): Map
 }
 
 // ドラフト順の計算に渡す形。成績はセーブに持たないので、過去シーズンから数え直して詰め替える
-export function draftOrderTeams(teams: Team[], pastSeasons: { year: number; standings?: Partial<Record<Division, SeasonStanding[]>> }[]) {
+export function draftOrderTeams(draftClubs: readonly Team[], pastSeasons: { year: number; standings?: Partial<Record<Division, SeasonStanding[]>> }[]) {
   const histories = teamHistoriesOf(pastSeasons)
-  return teams.map(t => ({ id: t.id, seasonResults: (histories[t.id] ?? EMPTY_TEAM_HISTORY).seasonResults }))
+  return draftClubs.map(t => ({ id: t.id, seasonResults: (histories[t.id] ?? EMPTY_TEAM_HISTORY).seasonResults }))
 }
 
 // トレードの値付けに要るものを state から1回で取り出す。

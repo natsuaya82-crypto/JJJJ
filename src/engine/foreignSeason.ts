@@ -20,40 +20,36 @@ import { computeNextSeasonBudget } from '../data/economy'
 import { applyForeignChampions } from './foreignLeague'
 import { tierBudget } from '../utils/clubTier'
 import { facilityUpkeepOf } from '../utils/facilities'
-import type { ForeignLeague, GameState, Player, Team } from '../types'
+import type { GameState, Player, WorldClub } from '../types'
+import { FOREIGN_LEAGUE_DEFS } from '../data/leagues'
+import { isJpelLeague, mapClubs } from '../utils/world'
 
 /** 格と予算を来季ぶんに更新し終えた世界。移籍はまだ1件も起きていない */
 export type ForeignSeasonResult = {
   players: Player[]
-  teams: Team[]
-  foreignLeagues: ForeignLeague[]
+  clubs: WorldClub[]
 }
 
 export function processForeignSeason(args: {
   /** 通算成績まで書き終えた選手一覧 */
   players: Player[]
-  /** 今季の海外リーグ（優勝クラブを見るため、更新前のもの） */
-  foreignLeagues: ForeignLeague[]
   /** 今季のリーグ（順位表はここから引く） */
   leagues: GameState['currentSeason']['leagues']
-  /** 年次入れ替え後の海外リーグ */
-  refreshedLeagues: ForeignLeague[]
   /** 年次入れ替えで新しく入った選手 */
   newForeignPlayers: Player[]
   /** 旧セーブの大再編で退場させる選手 */
   removedForeignPlayerIds: Set<string>
-  /** 指名権の処理まで終わった国内クラブ */
-  teams: Team[]
+  /** 指名権の処理まで終わったクラブ（世界の並び） */
+  clubs: WorldClub[]
   playerTeamId: string
   /** 来季の年 */
   newYear: number
 }): ForeignSeasonResult {
-  const { players, foreignLeagues, leagues, refreshedLeagues, newForeignPlayers,
-    removedForeignPlayerIds, teams } = args
+  const { players, leagues, newForeignPlayers, removedForeignPlayerIds, clubs } = args
 
   // 海外リーグの優勝クラブ所属選手に championships +1（今季の順位表を確定してから）
   const playersWithForeignChamp = applyForeignChampions(
-    foreignLeagues, players, leagues,
+    FOREIGN_LEAGUE_DEFS.map(l => l.id), players, leagues,
   )
 
   // ★**海外クラブの格は動かさない**（オーナー・2026-08-18「格はもう動かさない。国内だけ動かす」）。
@@ -61,7 +57,6 @@ export function processForeignSeason(args: {
   //   毎年の順位で動かしていたころは、格1の帯の上端を `Math.max(2, t)` で潰していたせいで
   //   **順位で格1に上がれず**、オーナー指定の格1の5クラブが1位を落とすたびに減り、
   //   数年で世界から格1が消えていた。動かすのは国内（`Team.tier`）だけ。
-  const leaguesWithTier = refreshedLeagues
 
   // シーズンオフの海外クラブ間移籍（引き抜き）。選手がクラブ・国境を越えて移動する。
   // 万一エラーが出てもシーズン更新自体は壊さないよう、失敗時は移籍なしにフォールバック。
@@ -83,9 +78,9 @@ export function processForeignSeason(args: {
     if (p.status === 'retired') continue
     foreignSalaryTotal.set(p.teamId, (foreignSalaryTotal.get(p.teamId) ?? 0) + p.contract.annualSalary)
   }
-  const leaguesWithFinance = leaguesWithTier.map(lg => ({
-    ...lg,
-    clubs: lg.clubs.map(c => {
+  // ★ここで精算するのは日本のリーグでないクラブ（日本のリーグは engine/seasonBudget。いまの振る舞い）
+  const clubsWithFinance = mapClubs(clubs, (c): WorldClub => {
+      if (isJpelLeague(c.leagueId)) return c
       const sal = foreignSalaryTotal.get(c.id) ?? 0
       return {
         ...c,
@@ -101,12 +96,12 @@ export function processForeignSeason(args: {
             bonusPayout: 0,
             salaryTotal: sal,
             facilityUpkeep: facilityUpkeepOf(c) }) } }
-    }) }))
+    })
 
   // ★移籍市場はここでは回しません。**経路は `engine/transferMarket.ts` の1本だけ**で、
   //   回すのは `beginSeasonDraft`（＝CPUの解雇が終わって枠が空いたあと）です。
   //   ここには「海外↔海外」と「日本↔海外」の2本があり、国内CPU間の1本と合わせて
   //   同じ問いに3つの実装が並んでいました。
   //   在籍25人のまま市場を回すと買う枠が無いので、順番も解雇のあとで正しい。
-  return { players: foreignBasePlayers, teams, foreignLeagues: leaguesWithFinance }
+  return { players: foreignBasePlayers, clubs: clubsWithFinance }
 }

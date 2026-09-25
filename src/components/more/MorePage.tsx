@@ -23,7 +23,7 @@ import ScreenCover from '../ui/ScreenCover'
 import { OFFLINE_TEXT } from '../../lib/supabase'
 import { useRatedRanks } from '../../lib/useRatedRanks'
 import { RankBadge } from '../rated/ratedUi'
-import { myClub, teamById } from '../../utils/world'
+import { clubById, myClub } from '../../utils/world'
 
 
 
@@ -197,9 +197,9 @@ function BlockedScreen({ onClose }: { onClose: () => void }) {
 
 export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void }) {
   const { resetGame } = useGameStore()
-  const teams = useGameStore(s => s.teams)
+  const clubs = useGameStore(s => s.clubs)
   const playerTeamId = useGameStore(s => s.playerTeamId)
-  const myTeam = myClub({ teams, playerTeamId })
+  const myTeam = myClub({ clubs, playerTeamId })
   const raceEventsEnabled = useGameStore(s => s.raceEventsEnabled ?? true)
   const setRaceEventsEnabled = useGameStore(s => s.setRaceEventsEnabled)
 
@@ -388,10 +388,10 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
 }
 
 function TeamEditScreen({ onClose }: { onClose: () => void }) {
-  const teams = useGameStore(s => s.teams)
+  const clubs = useGameStore(s => s.clubs)
   const playerTeamId = useGameStore(s => s.playerTeamId)
   const updateMyTeam = useGameStore(s => s.updateMyTeam)
-  const team = myClub({ teams, playerTeamId })
+  const team = myClub({ clubs, playerTeamId })
 
   const [name, setName] = useState(team?.name ?? '')
   const [shortName, setShortName] = useState(team?.shortName ?? '')
@@ -588,7 +588,7 @@ function ResignScreen({ onClose }: { onClose: () => void }) {
   const gmTenures = useGameStore(s => s.gmTenures)
   const year = useGameStore(s => s.currentSeason.year)
   const booked = useGameStore(s => s.pendingGmMove)
-  const bookedTeam = useGameStore(s => teamById(s.teams, s.pendingGmMove?.teamId))
+  const bookedTeam = useGameStore(s => clubById(s.clubs, s.pendingGmMove?.teamId))
   const gate = canResignAsGm(gmTenures, year)
   const [done, setDone] = useState(false)
   return (

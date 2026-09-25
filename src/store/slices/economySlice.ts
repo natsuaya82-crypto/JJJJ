@@ -19,7 +19,7 @@ export const createEconomySlice = (set: SetGame, get: () => GameStore): Slice =>
     if (targetId === null) {
       // Team sponsor
       set(s => ({
-        teams: withMyClub(s, t => ({ ...t, sponsors: [...(t.sponsors ?? []), sponsorId] })) }))
+        clubs: withMyClub(s, t => ({ ...t, sponsors: [...(t.sponsors ?? []), sponsorId] })) }))
     } else {
       // Personal sponsor
       set(s => ({
@@ -35,7 +35,7 @@ export const createEconomySlice = (set: SetGame, get: () => GameStore): Slice =>
   terminateSponsor: (sponsorId, targetId) => {
     if (targetId === null) {
       set(s => ({
-        teams: withMyClub(s, t => ({ ...t, sponsors: (t.sponsors ?? []).filter(id => id !== sponsorId) })) }))
+        clubs: withMyClub(s, t => ({ ...t, sponsors: (t.sponsors ?? []).filter(id => id !== sponsorId) })) }))
     } else {
       set(s => ({
         players: s.players.map(p => p.id === targetId
@@ -66,7 +66,7 @@ export const createEconomySlice = (set: SetGame, get: () => GameStore): Slice =>
         logoColor: offer.logoColor }
       return {
         sponsors: [...(state.sponsors ?? []), newSponsor],
-        teams: withMyClub(state, t => ({ ...t, sponsors: [...currentTeamSponsors, newSponsor.id] })),
+        clubs: withMyClub(state, t => ({ ...t, sponsors: [...currentTeamSponsors, newSponsor.id] })),
         currentSeason: {
           ...state.currentSeason,
           sponsorOffers: (state.currentSeason.sponsorOffers ?? []).filter(o => o.id !== offerId) } }
@@ -99,7 +99,7 @@ export const createEconomySlice = (set: SetGame, get: () => GameStore): Slice =>
 
     if (totalIncome > 0) {
       set(s => ({
-        teams: withMyClub(s, t => ({ ...t, finance: { ...t.finance, budget: t.finance.budget + totalIncome } })) }))
+        clubs: withMyClub(s, t => ({ ...t, finance: { ...t.finance, budget: (t.finance?.budget ?? 0) + totalIncome } })) }))
     }
   },
 
@@ -116,7 +116,7 @@ export const createEconomySlice = (set: SetGame, get: () => GameStore): Slice =>
     if (cost === null || state.jewels < cost) return false
     set(state => ({
       jewels: state.jewels - cost,
-      teams: withMyClub(state, t => ({
+      clubs: withMyClub(state, t => ({
         ...t,
         facilities: { ...t.facilities, [key]: currentLv + 1 } })) }))
     return true

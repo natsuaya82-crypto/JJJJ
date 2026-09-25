@@ -6,22 +6,22 @@
 //
 // 1部・2部・3部は同じコースを分け合って走るので、記録はコース1本ぶん（部で分けない）。
 // 乱数は使わない。
-import type { Division, Player, Race, RaceResults, Team } from '../types'
+import type { Division, Player, Race, RaceResults, WorldClub } from '../types'
 import { segmentRecordsOf, type SeasonRacesLike } from '../utils/segmentRecords'
 import { type NewsItem, segmentRecordHeadline } from '../utils/newsItems'
-import { teamById } from '../utils/world'
+import { clubById } from '../utils/world'
 
 export function detectSegmentRecords(params: {
   race: Race
   results: RaceResults
   players: Player[]
-  teams: Team[]
+  clubs: WorldClub[]
   playerTeamId: string
   myDivision: Division
   pastSeasons: SeasonRacesLike[]
   currentSeason: SeasonRacesLike
 }): { news: NewsItem[]; marks: { segmentIndex: number; playerId: string }[] } {
-  const { race, results, players, teams, playerTeamId, myDivision, pastSeasons, currentSeason } = params
+  const { race, results, players, clubs, playerTeamId, myDivision, pastSeasons, currentSeason } = params
   // 区間新記録の判定。
   // 歴代記録はセーブに貯めず、保存してあるレース結果から数え直す。
   // このレースの結果はまだ currentSeason に入っていないので、これは「今走ったレースの前の記録」になる。
@@ -38,7 +38,7 @@ export function detectSegmentRecords(params: {
     if (prevBest != null && fastestRunner && fastestRunner.timeSec < prevBest) {
       const isMine = fastestRunner.teamId === playerTeamId
       const plName = players.find(x => x.id === fastestRunner.playerId)?.name ?? '不明'
-      const tmShort = teamById(teams, fastestRunner.teamId)?.shortName ?? '?'
+      const tmShort = clubById(clubs, fastestRunner.teamId)?.shortName ?? '?'
       marks.push({ segmentIndex: sr.segmentIndex, playerId: fastestRunner.playerId })
       news.push({
         date: race.date,

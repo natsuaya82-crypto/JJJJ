@@ -101,7 +101,7 @@ import { APP_VERSION as APP_VERSION_LABEL } from './data/appMeta'
 import { C, alpha, SAIRA, F } from './styles/tokens'
 import GlassButton from './components/ui/GlassButton'
 import Panel, { panelStyle } from './components/ui/Panel'
-import { teamById } from './utils/world'
+import { jpelClubById } from './utils/world'
 
 const BUNDLE_ID = 'com.tokinets.jpelmanager'
 // 強制アップデート判定用の現在バージョン。過去に App.tsx 内の手書き定数の上げ忘れで
@@ -188,7 +188,7 @@ const OFFER_KIND_TEXT: Record<string, string> = {
 // 受けると指揮するチームが入れ替わる（store の acceptGmOffer / utils/gmOffer.ts）。
 function GmOfferNotice() {
   const offers = useGameStore(s => s.gmOffers) ?? []
-  const teams = useGameStore(s => s.teams)
+  const clubs = useGameStore(s => s.clubs)
   const players = useGameStore(s => s.players)
   const myTeamId = useGameStore(s => s.playerTeamId)
   const accept = useGameStore(s => s.acceptGmOffer)
@@ -204,7 +204,8 @@ function GmOfferNotice() {
   const invited = myRoster.find(p => p.id === invite)
   if (offers.length === 0) return null
   const offer = offers[Math.min(pick, offers.length - 1)]
-  const dest = teamById(teams, offer.teamId)
+  // 声をかけてくるのは日本のリーグのクラブ
+  const dest = jpelClubById(clubs, offer.teamId)
   if (!dest) return null
   return (
     <>
@@ -215,7 +216,7 @@ function GmOfferNotice() {
         {offers.length > 1 && (
           <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
             {offers.map((o, i) => {
-              const t = teamById(teams, o.teamId)
+              const t = jpelClubById(clubs, o.teamId)
               const on = i === Math.min(pick, offers.length - 1)
               return (
                 <GlassButton key={o.teamId} size="sm" color={on ? C.gold : C.textDim}

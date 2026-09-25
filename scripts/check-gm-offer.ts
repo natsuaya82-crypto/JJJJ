@@ -39,7 +39,7 @@ console.log('')
 
 const offers = resignOffers({
   season, playerTeamId: me.id, finalRank: 10, nextYear: 2030,
-  teams, nextBudgets, rng: Math.random, tierNow, tierSeed,
+  clubs: teams, nextBudgets, rng: Math.random, tierNow, tierSeed,
 })
 console.log('届いた打診')
 for (const o of offers) {
@@ -89,7 +89,7 @@ console.log('')
 console.log('[ランダムに来るぶんと同じ組み立てか]')
 {
   const one = buildOffer({
-    teamId: teams[0].id, kind: 'promotion', season, teams, nextBudgets,
+    teamId: teams[0].id, kind: 'promotion', season, clubs: teams, nextBudgets,
     nextYear: 2030, objBonus: 0, finalRank: 10,
   })
   const keys = Object.keys(one).sort().join(',')

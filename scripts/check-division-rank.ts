@@ -11,24 +11,24 @@ import {
   domesticThroughRankOfTeam, newSeasonStandings, positionPointsFor,
   DIVISIONS, DIVISION_SIZE, DIVISION_RACES, DIVISION_LABEL, divisionLeagueId,
 } from '../src/utils/league'
-import type { Division } from '../src/types'
+import type { WorldClub } from '../src/types'
 
 type Row = { teamId: string; totalPoints: number }
 
 // 52クラブぶんを**実際の配点**で作る。
 //   順位ポイント = そのレースに出たチーム数 + 1 - 着順（positionPointsFor）
 // 毎回同じ着順で走ったチーム、という単純な形にする。
-const teams: { id: string; division: Division }[] = []
+const teams: { id: string; leagueId: string }[] = []
 const pointsOf = new Map<string, number>()
 for (const d of DIVISIONS) {
   const n = DIVISION_SIZE[d]
   for (let i = 0; i < n; i++) {
     const id = `d${d}-${String(i).padStart(2, '0')}`
-    teams.push({ id, division: d })
+    teams.push({ id, leagueId: divisionLeagueId(d) })
     pointsOf.set(id, DIVISION_RACES[d] * positionPointsFor(n, i + 1))
   }
 }
-const byDiv = newSeasonStandings<Row>(teams, teamId => ({ teamId, totalPoints: pointsOf.get(teamId) ?? 0 }))
+const byDiv = newSeasonStandings<Row>(teams as unknown as WorldClub[], teamId => ({ teamId, totalPoints: pointsOf.get(teamId) ?? 0 }))
 const season = {
   leagues: Object.fromEntries(DIVISIONS.map(d => [divisionLeagueId(d), { standings: byDiv[d] }])),
 }
@@ -60,7 +60,7 @@ console.log('■ その年どの部にいたか（順位表のキーそのもの
 console.log(`  ${me} → ${DIVISION_LABEL[divisionInSeason(season, me)!]} / その部で ${rankOfTeam(seasonDivisionStandings(season, me), me)}位`)
 
 // いまは3部にいる、という状態を作っても過去の年は動かない
-const movedTeams = teams.map(t => (t.id === me ? { ...t, division: 3 as Division } : t))
+const movedTeams = teams.map(t => (t.id === me ? { ...t, leagueId: divisionLeagueId(3) } : t))
 const stillDiv = divisionInSeason(season, me)
 console.log(`  そのあと3部へ降格しても → ${DIVISION_LABEL[stillDiv!]} / ${rankOfTeam(seasonDivisionStandings(season, me), me)}位`)
 console.log(movedTeams.length === teams.length && stillDiv === 1

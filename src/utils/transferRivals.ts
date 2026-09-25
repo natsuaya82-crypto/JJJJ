@@ -1,8 +1,8 @@
-import type { ForeignLeague, Player, Team } from '../types'
+import type { Player, WorldClub } from '../types'
 import type { ClubTier } from './clubTier'
 import { needsPlayer } from './squadNeeds'
 import { appraiseMove, RUNNING_SLOTS, type Destination } from './transferDecision'
-import { allTieredClubs } from './world'
+import { clubsWhere } from './world'
 import { tierOfPlayerClub } from './clubTier'
 import { transferCapOf } from '../data/economy'
 import { ROSTER_MAX } from '../data/rosterRules'
@@ -32,11 +32,10 @@ export type RivalClub = { clubId: string; name: string; willing: number }
 export function rivalClubsFor(
   target: Player,
   ctx: {
-    teams: readonly Team[]
+    clubs: readonly WorldClub[]
     players: readonly Player[]
     /** 自チームは競争相手に数えない（自分と競っても意味がない） */
     playerTeamId: string
-    foreignLeagues: readonly ForeignLeague[]
     destinationOf: (clubId: string, player: Player) => Destination
     /** その選手の今季の出場（utils/playRate の playRateOf で引いて渡すこと） */
     playFraction: number
@@ -57,10 +56,8 @@ export function rivalClubsFor(
   // ★国内クラブと海外クラブを分けない。獲りにくる理由は同じ（必要か・走れるか・本人が行くか）で、
   //   海外クラブの資金も本物（finance.budget 1本）。国内だけを見ていたので、
   //   「◯クラブが動いています」が実際に動くクラブより少なく、海外は競りに参加していなかった
-  const allClubs = allTieredClubs(ctx.teams as Team[], ctx.foreignLeagues as ForeignLeague[]) as unknown as readonly Team[]
-  const srcTier = tierOfPlayerClub(target.teamId, allClubs)
-  return allClubs
-    .filter(t => t.id !== ctx.playerTeamId && t.id !== target.teamId && (rosterCount.get(t.id) ?? 0) < ROSTER_MAX)
+  const srcTier = tierOfPlayerClub(target.teamId, ctx.clubs)
+  return clubsWhere(ctx.clubs, t => t.id !== ctx.playerTeamId && t.id !== target.teamId && (rosterCount.get(t.id) ?? 0) < ROSTER_MAX)
     .filter(t => needsPlayer(activeRosterByTeam.get(t.id) ?? [], target))
     .map(t => ({ t, dest: ctx.destinationOf(t.id, target) }))
     .filter(x => x.dest.squadRank <= RUNNING_SLOTS)

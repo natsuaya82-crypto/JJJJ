@@ -41,6 +41,8 @@ import { DOMESTIC_YOUTH_PER_CLUB, refreshDomesticYouth, generateCpuRosters, gene
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
+import { jpelClubs } from '../src/utils/world'
 import { ROSTER_MAX, ROSTER_MIN } from '../src/data/rosterRules'
 import { DIVISIONS, DIVISION_RACES, divisionOf, newSeasonStandings } from '../src/utils/league'
 import { generateSeasonRaces } from '../src/data/races'
@@ -132,7 +134,7 @@ console.log('\n[5] 入れ方は1本（海外の新加入とまったく同じ口
 console.log('\n[6] 世界を3年回して、2部・3部が痩せない')
 {
   const cpu = generateCpuRosters(base, YEAR)
-  const fgen = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+  const fgen = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
   let players: Player[] = [...cpu.cpuPlayers, ...fgen.players]
   let sd = 11
   const rnd = () => { sd = (sd * 1103515245 + 12345) & 0x7fffffff; return sd / 0x7fffffff }
@@ -143,11 +145,11 @@ console.log('\n[6] 世界を3年回して、2部・3部が痩せない')
     for (let r = 0; r < DIVISION_RACES[d]; r++) row.raceResults.push({ raceId: `d${d}-r${r}`, rank: i + 1, points: standings[d].length - i })
   })
   const foreignStandings: Record<string, SeasonStanding[]> = {}
-  for (const l of fgen.updatedLeagues) foreignStandings[l.id] = l.clubs.map((c, i) => ({ teamId: c.id, totalPoints: (20 - i) * 5, raceResults: [] }))
+  for (const l of FOREIGN_LEAGUES) foreignStandings[l.id] = l.clubs.map((c, i) => ({ teamId: c.id, totalPoints: (20 - i) * 5, raceResults: [] }))
   const teams = base.map(t => ({ ...t, finance: { ...(t.finance ?? {}), budget: 400_000_000 } })) as Team[]
   const races = generateSeasonRaces(YEAR, divisionOf(teams.find(t => t.id === MY)!))
   useGameStore.setState({
-    isInitialized: true, playerTeamId: MY, teams, players, foreignLeagues: fgen.updatedLeagues,
+    isInitialized: true, playerTeamId: MY, clubs: [...teams, ...INITIAL_FOREIGN_CLUBS], players,
     currentSeason: { year: YEAR, phase: 'postseason', currentRaceIndex: races.length,
       leagues: seasonLeaguesFixture({
         myDivision: divisionOf(teams.find(t => t.id === MY)!),
@@ -170,7 +172,7 @@ console.log('\n[6] 世界を3年回して、2部・3部が痩せない')
     useGameStore.getState().advanceDraft()
     const st = useGameStore.getState()
     const act = st.players.filter(p => p.status === 'active')
-    const sizeOf = (d: number) => st.teams.filter(t => divisionOf(t) === d)
+    const sizeOf = (d: number) => jpelClubs(st.clubs).filter(t => divisionOf(t) === d)
       .map(t => act.filter(p => p.teamId === t.id).length).sort((a, b) => a - b)
     const s2 = sizeOf(2)
     const s3 = sizeOf(3)

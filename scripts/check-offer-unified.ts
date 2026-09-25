@@ -53,7 +53,7 @@ import { generateTransferActivity } from '../src/engine/cpuMarket'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { drawSeasonSchedules } from '../src/data/races'
 import { tierBudget, tierOf } from '../src/utils/clubTier'
 import { marketValueOf } from '../src/utils/playerUtils'
@@ -61,7 +61,7 @@ import { comparePlayers } from '../src/utils/playerSort'
 import { wouldMakeLineup } from '../src/utils/squadNeeds'
 import { TIER_FALL_LIMIT, playerTierOf, tierLines } from '../src/utils/playerTier'
 import { appraiseMove, buildDestination, regionOfLeague } from '../src/utils/transferDecision'
-import type { ForeignClub, IncomingOffer, Player, Team, TransferListing } from '../src/types'
+import type { ForeignClub, IncomingOffer, Player, Team, TransferListing, WorldClub } from '../src/types'
 
 let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
@@ -73,16 +73,18 @@ const MY = 'tokyo'
 const YEAR = 2030
 const RUNS = 25
 
-// ★国内チームにも `leagueId` を入れる。`Team` にも `leagueId?` があるので、
-//   `'leagueId' in club` で国内／海外を分けると**国内の打診に fromForeign が付く**。
+// ★国内チームも `leagueId`（'jpel-1'〜'jpel-3'）を持つ。`'leagueId' in club` で国内／海外を
+//   分けると**国内の打診に fromForeign が付く**ので、分けるのは所属リーグ（`isJpelLeague`）1本。
 //   fixture がこれを持っていないと、その間違いは緑のまま通る（最初に書いた版がそうだった）
 const teams: Team[] = ([...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[])
-  .map(t => ({ ...t, leagueId: 'jpel', country: 'JPN', finance: { ...t.finance, budget: tierBudget(t) } }))
+  .map(t => ({ ...t, country: 'JPN', finance: { ...t.finance, budget: tierBudget(t) } }))
 // ★海外クラブは**名簿ごと**用意する。名簿が空のクラブは穴も序列も出せないので
 //   1件も打診してこない＝「海外の枝を測っていない世界」で緑になる
-const fg = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
-const foreignClubs: ForeignClub[] = fg.updatedLeagues.flatMap(l =>
-  l.clubs.map(c => ({ ...c, leagueId: l.id, finance: { budget: tierBudget(c as never) } }))) as ForeignClub[]
+const fg = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
+const foreignClubs: ForeignClub[] = INITIAL_FOREIGN_CLUBS
+  .map(c => ({ ...c, finance: { budget: tierBudget(c as never) } })) as ForeignClub[]
+// 世界のクラブは1つの並び（国内52 → 海外180）
+const clubs: WorldClub[] = [...teams, ...foreignClubs]
 const foreignPlayers: Player[] = fg.players
 // ★部ごとにレース数が違う（1部10戦・2部8戦・3部7戦）。**プレイヤーは3部から始まる**ので、
 //   1部だけ測ると自分の部の答えしか出ない
@@ -109,7 +111,7 @@ const destOf = (all: Player[]) => (clubId: string, player: Player) => {
 }
 
 // 市場価値。store の `marketValueOf` と同じ1本（この世界はレース結果を持たないので出場は0）
-const mv = (p: Player) => marketValueOf(p, { players: [], teams, currentSeason: { year: YEAR, races: [] } })
+const mv = (p: Player) => marketValueOf(p, { players: [], clubs, currentSeason: { year: YEAR, races: [] } })
 
 const worldOf: { byId: Map<string, Player>; myRoster: Player[]; players: Player[] }[] = []
 for (let run = 0; run < RUNS; run++) {
@@ -124,7 +126,7 @@ for (let run = 0; run < RUNS; run++) {
   let liveL: TransferListing[] = []
   for (let i = 0; i < races.length; i++) {
     const r = generateTransferActivity(
-      players, teams, MY, i, liveL, live, [], new Set(), YEAR, races.length, foreignClubs,
+      players, clubs, MY, i, liveL, live, [], new Set(), YEAR, races.length,
       // この点検の世界はレース結果を持たないので「まだ分からない」を返す＝序列で見る
       () => ({ fraction: 0, teamRaces: 0 }), destOf(players), mv)
     rounds.push({ fresh: r.incomingOffers.filter(o => !live.some(l => l.id === o.id)), raceIndex: i, run })
@@ -162,7 +164,7 @@ console.log('[1.5] **1年に来る件数**（上限だけ見ても「多すぎ�
     let got = 0
     for (let i = 0; i < sch.length; i++) {
       const r = generateTransferActivity(
-        players0, teams, MY, i, [], live, [], new Set(), YEAR, sch.length, foreignClubs,
+        players0, clubs, MY, i, [], live, [], new Set(), YEAR, sch.length,
         () => ({ fraction: 0, teamRaces: 0 }), destOf(players0), mv)
       got += r.incomingOffers
         .filter(o => !live.some(l => l.id === o.id) && o.offeredPrice > 0 && !o.id.startsWith('inc-lst-')).length
@@ -347,7 +349,9 @@ console.log('[8] シーズン中の出品も1本（国内52＋海外180が同じ
   const fn = src.slice(src.indexOf('export function generateTransferActivity'))
   const stamps = (fn.match(/fromForeign: true/g) ?? []).length
   check('fromForeign を押すのは1か所だけ', stamps === 1, `${stamps}か所`)
-  check('出品の相手を `teams` だけに戻していない', !/const aiTeams = teams\.filter/.test(fn))
+  // 相手の並びは世界のクラブ（`clubs`）から自チームを抜いたもの。国内だけに絞る書き方が戻ったら落とす
+  check('出品の相手を国内だけに戻していない',
+    /const aiTeams\b[^=\n]*=\s*otherClubs\(clubs,/.test(fn) && !/jpelClubs\(|clubsInLeague\(/.test(fn))
 }
 
 console.log(failed === 0 ? '\n✓ 自チームへの打診は国内も海外も1本（上限も1つ）\n' : `\n✗ ${failed}件\n`)

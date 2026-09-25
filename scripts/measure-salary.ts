@@ -1,7 +1,7 @@
 // 年俸の分布を測る（上限が安すぎないかの確認用）。使い捨てではなく残す。
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { ovr } from '../src/utils/playerUtils'
 import { tierBudget, tierOf } from '../src/utils/clubTier'
@@ -11,7 +11,7 @@ const teams: Team[] = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS].map(t => ({
   ...t, finance: { ...t.finance, budget: tierBudget(t) },
 }))
 const { cpuPlayers, teamRosters } = generateCpuRosters(teams, 2027)
-const { players: foreign } = generateForeignLeaguePlayers(FOREIGN_LEAGUES, 2027)
+const { players: foreign } = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, 2027)
 const all = [...cpuPlayers, ...foreign]
 const man = (n: number) => (n / 1e4).toFixed(0) + '万'
 

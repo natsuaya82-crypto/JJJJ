@@ -12,7 +12,7 @@
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { tierOf, tierOfClubId, tierBudget, tierSponsorIncome, operatingCostOf, TIER_BUDGET } from '../src/utils/clubTier'
 import { transferCapOf } from '../src/data/economy'
 import { facilityUpkeepOf, FACILITY_UPKEEP_PER_LEVEL } from '../src/utils/facilities'
@@ -23,7 +23,7 @@ import type { Player, Team } from '../src/types'
 const YEAR = 2028
 const teams = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
 const domestic = generateCpuRosters(teams, YEAR).cpuPlayers
-const { players: foreign, updatedLeagues } = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+const { players: foreign } = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
 
 const oku = (n: number) => (n / 1e8).toFixed(2)
 const salaryOf = (roster: Player[]) => roster.reduce((s, p) => s + (p.contract?.annualSalary ?? 0), 0)
@@ -41,8 +41,8 @@ for (const t of teams) {
   const surplus = budget + sponsor - salary - operatingCostOf(salary) - upkeep
   rows.push({ name: t.shortName, tier, budget, salary, sponsor, surplus, cap: transferCapOf(budget), upkeep })
 }
-for (const l of updatedLeagues) {
-  for (const c of l.clubs) {
+{
+  for (const c of INITIAL_FOREIGN_CLUBS) {
     const tier = tierOfClubId(c.id)
     const budget = TIER_BUDGET[tier]
     const salary = salaryOf(foreign.filter(p => belongsToClub(p, c.id)))

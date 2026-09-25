@@ -5,19 +5,18 @@
  * 入口ごとに「そのクラブがその選手を欲しがるか」を数え、
  * どこかが素通り（＝全クラブが欲しがる）になっていないかを見る。
  */
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { ovr } from '../src/utils/playerUtils'
 import { needsPlayer } from '../src/utils/squadNeeds'
-import { allForeignClubs } from '../src/utils/clubs'
 import type { Player, Team } from '../src/types'
 
 const teams = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
 const domestic = generateCpuRosters(teams, 2027).cpuPlayers as Player[]
-const foreign = generateForeignLeaguePlayers(FOREIGN_LEAGUES, 2027).players as Player[]
-const fClubs = allForeignClubs(FOREIGN_LEAGUES)
+const foreign = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, 2027).players as Player[]
+const fClubs = INITIAL_FOREIGN_CLUBS
 
 const dRoster = (id: string) => domestic.filter(p => p.teamId === id && p.status === 'active')
 const fRoster = (id: string) => foreign.filter(p => p.teamId === id && p.status === 'active')

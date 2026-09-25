@@ -9,7 +9,7 @@
 //   誰が参加するかは需要、誰が勝つかは格（出せる額は格の年間予算から）。
 // ★競り負けは金額の問題なので、来季まで交渉不可のロックはかけない。
 import type { ClubTier } from '../utils/clubTier'
-import type { ArchivedSeason, ExpiredNegKind, ExpiredNegotiation, ForeignLeague, Player, Season, Team, TransferBid, TransferListing } from '../types'
+import type { ArchivedSeason, ExpiredNegKind, ExpiredNegotiation, Player, Season, TransferBid, TransferListing, WorldClub } from '../types'
 import { playRateOf, prevSeasonOf } from '../utils/playRate'
 import { resolveBid, type BidContext } from '../utils/transferBid'
 import { rivalClubsFor } from '../utils/transferRivals'
@@ -50,8 +50,7 @@ const NO_LOCK_KINDS = new Set<ExpiredNegKind>(['outbid', 'bid_gone'])
 export function resolveTransferBids(params: {
   bids: TransferBid[]
   players: Player[]
-  teams: Team[]
-  foreignLeagues: ForeignLeague[]
+  clubs: WorldClub[]
   listings: TransferListing[]
   currentSeason: Season
   /** 今季に**このレースの結果まで載せたもの**。入札の決着（実績の参照）に使う */
@@ -74,7 +73,7 @@ export function resolveTransferBids(params: {
   expiredPlayerIds: string[]
   outbidMoves: { playerId: string; toTeamId: string; fee: number; playerName: string; clubName: string }[]
 } {
-  const { bids, players, teams, foreignLeagues, listings, currentSeason, seasonAfterRace, pastSeasons, raceClock, playerTeamId, destinationOf, playerTierOf } = params
+  const { bids, players, clubs, listings, currentSeason, seasonAfterRace, pastSeasons, raceClock, playerTeamId, destinationOf, playerTierOf } = params
   // 入札(移籍金オファー)の応答。判定は utils/transferBid の resolveBid 1本。
   // サブの1戦を進めたときも同じ関数を呼ぶので、進め方で結果が変わらない
   const bidExpiredNegs: ExpiredNegotiation[] = []
@@ -95,10 +94,9 @@ export function resolveTransferBids(params: {
   const rivalsFor = (target: Player) => {
     // 出場率は utils/playRate 1本（相手クラブが本人に断られるかを見るので、本人の今季が要る）
     const { fraction, teamRaces } = playRateOf(target.id, target.teamId, currentSeason,
-      teams, foreignLeagues ?? [], prevSeasonOf(pastSeasons, currentSeason.year))
+      clubs, prevSeasonOf(pastSeasons, currentSeason.year))
     return rivalClubsFor(target, {
-      teams: teams, players: players, playerTeamId,
-      foreignLeagues: foreignLeagues ?? [],
+      clubs, players: players, playerTeamId,
       playFraction: fraction, teamRaces, playerTier: playerTierOf(target),
       destinationOf: (clubId, p) => destinationOf(clubId, p) })
   }
@@ -109,7 +107,7 @@ export function resolveTransferBids(params: {
     const r = resolveBid(bid, {
       players: players,
       listings: listings,
-      teams, foreignLeagues,
+      clubs,
       // ★**シーズンはそのまま渡すこと**（自分の部の日程だけに削ると、
       //   出場率が自分の部しか見られず、他の部・海外の選手が全員0％になります）
       currentSeason: seasonAfterRace,

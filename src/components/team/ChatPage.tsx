@@ -22,7 +22,7 @@ import { ChatView } from './chat/ChatView'
 import { TradeChatView } from './chat/TradeChatView'
 import { OfferChatRow } from './chat/Cards'
 import { fmtDuration } from '../../utils/chatFormat'
-import { teamById, myLeagueRaces } from '../../utils/world'
+import { jpelClubById, myLeagueRaces } from '../../utils/world'
 
 
 
@@ -77,7 +77,7 @@ export default function ChatPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   // 買い取り・レンタルの打診への返事は ChatView（会話）が持つ。一覧はタップして開くだけ
-  const { players, playerTeamId, currentSeason, teams, generateContractRequests,
+  const { players, playerTeamId, currentSeason, clubs, generateContractRequests,
     openPlayerSheet, setChatLog, markChatSeen, marketValueOf } = useGameStore()
   const clubIndex = useClubIndex()
   // 選手カードの長押しで選手詳細(PlayerSheet)を開く共通ハンドラ。顔タップは各カード側で個別に処理。
@@ -185,13 +185,13 @@ export default function ChatPage() {
   const chatPlayer = chatPlayerId ? openablePlayers.find(p => p.id === chatPlayerId) ?? players.find(p => p.id === chatPlayerId) ?? null : null
 
   // 他チーム（トレード交渉の相手）
-  const tradeTeam = tradeTeamId ? teamById(teams, tradeTeamId) ?? null : null
+  const tradeTeam = tradeTeamId ? jpelClubById(clubs, tradeTeamId) ?? null : null
 
   // ★**チャットを開いたら、いま出ている用件を見た扱いにする。**
   //   ホームの「チャット」の数字はこれで消える（オーナー・2026-08-16
   //   「チャット見ないとその数字消えないみたいな。フレンド横にあった3みたいな感じ」）。
   //   どの用件があるかは utils/notifItems の chatTopicIds 1本＝ホームと同じものを数える
-  const topicKey = chatTopicIds({ currentSeason, players, teams, playerTeamId }).join('|')
+  const topicKey = chatTopicIds({ currentSeason, players, clubs, playerTeamId }).join('|')
   useEffect(() => {
     markChatSeen(topicKey ? topicKey.split('|') : [])
   }, [topicKey, markChatSeen])

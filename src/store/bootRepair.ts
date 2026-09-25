@@ -1,4 +1,4 @@
-import type { ArchivedSeason, ForeignLeague, Player, Season, Team } from '../types'
+import type { ArchivedSeason, Player, Season, Team, WorldClub } from '../types'
 import { ALL_DOMESTIC_TEAMS, domesticClubsComplete, backfillDomesticClubs } from '../utils/domesticClubs'
 import { managedTeamIds } from '../utils/gmTenure'
 import {
@@ -9,6 +9,7 @@ import {
 import type { LeagueSeason } from '../types'
 import { normalizeStandingRows } from '../utils/clubStanding'
 import { withForeignSchedules } from '../engine/leagueDay'
+import { clubIdSet, clubsInLeague, jpelClubs } from '../utils/world'
 
 // ============================================================================
 // 起動時のつじつま合わせ。**セーブを直す場所はここ1本。**
@@ -34,12 +35,11 @@ import { withForeignSchedules } from '../engine/leagueDay'
 
 export type RepairInput = {
   isInitialized?: boolean
-  teams?: Team[]
+  clubs?: WorldClub[]
   players?: Player[]
   playerTeamId?: string
   currentSeason?: Season
   pastSeasons?: ArchivedSeason[]
-  foreignLeagues?: ForeignLeague[]
 }
 
 export type RepairResult = RepairInput & { repairs: string[] }
@@ -54,8 +54,8 @@ const zeroRow = (teamId: string) => ({
  */
 export function repairLoadedSave(input: RepairInput): RepairResult {
   const repairs: string[] = []
-  let { teams, players, currentSeason, pastSeasons } = input
-  const { foreignLeagues, playerTeamId, isInitialized } = input
+  let { clubs, players, currentSeason, pastSeasons } = input
+  const { playerTeamId, isInitialized } = input
   // ★部を固定するのは「一度でも指揮したクラブ」全部（utils/gmTenure の managedTeamIds）。
   //   いまの自チームだけにすると、監督が移った瞬間に前のクラブが元の部へ戻る
   const pinned = managedTeamIds((input as { gmTenures?: import('../types').GmTenure[] }).gmTenures, playerTeamId ?? '')
@@ -64,14 +64,14 @@ export function repairLoadedSave(input: RepairInput): RepairResult {
   // 部を足す前に始めたセーブは20クラブしか持っていない。2部の順位表に降格組だけ、
   // 3部は空、という状態。以前はシーズン終了時にしか補っていなかったので、
   // 「開いた瞬間から3部が空」のまま1年遊ぶことになっていた。
-  if (isInitialized && Array.isArray(teams) && Array.isArray(players) && !domesticClubsComplete(teams)) {
-    const before = teams.length
+  if (isInitialized && Array.isArray(clubs) && Array.isArray(players) && !domesticClubsComplete(clubs)) {
+    const before = jpelClubs(clubs).length
     const out = backfillDomesticClubs({
-      teams, players, pinnedTeamIds: pinned, year: currentSeason?.year ?? new Date().getFullYear(),
+      clubs, players, pinnedTeamIds: pinned, year: currentSeason?.year ?? new Date().getFullYear(),
     })
-    teams = out.teams
+    clubs = out.clubs
     players = out.players
-    repairs.push(`国内クラブを ${before} → ${teams.length} に補完`)
+    repairs.push(`国内クラブを ${before} → ${jpelClubs(clubs).length} に補完`)
   }
 
   // ── 2. 各部の人数（20 / 16 / 16）を戻す ──────────────────────
@@ -80,19 +80,19 @@ export function repairLoadedSave(input: RepairInput): RepairResult {
   // 部を持たないチームは divisionOf の既定値で全部1部に入り、domesticThroughRank には
   // 上限が無いので「3部のクラブが通し順位23位」のような表示になる。
   // 合っているセーブでは何も動かない（並びは いまの部 → その部での順位 を保つ）。
-  if (isInitialized && Array.isArray(teams) && teams.length > 0) {
-    const before = DIVISIONS.map(d => teams!.filter(t => divisionOf(t) === d).length)
+  if (isInitialized && Array.isArray(clubs) && jpelClubs(clubs).length > 0) {
+    const before = DIVISIONS.map(d => clubsInLeague(clubs, divisionLeagueId(d)).length)
     if (before.some((n, i) => n !== DIVISION_SIZE[DIVISIONS[i]])) {
       const rankOf = (t: Team) => {
         const at = rankOfTeam(leagueStandingRows(currentSeason, divisionLeagueId(divisionOf(t))), t.id)
         return at > 0 ? at : (t.initialRank ?? 999)
       }
-      teams = rebalanceDivisions(teams, rankOf, t => pinned.has(t.id))
-      const after = DIVISIONS.map(d => teams!.filter(t => divisionOf(t) === d).length)
+      clubs = rebalanceDivisions(clubs, rankOf, t => pinned.has(t.id))
+      const after = DIVISIONS.map(d => clubsInLeague(clubs, divisionLeagueId(d)).length)
       repairs.push(
         after.join('/') === DIVISIONS.map(d => DIVISION_SIZE[d]).join('/')
           ? `各部の人数を ${before.join('/')} → ${after.join('/')} に戻した`
-          : `⚠ 各部の人数が ${before.join('/')}（本来 ${DIVISIONS.map(d => DIVISION_SIZE[d]).join('/')}）。クラブ数 ${teams!.length} では戻せない`,
+          : `⚠ 各部の人数が ${before.join('/')}（本来 ${DIVISIONS.map(d => DIVISION_SIZE[d]).join('/')}）。クラブ数 ${jpelClubs(clubs).length} では戻せない`,
       )
     }
   }
@@ -100,10 +100,10 @@ export function repairLoadedSave(input: RepairInput): RepairResult {
   // ── 3. 順位表の部と、チームの部を合わせる ─────────────────────
   // 順位表は部ごとに分けて持つ＝部がキー。teams の部だけ動くと、走った結果の
   // 書き込み先に自分の行が無い＝点がどこにも入らない状態になる（utils/league の解説を参照）。
-  if (isInitialized && Array.isArray(teams) && currentSeason) {
+  if (isInitialized && Array.isArray(clubs) && currentSeason) {
     const idsOf = (s: Season) => JSON.stringify(DIVISIONS.map(d => leagueStandingRows(s, divisionLeagueId(d)).map(r => r.teamId)))
     const before = idsOf(currentSeason)
-    const leagues = syncSeasonLeagues({ leagues: currentSeason.leagues, teams, playerTeamId })
+    const leagues = syncSeasonLeagues({ leagues: currentSeason.leagues, clubs, playerTeamId })
     currentSeason = { ...currentSeason, leagues }
     if (before !== idsOf(currentSeason)) repairs.push('順位表の部をチームの部に合わせ直した')
   }
@@ -139,7 +139,7 @@ export function repairLoadedSave(input: RepairInput): RepairResult {
   // 旧セーブの海外リーグは自チームの部の日程を借りて走っていたので、自分の日程を持たない。
   // 走り終えた回は残し、足りないぶんだけ足す（engine/leagueDay の withForeignSchedules）
   if (isInitialized && currentSeason?.leagues) {
-    const leagues = withForeignSchedules(currentSeason.leagues, foreignLeagues)
+    const leagues = withForeignSchedules(currentSeason.leagues, clubs)
     if (leagues !== currentSeason.leagues) {
       currentSeason = { ...currentSeason, leagues }
       repairs.push('海外リーグの日程をそろえた')
@@ -159,10 +159,9 @@ export function repairLoadedSave(input: RepairInput): RepairResult {
   // ── 6. 存在しないチームに所属している選手をFAへ戻す ──────────
   // クラブが消えた／IDが変わったときに、名簿からも市場からも消えた選手が生まれる。
   // 在籍は player.teamId 1本（utils/rosterSync）なので、指し先が無ければ無所属が正しい。
-  if (Array.isArray(players) && Array.isArray(teams)) {
+  if (Array.isArray(players) && Array.isArray(clubs)) {
     const known = new Set<string>([
-      ...teams.map(t => t.id),
-      ...(foreignLeagues ?? []).flatMap(l => l.clubs.map(c => c.id)),
+      ...clubIdSet(clubs),
       ...ALL_DOMESTIC_TEAMS.map(t => t.id),
     ])
     let lost = 0
@@ -177,7 +176,7 @@ export function repairLoadedSave(input: RepairInput): RepairResult {
     }
   }
 
-  return { ...input, teams, players, currentSeason, pastSeasons, foreignLeagues, repairs }
+  return { ...input, clubs, players, currentSeason, pastSeasons, repairs }
 }
 
 /** 順位表の行だけを整える入口（テストと、順位表を作り直す側から使う） */

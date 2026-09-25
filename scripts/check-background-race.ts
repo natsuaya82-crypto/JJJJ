@@ -17,7 +17,7 @@
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { LEAGUE_COURSE_POOL, FINAL_COURSES } from '../src/data/races'
 import { assignLineupByTerrain, bgLineup } from '../src/engine/raceEngine'
 import { belongsToClub } from '../src/utils/rosterSync'
@@ -26,7 +26,7 @@ import type { Race, Team } from '../src/types'
 const YEAR = 2028
 const teams: Team[] = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
 const domestic = generateCpuRosters(teams, YEAR).cpuPlayers
-const { players: foreign, updatedLeagues } = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+const { players: foreign } = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
 const players = [...domestic, ...foreign]
 
 const courses = [...LEAGUE_COURSE_POOL, ...FINAL_COURSES]
@@ -63,26 +63,24 @@ let fChecked = 0
 let fEmptyBefore = 0
 let fEmptyAfter = 0
 let fMoved = 0        // 埋めた区間以外が動いていないか
-for (const league of updatedLeagues) {
-  for (const club of league.clubs) {
-    const roster = players.filter(p => belongsToClub(p, club.id) && p.status !== 'injured')
-    for (const race of races) {
-      const before = assignLineupByTerrain(roster, race)
-      const after = bgLineup(roster, race)
-      fChecked++
-      const emptyB = race.segments.filter(s => !before[s.index]).length
-      const emptyA = race.segments.filter(s => !after[s.index]).length
-      fEmptyBefore += emptyB
-      fEmptyAfter += emptyA
-      // 元から埋まっていた区間は同じ選手のままであること
-      for (const s of race.segments) {
-        if (before[s.index] && before[s.index] !== after[s.index]) fMoved++
-      }
+for (const club of INITIAL_FOREIGN_CLUBS) {
+  const roster = players.filter(p => belongsToClub(p, club.id) && p.status !== 'injured')
+  for (const race of races) {
+    const before = assignLineupByTerrain(roster, race)
+    const after = bgLineup(roster, race)
+    fChecked++
+    const emptyB = race.segments.filter(s => !before[s.index]).length
+    const emptyA = race.segments.filter(s => !after[s.index]).length
+    fEmptyBefore += emptyB
+    fEmptyAfter += emptyA
+    // 元から埋まっていた区間は同じ選手のままであること
+    for (const s of race.segments) {
+      if (before[s.index] && before[s.index] !== after[s.index]) fMoved++
     }
   }
 }
 console.log('')
-console.log(`海外 ${updatedLeagues.reduce((n, l) => n + l.clubs.length, 0)}クラブ × ${races.length}コース = ${fChecked}通りの配置`)
+console.log(`海外 ${INITIAL_FOREIGN_CLUBS.length}クラブ × ${races.length}コース = ${fChecked}通りの配置`)
 console.log(`  空区間  これまで ${fEmptyBefore} → いま ${fEmptyAfter}`)
 console.log(`  元から埋まっていた区間が動いた数 ${fMoved}件`)
 

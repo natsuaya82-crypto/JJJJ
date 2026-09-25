@@ -8,6 +8,7 @@ import { repairLoadedSave } from '../src/store/bootRepair'
 import { ALL_DOMESTIC_TEAMS } from '../src/utils/domesticClubs'
 import { divisionOf, divisionInSeason, newSeasonStandings, DIVISIONS, divisionLeagues, divisionLeagueId, leagueStandingRows } from '../src/utils/league'
 import type { Season, Team } from '../src/types'
+import { jpelClubs, jpelClubById } from '../src/utils/world'
 
 const problems: string[] = []
 const check = (name: string, ok: boolean, detail = '') => {
@@ -21,14 +22,14 @@ const base = ALL_DOMESTIC_TEAMS as Team[]
 // ── チーム選択と同じ「列の最後尾へ回す」置き換え（gameStore の startSetup と同じ手順）──
 function placeLikeSetup(teams: Team[], pickedId: string): Team[] {
   const ordered = [...teams].sort((a, b) => (a.initialRank ?? 999) - (b.initialRank ?? 999))
-  const slots = ordered.map(t => ({ division: divisionOf(t) }))
+  const slots = ordered.map(t => ({ leagueId: t.leagueId }))
   const reordered = [...ordered.filter(t => t.id !== pickedId), ordered.find(t => t.id === pickedId)!]
   const placement = new Map(reordered.map((t, i) => [t.id, slots[i]]))
-  return teams.map(t => ({ ...t, ...(placement.get(t.id) ?? { division: divisionOf(t) }) }))
+  return teams.map(t => ({ ...t, ...(placement.get(t.id) ?? { leagueId: t.leagueId }) }))
 }
 
 // ── 実際に起きた壊れ方を作る ──
-// 2部のクラブを選んだ状態。teams は3部だが、順位表は元の部（2部）のまま。
+// 2部のクラブを選んだ状態。クラブの所属は3部だが、順位表は元の部（2部）のまま。
 // 自チームは3部の順位表に居ないので、3戦走っても点がどこにも入らない。
 const pickedId = base.find(t => divisionOf(t) === 2)!.id
 const teams = placeLikeSetup(base, pickedId)
@@ -47,13 +48,12 @@ const races = ranks.map((myRank, i) => ({
 
 const broken = {
   isInitialized: true,
-  teams,
+  clubs: teams,
   players: [{ id: 'ghost', name: '消えたクラブの選手', teamId: 'no-such-club', status: 'active' }],
   playerTeamId: pickedId,
   // 走った結果は（いまの）3部のリーグの日程に入っている。順位表は元の部のまま
   currentSeason: { year: 2027, leagues: divisionLeagues({ 3: races as never }, newSeasonStandings(base, zero)), currentRaceIndex: 3 },
   pastSeasons: [],
-  foreignLeagues: [],
 } as never
 
 // 壊れていることの確認（ここが ok にならないと、以降の検証が成立しない）
@@ -67,7 +67,7 @@ const broken = {
 const once = repairLoadedSave(broken)
 const s1 = once.currentSeason as Season
 
-const mismatched = (once.teams ?? []).filter(t => divisionInSeason(s1, t.id) !== divisionOf(t))
+const mismatched = jpelClubs(once.clubs).filter(t => divisionInSeason(s1, t.id) !== divisionOf(t))
 check('1回の起動で、全52クラブの走る部と順位表の部が一致する', mismatched.length === 0, mismatched.map(t => t.name).join('・'))
 
 const me = leagueStandingRows(s1, divisionLeagueId(3)).find(r => r.teamId === pickedId)
@@ -75,7 +75,7 @@ const expected = ranks.reduce((sum, r) => sum + (myDivTeams.length - r + 1), 0)
 check('消えていた自チームの点が、走ったレースの結果から戻る', me?.totalPoints === expected, `${me?.totalPoints} / 期待 ${expected}`)
 check('  消化試合も戻る（3戦）', me?.raceResults.length === 3, `${me?.raceResults.length}戦`)
 
-const sizes = DIVISIONS.map(d => (once.teams ?? []).filter(t => divisionOf(t) === d).length)
+const sizes = DIVISIONS.map(d => jpelClubs(once.clubs).filter(t => divisionOf(t) === d).length)
 check('各部の人数は 20 / 16 / 16 のまま', sizes.join('/') === '20/16/16', sizes.join('/'))
 
 const ghost = (once.players ?? []).find(p => p.id === 'ghost')
@@ -94,33 +94,34 @@ check('  2回目は直すものが無い', twice.repairs.length === 0, twice.rep
 // ── 壊れていないセーブは何も変えない ──
 {
   const healthy = {
-    isInitialized: true, teams, players: [], playerTeamId: pickedId,
-    currentSeason: s1, pastSeasons: [], foreignLeagues: [],
+    isInitialized: true, clubs: teams, players: [], playerTeamId: pickedId,
+    currentSeason: s1, pastSeasons: [],
   } as never
   const out = repairLoadedSave(healthy)
   check('壊れていないセーブには手を出さない', out.repairs.length === 0, out.repairs.join(' / '))
 }
 
 // ── 各部の人数が狂ったセーブは、開き直すと 20/16/16 に戻る ──────────────
-// 部を持たないチームは divisionOf の既定値で全部1部に入る。domesticThroughRank に
+// 部を持たないチーム（旧セーブ）は移行（store/persistence/legacyWorld）で全部1部に入る。domesticThroughRank に
 // 上限は無いので、膨らんだ1部では21位・22位…が出て、3部のクラブが
 // 「通し順位23位」のように別の部の順位で表示される（実際にそう出ていた）。
 {
-  // 3部の8クラブから部を落とす（旧セーブや変換の取りこぼしと同じ形）
+  // 3部の8クラブから部を落とす（旧セーブや変換の取りこぼしと同じ形）。
+  // 部を持たない旧セーブのクラブは、移行で1部のリーグに入る（legacyWorldClubs）
   const dropped = new Set(teams.filter(t => divisionOf(t) === 3 && t.id !== pickedId).slice(0, 8).map(t => t.id))
-  const bent = teams.map(t => (dropped.has(t.id) ? { ...t, division: undefined } : t)) as Team[]
+  const bent = teams.map(t => (dropped.has(t.id) ? { ...t, leagueId: divisionLeagueId(1) } : t)) as Team[]
   const sizesBefore = DIVISIONS.map(d => bent.filter(t => divisionOf(t) === d).length)
   check('前提：人数が狂った状態を作れている', sizesBefore.join('/') !== '20/16/16', sizesBefore.join('/'))
 
   const out = repairLoadedSave({
-    isInitialized: true, teams: bent, players: [], playerTeamId: pickedId,
+    isInitialized: true, clubs: bent, players: [], playerTeamId: pickedId,
     currentSeason: { year: 2027, leagues: divisionLeagues({}, newSeasonStandings(bent, zero)) } as never,
-    pastSeasons: [], foreignLeagues: [],
+    pastSeasons: [],
   })
-  const sizes = DIVISIONS.map(d => (out.teams ?? []).filter(t => divisionOf(t) === d).length)
+  const sizes = DIVISIONS.map(d => jpelClubs(out.clubs).filter(t => divisionOf(t) === d).length)
   check('人数が狂ったセーブは 20/16/16 に戻る', sizes.join('/') === '20/16/16', sizes.join('/'))
   check('  自チームは3部のまま（別の部へ吸い上げられない）',
-    divisionOf((out.teams ?? []).find(t => t.id === pickedId)) === 3
+    divisionOf(jpelClubById(out.clubs, pickedId)) === 3
     && divisionInSeason(out.currentSeason as Season, pickedId) === 3)
   const again = repairLoadedSave(out as never)
   check('  2回目は直すものが無い（冪等）', again.repairs.length === 0, again.repairs.join(' / '))
@@ -133,21 +134,21 @@ check('  2回目は直すものが無い', twice.repairs.length === 0, twice.rep
 {
   const upper = teams.filter(t => divisionOf(t) === 1 || t.id === pickedId)
   const out = repairLoadedSave({
-    isInitialized: true, teams: upper, players: [], playerTeamId: pickedId,
+    isInitialized: true, clubs: upper, players: [], playerTeamId: pickedId,
     currentSeason: { year: 2027, leagues: divisionLeagues({}, newSeasonStandings(upper, zero)) } as never,
-    pastSeasons: [], foreignLeagues: [],
+    pastSeasons: [],
   })
   check('クラブを補ったあとも、自チームは3部のまま',
-    divisionOf((out.teams ?? []).find(t => t.id === pickedId)) === 3,
-    `${divisionOf((out.teams ?? []).find(t => t.id === pickedId))}部になった`)
-  const sizes = DIVISIONS.map(d => (out.teams ?? []).filter(t => divisionOf(t) === d).length)
+    divisionOf(jpelClubById(out.clubs, pickedId)) === 3,
+    `${divisionOf(jpelClubById(out.clubs, pickedId))}部になった`)
+  const sizes = DIVISIONS.map(d => jpelClubs(out.clubs).filter(t => divisionOf(t) === d).length)
   check('  補ったあとの人数も 20/16/16', sizes.join('/') === '20/16/16', sizes.join('/'))
 }
 
 // ── 過去シーズンの部は「実際に走った日程」から直る ──────────────────
 // 在籍履歴のラベル（「JPEL 3部」）も通算成績もその年の順位も、順位表のキー＝部で決まる。
 // build 110 までのズレで、3部を走った年が「JPEL 2部」と記録され、
-// 部が引けない年は出場0の「JPEL」として出ていた。過去の年は Team.division では直せない
+// 部が引けない年は出場0の「JPEL」として出ていた。過去の年は Team.leagueId では直せない
 // （いまの部なので昇降格したあとの年に当てはめると記録が動く）。走った結果だけが手がかり。
 {
   const my3 = teams.filter(t => divisionOf(t) === 3)
@@ -169,9 +170,9 @@ check('  2回目は直すものが無い', twice.repairs.length === 0, twice.rep
     divisionInSeason(past as never, pickedId) === 2)
 
   const out = repairLoadedSave({
-    isInitialized: true, teams, players: [], playerTeamId: pickedId,
+    isInitialized: true, clubs: teams, players: [], playerTeamId: pickedId,
     currentSeason: { year: 2028, leagues: divisionLeagues({}, newSeasonStandings(teams, zero)) } as never,
-    pastSeasons: [past] as never, foreignLeagues: [],
+    pastSeasons: [past] as never,
   })
   const fixed = (out.pastSeasons ?? [])[0]
   check('過去シーズンの部が、実際に走った部（3部）へ直る',

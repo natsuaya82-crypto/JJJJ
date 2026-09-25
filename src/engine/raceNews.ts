@@ -5,15 +5,15 @@
 //
 // ★乱数は引数で受ける（既定は Math.random）。呼ぶ順は切り出し前と同じ:
 //   ① 3本の見出しが共有する pick を1回、② 首脳陣の評価が出るときだけもう1回。
-import type { Division, Race, RaceResults, Player, Season, Team } from '../types'
+import type { Division, Race, RaceResults, Player, Season, WorldClub } from '../types'
 import { DIVISION_SIZE, rankOfTeam, seasonDivisionStandings } from '../utils/league'
 import { type NewsItem, boardEvalHeadline, myFinishHeadline, raceWinnerHeadline, rivalHeadline, segmentWinHeadline } from '../utils/newsItems'
-import { teamById, myLeagueRaces } from '../utils/world'
+import { clubById, myLeagueRaces } from '../utils/world'
 
 export function buildRaceNews(params: {
   race: Race
   results: RaceResults
-  teams: Team[]
+  clubs: WorldClub[]
   players: Player[]
   playerTeamId: string
   myDivision: Division
@@ -21,9 +21,9 @@ export function buildRaceNews(params: {
   rivalTeamId: string | null
   rng?: () => number
 }): NewsItem[] {
-  const { race, results, teams, players, playerTeamId, myDivision, currentSeason, rivalTeamId, rng = Math.random } = params
+  const { race, results, clubs, players, playerTeamId, myDivision, currentSeason, rivalTeamId, rng = Math.random } = params
 
-  const winnerTeam = teamById(teams, results.teamRankings[0]?.teamId)
+  const winnerTeam = clubById(clubs, results.teamRankings[0]?.teamId)
   const playerResult = results.teamRankings.find(r => r.teamId === playerTeamId)
   const playerRank = playerResult?.rank ?? 0
   const rankSuffix = playerRank === 1 ? '優勝' : `第${playerRank}位`
@@ -81,7 +81,7 @@ export function buildRaceNews(params: {
   // ライバルとの比較
   if (rivalTeamId && playerRank > 0) {
     const rivalRank = results.teamRankings.find(r => r.teamId === rivalTeamId)?.rank
-    const rivalShort = teamById(teams, rivalTeamId)?.shortName
+    const rivalShort = clubById(clubs, rivalTeamId)?.shortName
     if (rivalRank != null && rivalShort && playerRank !== rivalRank) {
       newsItems.push({
         date: race.date,

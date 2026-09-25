@@ -23,12 +23,12 @@
  */
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { runTransferMarket } from '../src/engine/transferMarket'
 import { TIER_FALL_LIMIT, playerTierOf, tierLines } from '../src/utils/playerTier'
 import { effectiveOvr } from '../src/utils/foreignClubProfile'
-import { allTieredClubs } from '../src/utils/world'
+import { divisionLeagueId } from '../src/utils/world'
 import { tierOf } from '../src/utils/clubTier'
 import { RUNNING_SLOTS } from '../src/data/rosterRules'
 import { squadRankOf } from '../src/utils/squadNeeds'
@@ -36,7 +36,7 @@ import { logicSource } from './storeSource'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Destination } from '../src/utils/transferDecision'
-import type { ArchivedSeason, ForeignLeague, Player, Team } from '../src/types'
+import type { ArchivedSeason, Division, Player, Team, WorldClub } from '../src/types'
 
 let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
@@ -71,10 +71,10 @@ console.log('[2] 初期世界のほとんどが範囲に収まる')
 const YEAR = 2030
 const base = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
 const cpu = generateCpuRosters(base, YEAR)
-const fgen = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+const fgen = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
 const world: Player[] = [...cpu.cpuPlayers, ...fgen.players]
 {
-  const clubs = allTieredClubs(base, fgen.updatedLeagues)
+  const clubs: WorldClub[] = [...base, ...INITIAL_FOREIGN_CLUBS]
   const byId = new Map(clubs.map(c => [c.id, tierOf(c)]))
   const lines = tierLines(world, (id: string) => byId.get(id))
   const act = world.filter(p => p.status === 'active' && p.teamId)
@@ -110,8 +110,8 @@ function player(id: string, teamId: string, o: number, specialty = 'long'): Play
   } as unknown as Player
 }
 const HI = 'hi', STAR = 'hi-star'
-const team = (id: string, division: number, tier: number): Team =>
-  ({ id, name: id, shortName: id, division, tier, finance: { budget: 5_000_000_000 }, draftPicks: [] } as unknown as Team)
+const team = (id: string, division: Division, tier: number): Team =>
+  ({ id, name: id, shortName: id, leagueId: divisionLeagueId(division), tier, finance: { budget: 5_000_000_000 }, draftPicks: [] } as unknown as Team)
 
 let current: Player[] = []
 /** 名簿。HI に「粘り型」のエースが1人。買い手はそのタイプが0人＝穴 */
@@ -133,7 +133,7 @@ function run(buyerTier: number): boolean {
     return { clubId, tier: clubId === HI ? 5 : buyerTier, squadRank: squadRankOf(roster, p), squadSize: roster.length + 1 } as Destination
   }
   const out = runTransferMarket(
-    { players: current, teams, foreignLeagues: [] as ForeignLeague[] },
+    { players: current, clubs: teams },
     { playerTeamId: 'my', year: YEAR, season: { year: YEAR, races: [] },
       pastSeasons: [] as ArchivedSeason[], rosterCapFor: () => 30, destinationOf,
       excludeIds: new Set<string>(), date: `${YEAR}-02-01` })
@@ -147,7 +147,7 @@ function run(buyerTier: number): boolean {
 const starTier = (() => {
   const teams = [team(HI, 1, 5), team('buy', 2, 6), team('my', 3, 20)]
   current = build('buy')
-  const clubs = allTieredClubs(teams, [])
+  const clubs = teams
   const byId = new Map(clubs.map(c => [c.id, tierOf(c)]))
   return playerTierOf(current.find(p => p.id === STAR)!, tierLines(current, (id: string) => byId.get(id)))
 })()

@@ -114,7 +114,7 @@ console.log('\n[3] レンタルの相手は主力ではない（世界を作っ�
   let lendOut = 0, starters = 0, borrowIn = 0
   for (let raceIndex = 0; raceIndex < 40; raceIndex++) {
     const { loanOffers } = generateLoanOffers({
-      players, teams, foreignClubs: [], playerTeamId: MY, raceIndex,
+      players, clubs: teams, playerTeamId: MY, raceIndex,
       existingLoans: [], season, retiringIds: new Set<string>(), currentYear: YEAR,
     })
     for (const o of loanOffers) {

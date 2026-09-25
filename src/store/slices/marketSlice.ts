@@ -12,11 +12,11 @@ import { reinforcementBanned } from '../../data/economy'
 import { pickKeysValue, roundFee } from '../../data/economy'
 import { ROSTER_MAX, canReleaseFromRoster, canSignContract, canSignPlayer, teamRosterSize } from '../../data/rosterRules'
 import { nationalityToForeignCategory } from '../../engine/playerGenerator'
-import { type AcquisitionOffer, type ContractRequest, type ExpiredNegKind, type ForeignCategory, type IncomingOffer, type Player, type TradeNegotiation, type TransferListing } from '../../types'
+import { type AcquisitionOffer, type ContractRequest, type ExpiredNegKind, type ForeignCategory, type IncomingOffer, type Player, type TradeNegotiation, type TransferListing, type WorldClub } from '../../types'
 import { MAJOR_NEWS_OVR, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
 import { tierLines, playerTierOf as playerTierFromLines } from '../../utils/playerTier'
-import { myClub, withMyClub, teamById, allTieredClubs, myLeagueRaces, leagueIdOfClub } from '../../utils/world'
-import { allForeignClubs, bigClub, findClub, leagueOfClub } from '../../utils/clubs'
+import { clubById, clubMap, isJpelLeague, jpelClubById, mapClubs, myClub, otherClubs, withMyClub, myLeagueRaces, leagueIdOfClub } from '../../utils/world'
+import { bigClub, findClub } from '../../utils/clubs'
 import { withMorale } from '../../utils/condition'
 import { canOfferRenewal, canReNegotiate, contractTalkCtx, liveContractOf } from '../../utils/contractTalk'
 import { domesticThroughRankOfTeam, rankOfTeam, rankedStandings, seasonDivisionStandings, leagueStandingRows } from '../../utils/league'
@@ -46,13 +46,13 @@ type Slice = Pick<GameStore,
 // **同じものを渡す**ためにここ1本から作る（手書きすると片方だけ古い state を見る事故が起きる）
 const consentCtxOf = (get: () => GameStore) => () => {
   const st = get()
-  return { myTeamId: st.playerTeamId, teams: st.teams, foreignLeagues: st.foreignLeagues, destinationOf: st.destinationOf,
+  return { myTeamId: st.playerTeamId, clubs: st.clubs, destinationOf: st.destinationOf,
     playerTierOf: st.playerTierOf,
     currentSeason: st.currentSeason, pastSeasons: st.pastSeasons, year: st.currentSeason.year }
 }
 
 /** 選手の格の線は名簿が変わるまで使い回す（`playerTierOf` のコメント） */
-const tierLineCache: { players: unknown; teams: unknown; lines: number[] } = { players: null, teams: null, lines: [] }
+const tierLineCache: { players: unknown; clubs: unknown; lines: number[] } = { players: null, clubs: null, lines: [] }
 
 export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => {
   const consentCtx = consentCtxOf(get)
@@ -172,28 +172,28 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       const tradeDate = myLeagueRaces(state.currentSeason, state.playerTeamId)[state.currentSeason.currentRaceIndex - 1]?.date
       // 選手の出し入れも指名権の交換も engine/tradeExecution 1本
       // （こちらから出す tradePlayer とまったく同じ動かし方を通す）
-      const moved = runTradeMoves({ players: state.players, teams: state.teams }, [
+      const moved = runTradeMoves({ players: state.players, clubs: state.clubs }, [
         ...offer.offeredPlayerIds.map(pid => ({ playerId: pid, toTeamId: state.playerTeamId })),
         ...offer.requestedPlayerIds.map(pid => ({ playerId: pid, toTeamId: offer.fromTeamId })),
       ], { year: state.currentSeason.year, date: tradeDate, raceIndex: state.currentSeason.currentRaceIndex, myTeamId: state.playerTeamId })
       const players = moved.players
-      const teams = swapDraftPicks(moved.teams,
+      const clubs = swapDraftPicks(moved.clubs,
         { teamId: offer.fromTeamId, pickKeys: offer.offeredPickKeys ?? [] },
         { teamId: state.playerTeamId, pickKeys: offer.requestedPickKeys ?? [] })
       const tradeRecords = moved.records
       const tradeNotices = moved.notices
 
       // 打診してくるのは国内52＋海外180の全部なので、クラブ名は `findClub` 1本で引く
-      // （`teams.find` だと海外クラブが見つからず、見出しが「◯◯とのトレードが成立」の
+      // （国内だけを探すと海外クラブが見つからず、見出しが「◯◯とのトレードが成立」の
       //   クラブ名だけ空になる）
-      const fromTeamName = findClub(teams, state.foreignLeagues, offer.fromTeamId)?.shortName ?? ''
+      const fromTeamName = findClub(clubs, offer.fromTeamId)?.shortName ?? ''
       const tradeNews = {
         date: tradeDate ?? `${state.currentSeason.year}-06-01`,
         headline: tradeAcceptedHeadline(fromTeamName),
         category: 'trade' as const,
         relatedIds: [...offer.offeredPlayerIds, ...offer.requestedPlayerIds] }
       return {
-        players, teams,
+        players, clubs,
         transferHistory: [...(state.transferHistory ?? []), ...tradeRecords].slice(-400),
         currentSeason: {
           ...state.currentSeason,
@@ -219,7 +219,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     const player = state.players.find(p => p.id === listing.playerId)
     if (!player || player.teamId !== listing.fromTeamId) return false
     const myTeam = myClub(state)
-    if (!myTeam || myTeam.finance.budget < price) return false
+    if (!myTeam || (myTeam.finance?.budget ?? 0) < price) return false
     if (reinforcementBanned(myTeam)) return false  // 赤字ペナルティ中・残高マイナスは新規補強不可（ドラフト・契約更新は可）
     if (!canSignContract(state.players, state.playerTeamId)) return false  // 総在籍30人の上限（31人化の防止）
     // 移動は movePlayer 一本（売り手への入金・買い手からの出金・名簿の付け替え・履歴まで込み）
@@ -240,9 +240,8 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       bought = true
       return ({
       players: moved.players,
-      teams: moved.teams,
-      // 売り手が海外クラブなら、そのクラブへ入金する（movePlayer は teams しか知らない）
-      foreignLeagues: settleForeignFee(state.foreignLeagues, listing.fromTeamId, state.playerTeamId, price),
+      // 売り手が海外クラブなら、そのクラブへ入金する（movePlayer は日本のリーグのクラブしか動かさない）
+      clubs: settleForeignFee(moved.clubs, listing.fromTeamId, state.playerTeamId, price),
       transferHistory: [...(state.transferHistory ?? []), ...(moved.record ? [moved.record] : [])].slice(-400),
       currentSeason: {
         ...state.currentSeason,
@@ -267,11 +266,10 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
   //   （`destinationOf` と同じで、store から出す口はここ1本）。
   playerTierOf: (player) => {
     const state = get()
-    if (tierLineCache.players !== state.players || tierLineCache.teams !== state.teams) {
-      const clubs = allTieredClubs(state.teams, state.foreignLeagues)
-      const byId = new Map(clubs.map(c => [c.id, tierOf(c)]))
+    if (tierLineCache.players !== state.players || tierLineCache.clubs !== state.clubs) {
+      const byId = clubMap(state.clubs, c => tierOf(c))
       tierLineCache.players = state.players
-      tierLineCache.teams = state.teams
+      tierLineCache.clubs = state.clubs
       tierLineCache.lines = tierLines(state.players, (id: string) => byId.get(id) ?? tierOfClubId(id))
     }
     return playerTierFromLines(player, tierLineCache.lines)
@@ -289,8 +287,10 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
   // 国内チームでも海外クラブでも同じ入口。判断そのものは utils/transferDecision.ts
   destinationOf: (clubId, player) => {
     const state = get()
-    const team = teamById(state.teams, clubId)
-    const tier = team ? tierOf(team) : (tierOfPlayerClub(clubId, allTieredClubs(state.teams, state.foreignLeagues)) ?? tierOfClubId(clubId))
+    const club = clubById(state.clubs, clubId)
+    // 日本のリーグのクラブか（見出しと「憧れの地域」の突き合わせだけに使う・いまの振る舞い）
+    const domestic = !!club && isJpelLeague(club.leagueId)
+    const tier = club ? tierOf(club) : tierOfClubId(clubId)
     const inEcl = (state.currentSeason.eclSeries?.participants ?? []).some(pt => pt.id === clubId)
     // 順位はそのクラブのリーグの順位表から引く（国内の部も海外も同じ。utils/world の leagueIdOfClub）
     let leagueRank: number | undefined
@@ -301,9 +301,9 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       if (i >= 0) { leagueRank = i + 1; leagueSize = rows.length }
     }
     // 地域（「憧れの地域」の突き合わせに使う）は海外クラブだけ持つ
-    const region: import('../../types').OverseasRegion | undefined = team ? undefined
-      : regionOfLeague(leagueOfClub(state.foreignLeagues, clubId)?.id)
-    return buildDestination(clubId, tier, state.players, { inEcl, leagueRank, leagueSize, isForeign: !team, region, player })
+    const region: import('../../types').OverseasRegion | undefined = domestic ? undefined
+      : regionOfLeague(club?.leagueId)
+    return buildDestination(clubId, tier, state.players, { inEcl, leagueRank, leagueSize, isForeign: !domestic, region, player })
   },
 
 
@@ -319,12 +319,12 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       return { currentSeason: { ...state.currentSeason, stayOrLeave: rest } }
     }
     // FAで放出。出て行った選手なので1年間は交渉できない（契約満了FAと同じ扱い）
-    const m = movePlayer({ players: state.players, teams: state.teams }, playerId, '', {
+    const m = movePlayer({ players: state.players, clubs: state.clubs }, playerId, '', {
       year: state.currentSeason.year,
       lockUntilYear: state.currentSeason.year + 1 })
     return {
       players: m.ok ? m.players : state.players,
-      teams: m.ok ? m.teams : state.teams,
+      clubs: m.ok ? m.clubs : state.clubs,
       currentSeason: { ...state.currentSeason, stayOrLeave: rest } }
   }),
 
@@ -340,10 +340,10 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     //   自分の部の日程だけで数えると、1部・2部の選手は必ず0になり、
     //   appraiseMove の「干されている」(+0.2)が全員に付いていた
     const { fraction: frac, teamRaces: races } = playRateOf(
-      playerId, player.teamId, state.currentSeason, state.teams, state.foreignLeagues,
+      playerId, player.teamId, state.currentSeason, state.clubs,
       prevSeasonOf(state.pastSeasons, state.currentSeason.year))
     const ctx = {
-      srcTier: tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)),
+      srcTier: tierOfPlayerClub(player.teamId, state.clubs),
       playFraction: frac, teamRaces: races, clubBlessed: true, playerTier: get().playerTierOf(player) }
     const ranked = rankOffers(player, offers.map(o => get().destinationOf(o.fromTeamId, player)), ctx)
     // 並べ替えたあとに、どのオファーの話かを取り戻す
@@ -363,12 +363,12 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     if (player.overseasListed && fromForeign) return true
     // ★出場率は「そのクラブが走っている日程」で数える（utils/playRate の1本）
     const { fraction: frac, teamRaces: races } = playRateOf(
-      playerId, player.teamId, state.currentSeason, state.teams, state.foreignLeagues,
+      playerId, player.teamId, state.currentSeason, state.clubs,
       prevSeasonOf(state.pastSeasons, state.currentSeason.year))
     // clubBlessed=true：移籍金はクラブ間で合意済み。「主力だから残りたい」の減点は掛けず、
     // 本人は行き先の姿だけで決める（買う側の finalizeTransfer と同じ渡し方）
     return appraiseMove(player, get().destinationOf(toTeamId, player), {
-      srcTier: tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)),
+      srcTier: tierOfPlayerClub(player.teamId, state.clubs),
       playFraction: frac, teamRaces: races, clubBlessed: true, playerTier: get().playerTierOf(player) }).ok
   },
 
@@ -401,8 +401,8 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
         currentSeason: { ...st.currentSeason, incomingOffers: (st.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) } }))
       return 'refused_by_player'
     }
-    // 国内へ売るときだけ相手が teams に居ることを確かめる（海外クラブは teams に居ない）
-    if (!offer.fromForeign && !state.teams.some(t => t.id === offer.fromTeamId)) { dropOffer(); return 'invalid' }
+    // 国内へ売るときだけ相手が日本のリーグに居ることを確かめる（いまの振る舞い）
+    if (!offer.fromForeign && !jpelClubById(state.clubs, offer.fromTeamId)) { dropOffer(); return 'invalid' }
     // 成立後の後始末は finalizeSale 1本（国内・海外の違いもこの中）
     set(st => finalizeSale(st, offer, offer.offeredPrice))
     return 'sold'
@@ -492,9 +492,9 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       // （判定は決断時と同じ freeContactConsent＝出場実績込み）
       const freeContact = (state.currentSeason.incomingOffers ?? []).find(o => o.playerId === player.id && o.offeredPrice === 0)
       if (freeContact) {
-        const fc = playRateOf(player.id, player.teamId, state.currentSeason, state.teams, state.foreignLeagues, prevSeasonOf(state.pastSeasons, state.currentSeason.year))
+        const fc = playRateOf(player.id, player.teamId, state.currentSeason, state.clubs, prevSeasonOf(state.pastSeasons, state.currentSeason.year))
         const fcRaces = fc.teamRaces, fcFrac = fc.fraction
-        if (freeContactConsent(player, get().destinationOf(freeContact.fromTeamId, player), tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)), fcFrac, fcRaces, get().playerTierOf(player))) {
+        if (freeContactConsent(player, get().destinationOf(freeContact.fromTeamId, player), tierOfPlayerClub(player.teamId, state.clubs), fcFrac, fcRaces, get().playerTierOf(player))) {
           // 一度断られたらこの接触は「対応済み」：通知・要対応から消し、以後は本人の決断を待つだけ
           return {
             currentSeason: {
@@ -516,7 +516,6 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       // roundの加算は reNegotiateContract 側のみ（獲得交渉と同じ規約）。ここでは進めない＝二重加算しない。
       const updatedReq = { ...req, status: newStatus, offerSalary: salary, offerYears: years, counterSalary, counterYears, offerContractType: contractType, offerTeamRole: teamRole }
       let newPlayers = state.players
-      const newTeams = state.teams
       if (newStatus === 'accepted') {
         // 契約年数＝現在の残年数＋提示年数（負にはならない）
         const newYears = Math.max(1, player.contract.yearsLeft + years)
@@ -535,7 +534,6 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       // 一つも出ないメッセージだけがチャットに残り**、次のレース進行で黙って消えていた
       return {
         players: newPlayers,
-        teams: newTeams,
         currentSeason: {
           ...state.currentSeason,
           contractRequests: (state.currentSeason.contractRequests ?? []).map(r => r.id === requestId ? updatedReq : r),
@@ -642,7 +640,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       const player = state.players.find(p => p.id === offer.playerId)
       if (!player) return state
       // 出場データ（年俸ではなくデータで主力度を判定）
-      const pr = playRateOf(player.id, player.teamId, state.currentSeason, state.teams, state.foreignLeagues, prevSeasonOf(state.pastSeasons, state.currentSeason.year))
+      const pr = playRateOf(player.id, player.teamId, state.currentSeason, state.clubs, prevSeasonOf(state.pastSeasons, state.currentSeason.year))
       const teamRaces = pr.teamRaces, playFraction = pr.fraction
       const rejectWith = (reason: AcquisitionOffer['rejectReason']) => ({
         currentSeason: {
@@ -696,7 +694,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
         //   ・無所属（fa）は「今のクラブ」が無いので srcTier は無し＝格差の項もclubBlessedも効かない
         //   ・引き抜き（scout）はクラブの合意が無いので clubBlessed は false
         const srcTierAcq = offer.source === 'scout'
-          ? tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues))
+          ? tierOfPlayerClub(player.teamId, state.clubs)
           : undefined
         const marketAcq = faMarketSalary(player, perfOf(player, state))
         const consentAcq = playerConsentToMove(
@@ -715,7 +713,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
         if (!moved.ok) return state // ロスターが上限：契約できない（画面側で先に警告している）
         return {
           players: moved.players,
-          teams: moved.teams,
+          clubs: moved.clubs,
           transferHistory: [...(state.transferHistory ?? []), ...(moved.record ? [moved.record] : [])].slice(-400),
           currentSeason: {
             ...state.currentSeason,
@@ -766,7 +764,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       if (!moved.ok) return state
       return {
         players: moved.players,
-        teams: moved.teams,
+        clubs: moved.clubs,
         transferHistory: [...(state.transferHistory ?? []), ...(moved.record ? [moved.record] : [])].slice(-400),
         currentSeason: {
           ...state.currentSeason,
@@ -812,8 +810,8 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       released = true
       return {
         players: moved.players,
-        teams: withMyClub({ teams: moved.teams, playerTeamId: state.playerTeamId },
-          t => ({ ...t, finance: { ...t.finance, budget: t.finance.budget - buyoutCost } })) }
+        clubs: withMyClub({ clubs: moved.clubs, playerTeamId: state.playerTeamId },
+          t => ({ ...t, finance: { ...t.finance, budget: (t.finance?.budget ?? 0) - buyoutCost } })) }
     })
     return released
   },
@@ -961,12 +959,11 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     // シーズン内に買い手が付かなければ従来どおり年度末にFA
     const raceIdx = state.currentSeason.currentRaceIndex ?? 0
     // ★**買い手の抽選は国内52＋海外180から**（`engine/cpuMarket` の `aiTeams` と同じ並び）。
-    //   ここだけ `state.teams`（国内）に閉じていたので、**GMが移籍を認めた選手にだけ
+    //   ここだけ国内52に閉じていたので、**GMが移籍を認めた選手にだけ
     //   海外クラブが一度も手を挙げません**でした。
     // ★**並びはシャッフルすること。** 下は先頭から3つ取るので、国内52を先に並べると
     //   海外180には順番が一度も回りません（`cpuMarket` と同じ理由）。
-    const aiTeams = [...state.teams, ...allForeignClubs(state.foreignLeagues)]
-      .filter(t => t.id !== state.playerTeamId)
+    const aiTeams = otherClubs(state.clubs, state.playerTeamId)
       .sort(() => Math.random() - 0.5)
     const interested = aiTeams.filter(() => Math.random() < 0.5).slice(0, 3).map(t => t.id)
     if (interested.length === 0 && aiTeams.length > 0) interested.push(aiTeams[Math.floor(Math.random() * aiTeams.length)].id)
@@ -1073,7 +1070,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       if (!moved.ok) return state
       return {
         players: moved.players,
-        teams: moved.teams,
+        clubs: moved.clubs,
         currentSeason: {
           ...state.currentSeason,
           newsFeed: [{ date: myLeagueRaces(state.currentSeason, state.playerTeamId)[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date ?? `${state.currentSeason.year}-06-01`, headline: loanInOutHeadline({ playerName: player.name, years: yrs, dir: 'in' }), category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30) } }
@@ -1105,11 +1102,11 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
         until: state.currentSeason.year + yrs,
         years: yrs,
         myTeamId: state.playerTeamId,
-        toName: teamById(state.teams, toTeamId)?.shortName ?? '他クラブ' })
+        toName: jpelClubById(state.clubs, toTeamId)?.shortName ?? '他クラブ' })
       if (!moved.ok) return state
       return {
         players: moved.players,
-        teams: moved.teams,
+        clubs: moved.clubs,
         currentSeason: {
           ...state.currentSeason,
           newsFeed: [{ date: myLeagueRaces(state.currentSeason, state.playerTeamId)[Math.max(0, state.currentSeason.currentRaceIndex - 1)]?.date ?? `${state.currentSeason.year}-06-01`, headline: loanInOutHeadline({ playerName: player.name, years: yrs, dir: 'out' }), category: 'trade' as const, relatedIds: [player.id] }, ...state.currentSeason.newsFeed].slice(0, 30),
@@ -1217,7 +1214,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       return { ok: false, reason: '彼の状況が変わったため、この移籍は成立しませんでした。' }
     }
     const myTeam = myClub(state)
-    if (!myTeam || myTeam.finance.budget < bid.offeredFee) return { ok: false, reason: `貴クラブの予算では移籍金${fmtYen(bid.offeredFee)}を支払えないようです。資金を確保してから改めてお願いします。` }
+    if (!myTeam || (myTeam.finance?.budget ?? 0) < bid.offeredFee) return { ok: false, reason: `貴クラブの予算では移籍金${fmtYen(bid.offeredFee)}を支払えないようです。資金を確保してから改めてお願いします。` }
     // ロスター枠チェック（移籍金ルートは本契約として加入する）。枠不足は決裂扱いにしない
     if (!canSignContract(state.players, state.playerTeamId)) {
       return { ok: false, reason: `貴クラブのロスターが上限（${ROSTER_MAX}人）のようです。整理してから改めてお願いします。` }
@@ -1232,8 +1229,8 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     // （断られるのは愛着の強い選手・順位の低いチームへの誘いくらい）
     // 出場率は utils/playRate 1本（BidSheet が見せている数字と同じ）
     const { fraction: cFrac, teamRaces: cRaces } = playRateOf(player.id, player.teamId,
-      state.currentSeason, state.teams, state.foreignLeagues, prevSeasonOf(state.pastSeasons, state.currentSeason.year))
-    const consent = playerConsentToMove(player, get().destinationOf(myTeam.id, player), tierOfPlayerClub(player.teamId, allTieredClubs(state.teams, state.foreignLeagues)), cFrac, cRaces, facilityScoutNegoBonus(scoutLvT) + salaryBonus, true, get().playerTierOf(player))
+      state.currentSeason, state.clubs, prevSeasonOf(state.pastSeasons, state.currentSeason.year))
+    const consent = playerConsentToMove(player, get().destinationOf(myTeam.id, player), tierOfPlayerClub(player.teamId, state.clubs), cFrac, cRaces, facilityScoutNegoBonus(scoutLvT) + salaryBonus, true, get().playerTierOf(player))
     if (!consent.ok) {
       // 交渉決裂: 入札を破談にし、来季までこの選手への移籍金オファーを不可にする
       set(s => ({
@@ -1256,9 +1253,8 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
         ? { ...p, contract: { ...p.contract, faEligibleYear: s.currentSeason.year + years } }
         : p
       ),
-      teams: moved.teams,
       // 売り手が海外クラブなら、そのクラブへ入金する
-      foreignLeagues: settleForeignFee(s.foreignLeagues, bid.targetTeamId, s.playerTeamId, bid.offeredFee),
+      clubs: settleForeignFee(moved.clubs, bid.targetTeamId, s.playerTeamId, bid.offeredFee),
       transferHistory: [...(s.transferHistory ?? []), ...(moved.record ? [moved.record] : [])].slice(-400),
       currentSeason: {
         ...s.currentSeason,
@@ -1362,7 +1358,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
 
     // 移籍金を払う場合は予算チェック（予算が無条件にマイナスへ落ちるのを防ぐ）
     if (transferFee > 0) {
-      const myBudget = myClub(state)?.finance.budget ?? 0
+      const myBudget = myClub(state)?.finance?.budget ?? 0
       if (myBudget < transferFee) return { ok: false, reason: 'そちらの予算では移籍金を払えないようだ。' }
     }
 
@@ -1401,20 +1397,22 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
 
       // 選手の出し入れも指名権の交換も engine/tradeExecution 1本
       // （相手からの打診を飲む acceptTradeOffer とまったく同じ動かし方を通す）
-      const moved = runTradeMoves({ players: state.players, teams: state.teams }, [
+      const moved = runTradeMoves({ players: state.players, clubs: state.clubs }, [
         ...offeredIds.map(id => ({ playerId: id, toTeamId: targetTeamId })),
         ...incomingIds.map(id => ({ playerId: id, toTeamId: state.playerTeamId })),
       ], { year: state.currentSeason.year, date: tradeDate, raceIndex: state.currentSeason.currentRaceIndex, myTeamId: state.playerTeamId })
       const players = moved.players
       const tradeRecords = moved.records
       const tradeNotices = moved.notices
-      const withPicks = swapDraftPicks(moved.teams,
+      const withPicks = swapDraftPicks(moved.clubs,
         { teamId: state.playerTeamId, pickKeys: offerPickKeys },
         { teamId: targetTeamId, pickKeys: requestPickKeys })
 
       // 名簿も指名権も動かし終わったので、ここで動かすのは現金だけ
       // （transferFee はマイナス＝受け取りもあるので movePlayer の移籍金には乗せない）
-      const teams = withPicks.map(t => {
+      // 現金が動くのは日本のリーグのクラブだけ（相手が海外なら片側だけ・いまの振る舞い）
+      const clubs = mapClubs(withPicks, (t): WorldClub => {
+        if (!isJpelLeague(t.leagueId) || !t.finance) return t
         if (t.id === state.playerTeamId) return { ...t, finance: { ...t.finance, budget: (t.finance.budget ?? 0) - transferFee } }
         if (t.id === targetTeamId) return { ...t, finance: { ...t.finance, budget: (t.finance.budget ?? 0) + transferFee } }
         return t
@@ -1448,7 +1446,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
 
       // 出した選手についての話（購入オファー・契約更新・移籍希望など）は成立と同時に片付ける。
       // レースを跨ぐまで古い札が残っていると、退団した選手のチャットが開けてしまう
-      return { players, teams,
+      return { players, clubs,
         transferHistory: [...(state.transferHistory ?? []), ...tradeRecords].slice(-400),
         currentSeason: {
         ...state.currentSeason,
@@ -1466,7 +1464,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     // 評価式は utils/tradeValue.ts の1本。主力の割増は出す側・もらう側の両方に同じだけ掛かる
     const tvCtx = tradeValueCtxOf(state)
     const playersOf = (ids: string[]) => ids.map(id => state.players.find(p => p.id === id)).filter((p): p is Player => !!p)
-    const theirName = findClub(state.teams, state.foreignLeagues, targetTeamId)?.shortName
+    const theirName = findClub(state.clubs, targetTeamId)?.shortName
       ?? '相手クラブ'
     const givePlayers = playersOf(giveIds)
     const getPlayersT = playersOf(getIds)
@@ -1591,7 +1589,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     const signSurplus = isSurplus({ squadRank: squadRankOf(signRoster, player) })
     const signPerf = perfOf(player, state)
     const transferFee = transferFeeFor(player, signSurplus, signPerf)
-    if (myTeam.finance.budget < transferFee) return false
+    if ((myTeam.finance?.budget ?? 0) < transferFee) return false
 
     // ★**成否を返すこと。** ここは `set()` の外で無条件に `true` を返していたので、
     //   `movePlayer` が失敗しても画面は「加入した」と受け取っていました
@@ -1618,9 +1616,8 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
               personality: p.personality ?? 'salary' }
           : p
         ),
-        teams: moved.teams,
         // 出した海外クラブへ入金する（この経路は必ず海外が相手）
-        foreignLeagues: settleForeignFee(s.foreignLeagues, player.teamId, s.playerTeamId, transferFee),
+        clubs: settleForeignFee(moved.clubs, player.teamId, s.playerTeamId, transferFee),
         transferHistory: [...(s.transferHistory ?? []), ...(moved.record ? [moved.record] : [])].slice(-400),
         currentSeason: {
           ...s.currentSeason,

@@ -9,27 +9,26 @@
 //   - 過去シーズンの海外リーグ順位表は**合計ポイントしか読まれない**（チーム詳細の
 //     歴代成績・リーグ優勝回数）。1戦ごとの結果は今季ぶんだけ必要なので保存時に落とす
 //     （1シーズンあたり約120KB）
-import { domesticTeamIdSet, foreignClubIdSet } from '../utils/clubs'
-import type { ForeignLeague, GameState, Player, Season, Team } from '../types'
-import { myLeagueRaces } from '../utils/world'
+import type { GameState, Player, Season, WorldClub } from '../types'
+import { clubIdSet, clubsWhere, isJpelLeague, jpelClubIdSet, myLeagueRaces } from '../utils/world'
 import { divisionOfLeague } from '../utils/league'
 
 export function prepareSeasonArchive(args: {
   currentSeason: GameState['currentSeason']
   /** 今季の頭の選手一覧 */
   before: Player[]
-  teams: Team[]
-  /** 今季の海外リーグ（更新前） */
-  prevForeignLeagues: ForeignLeague[]
+  /** 今季のクラブ（更新前） */
+  clubs: WorldClub[]
   playerTeamId: string
 }) {
-  const { currentSeason, before, teams, prevForeignLeagues, playerTeamId } = args
+  const { currentSeason, before, clubs, playerTeamId } = args
 
   // 海外クラブ在籍で今季出場ゼロの選手にも0戦のエントリを埋めて保存する。
   // 在籍履歴（選手詳細）は出場記録から行を作るため、これが無いと出なかった年の所属が消える
   const archivedForeignApps = { ...(currentSeason.foreignAppearances ?? {}) }
   {
-    const foreignClubIds = foreignClubIdSet(prevForeignLeagues)
+    // 海外の出場記録（foreignAppearances）に積むのは、日本のリーグでないクラブの選手（置き場所が違うだけ）
+    const foreignClubIds = clubIdSet(clubsWhere(clubs, c => !isJpelLeague(c.leagueId)))
     for (const p of before) {
       if (!foreignClubIds.has(p.teamId)) continue
       if (!archivedForeignApps[p.id]) archivedForeignApps[p.id] = { clubId: p.teamId, races: 0, wins: 0 }
@@ -50,7 +49,7 @@ export function prepareSeasonArchive(args: {
     if (!race.results) continue
     for (const sr of race.results.segmentResults) for (const r of sr.runners) appearedIds.add(r.playerId)
   }
-  const domesticTeamIds = domesticTeamIdSet(teams)
+  const domesticTeamIds = jpelClubIdSet(clubs)
   const zeroAppearances = before
     .filter(p => p.status === 'active' && domesticTeamIds.has(p.teamId) && !appearedIds.has(p.id))
     .map(p => ({ playerId: p.id, teamId: p.teamId }))

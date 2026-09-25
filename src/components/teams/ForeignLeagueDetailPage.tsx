@@ -1,5 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { leagueById } from '../../utils/world'
+import { clubsInLeague } from '../../utils/world'
+import { leagueById } from '../../data/leagues'
 import { rankedStandings, leagueStandingRows } from '../../utils/league'
 import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
@@ -13,12 +14,13 @@ import { C, SAIRA, FONT, F } from '../../styles/tokens'
 export default function ForeignLeagueDetailPage() {
   const { leagueId } = useParams<{ leagueId: string }>()
   const navigate = useNavigate()
-  const foreignLeagues = useGameStore(s => s.foreignLeagues) ?? []
+  const clubs = useGameStore(s => s.clubs)
   const players = useGameStore(s => s.players)
   const currentSeason = useGameStore(s => s.currentSeason)
-  const league = leagueById(foreignLeagues, leagueId)
+  // この画面に出すのは海外リーグ（日本の部は順位表の画面）
+  const league = leagueById(leagueId)
 
-  if (!league) return (
+  if (!league || league.division != null) return (
     <div style={{ padding: '40px 20px', textAlign: 'center', color: C.textGhost, fontFamily: SAIRA }}>
       リーグが見つかりません
     </div>
@@ -27,7 +29,7 @@ export default function ForeignLeagueDetailPage() {
   // 勝点があれば勝点順、無ければ（開幕前など）平均OVR順。
   const leagueStandings = leagueStandingRows(currentSeason, league.id)
   const hasResults = leagueStandings.some(s => s.raceResults.length > 0)
-  const clubRows = league.clubs.map(club => {
+  const clubRows = clubsInLeague(clubs, league.id).map(club => {
     const clubPlayers = players.filter(p => belongsToClub(p, club.id))
     const avgOvr = clubPlayers.length > 0 ? Math.round(clubPlayers.reduce((s, p) => s + ovr(p), 0) / clubPlayers.length) : 0
     const st = leagueStandings.find(s => s.teamId === club.id)

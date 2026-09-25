@@ -3,7 +3,7 @@
  *
  * ■なぜ要るのか
  *   「そのチームがどの部か」の出どころが2つある。
- *     ・Team.division（divisionOf）      … レースを走らせる・裏の部を決める・結果を書き込む
+ *     ・Team.leagueId（divisionOf）      … レースを走らせる・裏の部を決める・結果を書き込む
  *     ・順位表のキー（divisionInSeason） … 順位表・通し順位・チーム画面
  *   順位表は部ごとに分けて持つ設計なので、部そのものがキーになっている。片方だけ動かすと
  *   「走った結果の書き込み先に自分の行が無い」＝点がどこにも入らない、という状態になる。
@@ -35,10 +35,10 @@ const zero = (teamId: string) => ({ teamId, leaguePoints: 0, segmentPoints: 0, t
 // （gameStore の startSetup と同じ手順。選んだクラブを抜いて最後尾へ、下は全部ひとつ繰り上がる）
 function placeLikeSetup(teams: Team[], pickedId: string): Team[] {
   const ordered = [...teams].sort((a, b) => (a.initialRank ?? 999) - (b.initialRank ?? 999))
-  const slots = ordered.map(t => ({ division: divisionOf(t) }))
+  const slots = ordered.map(t => ({ leagueId: divisionLeagueId(divisionOf(t)) }))
   const reordered = [...ordered.filter(t => t.id !== pickedId), ordered.find(t => t.id === pickedId)!]
   const placement = new Map(reordered.map((t, i) => [t.id, slots[i]]))
-  return teams.map(t => ({ ...t, ...(placement.get(t.id) ?? { division: divisionOf(t) }) }))
+  return teams.map(t => ({ ...t, ...(placement.get(t.id) ?? { leagueId: divisionLeagueId(divisionOf(t)) }) }))
 }
 
 const base = ALL_DOMESTIC_TEAMS as Team[]
@@ -50,7 +50,7 @@ for (const pickedId of picks) {
   const teams = placeLikeSetup(base, pickedId)
   // 順位表は「元の部」で作られている＝チーム選択の前の状態
   const stale = newSeasonStandings(base, zero)
-  const season = { leagues: syncSeasonLeagues({ leagues: divisionLeagues({}, stale), teams, playerTeamId: pickedId }) }
+  const season = { leagues: syncSeasonLeagues({ leagues: divisionLeagues({}, stale), clubs: teams, playerTeamId: pickedId }) }
   const mismatched = teams.filter(t => divisionInSeason(season, t.id) !== divisionOf(t))
   check(`${before}部のクラブを選んでも、全52クラブで走る部と順位表の部が一致する`,
     mismatched.length === 0, mismatched.map(t => t.name).join('・'))
@@ -82,14 +82,14 @@ for (const pickedId of picks) {
   // 事故と同じ状態：順位表は元の部のまま＝自分の行は2部側にあり、3部側には無い
   const broken = newSeasonStandings(base, zero)
   // 走った結果は自分の（いまの）部＝3部のリーグの日程に入っている
-  const fixed = syncSeasonLeagues({ leagues: divisionLeagues({ 3: races as never }, broken), teams, playerTeamId: pickedId })
+  const fixed = syncSeasonLeagues({ leagues: divisionLeagues({ 3: races as never }, broken), clubs: teams, playerTeamId: pickedId })
   const me = fixed[divisionLeagueId(3)].standings.find(r => r.teamId === pickedId)
   const expected = ranksByRace.reduce((s, r) => s + (myDivTeams.length - r + 1), 0)
   check('走ったレースの結果から、消えていた自チームの点が戻る',
     me?.totalPoints === expected, `${me?.totalPoints} / 期待 ${expected}`)
   check('  消化試合も戻る（3戦）', me?.raceResults.length === 3, `${me?.raceResults.length}戦`)
   // 何度通しても同じ数字になること（起動のたびに呼ぶので、増えたら二重加算）
-  const again = syncSeasonLeagues({ leagues: fixed, teams, playerTeamId: pickedId })
+  const again = syncSeasonLeagues({ leagues: fixed, clubs: teams, playerTeamId: pickedId })
   check('  何度読み込んでも点が増えない（二重加算しない）',
     again[divisionLeagueId(3)].standings.find(r => r.teamId === pickedId)?.totalPoints === expected)
 }

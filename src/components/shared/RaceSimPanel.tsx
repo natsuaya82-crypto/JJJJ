@@ -8,10 +8,10 @@ import { SimPhase } from '../race/SimPhase'
 import type { Race, RaceResults, Team, Player } from '../../types'
 import type { InteractiveSegResult } from '../../engine/interactiveRace'
 
-export function RaceSimPanel({ race, results, teams, players, playerTeamId, onDone }: {
+export function RaceSimPanel({ race, results, raceTeams, players, playerTeamId, onDone }: {
   race: Race
   results: RaceResults
-  teams: Team[]
+  raceTeams: Team[]
   players: Player[]
   playerTeamId: string
   onDone: () => void
@@ -66,7 +66,7 @@ export function RaceSimPanel({ race, results, teams, players, playerTeamId, onDo
   return (
     <SimPhase
       race={race}
-      teams={teams}
+      raceTeams={raceTeams}
       players={players}
       playerTeamId={playerTeamId}
       pendingEvent={null}

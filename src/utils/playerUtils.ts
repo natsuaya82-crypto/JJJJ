@@ -717,7 +717,7 @@ export type PerfWorld = PlayRateWorld & {
 export function perfOf(p: Pick<Player, 'id' | 'teamId'>, w: PerfWorld): PerfProfile | undefined {
   const fa = w.currentSeason.foreignAppearances?.[p.id]
   if (fa && fa.races > 0) return foreignPerfProfile(fa, foreignRacesDone(w.currentSeason) || fa.races)
-  const list = clubSeasonRaces(w.currentSeason, p.teamId, w.teams, w.foreignLeagues)
+  const list = clubSeasonRaces(w.currentSeason, p.teamId, w.clubs)
   const teamRaces = racesDone(list)
   if (teamRaces < PLAY_SAMPLE_RACES) return undefined
   return seasonPerfProfile(p.id, list, teamRaces)

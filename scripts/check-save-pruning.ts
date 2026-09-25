@@ -58,13 +58,13 @@ function pinned(label: string, patch: Partial<GameState>) {
   const drop = bare('drop')
   const state = {
     players: [keep, drop],
-    teams: [],
+    clubs: [],
     playerTeamId: MY,
     currentSeason: { year: YEAR, races: [], currentRaceIndex: 0 },
     pastSeasons: [],
     ...patch,
   } as unknown as GameState
-  const r = pruneSaveData({ players: [keep, drop], foreignLeagues: [], state, newYear: YEAR + 1 })
+  const r = pruneSaveData({ players: [keep, drop], state, newYear: YEAR + 1 })
   const has = (id: string) => r.players.some(p => p.id === id)
   // ★母数の確認。drop が消えない世界では keep が残っても何の証拠にもならない
   check(`${label} … 守る理由の無い選手は消える`, !has('drop') && !!r.removedPlayers.drop)
@@ -92,9 +92,9 @@ pinned('日本記録の共同保持者', {
 } as unknown as Partial<GameState>)
 
 console.log('')
-console.log('[4] クラブの歴代記録（teams[].eventRecords）')
+console.log('[4] クラブの歴代記録（clubs[].eventRecords）')
 pinned('クラブ歴代記録', {
-  teams: [{ id: MY, eventRecords: { d10000: [{ playerId: 'keep', timeSec: 1700, year: YEAR - 1 }] } }],
+  clubs: [{ id: MY, leagueId: 'jpel-1', eventRecords: { d10000: [{ playerId: 'keep', timeSec: 1700, year: YEAR - 1 }] } }],
 } as unknown as Partial<GameState>)
 
 console.log('')

@@ -10,7 +10,7 @@
 import { dynastyHeadlines, type NewsItem } from '../utils/newsItems'
 import { gmCareerTotals, gmSeasonRanks } from '../utils/gmTenure'
 import { divisionOf } from '../utils/league'
-import type { GameState, Player, Team } from '../types'
+import type { GameState, Player, WorldClub } from '../types'
 import { myClub } from '../utils/world'
 
 export type DynastyResult = {
@@ -27,7 +27,7 @@ export function computeDynastyMilestones(args: {
   pastSeasons: GameState['pastSeasons']
   currentSeason: GameState['currentSeason']
   gmTenures: GameState['gmTenures']
-  teams: Team[]
+  clubs: WorldClub[]
   playerTeamId: string
   /** 今季の自チームの最終順位（部内） */
   finalRank: number
@@ -36,7 +36,7 @@ export function computeDynastyMilestones(args: {
   /** 今季ぶんを足す前の選手一覧 */
   playersBefore: Player[]
 }): DynastyResult {
-  const { pastSeasons, currentSeason, gmTenures, teams, playerTeamId, finalRank, playersAfter, playersBefore } = args
+  const { pastSeasons, currentSeason, gmTenures, clubs, playerTeamId, finalRank, playersAfter, playersBefore } = args
 
   // 通算成績は「今季を足したあと」で見たいので、過去シーズンに今季の順位表を足して数え直す
   const gmRanksAfter = gmSeasonRanks([
@@ -53,7 +53,7 @@ export function computeDynastyMilestones(args: {
 
   const news: NewsItem[] = dynastyHeadlines({
     finalRank, championships: totalChamps, seasons: totalSeasons, currentStreak: curStreak,
-    division: divisionOf(myClub({ teams, playerTeamId })),
+    division: divisionOf(myClub({ clubs, playerTeamId })),
     segWinsAfter, segWinsBefore }).map(headline => ({ date: `${currentSeason.year}-10-26`, headline, category: 'race' as const, relatedIds: [] }))
 
   return { totalChamps, totalSeasons, curStreak, news }

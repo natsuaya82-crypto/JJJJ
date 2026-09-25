@@ -15,19 +15,20 @@
 //   （補ったばかりのクラブが、走ってもいない順位で動いてしまうため）。
 //
 // 乱数は使わない。
-import type { Division, Season, SeasonStanding, Team } from '../types'
+import type { Division, Season, SeasonStanding, WorldClub } from '../types'
 import { tierFromDomesticRank } from '../utils/clubTier'
 import { domesticClubsComplete, originalDivisionOf } from '../utils/domesticClubs'
-import { DIVISIONS, PROMOTION_SLOTS, divisionOf, domesticThroughRank, rankOfTeam, teamsInDivision, divisionLeagueId, leagueStandingRows } from '../utils/league'
+import { DIVISIONS, PROMOTION_SLOTS, divisionOf, domesticThroughRank, rankOfTeam, divisionLeagueId, leagueStandingRows } from '../utils/league'
+import { leagueRules } from '../data/leagueRules'
 import { divisionMoveHeadline } from '../utils/newsItems'
-import { myClub, teamById } from '../utils/world'
+import { clubsInLeague, clubsWhere, jpelClubById, myClub } from '../utils/world'
 
 export function computePromotion(params: {
-  teams: Team[]
+  clubs: WorldClub[]
   currentSeason: Season
   playerTeamId: string
 }) {
-  const { teams, currentSeason, playerTeamId } = params
+  const { clubs, currentSeason, playerTeamId } = params
   // ── 来季の格 ────────────────────────────────────────────────
   // 国内クラブの格は「今季の国内通し順位」1本で決まる。1部1位＝格5、3部最下位＝格20。
   // 通し順位は 部 → 部内順位 の順（domesticThroughRank）。順位表の得点で52チームを
@@ -38,26 +39,26 @@ export function computePromotion(params: {
   //   降格先が存在しないまま落ちたチームが「2チームしかいない2部」にいる。
   //   その部で数えると通し順位21位＝格11相当になり、本来1部のクラブが1年ぶん
   //   不当に低い予算を受け取ってしまう。補完する年はデータどおりの部で数える。
-  const clubsIncomplete = !domesticClubsComplete(teams)
-  const effDivisionOf = (t: { id: string; division?: Division }): Division =>
+  const clubsIncomplete = !domesticClubsComplete(clubs)
+  const effDivisionOf = (t: { id: string; leagueId?: string }): Division =>
     clubsIncomplete ? originalDivisionOf(t.id) : divisionOf(t)
   // 効き目のある部でまとめ直す。補完が要らない年は、順位表のキーとまったく同じ組になる
   const rowsByEffDiv = (() => {
     const m = new Map<Division, SeasonStanding[]>()
     for (const d of DIVISIONS) {
       for (const r of leagueStandingRows(currentSeason, divisionLeagueId(d))) {
-        const e = effDivisionOf(teamById(teams, r.teamId) ?? { id: r.teamId })
+        const e = effDivisionOf(jpelClubById(clubs, r.teamId) ?? { id: r.teamId })
         const list = m.get(e)
         if (list) list.push(r); else m.set(e, [r])
       }
     }
     return m
   })()
-  const divisionRankOf = (t: { id: string; division?: Division }) =>
+  const divisionRankOf = (t: { id: string; leagueId?: string }) =>
     rankOfTeam(rowsByEffDiv.get(effDivisionOf(t)), t.id)
-  const nextTierOf = (t: { id: string; division?: Division }) =>
+  const nextTierOf = (t: { id: string; leagueId?: string }) =>
     tierFromDomesticRank(domesticThroughRank(effDivisionOf(t), divisionRankOf(t)))
-  const myNextTier = nextTierOf(myClub({ teams, playerTeamId }) ?? { id: playerTeamId })
+  const myNextTier = nextTierOf(myClub({ clubs, playerTeamId }) ?? { id: playerTeamId })
 
   // ── 昇降格 ──────────────────────────────────────────────────
   // 各部の上位2チームが昇格、下位2チームが降格。プレーオフなし。
@@ -68,16 +69,17 @@ export function computePromotion(params: {
   //   降格先が存在しないまま落ちていたぶんは取り消してデータどおりの 20/16/16 に戻し、
   //   **次の年から**通常の昇降格に戻す。ここで昇降格を通すと、補ったばかりのクラブが
   //   走ってもいない順位で動いてしまう。
-  const nextDivisionOf = (t: { id: string; division?: Division }): Division => {
+  const nextDivisionOf = (t: { id: string; leagueId?: string }): Division => {
     if (clubsIncomplete) return originalDivisionOf(t.id)
     const d = divisionOf(t)
     const r = divisionRankOf(t)
-    const size = teamsInDivision(teams, d).length
+    const size = clubsInLeague(clubs, divisionLeagueId(d)).length
     if (d > DIVISIONS[0] && r <= PROMOTION_SLOTS) return (d - 1) as Division
     if (d < DIVISIONS[DIVISIONS.length - 1] && r > size - PROMOTION_SLOTS) return (d + 1) as Division
     return d
   }
-  const divisionMoveNews = clubsIncomplete ? [] : teams
+  // 部が入れ替わるのは、昇降格のあるリーグ（data/leagues の rules.promotion）のクラブだけ
+  const divisionMoveNews = clubsIncomplete ? [] : clubsWhere(clubs, c => leagueRules(c.leagueId).promotion)
     .map(t => ({ t, from: divisionOf(t), to: nextDivisionOf(t) }))
     .filter(x => x.from !== x.to)
     .map(({ t, from, to }) => ({
@@ -85,6 +87,6 @@ export function computePromotion(params: {
       headline: divisionMoveHeadline({ clubName: t.name, from, to }),
       category: 'race' as const,
       relatedIds: [t.id] }))
-  const myNextDivision = nextDivisionOf(myClub({ teams, playerTeamId }) ?? { id: playerTeamId })
+  const myNextDivision = nextDivisionOf(myClub({ clubs, playerTeamId }) ?? { id: playerTeamId })
   return { nextTierOf, nextDivisionOf, myNextTier, myNextDivision, divisionMoveNews }
 }

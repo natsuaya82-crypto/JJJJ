@@ -75,8 +75,8 @@ function RequestRow({ r, rating, dim, right }: { r: FriendRequest; rating: numbe
 }
 
 export default function FriendRequestsPage() {
-  const { teams, playerTeamId } = useGameStore()
-  const myTeam = myClub({ teams, playerTeamId })
+  const { clubs, playerTeamId } = useGameStore()
+  const myTeam = myClub({ clubs, playerTeamId })
 
   const code = useFriendsQuery(myCode, [], 'myCode')
   const recvQ = useFriendsQuery(listReceived, [], 'received')

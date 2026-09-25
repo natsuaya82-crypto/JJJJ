@@ -37,14 +37,15 @@ import { readFileSync } from 'node:fs'
 import { fillAllRostersToMin, generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { FOREIGN_LEAGUE_DEFS, INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { ROSTER_MIN } from '../src/data/rosterRules'
 import { canStartSeason } from '../src/utils/seasonStart'
 import { DIVISIONS, DIVISION_RACES, divisionOf, newSeasonStandings } from '../src/utils/league'
 import { generateSeasonRaces } from '../src/data/races'
 import { useGameStore } from '../src/store/gameStore'
 import { ovr } from '../src/utils/playerUtils'
-import type { Player, SeasonStanding, Team } from '../src/types'
+import type { Player, SeasonStanding, Team, WorldClub } from '../src/types'
+import { clubsInLeague, clubsWhere, isJpelLeague, jpelClubs, jpelClubById } from '../src/utils/world'
 import { seasonLeaguesFixture } from './seasonFixture'
 
 let failed = 0
@@ -120,7 +121,7 @@ console.log(`\n[5] 世界を1つ作って endSeason → 開幕 を実際に通�
   const MY = 'tokyo'
   const base = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
   const cpu = generateCpuRosters(base, YEAR)
-  const fgen = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+  const fgen = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
   let ps: Player[] = [...cpu.cpuPlayers, ...fgen.players]
   const mine = ps.filter(p => p.teamId === MY).slice(0, 16)
   const keep = new Set(mine.map(p => p.id))
@@ -131,14 +132,15 @@ console.log(`\n[5] 世界を1つ作って endSeason → 開幕 を実際に通�
   const standings = newSeasonStandings<SeasonStanding>(base, id => ({ teamId: id, totalPoints: 0, raceResults: [] }))
   for (const d of DIVISIONS) standings[d].forEach((row, i) => { row.totalPoints = (standings[d].length - i) * DIVISION_RACES[d] })
   const foreignStandings: Record<string, SeasonStanding[]> = {}
-  for (const l of fgen.updatedLeagues) foreignStandings[l.id] = l.clubs.map(c => ({ teamId: c.id, totalPoints: 0, raceResults: [] }))
+  for (const l of FOREIGN_LEAGUE_DEFS) foreignStandings[l.id] = clubsInLeague(INITIAL_FOREIGN_CLUBS, l.id).map(c => ({ teamId: c.id, totalPoints: 0, raceResults: [] }))
   const teams = base.map(t => ({ ...t, finance: { ...(t.finance ?? {}), budget: 400_000_000 } })) as Team[]
-  const races = generateSeasonRaces(YEAR, divisionOf(teams.find(t => t.id === MY)!))
+  const clubs: WorldClub[] = [...teams, ...INITIAL_FOREIGN_CLUBS]
+  const races = generateSeasonRaces(YEAR, divisionOf(jpelClubById(clubs, MY)!))
   useGameStore.setState({
-    isInitialized: true, playerTeamId: MY, teams, players: ps, foreignLeagues: fgen.updatedLeagues,
+    isInitialized: true, playerTeamId: MY, clubs, players: ps,
     currentSeason: { year: YEAR, phase: 'postseason', currentRaceIndex: races.length,
       leagues: seasonLeaguesFixture({
-        myDivision: divisionOf(teams.find(t => t.id === MY)!),
+        myDivision: divisionOf(jpelClubById(clubs, MY)!),
         races: races.map(r => ({ ...r, results: { teamResults: [], segmentResults: [] } }) as never),
         standings, foreignStandings }),
       newsFeed: [], objectives: [], incomingOffers: [], transferListings: [], contractRequests: [] },
@@ -165,7 +167,7 @@ console.log(`\n[5] 世界を1つ作って endSeason → 開幕 を実際に通�
   //   232クラブ全部にあるので、床も全部に要る。CPUのクラブを1つわざと減らして、
   //   開幕したときに埋まっているかを見る
   const st = useGameStore.getState()
-  const victim = st.teams.find(t => t.id !== MY)!
+  const victim = jpelClubs(st.clubs).find(t => t.id !== MY)!
   const vIds = st.players.filter(p => p.teamId === victim.id && p.status !== 'retired').map(p => p.id)
   const drop = new Set(vIds.slice(0, Math.max(0, vIds.length - 9)))   // 9人まで減らす
   useGameStore.setState({ players: st.players.filter(p => !drop.has(p.id)) } as never)
@@ -178,7 +180,7 @@ console.log(`\n[5] 世界を1つ作って endSeason → 開幕 を実際に通�
 
   // 海外クラブも同じ（国内だけに絞っていないか）
   const st2 = useGameStore.getState()
-  const fClub = (st2.foreignLeagues ?? []).flatMap(l => l.clubs)[0]
+  const fClub = clubsWhere(st2.clubs, c => !isJpelLeague(c.leagueId))[0]
   const fIds = st2.players.filter(p => p.teamId === fClub.id && p.status !== 'retired').map(p => p.id)
   const fDrop = new Set(fIds.slice(0, Math.max(0, fIds.length - 8)))
   useGameStore.setState({ players: st2.players.filter(p => !fDrop.has(p.id)) } as never)

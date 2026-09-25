@@ -33,7 +33,7 @@ import { seasonDivisionStandings, rankOfTeam } from '../../utils/league'
 import { panelStyle } from '../ui/Panel'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { MORALE_DEFAULT } from '../../utils/condition'
-import { myClub, teamById, myLeagueRaces } from '../../utils/world'
+import { clubById, jpelClubById, myClub, myLeagueRaces } from '../../utils/world'
 
 
 
@@ -213,7 +213,7 @@ function PreseasonHub({
    ══════════════════════════════════════════ */
 export default function Dashboard() {
   const {
-    teams, playerTeamId, players, currentSeason, pastSeasons,
+    clubs, playerTeamId, players, currentSeason, pastSeasons,
     gmRep,
     endSeason, growthReport, beginSeasonDraft, draftState,
     claimPreseasonCards,
@@ -235,7 +235,7 @@ export default function Dashboard() {
   useEffect(() => {
     initObjectivesIfEmpty()
   }, [])
-  const team = myClub({ teams, playerTeamId })
+  const team = myClub({ clubs, playerTeamId })
   if (!team) return null
 
   // 「次のシーズンへ」。GMパス購入済みならそのまま更新。
@@ -274,7 +274,7 @@ export default function Dashboard() {
   const sorted = seasonDivisionStandings(currentSeason, playerTeamId)
   // ホームの「チャット」に出す未読の数。**チャットを開くまで消えない**
   const chatUnseen = chatUnseenCount(
-    { currentSeason, players, teams, playerTeamId },
+    { currentSeason, players, clubs, playerTeamId },
     currentSeason.seenChatTopicIds ?? [])
   const myRank = rankOfTeam(sorted, playerTeamId)
 
@@ -520,7 +520,7 @@ export default function Dashboard() {
               {isChampion && <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.gold, letterSpacing: '3px', marginBottom: 4, fontWeight: 900, textShadow: `0 0 10px ${alpha(C.gold, 0.7)}` }}>★ CHAMPION ★</div>}
               <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.gold, letterSpacing: '3px', marginBottom: 4 }}>SEASON FINAL</div>
               <div style={{ fontSize: F.head, fontWeight: 900, color: C.text, marginBottom: 2 }}>{currentSeason.year} シーズン終了</div>
-              <div style={{ fontSize: F.body, color: C.textSub }}>優勝：{teamById(teams, sorted[0]?.teamId)?.name ?? '―'}</div>
+              <div style={{ fontSize: F.body, color: C.textSub }}>優勝：{clubById(clubs, sorted[0]?.teamId)?.name ?? '―'}</div>
             </div>
             {(mvp || rookie) && (
               <div style={{ padding: '12px 18px', borderBottom: `1px solid ${alpha(C.gold, 0.1)}`, display: 'flex', gap: 8, position: 'relative', zIndex: 1 }}>
@@ -535,7 +535,7 @@ export default function Dashboard() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.gold, letterSpacing: '2px', marginBottom: 3 }}>MVP</div>
                       <div style={{ fontSize: F.sub, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mvp.name}</div>
-                      <div style={{ fontSize: F.label, color: C.textDim, marginTop: 2 }}>{teamById(teams, mvp.teamId)?.shortName ?? ''}</div>
+                      <div style={{ fontSize: F.label, color: C.textDim, marginTop: 2 }}>{jpelClubById(clubs, mvp.teamId)?.shortName ?? ''}</div>
                     </div>
                   </div>
                 )}
@@ -547,7 +547,7 @@ export default function Dashboard() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontFamily: SAIRA, fontSize: F.tiny, color: '#4FC3F7', letterSpacing: '2px', marginBottom: 3 }}>新人王</div>
                       <div style={{ fontSize: F.sub, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rookie.name}</div>
-                      <div style={{ fontSize: F.label, color: C.textDim, marginTop: 2 }}>{teamById(teams, rookie.teamId)?.shortName ?? ''}</div>
+                      <div style={{ fontSize: F.label, color: C.textDim, marginTop: 2 }}>{jpelClubById(clubs, rookie.teamId)?.shortName ?? ''}</div>
                     </div>
                   </div>
                 )}
@@ -677,7 +677,7 @@ export default function Dashboard() {
             </div>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               {miniRows.map((s2, i2) => {
-                const t = teamById(teams, s2.teamId)
+                const t = clubById(clubs, s2.teamId)
                 const isMe = s2.teamId === playerTeamId
                 return (
                   <div key={s2.teamId} style={{

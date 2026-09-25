@@ -25,6 +25,7 @@ import { useGameStore } from '../src/store/gameStore'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { generateIndividualEvents, generateSeasonRaces } from '../src/data/races'
 import { newSeasonStandings } from '../src/utils/league'
@@ -36,17 +37,17 @@ const YEAR = 2030, MY = 'tokyo'
 
 const teams = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
 const cpu = generateCpuRosters(teams, YEAR)
-const fgen = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+const fgen = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
 const players: Player[] = [...cpu.cpuPlayers, ...fgen.players]
 const races = generateSeasonRaces(YEAR)
 const foreignStandings: Record<string, SeasonStanding[]> = {}
-for (const l of fgen.updatedLeagues) {
+for (const l of FOREIGN_LEAGUES) {
   foreignStandings[l.id] = l.clubs.map((c, i) => ({ teamId: c.id, totalPoints: (20 - i) * 5, raceResults: [] }))
 }
 const standings = newSeasonStandings<SeasonStanding>(teams, id => ({ teamId: id, totalPoints: 0, raceResults: [] }))
 
 useGameStore.setState({
-  isInitialized: true, playerTeamId: MY, teams, players, foreignLeagues: fgen.updatedLeagues,
+  isInitialized: true, playerTeamId: MY, clubs: [...teams, ...INITIAL_FOREIGN_CLUBS], players,
   currentSeason: {
     year: YEAR, phase: 'season', currentRaceIndex: 0,
     leagues: seasonLeaguesFixture({ myDivision: 1, races, standings, foreignStandings }),

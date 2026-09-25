@@ -5,6 +5,7 @@ import { LeagueLogoSVG } from '../icons/Icons'
 import { C, SAIRA, FONT, F } from '../../styles/tokens'
 import { NAT_LABEL, natGeoRegion, GEO_REGION_ORDER, type GeoRegion } from '../../data/nationalities'
 import { leagueNameEn } from '../../data/foreignLeagues'
+import { FOREIGN_LEAGUE_DEFS } from '../../data/leagues'
 import Flag from '../ui/Flag'
 import PageHeader from '../ui/PageHeader'
 import MenuButton from '../ui/MenuButton'
@@ -60,8 +61,8 @@ function Header({ eyebrow, title, onBack }: { eyebrow: string; title: string; on
 
 export default function TeamsHub() {
   const navigate = useNavigate()
-  const { currentSeason, foreignLeagues, players } = useGameStore()
-  const leagues = foreignLeagues ?? []
+  const { currentSeason, players } = useGameStore()
+  const leagues = FOREIGN_LEAGUE_DEFS
 
   // 画面の階層はURLクエリで持つ（履歴に載せる）。リーグ詳細等から戻ったとき
   // 「チームのルート」でなく直前の一覧（リーグ一覧・国一覧）に戻れるようにするため。

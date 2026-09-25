@@ -23,8 +23,8 @@ import { playerTierOf, tierLines } from '../utils/playerTier'
 import { isOwnedBy, isTransferLocked } from '../utils/transferEligibility'
 import { comparePlayers } from '../utils/playerSort'
 import { clubIndexOf } from '../utils/rosterSync'
-import { allTieredClubs } from '../utils/world'
-import { allForeignClubs, domesticCpuTeamIds } from '../utils/clubs'
+import { clubIds, clubMap, clubsWhere, isJpelLeague } from '../utils/world'
+import { domesticCpuTeamIds } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
 import { calcTransferValue, ovr, playerConsentToMove } from '../utils/playerUtils'
 import { clubLabel, loanHeadline, type NewsItem } from '../utils/newsItems'
@@ -32,7 +32,7 @@ import { needsPlayer } from '../utils/squadNeeds'
 import { DOMESTIC_BOTTOM_TIER, tierOf, tierOfPlayerClub, tierBudget } from '../utils/clubTier'
 import { runTransferMarket } from './transferMarket'
 import { ROSTER_MAX, CPU_SELL_FLOOR } from '../data/rosterRules'
-import type { ArchivedSeason, ForeignLeague, Player, Season, Team, TransferRecord } from '../types'
+import type { ArchivedSeason, Player, Season, TransferRecord, WorldClub } from '../types'
 
 /**
  * **トレードとレンタルに参加するクラブ。国内52＋海外180を同じ1つの列に入れる。**
@@ -49,11 +49,13 @@ import type { ArchivedSeason, ForeignLeague, Player, Season, Team, TransferRecor
  *   （`cpuMarket.generateTransferActivity` で同じ穴を踏んでいる）。
  */
 function marketClubIds(
-  players: Player[], teams: Team[], playerTeamId: string, foreignLeagues?: ForeignLeague[],
+  players: Player[], clubs: readonly WorldClub[], playerTeamId: string,
 ): string[] {
+  // 国内は「選手が実際に所属しているCPUクラブ」（players の並び）、海外は全クラブ（世界の並び）。
+  // 並べ方が違うのはいまの振る舞い（シャッフルするので順番の意味は無い）
   const ids = [
-    ...domesticCpuTeamIds(players, teams, playerTeamId),
-    ...allForeignClubs(foreignLeagues ?? []).map(c => c.id),
+    ...domesticCpuTeamIds(players, clubs, playerTeamId),
+    ...clubIds(clubsWhere(clubs, c => !isJpelLeague(c.leagueId))),
   ]
   // Fisher-Yates。特定のクラブだけが毎年先に選べる状態にしない
   for (let i = ids.length - 1; i > 0; i--) {
@@ -113,14 +115,14 @@ export const byReleasePriority = (a: Player, b: Player): number =>
  * ★借りている選手は切れない（保有権が無い）。返却はレンタル期間の処理に任せる。
  */
 export function runCpuReleases(
-  world: { players: Player[]; teams: Team[]; foreignLeagues?: ForeignLeague[] },
+  world: { players: Player[]; clubs: WorldClub[] },
   ctx: {
     playerTeamId: string
     year: number
     /** そのクラブの総在籍の上限（ドラフトで入る人数ぶんを空けてある） */
     rosterCapFor: (teamId: string) => number
   },
-): { players: Player[]; teams: Team[] } {
+): { players: Player[]; clubs: WorldClub[] } {
   const releaseSet = new Set<string>()
   // 「借りている選手か」は `utils/rosterSync` の `isLoanedIn` 1本（向きの書き方を割らない）
   //
@@ -131,8 +133,8 @@ export function runCpuReleases(
   //   除外の理由は「ロスター概念の無い海外側」でしたが、海外クラブも
   //   `ROSTER_MAX` で管理すると同じファイルの隣に書いてあります。
   //   トレードとレンタルは 2026-08-13 に既に1本化済みで、**解雇だけが取り残されて**いました。
-  const cpuTeamIds = marketClubIds(world.players, world.teams, ctx.playerTeamId, world.foreignLeagues)
-  const clubById = new Map(allTieredClubs(world.teams, world.foreignLeagues ?? []).map(c => [c.id, c]))
+  const cpuTeamIds = marketClubIds(world.players, world.clubs, ctx.playerTeamId)
+  const tierBudgetById = clubMap(world.clubs, c => tierBudget(c))
 
   for (const teamId of cpuTeamIds) {
     // ★数え方は索引そのまま＝**引退していない人は全員**（怪我も在籍・年俸も払う）。
@@ -164,7 +166,7 @@ export function runCpuReleases(
       if (effectiveOvr(p) < avgOvr - 6 && p.contract.yearsLeft <= 1) release(p)
     }
     // 払える年俸に収まるまで切る（人数の線ではなくお金で止める）
-    const payCap = tierBudget(clubById.get(teamId)) * SALARY_ROOM
+    const payCap = (tierBudgetById.get(teamId) ?? tierBudget(undefined)) * SALARY_ROOM
     const remaining = [...roster.filter(p => !releaseSet.has(p.id))].sort(byReleasePriority)
     let pay = remaining.reduce((sum, p) => sum + p.contract.annualSalary, 0)
     for (const p of remaining) {
@@ -191,14 +193,14 @@ export function runCpuReleases(
 
   // 解雇も movePlayer に通す（所属を外す・名簿から消す・移籍リストの札をはがす）
   let players = world.players
-  let teams = world.teams
+  let clubs = world.clubs
   for (const id of releaseSet) {
-    const m = movePlayer({ players, teams }, id, '', { year: ctx.year })
+    const m = movePlayer({ players, clubs }, id, '', { year: ctx.year })
     if (!m.ok) continue
     players = m.players
-    teams = m.teams
+    clubs = m.clubs
   }
-  return { players, teams }
+  return { players, clubs }
 }
 
 /**
@@ -213,7 +215,7 @@ export function runCpuReleases(
  *   貸し出さないため（1オフ1移動）。
  */
 export function runCpuLoans(
-  world: { players: Player[]; teams: Team[] },
+  world: { players: Player[]; clubs: WorldClub[] },
   ctx: {
     playerTeamId: string
     year: number
@@ -229,19 +231,17 @@ export function runCpuLoans(
      *   「格下のクラブへ行くのは嫌だ」が効かない（`transferDecision` の `loan`）
      */
     destinationOf?: (clubId: string, player: Player) => Destination
-    allTeams?: Team[]
-    foreignLeagues?: ForeignLeague[]
     /** 出場率を出す材料（utils/playRate）。**省略＝分からない**（0.5 / 0戦） */
     season?: PlayRateSeason
     pastSeasons?: readonly ({ year: number } & PlayRateSeason)[]
   },
-): { players: Player[]; teams: Team[]; news: NewsItem[] } {
+): { players: Player[]; clubs: WorldClub[]; news: NewsItem[] } {
   let players = world.players
-  let teams = world.teams
+  let clubs = world.clubs
   const news: NewsItem[] = []
   const loanedIds = ctx.excludeIds
   const loanYear = ctx.year + 1
-  const cpuIds = marketClubIds(players, world.teams, ctx.playerTeamId, ctx.foreignLeagues)
+  const cpuIds = marketClubIds(players, world.clubs, ctx.playerTeamId)
   // ★**借り手の上限も、下の下限（`rosterSize`）と同じ数え方にすること。**
   //   ここは `status === 'active' && !p.loan` で**怪我人と借りている選手を落として**いたので、
   //   同じループの中で上限と下限が別の population を見ていました
@@ -257,10 +257,8 @@ export function runCpuLoans(
   const givenLoan: Record<string, number> = {}
   const receivedLoan: Record<string, number> = {}
   // クラブの名簿は索引から引く（クラブの数だけ全選手を走査しない・utils/rosterSync）
-  // 格を引く材料は1回だけ組む（232クラブの配列を1人ごとに作り直さない）
-  const tieredClubs = allTieredClubs(ctx.allTeams ?? teams, ctx.foreignLeagues ?? [])
   // 選手の格の線は世界全体から1回だけ組む（utils/playerTier）
-  const loanTierBy = new Map(tieredClubs.map(c => [c.id, tierOf(c)]))
+  const loanTierBy = clubMap(world.clubs, c => tierOf(c))
   const loanLines = tierLines(players, id => loanTierBy.get(id) ?? DOMESTIC_BOTTOM_TIER)
   const rosterOf = (teamId: string) => (clubIndexOf(players).get(teamId) ?? [])
     .filter(p => p.status === 'active' && !p.loan)
@@ -296,11 +294,11 @@ export function runCpuLoans(
     if (ctx.destinationOf) {
       // 出場率は utils/playRate 1本（レンタルでも省略しない）
       const lr = ctx.season
-        ? playRateOf(candidate.id, senderId, ctx.season, ctx.allTeams ?? world.teams, ctx.foreignLeagues,
+        ? playRateOf(candidate.id, senderId, ctx.season, world.clubs,
             prevSeasonOf(ctx.pastSeasons, ctx.year))
         : { fraction: 0.5, teamRaces: 0 }
       const a = appraiseMove(candidate, ctx.destinationOf(receiver, candidate),
-        { srcTier: tierOfPlayerClub(senderId, tieredClubs), loan: true,
+        { srcTier: tierOfPlayerClub(senderId, world.clubs), loan: true,
           playFraction: lr.fraction, teamRaces: lr.teamRaces, playerTier: playerTierOf(candidate, loanLines) })
       if (!a.ok) continue
     }
@@ -308,19 +306,19 @@ export function runCpuLoans(
     loanedIds.add(candidate.id)
     givenLoan[senderId] = (givenLoan[senderId] ?? 0) + 1
     receivedLoan[receiver] = (receivedLoan[receiver] ?? 0) + 1
-    const m = movePlayer({ players, teams }, candidate.id, receiver, { year: ctx.year, until: loanYear, date: ctx.date })
+    const m = movePlayer({ players, clubs }, candidate.id, receiver, { year: ctx.year, until: loanYear, date: ctx.date })
     if (!m.ok) continue
     players = m.players
-    teams = m.teams
+    clubs = m.clubs
     news.push({
       date: ctx.date ?? `${ctx.year}-11-15`,
       headline: loanHeadline({
         playerName: candidate.name, age: candidate.age, years: 1,
-        ownerLabel: clubLabel(senderId, teams),
-        borrowerLabel: clubLabel(receiver, teams) }),
+        ownerLabel: clubLabel(senderId, clubs),
+        borrowerLabel: clubLabel(receiver, clubs) }),
       category: 'trade', relatedIds: [candidate.id] })
   }
-  return { players, teams, news }
+  return { players, clubs, news }
 }
 
 /**
@@ -334,7 +332,7 @@ export function runCpuLoans(
  *   ここで動いた選手が続けて貸し出されないようにするため（1オフ1移動）。
  */
 export function runCpuTrades(
-  world: { players: Player[]; teams: Team[] },
+  world: { players: Player[]; clubs: WorldClub[] },
   ctx: {
     playerTeamId: string
     year: number
@@ -347,22 +345,19 @@ export function runCpuTrades(
     date?: string
     /** ④本人の同意に渡す材料。**省略すると聞かない**（旧セーブ経路の保険） */
     destinationOf?: (clubId: string, player: Player) => Destination
-    allTeams?: Team[]
-    foreignLeagues?: ForeignLeague[]
     /** 出場率を出す材料（utils/playRate）。**省略＝分からない**（0.5 / 0戦） */
     season?: PlayRateSeason
     pastSeasons?: readonly ({ year: number } & PlayRateSeason)[]
   },
-): { players: Player[]; teams: Team[]; records: TransferRecord[] } {
+): { players: Player[]; clubs: WorldClub[]; records: TransferRecord[] } {
   let players = world.players
-  let teams = world.teams
+  let clubs = world.clubs
   const records: TransferRecord[] = []
   const tradedIds = ctx.excludeIds
   const tradeCount: Record<string, number> = {}
-  const cpuIds = marketClubIds(players, world.teams, ctx.playerTeamId, ctx.foreignLeagues)
+  const cpuIds = marketClubIds(players, world.clubs, ctx.playerTeamId)
   // 格を引く材料は1回だけ組む（232クラブの配列を1組ごとに作り直さない）
-  const tradeTieredClubs = allTieredClubs(ctx.allTeams ?? teams, ctx.foreignLeagues ?? [])
-  const tradeTierBy = new Map(tradeTieredClubs.map(c => [c.id, tierOf(c)]))
+  const tradeTierBy = clubMap(world.clubs, c => tierOf(c))
   const tradeLines = tierLines(players, id => tradeTierBy.get(id) ?? DOMESTIC_BOTTOM_TIER)
 
   let done = 0
@@ -417,11 +412,11 @@ export function runCpuTrades(
         //   （teamRaces が 0 だと appraiseMove の関門が一度も発火しない）
         if (asks.some(([pl, to]) => {
           const { fraction, teamRaces } = ctx.season
-            ? playRateOf(pl.id, pl.teamId, ctx.season, ctx.allTeams ?? world.teams, ctx.foreignLeagues,
+            ? playRateOf(pl.id, pl.teamId, ctx.season, world.clubs,
                 prevSeasonOf(ctx.pastSeasons, ctx.year))
             : { fraction: 0.5, teamRaces: 0 }
           return !playerConsentToMove(pl, ctx.destinationOf!(to, pl),
-            tierOfPlayerClub(pl.teamId, tradeTieredClubs), fraction, teamRaces, 0, true,
+            tierOfPlayerClub(pl.teamId, world.clubs), fraction, teamRaces, 0, true,
             playerTierOf(pl, tradeLines)).ok
         })) continue
       }
@@ -431,19 +426,19 @@ export function runCpuTrades(
       tradeCount[sellerId] = (tradeCount[sellerId] ?? 0) + 1
       // 交換する2人とも movePlayer に通す（自チームのトレードと同じ後始末）
       for (const [pid, toId] of [[offered.id, sellerId], [target.id, buyerId]] as const) {
-        const m = movePlayer({ players, teams }, pid, toId, {
+        const m = movePlayer({ players, clubs }, pid, toId, {
           year: ctx.year,
           date: ctx.date ?? `${ctx.year}-02-01`,
           kind: 'trade' })
         if (!m.ok) continue
         players = m.players
-        teams = m.teams
+        clubs = m.clubs
         if (m.record) records.push(m.record)
       }
       break
     }
   }
-  return { players, teams, records }
+  return { players, clubs, records }
 }
 
 // ── シーズン中も同じことをする ─────────────────────────────────────
@@ -535,37 +530,34 @@ export const CPU_TICK_LOANS = 1
  * 何回ぶん回すかは `cpuMarketRounds`（日付で決まる）。
  */
 export function runCpuMarketTick(
-  world: { players: Player[]; teams: Team[]; foreignLeagues: ForeignLeague[] },
+  world: { players: Player[]; clubs: WorldClub[] },
   ctx: {
     playerTeamId: string
     year: number
     season: Season
     pastSeasons: ArchivedSeason[]
-    allTeams: Team[]
-    foreignLeagues: ForeignLeague[]
     rosterCapFor: (teamId: string) => number
     destinationOf: (clubId: string, player: Player) => Destination
     tradeValueCtx: TradeValueCtx
     /** その日の日付（ニュースに出る）。日程の日付をそのまま渡すこと */
     date: string
   },
-): { players: Player[]; teams: Team[]; foreignLeagues: ForeignLeague[]; records: TransferRecord[]; news: NewsItem[] } {
+): { players: Player[]; clubs: WorldClub[]; records: TransferRecord[]; news: NewsItem[] } {
   // 1回の中で同じ選手を2回動かさない（オフの一括処理と同じ決まり）
   const excludeIds = new Set<string>()
   // 移籍は engine/transferMarket の1本。オフの一括処理と同じ関数を件数だけ絞って呼ぶ
   const bought = runTransferMarket(world, { ...ctx, excludeIds, maxMoves: CPU_TICK_TRANSFERS })
-  const traded = runCpuTrades({ players: bought.players, teams: bought.teams },
+  const traded = runCpuTrades({ players: bought.players, clubs: bought.clubs },
     { playerTeamId: ctx.playerTeamId, year: ctx.year, tradeValueCtx: ctx.tradeValueCtx, excludeIds, maxTrades: CPU_TICK_TRADES, date: ctx.date,
-      destinationOf: ctx.destinationOf, allTeams: ctx.allTeams, foreignLeagues: ctx.foreignLeagues,
+      destinationOf: ctx.destinationOf,
       season: ctx.season, pastSeasons: ctx.pastSeasons })
-  const lent = runCpuLoans({ players: traded.players, teams: traded.teams },
+  const lent = runCpuLoans({ players: traded.players, clubs: traded.clubs },
     { playerTeamId: ctx.playerTeamId, year: ctx.year, excludeIds, maxLoans: CPU_TICK_LOANS, date: ctx.date,
-      destinationOf: ctx.destinationOf, allTeams: ctx.allTeams, foreignLeagues: ctx.foreignLeagues,
+      destinationOf: ctx.destinationOf,
       season: ctx.season, pastSeasons: ctx.pastSeasons })
   return {
     players: lent.players,
-    teams: lent.teams,
-    foreignLeagues: bought.foreignLeagues,
+    clubs: lent.clubs,
     records: [...bought.records, ...traded.records],
     news: [...bought.news, ...lent.news],
   }

@@ -6,6 +6,7 @@
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { divisionOf } from '../src/utils/league'
 // 国内の帯と順位→格の変換は utils/clubTier.ts の1本（ここで数字を持たない）
 import { DOMESTIC_TIER_BAND, FOREIGN_TIER_BAND, tierFromDomesticRank, tierInBand, type TierSpread } from '../src/utils/clubTier'
 // リーグ内の並び順。都市の規模で並べる（データの並び順＝国ごとのまとまり、ではない）。
@@ -122,7 +123,7 @@ for (const lg of FOREIGN_LEAGUES) {
 }
 const domestic = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS].sort((a, b) => (a.initialRank ?? 99) - (b.initialRank ?? 99))
 for (const [key, div] of [['jpel1', 1], ['jpel2', 2], ['jpel3', 3]] as const) {
-  const teams = domestic.filter(t => (t.division ?? 1) === div)
+  const teams = domestic.filter(t => divisionOf(t) === div)
   place(key, teams.map(t => ({ name: t.name, note: `${t.initialRank}位`, throughRank: t.initialRank })))
 }
 

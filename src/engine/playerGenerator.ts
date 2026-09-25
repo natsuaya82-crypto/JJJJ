@@ -1,4 +1,4 @@
-﻿import type { Player, Specialty, GrowthCurve, Nationality, ForeignCategory, ForeignLeague, Team } from '../types'
+﻿import type { Player, Specialty, GrowthCurve, Nationality, ForeignCategory, ForeignClub, WorldClub } from '../types'
 import { natCategory } from '../data/nationalities'
 import type { TraitId } from '../utils/traitUtils'
 import type { Rank } from '../types'
@@ -10,7 +10,8 @@ import { SPECIALTIES } from '../utils/squadNeeds'
 import { buildNationalityBag } from '../data/nationTalent'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は持たない
 import { clubMembersByClub } from '../utils/rosterSync'
-import { divisionOf } from '../utils/league'
+import { joinsDraft } from '../utils/league'
+import { jpelClubs, mapClubs } from '../utils/world'
 import { ROSTER_MAX, ROSTER_MIN } from '../data/rosterRules'
 
 const FAMILY_NAMES = [
@@ -986,7 +987,7 @@ export function rankForSalary(s: number): Rank {
 }
 
 export function generateCpuRosters(
-  teams: { id: string; initialRank?: number; tier?: ClubTier }[],
+  rosterClubs: readonly { id: string; initialRank?: number; tier?: ClubTier }[],
   year: number,
 ): { cpuPlayers: Player[]; teamRosters: Record<string, { main: string[] }> } {
   const cpuPlayers: Player[] = []
@@ -1057,7 +1058,7 @@ export function generateCpuRosters(
     return made
   }
 
-  for (const team of teams) {
+  for (const team of rosterClubs) {
     // ロスターの中身は「格」が決める（そのクラブに各ランクが何人いるか）。
     //
     // 前は 予算 → distributeSalaries で25人に年俸を配る → その額から rankForSalary で
@@ -1175,7 +1176,7 @@ function calculateRookieSalary(rank: Rank): number {
 // Uses NBA-style weighted lottery for the top picks.
 export function buildDraftOrder(
   // 各チームの過去成績（年と順位）。呼ぶ側が過去シーズンの順位表から作って渡す
-  teams: { id: string; seasonResults: { year: number; rank: number }[] }[],
+  draftClubs: { id: string; seasonResults: { year: number; rank: number }[] }[],
   year: number,
   playerTeamId?: string,
 ): string[] {
@@ -1194,7 +1195,7 @@ export function buildDraftOrder(
     return result
   }
 
-  const isInaugural = teams.every(t => t.seasonResults.length === 0 ||
+  const isInaugural = draftClubs.every(t => t.seasonResults.length === 0 ||
     !t.seasonResults.find(r => r.year === year - 1))
 
   let round1: string[]
@@ -1202,7 +1203,7 @@ export function buildDraftOrder(
   if (isInaugural) {
     // Inaugural year: all teams except playerTeam enter equal lottery.
     // PlayerTeam gets a slight advantage (weight 3x) simulating a top-5 guarantee.
-    const nonPlayer = teams.filter(t => t.id !== playerTeamId).map(t => t.id)
+    const nonPlayer = draftClubs.filter(t => t.id !== playerTeamId).map(t => t.id)
     const allIds = playerTeamId ? [...nonPlayer, playerTeamId] : [...nonPlayer]
     const weights = allIds.map(id => id === playerTeamId ? 3 : 1)
     round1 = runLottery(allIds, weights)
@@ -1219,7 +1220,7 @@ export function buildDraftOrder(
     }
   } else {
     // Subsequent years: sort teams by previous season rank (worst first = highest rank number)
-    const sorted = [...teams].sort((a, b) => {
+    const sorted = [...draftClubs].sort((a, b) => {
       const rankA = a.seasonResults.find(r => r.year === year - 1)?.rank ?? 20
       const rankB = b.seasonResults.find(r => r.year === year - 1)?.rank ?? 20
       return rankB - rankA // worst rank (highest number) first
@@ -1286,7 +1287,7 @@ const DOMESTIC_YOUTH_RANKS: Rank[] = ['C', 'D']
  *   n      … 何人つくるか（呼ぶ側が決める）
  */
 function makeNewPlayersFor(
-  team: Team, year: number, n: number, ranks: readonly Rank[], prefix: string,
+  team: WorldClub, year: number, n: number, ranks: readonly Rank[], prefix: string,
 ): Player[] {
   if (n <= 0) return []
   const made = generateCpuRosters([{ id: team.id, tier: tierOf(team) }], year).cpuPlayers.slice(0, n)
@@ -1311,12 +1312,12 @@ function makeNewPlayersFor(
 }
 
 export function refreshDomesticYouth(
-  teams: readonly Team[],
+  clubs: readonly WorldClub[],
   year: number,
   players: readonly Player[],
 ): Player[] {
-  // 2部・3部のクラブだけ。1部はドラフトがある
-  const targets = teams.filter(t => divisionOf(t) !== 1)
+  // 日本の2部・3部のクラブだけ。1部はドラフトがある（data/leagues の rules.draft）
+  const targets = jpelClubs(clubs).filter(t => !joinsDraft(t))
   if (targets.length === 0) return []
   const membersByClub = clubMembersByClub(players as Player[])
   const out: Player[] = []
@@ -1363,18 +1364,14 @@ const ROSTER_FILL_RANK: Rank = 'D'
  *   232クラブ × 6,000人 ＝ 140万回の比較になります（`utils/rosterSync` の注意書きと同じ）。
  */
 export function fillAllRostersToMin(
-  clubs: readonly Team[],
+  clubs: readonly WorldClub[],
   year: number,
   players: readonly Player[],
 ): Player[] {
   const byClub = clubMembersByClub(players as Player[])
-  const out: Player[] = []
-  for (const c of clubs) {
-    const have = (byClub.get(c.id) ?? []).length
-    // 足りないぶんだけ（15人ちょうどにする）。中身は makeNewPlayersFor 1本
-    out.push(...makeNewPlayersFor(c, year, ROSTER_MIN - have, [ROSTER_FILL_RANK], 'fill'))
-  }
-  return out
+  // 足りないぶんだけ（15人ちょうどにする）。中身は makeNewPlayersFor 1本
+  return mapClubs(clubs, c =>
+    makeNewPlayersFor(c, year, ROSTER_MIN - (byClub.get(c.id) ?? []).length, [ROSTER_FILL_RANK], 'fill')).flat()
 }
 
 // 海外選手のID採番。カウンタはメモリ上の値なのでアプリ再起動でリセットされる。
@@ -1383,13 +1380,14 @@ let foreignIdCounter = 9000
 
 // 年1回、海外クラブに動きをつける：引退等（removedIds）を外し、若手を1〜2人ずつ新加入。
 export function refreshForeignLeagues(
-  leagues: ForeignLeague[],
+  /** 補充するクラブ（海外のクラブ。並びの順に作る＝乱数を引く順） */
+  targetClubs: readonly Pick<ForeignClub, 'id' | 'country'>[],
   removedIds: Set<string>,
   year: number,
   players: Player[],
-): { newPlayers: Player[]; updatedLeagues: ForeignLeague[] } {
+): { newPlayers: Player[] } {
   // 補充は伸びしろ持ちの若手(19〜22)だけ。数年かけてそのティアのエースに育つ。
-  const fresh = generateForeignLeaguePlayers(leagues, year, [19, 22])
+  const fresh = generateForeignLeaguePlayers(targetClubs, year, [19, 22])
   // 新人は teamId にクラブが入った状態で作られるので、クラブごとに束ねて取り出す
   const freshByClub = clubMembersByClub(fresh.players)
   const byId = new Map(fresh.players.map(p => [p.id, p]))
@@ -1398,8 +1396,8 @@ export function refreshForeignLeagues(
   // 在籍選手の年齢を引くための索引（補充を年齢構成で判定するのに使う）
   const currentById = new Map(players.map(p => [p.id, p]))
   const newPlayers: Player[] = []
-  for (const l of leagues) {
-    for (const club of l.clubs) {
+  {
+    for (const club of targetClubs) {
       const kept = (membersByClub.get(club.id) ?? []).filter(id => !removedIds.has(id))
       // 新人補充の目標は26人まで（上限30に空き枠を残す）。全クラブを毎年30人に
       // 埋めてしまうと買い手枠が消えて海外間の移籍市場が動かなくなる。
@@ -1417,7 +1415,7 @@ export function refreshForeignLeagues(
       for (const id of adds) { const p = byId.get(id); if (p) newPlayers.push({ ...p, joinedYear: year }) }
     }
   }
-  return { newPlayers, updatedLeagues: leagues }
+  return { newPlayers }
 }
 
 /**
@@ -1479,7 +1477,8 @@ function hashForCap(s: string): number {
 }
 
 export function generateForeignLeaguePlayers(
-  leagues: ForeignLeague[],
+  /** 選手を作るクラブ（並びの順に作る＝乱数を引く順） */
+  targetClubs: readonly Pick<ForeignClub, 'id' | 'country'>[],
   year: number,
   // 年齢範囲。毎年の補充(refreshForeignLeagues)は伸びしろ持ちの若手だけを入れるので[19,22]を渡す。
   //
@@ -1490,7 +1489,7 @@ export function generateForeignLeaguePlayers(
   // 打ち消し合うので、初年度の強さは従来とほぼ同じまま年齢構成だけが若返る
   // （実測: 中央OVR 70→69 / 80以上 10%→12% / 90以上 0%→0%）。
   ageRange: [number, number] = [18, 28],
-): { players: Player[]; updatedLeagues: ForeignLeague[] } {
+): { players: Player[] } {
   const players: Player[] = []
   const specialties: Specialty[] = [...SPECIALTIES]
   const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']
@@ -1516,9 +1515,8 @@ export function generateForeignLeaguePlayers(
   const nextNationality = (fallback: Nationality): Nationality =>
     natIdx < natBag.length ? natBag[natIdx++] : fallback
 
-  const updatedLeagues = leagues.map(league => ({
-    ...league,
-    clubs: league.clubs.map(club => {
+  for (const club of targetClubs) {
+    {
       const tier = tierOfClubId(club.id)
       const cap = TIER_POTENTIAL_CAP[tier]
       // ロスターの中身は格が決める（そのクラブに各ランクが何人いるか）。
@@ -1593,10 +1591,8 @@ export function generateForeignLeaguePlayers(
         madeF.contract.annualSalary = faMarketSalary(madeF)
         players.push(madeF)
       })
+    }
+  }
 
-      return club
-    }),
-  }))
-
-  return { players, updatedLeagues }
+  return { players }
 }

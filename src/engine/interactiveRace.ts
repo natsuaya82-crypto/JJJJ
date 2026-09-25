@@ -1,10 +1,10 @@
-import type { Player, Segment, Race, Specialty, Team } from '../types'
+import type { Player, Segment, Race, Specialty, WorldClub } from '../types'
 import {
   calcBaseAbility, calcAffinity, calcConditionModifier,
   calcTraitModifier, calcWeatherModifier, calcClubModifier, scoreToTime,
 } from './raceEngine'
 import { MORALE_DEFAULT } from '../utils/condition'
-import { teamById } from '../utils/world'
+import { clubById } from '../utils/world'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -190,7 +190,7 @@ export function calcFinalSegTime(
   playerTimeMod: number,
   player: Player,
   seg: Segment,
-  team: Team | undefined,
+  team: WorldClub | undefined,
   race: Race,
   _seasonProgress: number,
   raceStrategy: 'aggressive' | 'balanced' | 'conservative',
@@ -224,7 +224,8 @@ export function calcFinalSegTime(
 
 export function calcCpuTimesForSeg(
   seg: Segment,
-  teams: Team[],
+  /** 世界のクラブ（本拠地の補正に使う実体を引く） */
+  clubs: readonly WorldClub[],
   cpuLineups: Record<string, Record<number, string>>,
   players: Player[],
   playerTeamId: string,
@@ -234,12 +235,14 @@ export function calcCpuTimesForSeg(
 ): Record<string, number> {
   const result: Record<string, number> = {}
   const playerMap = new Map(players.map(p => [p.id, p]))
-  for (const team of teams) {
-    if (team.id === playerTeamId) continue
-    const playerId = cpuLineups[team.id]?.[seg.index]
+  // 走るのは cpuLineups に並んだクラブだけ（並びは buildCpuLineups が組んだ順）
+  for (const teamId of Object.keys(cpuLineups)) {
+    if (teamId === playerTeamId) continue
+    const playerId = cpuLineups[teamId]?.[seg.index]
     if (!playerId) continue
     const player = playerMap.get(playerId)
     if (!player) continue
+    const team = clubById(clubs, teamId)
     // プレイヤーと完全に同じ計算方式（スタミナ消耗 → calcFinalSegTime）
     const segOvr = calcSegOvr(player, seg)
     const drain = calcNaturalDrain(segOvr, seg.distanceKm)
@@ -249,7 +252,7 @@ export function calcCpuTimesForSeg(
       segStamina, segOvr, 0, player, seg, team, race, seasonProgress, 'balanced', totalSegs,
     )
     const rand = 0.97 + Math.random() * 0.06
-    result[team.id] = Math.round(baseTime * rand)
+    result[teamId] = Math.round(baseTime * rand)
   }
   return result
 }
@@ -283,9 +286,9 @@ export function generateSegmentEvents(params: {
   totalSegs: number
   players: Player[]
   cpuLineups: Record<string, Record<number, string>>
-  teams: Team[]
+  clubs: readonly WorldClub[]
 }): RaceSegmentEvent[] {
-  const { seg, playerBaseTime, cpuTimesForSeg, cumulativeTimes, isFirstSeg, isLastSeg, player, totalSegs, players, cpuLineups, teams } = params
+  const { seg, playerBaseTime, cpuTimesForSeg, cumulativeTimes, isFirstSeg, isLastSeg, player, totalSegs, players, cpuLineups, clubs } = params
 
   // 各区間ちょうど1回だけイベントを出す（くどさ回避のため2回目は出さない）。
   const events: RaceSegmentEvent[] = []
@@ -337,7 +340,7 @@ export function generateSegmentEvents(params: {
 
   // ─── 総合順位コンテキスト計算 ───
   const teamName = (id: string): string | null =>
-    id === '__player__' ? null : (teamById(teams, id)?.shortName ?? null)
+    id === '__player__' ? null : (clubById(clubs, id)?.shortName ?? null)
 
   // 総合タイム昇順ソート（プレイヤー含む）
   const sortedCum = cpuCumArr.slice().sort(([, a], [, b]) => a - b)

@@ -9,10 +9,10 @@ import { saleAnswers, keepSaleAnswers } from '../utils/saleAnswer'
 
 import { counterCeiling } from '../data/economy'
 
-import { type GameState, type Player, type Team } from '../types'
+import { type GameState, type Player } from '../types'
 import { MAJOR_NEWS_OVR, isBigClub, isStepUp } from '../utils/clubTier'
-import { myClub, teamById, allTieredClubs, myLeagueRaces } from '../utils/world'
-import { allForeignClubs, bigClub, findClub, leagueOfClub } from '../utils/clubs'
+import { clubById, isJpelLeague, jpelClubById, myClub, myLeagueRaces } from '../utils/world'
+import { bigClub, findClub } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
 import { settleForeignFee } from '../utils/clubMoney'
 import { clubLabel, overseasMoveHeadline, soldPlayerHeadline } from '../utils/newsItems'
@@ -46,7 +46,7 @@ export function tradeValueCtxOf(state: { currentSeason: GameState['currentSeason
  * 「海外とか日本とかもう差分がないんだから一本化して」）。
  *
  * ★以前は `if (offer.fromForeign) return ceil` で**海外クラブだけ予算を見ず青天井**でした。
- *   理由は「海外クラブは `teams` に居ないので予算を見ない」でしたが、**その前提はもう
+ *   理由は「海外クラブは国内の入れ物に居ないので予算を見ない」でしたが、**その前提はもう
  *   ありません**——海外クラブの資金も `finance.budget` 1本で、他所（`engine/cpuMarket` /
  *   `utils/transferRivals` / `engine/transferMarket`）は全部 `transferCapOf(budget)` を
  *   通しています。ここだけ残っていたので、国内52クラブだけが予算をやりくりし、
@@ -54,7 +54,7 @@ export function tradeValueCtxOf(state: { currentSeason: GameState['currentSeason
  *   クラブは `utils/clubs` の `findClub` 1本で引く（国内・海外を区別しない引き方）。
  */
 export function willingFeeFor(
-  state: PlayRateWorld & { teams: Team[]; foreignLeagues?: import('../types').ForeignLeague[] | null },
+  state: PlayRateWorld,
   offer: { fromTeamId: string; offeredPrice: number; fromForeign?: boolean },
   player: Player,
 ): number {
@@ -62,13 +62,12 @@ export function willingFeeFor(
   const ceil = counterCeiling(marketValueOf(player, state), offer.offeredPrice)
   // クラブは国内52＋海外180から引く（どちらも `finance.budget` を持つ）。
   // 上限の式は `transferCapOf`（手元の資金）1本＝他所とまったく同じ
-  const club = teamById(state.teams, offer.fromTeamId)
-    ?? allForeignClubs(state.foreignLeagues ?? []).find(c => c.id === offer.fromTeamId)
+  const club = clubById(state.clubs, offer.fromTeamId)
   return Math.min(transferCapOf(club?.finance?.budget ?? 0), ceil)
 }
 
 export function sellMove(
-  state: Pick<GameState, 'players' | 'teams' | 'playerTeamId' | 'currentSeason'>,
+  state: Pick<GameState, 'players' | 'clubs' | 'playerTeamId' | 'currentSeason'>,
   playerId: string, toTeamId: string, fee: number, toName: string,
 ) {
   return movePlayer(state, playerId, toTeamId, {
@@ -90,7 +89,7 @@ export function sellMove(
  *   違うのは「いくらで売れたか」だけなので、金額だけ受け取る。
  *
  * ■国内と海外の違い
- *   海外クラブは teams に居ないので入金が自クラブ側だけになる。見出しも変わり、
+ *   海外クラブは movePlayer がお金を動かさないので settleForeignFee で精算する。見出しも変わり、
  *   ビッグクラブ（格2以上＝世界最高峰）へ送り出したときだけ実績が付く。その3つ以外は同じ。
  */
 /**
@@ -105,30 +104,28 @@ export function finalizeSale(
 ): Partial<GameState> {
   const player = state.players.find(p => p.id === offer.playerId)!
   const date = myLeagueRaces(state.currentSeason, state.playerTeamId)[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`
-  const league = offer.fromForeign ? leagueOfClub(state.foreignLeagues, offer.fromTeamId) : undefined
   // 行き先がどれだけ大きいかは**クラブの格**で言う（リーグでは言えない。utils/clubTier）。
   //   ビッグクラブ（格2以上）＝世界最高峰／自クラブより格上＝ステップアップ
   // 以前は「4大リーグのIDに入っているか」で、格3まで上がったクラブが最高峰扱いされず、
   // 格9まで落ちたクラブが最高峰のままだった。
-  const destClub = allTieredClubs(state.teams, state.foreignLeagues).find(c => c.id === offer.fromTeamId)
+  const destClub = clubById(state.clubs, offer.fromTeamId)
   const me = myClub(state)
   const toBigClub = !!offer.fromForeign && isBigClub(destClub)
   const toStepUp = !!offer.fromForeign && isStepUp(me, destClub)
   const toName = offer.fromForeign
-    ? (league?.clubs.find(c => c.id === offer.fromTeamId)?.shortName ?? '海外クラブ')
-    : (teamById(state.teams, offer.fromTeamId)?.shortName ?? '')
+    ? (destClub && !isJpelLeague(destClub.leagueId) ? destClub.shortName : '海外クラブ')
+    : (jpelClubById(state.clubs, offer.fromTeamId)?.shortName ?? '')
 
   const moved = sellMove(state, offer.playerId, offer.fromTeamId, fee, toName)
   const headline = offer.fromForeign
     ? overseasMoveHeadline({ playerName: player.name, playerOvr: ovr(player), clubName: toName, fee, big: toBigClub, stepUp: toStepUp })
-    : soldPlayerHeadline({ playerName: player.name, toLabel: clubLabel(offer.fromTeamId, state.teams), fee })
+    : soldPlayerHeadline({ playerName: player.name, toLabel: clubLabel(offer.fromTeamId, state.clubs), fee })
 
   return {
     players: moved.players,
-    teams: moved.teams,
-    // 買った側が海外クラブなら、そのクラブの資金からも引く（`movePlayer` は teams しか知らない）。
+    // 買った側が海外クラブなら、そのクラブの資金からも引く（`movePlayer` は日本のリーグのクラブしか動かさない）。
     // 国内同士なら何も起きないので、ここで分岐しないこと
-    foreignLeagues: settleForeignFee(state.foreignLeagues, state.playerTeamId, offer.fromTeamId, fee),
+    clubs: settleForeignFee(moved.clubs, state.playerTeamId, offer.fromTeamId, fee),
     transferHistory: [...(state.transferHistory ?? []), ...(moved.record ? [moved.record] : [])].slice(-400),
     // 世界最高峰（ビッグクラブ）へ送り出したのは初回だけ実績になる
     achievements: toBigClub && !(state.achievements ?? []).some(a => a.id === 'overseas-pioneer')
@@ -167,7 +164,7 @@ export function settleSaleAnswers(set: SetGame, get: () => GameStore): void {
     const winner = ps.offerId
     const beforeName = get().players.find(x => x.id === ps.playerId)?.name ?? ''
     const winnerId = (cs0.incomingOffers ?? []).find(o => o.id === winner)?.fromTeamId
-    const winnerName = findClub(get().teams, get().foreignLeagues, winnerId)?.shortName ?? '相手クラブ'
+    const winnerName = findClub(get().clubs, winnerId)?.shortName ?? '相手クラブ'
     const outcome = get().acceptIncomingOffer(winner, true)
     const p = get().players.find(x => x.id === ps.playerId)
 

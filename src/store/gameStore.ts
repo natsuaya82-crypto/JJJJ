@@ -18,13 +18,12 @@ import { saveSlotSuffix } from './saveSlot'
 // 端末に紐づくもの（課金の権利など）はスロットをまたいで共通。セーブの中に置かない
 import { deviceAdsRemoved, setDeviceAdsRemoved, deviceTwitterIntroSeen, setDeviceTwitterIntroSeen } from './deviceFlags'
 import { setSaveHealth } from './saveHealth'
-import type { GameState, Player, Team, RaceResults, IncomingOffer, TeamRole, FacilityKey, CardRarity, CardStatKey, TrainingCard, Ratings, Race, Nationality, Specialty } from '../types'
+import type { GameState, Player, Team, WorldClub, RaceResults, IncomingOffer, TeamRole, FacilityKey, CardRarity, CardStatKey, TrainingCard, Ratings, Race, Nationality, Specialty } from '../types'
 import type { ISim } from '../engine/interactiveRace'
-import { teamById } from '../utils/world'
+import { isJpelLeague, jpelClubs, mapClubs } from '../utils/world'
 
-// リーグの全チーム（1部20 ＋ 2部16 ＋ 3部16 = 52）。
-// 部の切り分けは Team.division が持つ。
-// 「どの部か」を見たいところは utils/league.ts の divisionOf / teamsInDivision を通すこと。
+// 日本のリーグの全チーム（1部20 ＋ 2部16 ＋ 3部16 = 52）。
+// 部は所属リーグ（leagueId＝jpel-<部>）が持つ。「どの部か」は utils/league.ts の divisionOf を通すこと。
 // 52チームの名簿そのものは utils/domesticClubs.ts の1本（既存セーブの補完もそこ）
 const ALL_TEAMS = ALL_DOMESTIC_TEAMS
 
@@ -38,7 +37,7 @@ import { BASE_PLAYERS } from '../data/players'
 import { drawSeasonSchedules } from '../data/races'
 import type { OfferOutcome } from '../utils/offerResult'
 import { type CardExchange } from '../utils/cardCombo'
-import { FOREIGN_LEAGUES } from '../data/foreignLeagues'
+import { initialWorldClubs } from './initialWorld'
 // 区間の地形→推奨ポジションは utils/terrain の1本
 // 過去シーズンに「何を残すか」は archiveSeason.ts に集約してある（保存時・移行時で同じ形になる）
 // セーブに「何を書かないか」は ephemeralState.ts に集約してある（画面の開閉状態と読まれない残骸）
@@ -60,7 +59,7 @@ import type { ClubTier } from '../utils/clubTier'
 // 監督の在任履歴と、他チームからの監督オファー
 // 引退選手の「引退時の所属」を旧セーブに埋める処理（記録室の国内限定ランキング用）
 import { stripCareerForSave } from '../utils/careerStats'
-import { newSeasonStandings, syncSeasonLeagues, divisionLeagues, withDivisionRaces, divisionOf } from '../utils/league'
+import { newSeasonStandings, syncSeasonLeagues, divisionLeagues, withDivisionRaces } from '../utils/league'
 import { tierBudget, tierOf } from '../utils/clubTier'
 // 端末に置いているものの登録表（キーと寿命）。データ削除で消すのはここから引く
 import { clearGameStorage } from './appStorage'
@@ -138,7 +137,6 @@ export type GameStore = GameState & {
   clearActiveRace: () => void
 
   // Gameplay
-  getTeam: (teamId: string) => Team | undefined
   getPlayer: (playerId: string) => Player | undefined
   getTeamPlayers: (teamId: string) => Player[]
   generateDevProspects: () => void
@@ -461,17 +459,13 @@ function emptyState(): Omit<GameStore, keyof ReturnType<typeof create>> {
     pastSeasons: [],
     growthReport: null,
     seasonBudgetNotice: null,
-    // 初期予算はクラブの格から算出。teams.tsの旧ハードコード値に依存しない。
-    // 施設は焼き込まない。自チーム以外のレベルは格から出す（utils/facilities の facilitiesOf）。
-    // 自チームは 0 から自分で建てる（startSetup で facilities: {} を入れる）
-    teams: ALL_TEAMS.map(t => ({
-      ...t,
-      finance: { ...t.finance, budget: tierBudget(t) } })),
+    // 世界のクラブ232（日本のリーグ52 → 海外180）。自チームは 0 から自分で建てる
+    // （startSetup で facilities: {} を入れる）
+    clubs: initialWorldClubs(),
     players: basePlayers,
     saveTimestamp: new Date().toISOString(),
     version: '0.1.0',
     sponsors: [],
-    foreignLeagues: FOREIGN_LEAGUES,
     trainingCards: [],
     raceDroppedCards: [],
     pendingGifts: [],
@@ -534,13 +528,16 @@ export const useGameStore = create<GameStore>()(
           //   繰り上がるのは「枠」＝(部, 格)の組。格は data/clubTiers.ts に手で振ってあり、
           //   部をまたいで重なっている（2部の上位は1部の下位より格が上）。順位から
           //   tierFromDomesticRank で引き直すとその値を捨ててしまうので、枠ごと動かす。
-          const orderedTeams = [...state.teams].sort((a, b) => (a.initialRank ?? 999) - (b.initialRank ?? 999))
-          const slots = orderedTeams.map(t => ({ division: divisionOf(t), tier: tierOf(t) }))
+          const orderedTeams = [...jpelClubs(state.clubs)].sort((a, b) => (a.initialRank ?? 999) - (b.initialRank ?? 999))
+          const slots = orderedTeams.map(t => ({ leagueId: t.leagueId, tier: tierOf(t) }))
           const reordered = [...orderedTeams.filter(t => t.id !== setup.teamId), orderedTeams.find(t => t.id === setup.teamId)!]
           const placementOf = new Map(reordered.map((t, i) => [t.id, slots[i]]))
-          const renamedTeams: Team[] = state.teams.map(t => {
+          const renamedClubs: WorldClub[] = mapClubs(state.clubs, (c): WorldClub => {
+            // 並べ替えるのは日本のリーグの52クラブだけ
+            if (!isJpelLeague(c.leagueId)) return c
+            const t = c as Team
             // initialRank は初期施設のもとになった値なので触らない（枠だけ動かす）
-            const placed = placementOf.get(t.id) ?? { division: divisionOf(t), tier: tierOf(t) }
+            const placed = placementOf.get(t.id) ?? { leagueId: t.leagueId, tier: tierOf(t) }
             if (t.id === setup.teamId) {
               return {
                 ...t,
@@ -564,29 +561,29 @@ export const useGameStore = create<GameStore>()(
 
           // 最初の18人をチームに入れる。入り口はドラフトでも移籍でも同じなので movePlayer を通す
           let players: Player[] = state.players
-          let teams = renamedTeams
+          let clubs = renamedClubs
           baseIds.forEach((id, bi) => {
-            const m = movePlayer({ players, teams }, id, setup.teamId, {
+            const m = movePlayer({ players, clubs }, id, setup.teamId, {
               year: state.currentSeason.year,
               history: false,
               // 契約年数を3〜5年にばらけさせ、更新が一斉に来ないようにする
               contract: { yearsLeft: 3 + (bi % 3) } })
             if (!m.ok) return
             players = m.players
-            teams = m.teams
+            clubs = m.clubs
           })
           return {
-            teams, players, setupData: setup, playerTeamId: setup.teamId,
+            clubs, players, setupData: setup, playerTeamId: setup.teamId,
             currentSeason: {
               ...state.currentSeason,
               // ★ここで部が動いたので順位表も合わせる（utils/league の syncSeasonLeagues 1本）。
-              //   順位表は部ごとに分けて持つ＝部がキーなので、teams の部だけ動かすと
+              //   順位表は部ごとに分けて持つ＝部がキーなので、クラブの部だけ動かすと
               //   「走る部」と「順位表に載っている部」が食い違い、自分の行が書き込み先に
               //   存在しなくなる（2部のクラブを選ぶと自分だけ0ptのまま・元の2部が裏で走り続けた）
               // 海外リーグは日本1部と同じ10日を走る（engine/leagueDay）
               leagues: withForeignSchedules(syncSeasonLeagues({
-                leagues: withDivisionRaces(state.currentSeason.leagues, schedules), teams, playerTeamId: setup.teamId }),
-                state.foreignLeagues) },
+                leagues: withDivisionRaces(state.currentSeason.leagues, schedules), clubs, playerTeamId: setup.teamId }),
+                clubs) },
             // 監督の在任履歴はここが起点。以後の移籍でここに積んでいく（utils/gmTenure.ts）
             gmTenures: [{ teamId: setup.teamId, fromYear: state.currentSeason.year }] }
         })
@@ -594,7 +591,6 @@ export const useGameStore = create<GameStore>()(
       ...createDraftSlice(set, get),
       ...createRaceSlice(set, get),
 
-      getTeam: (teamId) => teamById(get().teams, teamId),
       getPlayer: (playerId) => get().players.find(p => p.id === playerId),
       // 在籍選手は player.teamId から直接引く（team.roster の写しは見ない）。
       // 以前は roster 配列を見ていたため、更新し損ねると「ロスター画面にだけ出ない選手」が生まれていた。

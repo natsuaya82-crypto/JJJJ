@@ -3,10 +3,10 @@
  "adsRemoved": "fcbcf165908dd18a (5B)",
  "adsWatchedToday": "eb045d78d2731073 (9B)",
  "balancePatch": "6b86b273ff34fce1 (1B)",
+ "clubs": "79092ce2cfc8752b (43479B)",
  "currentSeason": "7b0a1fe2cfb2a879 (614231B)",
  "deficitRescue": "6b86b273ff34fce1 (1B)",
  "draftState": "74234e98afe7498f (4B)",
- "foreignLeagues": "91db34020df9a7e6 (29991B)",
  "giftGivenVersions": "4f53cda18c2baa0c (2B)",
  "gmOffers": "4f53cda18c2baa0c (2B)",
  "gmRep": "1a6562590ef19d10 (2B)",
@@ -41,7 +41,6 @@
  "sponsors": "4f53cda18c2baa0c (2B)",
  "starredOpponents": "4f53cda18c2baa0c (2B)",
  "starredProspects": "4f53cda18c2baa0c (2B)",
- "teams": "3e284fedc1a01c3b (13918B)",
  "totalLoginDays": "eb045d78d2731073 (9B)",
  "trainingCards": "f26cbbd4eefbe40b (502B)",
  "transferHistory": "28c991568a8dc9fe (10910B)",
@@ -50,5 +49,5 @@
  "worldAthleticsResults": "4f53cda18c2baa0c (2B)",
  "worldRecords": "44136fa355b3678a (2B)",
  "worldRepresentatives": "4f53cda18c2baa0c (2B)",
- "$all": "02a6dbfc678d7179 (4989205B)"
+ "$all": "8111cc00d1ab7ccb (4988759B)"
 }

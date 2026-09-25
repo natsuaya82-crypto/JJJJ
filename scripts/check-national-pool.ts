@@ -20,7 +20,7 @@
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { ekidenCandidates, nationStrength, qualifierNations, qualHostForYear, NATIONAL_POOL } from '../src/engine/worldAthletics'
 import { HOME_NATION, natGeoRegion, NATIONALITY_META } from '../src/data/nationalities'
 import type { Nationality, Player, Team } from '../src/types'
@@ -35,7 +35,7 @@ const label = (n: Nationality) => NATIONALITY_META[n as keyof typeof NATIONALITY
 const YEAR = 2039   // 奇数年＝アジア予選の年
 const teams: Team[] = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
 const domestic = generateCpuRosters(teams, YEAR).cpuPlayers
-const { players: foreign } = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+const { players: foreign } = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
 // ★生成直後の選手は eventBests を1つも持たない＝「記録会を一度も走っていない」状態そのもの
 const players: Player[] = [...domestic, ...foreign]
 const hasAnyTime = players.some(p => p.eventBests && Object.keys(p.eventBests).length > 0)
@@ -72,7 +72,7 @@ check('既定で呼ぶと min(日本人の有効人数, NATIONAL_POOL) 人',
 check('候補はOVRの高い順', cands.every((c, i) => i === 0 || cands[i - 1].score >= c.score))
 
 // 海外クラブに居る日本人が候補に入るか（旧仕様で落ちていたのがここ）
-const foreignClubIds = new Set(FOREIGN_LEAGUES.flatMap(l => l.clubs).map(c => c.id))
+const foreignClubIds = new Set(INITIAL_FOREIGN_CLUBS.map(c => c.id))
 const jpAbroad = players.filter(p => p.nationality === HOME_NATION && foreignClubIds.has(p.teamId ?? ''))
 const jpAbroadIn = jpAbroad.filter(p => cands.some(c => c.player.id === p.id))
 check('海外クラブの日本人も候補に入る', jpAbroad.length === 0 || jpAbroadIn.length > 0,

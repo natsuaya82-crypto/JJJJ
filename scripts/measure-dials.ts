@@ -5,22 +5,21 @@
  */
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
-import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
+import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
-import { allTieredClubs } from '../src/utils/world'
 import { tierOfPlayerClub } from '../src/utils/clubTier'
 import { tierLines, playerTierOf } from '../src/utils/playerTier'
 import { effectiveOvr } from '../src/utils/foreignClubProfile'
 import { peakAgeOfCurve } from '../src/engine/ageCurve'
 import { ovr } from '../src/utils/playerUtils'
-import type { Player, Team } from '../src/types'
+import type { Player, Team, WorldClub } from '../src/types'
 
 const YEAR = 2030
 const base = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
 const cpu = generateCpuRosters(base, YEAR)
-const fgen = generateForeignLeaguePlayers(FOREIGN_LEAGUES, YEAR)
+const fgen = generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, YEAR)
 const players: Player[] = [...cpu.cpuPlayers, ...fgen.players]
-const clubs = allTieredClubs(base, fgen.updatedLeagues)
+const clubs: WorldClub[] = [...base, ...INITIAL_FOREIGN_CLUBS]
 const tierOf = (id: string) => tierOfPlayerClub(id, clubs)
 
 // ② 重みを差し替えて選手の格を出し直す（定数を触らずに同じ式を写す）
