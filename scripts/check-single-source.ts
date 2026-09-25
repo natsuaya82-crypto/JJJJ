@@ -671,14 +671,14 @@ RULES.push({
     neverAppears: '正は `utils/condition` の `withGmRep`。`gmRep` を直に足し引きする形はどこにも無いのが正しい',
   fix: 'utils/condition.ts の withGmRep(cur, delta) を使う',
 })
-// オフシーズンの4つの処理（解雇・CPU間移籍・トレード・レンタル）が
-// 「相手にするクラブ」を数えるところ。beginSeasonDraft の中だけで3回手書きされていた。
+// オフシーズンの処理（解雇・トレード・レンタル）が「相手にするクラブ」を数えるところ。
+// beginSeasonDraft の中だけで3回手書きされていた。いまは自チームの id で外す1本（W6）。
 RULES.push({
   name: '国内CPUクラブの集め方を手書きしている',
-  pattern: /!==\s*'__pool__'[^\n]*domesticTeamIdSet|domesticTeamIdSet[^\n]*!==\s*'__pool__'/,
+  pattern: /!==\s*'__pool__'[^\n]*domesticTeamIdSet|domesticTeamIdSet[^\n]*!==\s*'__pool__'|domesticCpuTeamIds/,
   allow: ['src/utils/clubs.ts'],
-    neverAppears: '正は `utils/clubs` の `domesticCpuTeamIds`。集め方を写す形はどこにも無いのが正しい',
-  fix: "utils/clubs.ts の domesticCpuTeamIds(players, teams, playerTeamId) を使う",
+    neverAppears: '正は `utils/world` の `otherClubs`（自チームの id で外す）。国内CPUだけを集める `domesticCpuTeamIds` は 2026-09-25 に廃止',
+  fix: "utils/world.ts の otherClubs(clubs, playerTeamId) を使う",
 })
 // 人数を減らすときに先に切る順。1軍23人ぶんと総在籍の上限ぶんで同じ式を書いていた。
 RULES.push({

@@ -20,13 +20,12 @@ import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
 import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
-import { jpelClubById } from '../src/utils/world'
+import { clubIds, jpelClubById, otherClubs } from '../src/utils/world'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { newSeasonStandings, DIVISIONS, DIVISION_RACES, divisionOf } from '../src/utils/league'
 import { generateSeasonRaces } from '../src/data/races'
 import { comparePlayers } from '../src/utils/playerSort'
 import { hasNoPlayingTime } from '../src/utils/transferDecision'
-import { domesticCpuTeamIds } from '../src/utils/clubs'
 import { needsPlayer } from '../src/utils/squadNeeds'
 import { ovr } from '../src/utils/playerUtils'
 import type { SeasonStanding, Team, Player } from '../src/types'
@@ -106,7 +105,7 @@ for (const r of tradeRecords().slice(-8)) {
 
 // ── 門の内訳。0件だったときに「どこで落ちているか」が分からないと直せない ──
 const st = useGameStore.getState()
-const cpuIds = domesticCpuTeamIds(st.players, st.clubs, MY)
+const cpuIds = clubIds(otherClubs(st.clubs, MY))
 let withSurplus = 0, pairsChecked = 0, needOk = 0, bothOk = 0
 for (const buyerId of cpuIds) {
   const buyRoster = st.players.filter(p => p.teamId === buyerId && p.status === 'active')

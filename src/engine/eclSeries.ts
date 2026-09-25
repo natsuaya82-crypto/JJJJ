@@ -90,7 +90,8 @@ export function buildEclParticipants(args: {
     for (const club of picked) {
       parts.push({
         id: club.id, name: club.name, shortName: club.shortName,
-        isForeign: true, isPlayerTeam: false,
+        // 自チームかどうかは id だけで見る（W6。どのリーグから出ても同じ）
+        isForeign: true, isPlayerTeam: club.id === playerTeamId,
         leagueName: league.name, colors: club.colors,
       })
     }

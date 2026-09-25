@@ -120,7 +120,6 @@ md は消すこと**。2026-08-23 に7本（リファクタリング設計書・
 | `src/engine/timeTrial.ts` | **記録会の本体**。誰が走るか・順位・疲労・カード報酬・チーム歴代記録 |
 | `src/engine/timeTrialRecords.ts` | **記録会の歴代1位**。`updateBestRecord`（世界記録も日本記録も同じ1本。違うのは「誰を見るか」だけ）／`withEventBest` |
 | `src/utils/condition.ts` の `withGmRep` | **GMの評判の上下限**（0〜100）。**下限は 0 の1本**（2026-08-12・`docs/BACKLOG.md` A-8 `済`）。以前は `seasonObjectives` だけ `Math.max(1, …)` で1止まりでした |
-| `src/utils/clubs.ts` の `domesticCpuTeamIds` | **国内CPUクラブのID**。並び順が `movePlayer` を走らせる順になるので変えないこと |
 | `src/utils/world.ts` | **世界の層（クラブを探す・書くのは1か所だけ）**。クラブは `GameState.clubs`＝**232の1つの並び**（日本のリーグ52 → 海外180）で、どのリーグかは `club.leagueId` だけが持つ。層の外は `clubById` / `clubsWhere` / `mapClubs` / `clubMap` / `clubsInLeague` / `otherClubs` / `jpelClubs` / `jpelClubById` … を通すこと（`clubs.find(…)` を書かない）。★**実行時の import を持たないこと**（league.ts / clubTier.ts からも呼ばれるので循環する）。`check-world-layer` が層の外の直読みを**0件**で見張る |
 | `src/data/leagues.ts` | **リーグ12本**（日本1部・2部・3部＋海外9）と、**リーグの決まり**（`leagueRules`＝昇降格・格が動くか・ドラフト）。名前・国もここ（セーブには載せない）。日本の部のIDは `jpel-<部>`（`utils/world` の `divisionLeagueId` と同じ字。data は utils を import できないので表として書き、食い違いは `check-world-layer` が見る） |
 | `src/store/initialWorld.ts` の `initialWorldClubs` | **新しいゲームの世界のクラブ232**。store の初期状態と、旧い形のセーブで入れ物が片方しか無いときの補いの2か所が通る |

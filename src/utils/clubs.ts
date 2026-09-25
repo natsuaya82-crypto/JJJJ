@@ -4,7 +4,7 @@ import type { ForeignClub, Nationality, Team, WorldClub } from '../types'
 import { leagueById } from '../data/leagues'
 import { strHash } from './hash'
 import { isBigClub } from './clubTier'
-import { clubById, isJpelLeague, jpelClubIdSet } from './world'
+import { clubById, isJpelLeague } from './world'
 
 // ============================================================================
 // 「クラブ」は1種類だけ。ここが唯一の引き場所。
@@ -141,29 +141,6 @@ export function makeClubIndex(clubs: readonly WorldClub[] | null | undefined): C
     all,
     isDomestic: (id) => (id ? byId.get(id)?.isDomestic === true : false),
   }
-}
-
-/**
- * **国内CPUクラブのID**（選手が実際に所属しているクラブだけ。自チームは含まない）。
- *
- * オフシーズンの処理（解雇・CPU間移籍・トレード・レンタル）が「相手にするクラブ」を
- * 数えるときの唯一の入口。以前は同じ5条件の filter が `beginSeasonDraft` の中だけで
- * 3回書かれていた。
- *
- * ★**並び順は「players の中で最初に出てきた順」**。呼び出し側はこの順に movePlayer を
- *   走らせるので、順番が変わると誰が誰を獲るかが変わる。並べ替えないこと。
- *
- * `'__pool__'`（ドラフト候補）と `''`（無所属）は日本のリーグのクラブのIDではないので自動的に外れる。
- */
-export function domesticCpuTeamIds(
-  players: { teamId: string }[],
-  clubs: readonly WorldClub[] | null | undefined,
-  playerTeamId: string,
-): string[] {
-  const domestic = jpelClubIdSet(clubs)
-  return [...new Set(
-    players.filter(p => p.teamId !== playerTeamId && domestic.has(p.teamId)).map(p => p.teamId)
-  )]
 }
 
 // 索引を作るほどでもない1回きりの検索用。中身は同じルール。

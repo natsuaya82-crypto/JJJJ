@@ -71,7 +71,7 @@ const CHECKS = [
   // 全部が赤いルールは誰も直さずそのうち外される
   'size',
   // クラブ・格・お金
-  'club-tiers', 'club-standing', 'foreign-money', 'club-money', 'season-budget', 'clubs', 'offseason', 'market-rate', 'owner-decisions',
+  'club-tiers', 'club-standing', 'foreign-money', 'club-money', 'season-budget', 'self-by-id', 'clubs', 'offseason', 'market-rate', 'owner-decisions',
   // 世界の層。クラブを探す・書くのは utils/clubs.ts だけ（自チームは myClub / withMyClub）。
   // 層の外の入れ物の直読みは「今日より増えたら落ちる」
   'world-layer',

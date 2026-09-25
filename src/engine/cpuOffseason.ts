@@ -23,8 +23,7 @@ import { playerTierOf, tierLines } from '../utils/playerTier'
 import { isOwnedBy, isTransferLocked } from '../utils/transferEligibility'
 import { comparePlayers } from '../utils/playerSort'
 import { clubIndexOf } from '../utils/rosterSync'
-import { clubIds, clubMap, clubsWhere, isJpelLeague } from '../utils/world'
-import { domesticCpuTeamIds } from '../utils/clubs'
+import { clubIds, clubMap, otherClubs } from '../utils/world'
 import { movePlayer } from '../utils/movePlayer'
 import { calcTransferValue, ovr, playerConsentToMove } from '../utils/playerUtils'
 import { clubLabel, loanHeadline, type NewsItem } from '../utils/newsItems'
@@ -48,15 +47,11 @@ import type { ArchivedSeason, Player, Season, TransferRecord, WorldClub } from '
  *   国内を先に並べると海外まで順番が回らない
  *   （`cpuMarket.generateTransferActivity` で同じ穴を踏んでいる）。
  */
-function marketClubIds(
-  players: Player[], clubs: readonly WorldClub[], playerTeamId: string,
-): string[] {
-  // 国内は「選手が実際に所属しているCPUクラブ」（players の並び）、海外は全クラブ（世界の並び）。
-  // 並べ方が違うのはいまの振る舞い（シャッフルするので順番の意味は無い）
-  const ids = [
-    ...domesticCpuTeamIds(players, clubs, playerTeamId),
-    ...clubIds(clubsWhere(clubs, c => !isJpelLeague(c.leagueId))),
-  ]
+function marketClubIds(clubs: readonly WorldClub[], playerTeamId: string): string[] {
+  // 自チーム以外の全クラブ（世界の並び）。**自チームは id で外す**（W6。国内か海外かを見ない）。
+  // 以前は「国内は選手が所属しているCPUクラブ、海外は全クラブ」の2本をつないでいて、
+  // 自チームが海外クラブだと自チームまで解雇・トレード・レンタルの対象に入っていた
+  const ids = clubIds(otherClubs(clubs, playerTeamId))
   // Fisher-Yates。特定のクラブだけが毎年先に選べる状態にしない
   for (let i = ids.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1))
@@ -133,7 +128,7 @@ export function runCpuReleases(
   //   除外の理由は「ロスター概念の無い海外側」でしたが、海外クラブも
   //   `ROSTER_MAX` で管理すると同じファイルの隣に書いてあります。
   //   トレードとレンタルは 2026-08-13 に既に1本化済みで、**解雇だけが取り残されて**いました。
-  const cpuTeamIds = marketClubIds(world.players, world.clubs, ctx.playerTeamId)
+  const cpuTeamIds = marketClubIds(world.clubs, ctx.playerTeamId)
   const tierBudgetById = clubMap(world.clubs, c => tierBudget(c))
 
   for (const teamId of cpuTeamIds) {
@@ -241,7 +236,7 @@ export function runCpuLoans(
   const news: NewsItem[] = []
   const loanedIds = ctx.excludeIds
   const loanYear = ctx.year + 1
-  const cpuIds = marketClubIds(players, world.clubs, ctx.playerTeamId)
+  const cpuIds = marketClubIds(world.clubs, ctx.playerTeamId)
   // ★**借り手の上限も、下の下限（`rosterSize`）と同じ数え方にすること。**
   //   ここは `status === 'active' && !p.loan` で**怪我人と借りている選手を落として**いたので、
   //   同じループの中で上限と下限が別の population を見ていました
@@ -355,7 +350,7 @@ export function runCpuTrades(
   const records: TransferRecord[] = []
   const tradedIds = ctx.excludeIds
   const tradeCount: Record<string, number> = {}
-  const cpuIds = marketClubIds(players, world.clubs, ctx.playerTeamId)
+  const cpuIds = marketClubIds(world.clubs, ctx.playerTeamId)
   // 格を引く材料は1回だけ組む（232クラブの配列を1組ごとに作り直さない）
   const tradeTierBy = clubMap(world.clubs, c => tierOf(c))
   const tradeLines = tierLines(players, id => tradeTierBy.get(id) ?? DOMESTIC_BOTTOM_TIER)
