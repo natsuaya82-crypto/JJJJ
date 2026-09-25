@@ -37,7 +37,7 @@ import { FOREIGN_LEAGUE_DEFS, INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { generateSeasonRaces } from '../src/data/races'
 import { DIVISIONS, DIVISION_RACES, divisionOf, newSeasonStandings } from '../src/utils/league'
-import { clubsInLeague } from '../src/utils/world'
+import { clubById, clubsInLeague, isJpelLeague } from '../src/utils/world'
 import { appraiseMove, buildDestination } from '../src/utils/transferDecision'
 import { appraiseGmInvite } from '../src/utils/gmInvite'
 import { gmInviteNoLine } from '../src/utils/chatLines'
@@ -101,7 +101,10 @@ function runInvite(pickPlayer: (roster: Player[]) => Player | undefined) {
   const before = S().players.filter(p => p.teamId === MY && p.status === 'active')
   const target = pickPlayer(before)
   S().resignAsGm()
-  const destId = (S().gmOffers ?? [])[0]?.teamId ?? ''
+  // ★行き先は**日本のクラブの打診**（退任の3件のうち1件は必ず日本のクラブ）。ここで見るのは
+  //   声をかけたときの返事と動かし方で、この世界は日本のクラブにだけ移籍金を持たせてある。
+  //   海外クラブへ連れて行く道は check-gm-foreign が本物の手順で見る
+  const destId = (S().gmOffers ?? []).find(o => isJpelLeague(clubById(S().clubs, o.teamId)?.leagueId))?.teamId ?? ''
   // ★声をかけた「その場」で返事が決まる（チャットで見せているのと同じ関数・同じ世界）。
   //   実際に動かすのは applyGmMove で、そちらも同じ関数を通る
   const st = S()

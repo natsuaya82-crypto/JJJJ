@@ -77,16 +77,17 @@ console.log('[③] 移籍したら3シーズンは、退任もオファーも無
 
   // ★オファー側も同じ線。以前は「就任1年目は来ない」の2年で、
   //   **押せないのにオファーだけ来る**年があった
-  // ★格を付けないと offerCandidates が「格上も格下も居ない」と判断して常に null になる。
-  //   fixture の作りが甘いと、判定ではなく世界のせいで落ちる（最初に書いた版がこれ）
+  // ★格を付けないと offerPools が「範囲の中に格上も格下も居ない」と判断して常に null になる。
+  //   fixture の作りが甘いと、判定ではなく世界のせいで落ちる（最初に書いた版がこれ）。
+  //   自チームが優勝＝範囲は格上だけ（x は格5で自チームは格15）
   const teams = [{ id: MY, shortName: MY, leagueId: 'jpel-1', tier: 15, finance: { budget: 1e9 } },
     { id: 'x', shortName: 'x', leagueId: 'jpel-1', tier: 5, finance: { budget: 1e9 } }] as unknown as Team[]
   const budgets = Object.fromEntries(teams.map(t => [t.id,
     { budget: 1e9, carryover: 0, grant: 1e9, raceIncome: 0, sponsor: 0, objBonus: 0, expenses: 0 }]))
   const offerAt = (nextYear: number) => makeGmOffer({
-    season: { standings: { 1: [{ teamId: 'x', totalPoints: 50 }, { teamId: MY, totalPoints: 40 }] } } as never,
-    playerTeamId: MY, finalRank: 1, gmRep: 100,
-    teamCount: 20, nextYear, clubs: teams, nextBudgets: budgets as never, objBonus: 0,
+    season: { leagues: { 'jpel-1': { races: [], standings: [{ teamId: MY, totalPoints: 50 }, { teamId: 'x', totalPoints: 40 }] } } } as never,
+    playerTeamId: MY, gmRep: 100,
+    nextYear, clubs: teams, nextBudgets: budgets as never, objBonus: 0,
     rng: () => 0, tenureStartYear: YEAR })
   check('就任2年目にオファーは来ない', offerAt(YEAR + 1) === null)
   check('3年目にもオファーは来ない', offerAt(YEAR + 2) === null)

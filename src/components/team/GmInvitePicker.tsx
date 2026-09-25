@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Player, Team } from '../../types'
+import type { Player, WorldClub } from '../../types'
 import PlayerRow from '../player/PlayerRow'
 import PageHeader from '../ui/PageHeader'
 import GmInviteChat from './GmInviteChat'
@@ -24,7 +24,7 @@ export default function GmInvitePicker({ roster, dest, invite, onPick, onClose }
   /** 声をかけられる相手（いま指揮しているクラブの在籍選手） */
   roster: Player[]
   /** 行き先のクラブ。返事の判定に要る */
-  dest: Team
+  dest: WorldClub
   /** いま選んでいる相手。空文字＝誰にも声をかけない */
   invite: string
   onPick: (id: string) => void

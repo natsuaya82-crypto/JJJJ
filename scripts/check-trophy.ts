@@ -107,7 +107,7 @@ console.log('\n[4] 増える口は2つだけ（1部優勝・ECL優勝）')
   const logic = logicSource()
   // ★**口を名前で数えること。** 「+ 1」の字面で数えると、書き方（改行・三項）が変わった
   //   だけで見失う。増える道は「1部優勝」と「ECL優勝」の2つだけ
-  check('増える道その1：JPEL 1部優勝', /TOP_DIVISION && myFinalRank === 1 \? 1 : 0/.test(logic))
+  check('増える道その1：JPEL 1部優勝', /leagueId === divisionLeagueId\(TOP_DIVISION\) && myFinalRank === 1 \? 1 : 0/.test(logic))
   check('増える道その2：ECL優勝', /eclWon \? \{ trophies:/.test(logic))
   // 増える道は3つ（1部優勝・ECL優勝・運営からの配布）、減る道は1つ（使う）。
   // ★配布はギフト1本を通すこと（`grantUpdateGifts` の GIFT_VERSION を変えると全員に配られる）。
@@ -116,7 +116,10 @@ console.log('\n[4] 増える口は2つだけ（1部優勝・ECL優勝）')
   const touches = (logic.match(/trophies: \(state\.trophies \?\? 0\)/g) ?? []).length
   check('trophies を書き換えているのは4か所だけ（増3・減1）', touches === 4, `${touches}か所`)
   check('減らしているのは1か所', (logic.match(/trophies: \(state\.trophies \?\? 0\) - 1/g) ?? []).length === 1)
-  check('1部だけ（TOP_DIVISION を見ている）', /TOP_DIVISION && myFinalRank === 1/.test(logic))
+  check('1部だけ（日本1部のリーグを見ている）', /divisionLeagueId\(TOP_DIVISION\) && myFinalRank === 1/.test(logic))
+  // ★部を `divisionOf` で読まないこと。部のリーグに居ないクラブ（海外）も1部と読むので、
+  //   海外リーグの優勝でもトロフィーが出る（check-gm-foreign が実際に走らせて見る）
+  check('部を divisionOf で読んでいない（海外リーグの優勝で出ない）', !/divisionOf\([^)]*\)\)? === TOP_DIVISION && myFinalRank/.test(logic))
   check('関門は utils/trophy 1本（store に条件を手書きしていない）',
     !/trophyBoosts\?\.\[stat\] \?\? 0\) >= 11|cur < 99/.test(logic))
 }

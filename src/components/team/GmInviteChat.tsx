@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Player, Team } from '../../types'
+import type { Player, WorldClub } from '../../types'
 import { useGameStore } from '../../store/gameStore'
 import PlayerFace from '../player/PlayerFace'
 import ChatBubble from './chat/ChatBubble'
@@ -28,7 +28,7 @@ import ScreenCover from '../ui/ScreenCover'
 export default function GmInviteChat({ player, dest, onAgreed, onClose }: {
   player: Player
   /** 行き先のクラブ */
-  dest: Team
+  dest: WorldClub
   /** 頷いてもらえたとき。連れて行く相手として確定する */
   onAgreed: () => void
   onClose: () => void

@@ -204,6 +204,8 @@ const CHECKS = [
   // 監督の移籍は**次のシーズンから**（★13）。世界を1つ作って実際に移してみる
   { name: 'gm-move', shim: true },
   { name: 'gm-invite', shim: true },
+  // 海外クラブの監督に就任して1年走り切る（本物の手順で世界を作る）
+  { name: 'gm-foreign', shim: true },
   // クラブの部はクラブのもの（監督が去っても元の部へ引き戻されない）
   'club-division-pin',
   // セーブの書き出し（本体＋走行記録の別ファイル）

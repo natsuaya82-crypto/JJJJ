@@ -1,7 +1,8 @@
 // 【画面の点検の台】check-foreign-screens がブラウザで開くページ（アプリ本体には入らない）。
 //
 // 新しいゲームを本物の手順（startSetup → 初回ドラフト → 開幕 → 2戦）で作り、
-// `?mode=foreign` なら**自チームを海外クラブへ移した世界**、`?mode=jpel` ならそのままの世界で、
+// `?mode=foreign` なら**海外クラブの監督に就任した世界**（1年走って退任 → 海外クラブの打診を受ける
+// → 翌シーズンの開幕 → 2戦）、`?mode=jpel` ならそのままの世界で、
 // アプリと同じ道すじ（App.tsx の AppRoutes）を1本ずつ開いていく。ドラフト会場（Layout の外）も開く。
 // 1枚ごとに「落ちたか」「何が出たか」を window.__screens に書き、終わったら window.__screensDone を立てる。
 // 判定は check-foreign-screens.ts（ここは開いて写すだけ）。
@@ -16,7 +17,7 @@ import DraftRoom from '../../src/components/draft/DraftRoom'
 import { useGameStore } from '../../src/store/gameStore'
 import { assignLineupByTerrain } from '../../src/engine/raceEngine'
 import { ovr } from '../../src/utils/playerUtils'
-import { clubsWhere, isJpelLeague, myClub, myLeagueRaces, otherClubs } from '../../src/utils/world'
+import { clubById, isJpelLeague, myClub, myLeagueRaces, otherClubs } from '../../src/utils/world'
 import { clubGmName, clubRoutePath, clubView, leagueRoutePath } from '../../src/utils/clubs'
 import { rankOfTeam, seasonLeagueStandings } from '../../src/utils/league'
 import { leagueById, FOREIGN_LEAGUE_DEFS } from '../../src/data/leagues'
@@ -30,6 +31,15 @@ declare global {
 const shots: Shot[] = []
 window.__screens = shots
 window.__screensMeta = {}
+
+// 台はセーブを書かない。Web のセーブは localStorage（5MB前後）で、1年進めて監督が移った世界は
+// 入りきらず、書くたびに例外が出る（本物の端末はファイルへ書く＝store/saveStorage）。
+// ここは画面を開いて写すだけなので、セーブは書かずに捨てる
+const lsSetItem = Storage.prototype.setItem
+Storage.prototype.setItem = function (key: string, value: string) {
+  if (key.startsWith('jpel-manager-save')) return
+  lsSetItem.call(this, key, value)
+}
 
 const S = () => useGameStore.getState()
 const wait = (ms: number) => new Promise(r => setTimeout(r, ms))
@@ -47,11 +57,8 @@ async function settled(): Promise<string> {
 
 // ── 世界を作る ──
 let draftAtStart: DraftState | null = null
-function buildWorld(mode: string) {
-  const g = S
-  g().startSetup({ teamName: '点検', teamShortName: '点検', teamId: 'tokyo', gmName: 'GM' })
-  g().beginInauguralDraft()
-  draftAtStart = g().draftState
+const g = S
+function runDraft() {
   for (let i = 0; i < 400 && g().draftState && !g().draftState!.isComplete; i++) {
     const st = g()
     const cur = st.draftState!.pickOrder[st.draftState!.currentPick]
@@ -59,21 +66,47 @@ function buildWorld(mode: string) {
     if (cur === st.playerTeamId && top) st.playerPick(top.id); else st.cpuPick()
   }
   g().advanceDraft()
-  g().startRegularSeason()
-  for (let n = 0; n < 2; n++) {
+}
+/** 自分のリーグの日程を n 戦ぶん走る */
+function runRaces(n: number) {
+  for (let i = 0; i < n; i++) {
     const st = g()
     const race = myLeagueRaces(st.currentSeason, st.playerTeamId)[st.currentSeason.currentRaceIndex]
     if (!race) break
     st.runRace(assignLineupByTerrain(st.players.filter(p => p.teamId === st.playerTeamId && p.status === 'active'), race))
   }
+}
+function buildWorld(mode: string) {
+  g().startSetup({ teamName: '点検', teamShortName: '点検', teamId: 'tokyo', gmName: 'GM' })
+  g().beginInauguralDraft()
+  draftAtStart = g().draftState
+  runDraft()
+  g().startRegularSeason()
   if (mode === 'foreign') {
-    // 監督が海外クラブへ移った世界（移った先のクラブの選手・予算・順位表がそのまま自チームになる）
-    const to = clubsWhere(g().clubs, c => !isJpelLeague(c.leagueId))[0]
+    // 監督が海外クラブへ移った世界を、**本物の就任の道**で作る
+    //   1年走る → 退任 → 海外クラブの打診を受ける → endSeason で移る → 来季の開幕
+    // 声の掛かる範囲は順位で決まる（最下位は格下にしか範囲が無い）ので、3部で優勝したことにする。
+    // 就任から3シーズンの縛りは、在任の記録を古くして外す（点検 check-gm-foreign と同じ作り方）
+    runRaces(99)
+    const st = g()
+    const lid = myClub(st)!.leagueId
+    const lg = st.currentSeason.leagues[lid]
+    const top = Math.max(...lg.standings.map(r => r.totalPoints)) + 1
     useGameStore.setState({
-      playerTeamId: to.id,
-      gmTenures: [...(g().gmTenures ?? []), { teamId: to.id, fromYear: g().currentSeason.year }],
+      currentSeason: { ...st.currentSeason, leagues: { ...st.currentSeason.leagues,
+        [lid]: { ...lg, standings: lg.standings.map(r => (r.teamId === st.playerTeamId ? { ...r, totalPoints: top } : r)) } } },
+      gmTenures: [{ teamId: st.playerTeamId, fromYear: st.currentSeason.year - 5 }],
     } as never)
+    g().resignAsGm()
+    const offer = (g().gmOffers ?? []).find(o => !isJpelLeague(clubById(g().clubs, o.teamId)?.leagueId))
+    if (!offer) throw new Error('海外クラブの打診が届いていない')
+    g().acceptGmOffer(offer.teamId)
+    g().endSeason()
+    g().beginSeasonDraft()
+    runDraft()
+    g().startRegularSeason()
   }
+  runRaces(2)
 }
 
 // ── 開く画面（パスは自チームのリーグから組む。App.tsx の道すじと突き合わせるのは点検の側） ──

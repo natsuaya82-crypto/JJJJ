@@ -4,7 +4,6 @@ import type { GameStore, SetGame } from '../gameStore'
 import type { ForeignClub, WorldClub } from '../../types'
 import { INITIAL_FOREIGN_CLUBS } from '../../data/leagues'
 import { drawSeasonSchedules, generateIndividualEvents, generateSeasonRaces } from '../../data/races'
-import { INITIAL_TEAMS } from '../../data/teams'
 import { ACHIEVEMENT_JEWELS, checkSeasonAchievements, podiumJewels, selectSeasonObjectives } from '../../engine/achievements'
 import { buildEclParticipants, buildEclRaces } from '../../engine/eclSeries'
 import { growPlayer } from '../../engine/growth'
@@ -27,11 +26,11 @@ import { processRetirements } from '../../engine/retirement'
 import { processSeasonSponsors } from '../../engine/sponsorSeason'
 import { settleBonusClauses } from '../../engine/bonusPayout'
 import { computeSeasonBudgets } from '../../engine/seasonBudget'
-import { tierBudget, tierOf, tierOfClubId } from '../../utils/clubTier'
+import { tierBudget } from '../../utils/clubTier'
 import { appraiseGmInvite, gmInviteFeeFor } from '../../utils/gmInvite'
-import { clubById, clubIdSet, clubMap, clubsWhere, isJpelLeague, jpelClubById, jpelClubs, mapClubs, myClub, myLeagueRaces, withAddedClubs, withMyClub } from '../../utils/world'
+import { clubById, clubIdSet, clubMap, clubsWhere, divisionLeagueId, isJpelLeague, jpelClubs, mapClubs, myClub, myLeagueRaces, otherClubs, withAddedClubs, withMyClub } from '../../utils/world'
 import { MORALE_DEFAULT, setMorale } from '../../utils/condition'
-import { backfillDomesticClubs } from '../../utils/domesticClubs'
+import { ALL_DOMESTIC_TEAMS, backfillDomesticClubs } from '../../utils/domesticClubs'
 import { buildOffer, canResignAsGm, makeGmOffer, resignOffers } from '../../utils/gmOffer'
 import { managedTeamIds, startTenure } from '../../utils/gmTenure'
 import { DIVISIONS, TOP_DIVISION, divisionOf, divisionStandings, draftPickHolders, myDivSize, newSeasonStandings, rankOfTeam, seasonLeagueStandings, divisionLeagues } from '../../utils/league'
@@ -70,13 +69,20 @@ function applyGmMove(state: GameStore, offer: GmOffer, inviteId?: string): Parti
   // 監督名は人について回る。前のチームには元のGM名を戻す
   const myGmName = myClub(state)?.gmName
     ?? state.setupData?.gmName ?? '監督'
-  const oldOriginalGm = INITIAL_TEAMS.find(t => t.id === oldTeamId)?.gmName ?? '新監督'
-  const clubs = mapClubs(state.clubs, (t): WorldClub => {
+  // もともとの監督名はクラブの初期データから（1部も2部・3部も）。持たないクラブ（海外）は
+  // gmName を外して utils/clubs の clubGmName（国の名前プールから固定で1つ）に戻す
+  const oldOriginalGm = ALL_DOMESTIC_TEAMS.find(t => t.id === oldTeamId)?.gmName
+  let clubs = mapClubs(state.clubs, (t): WorldClub => {
     if (t.id === offer.teamId) return { ...t, isPlayerControlled: true, gmName: myGmName }
     // ★施設は**置いていく**。オファー画面のとおり移籍先のものを引き継ぐので
     //   （施設のレベルは `utils/facilities` の `facilitiesOf`＝格の土台＋建てたぶん）、
     //   前のクラブに自分が建てたぶんを残すと、CPUに戻ったあとも格に合わない施設を持ち続ける
-    if (t.id === oldTeamId) return { ...t, isPlayerControlled: false, gmName: oldOriginalGm, facilities: {} }
+    if (t.id === oldTeamId) {
+      const left = { ...t, isPlayerControlled: false, facilities: {} }
+      if (oldOriginalGm) return { ...left, gmName: oldOriginalGm }
+      delete (left as { gmName?: string }).gmName
+      return left
+    }
     return t
   })
   // 移籍方針（非売・貸出歓迎）は監督が付けた指示。CPUに戻るチームに残すと
@@ -116,7 +122,9 @@ function applyGmMove(state: GameStore, offer: GmOffer, inviteId?: string): Parti
     if (fee != null) {
       const m = movePlayer({ players, clubs }, invited.id, offer.teamId, {
         year: offer.year, date: `${offer.year}-02-01`, fee, myTeamId: offer.teamId })
-      if (m.ok) { players = m.players; inviteRecord = m.record; inviteSpend = m.spend }
+      // ★お金は movePlayer の中で両側が動く（utils/clubMoney の payBetween）。
+      //   返ってきた clubs を受け取らないと、新しいクラブが払っていないことになる
+      if (m.ok) { players = m.players; clubs = m.clubs; inviteRecord = m.record; inviteSpend = m.spend }
     }
   }
 
@@ -682,9 +690,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const gmOffer = state.pendingGmMove ? null : makeGmOffer({
         season: state.currentSeason,
         playerTeamId: state.playerTeamId,
-        finalRank,
         gmRep: newGmRep,
-        teamCount: myDivSize(state),
         nextYear: newYear,
         clubs: syncedClubs,
         nextBudgets: cpuNextBudgets,
@@ -721,8 +727,10 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         jewels: state.jewels + objJewels + seasonAchievementJewels + rankJewels,
         // 優勝トロフィー：**JPEL 1部優勝で1個**（ECL優勝ぶんは competitionSlice が足す）。
         // ★1部だけ。2部・3部の優勝では出ない（オーナー・2026-08-20「1部優勝で1個でしょ」）
+        //   部を `divisionOf` で読まないこと——部のリーグに居ないクラブ（海外）も1部と読むので、
+        //   海外リーグの優勝でも出てしまう。見るのは所属リーグそのもの
         trophies: (state.trophies ?? 0)
-          + (divisionOf(myClub(state)) === TOP_DIVISION && myFinalRank === 1 ? 1 : 0),
+          + (myClub(state)?.leagueId === divisionLeagueId(TOP_DIVISION) && myFinalRank === 1 ? 1 : 0),
         // 最終戦ぶんがまだ未表示なので上書きせず足す
         jewelGains: [...(state.jewelGains ?? []), ...seasonJewelGains].slice(-20),
         gmRep: newGmRep,
@@ -817,8 +825,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const booked = state.pendingGmMove
       if (!booked || booked.year !== newYear) return next
       const moved: GameStore = { ...state, ...next } as GameStore
-      const destTeam = jpelClubById(syncedClubs, booked.teamId)
-      if (!destTeam) return { ...next, pendingGmMove: null }
+      if (!clubById(syncedClubs, booked.teamId)) return { ...next, pendingGmMove: null }
       // ★お金と順位は**移る直前の数字で作り直す**。予約したときの額をそのまま使うと、
       //   1シーズンぶん古い予算で就任してしまう
       const freshOffer = buildOffer({
@@ -885,25 +892,23 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       //   あちらは「辞めると決めた以上、行き先0件では詰む」ので抽選をしない設計なので、
       //   そこで止めると「押せたのに何も来ない」になる
       if (!canResignAsGm(state.gmTenures, state.currentSeason.year).ok) return {}
-      // 候補クラブの「いま使えるお金」をそのまま持って行く（年度更新を待たない）。
-      // 予算は格1本（utils/clubTier）なので、内訳のグラントもそこから出す
+      // 候補クラブ（自チーム以外の231クラブ）の「いま使えるお金」をそのまま持って行く
+      // （年度更新を待たない）。予算は格1本（utils/clubTier）なので、内訳のグラントもそこから出す
       const nextBudgets: Record<string, GmOffer['budgetBreakdown'] & { budget: number }> = {}
-      for (const t of jpelClubs(state.clubs)) {
+      for (const t of otherClubs(state.clubs, state.playerTeamId)) {
         nextBudgets[t.id] = {
-          budget: t.finance.budget,
+          // 古いセーブの海外クラブには finance が無い（engine/seasonBudget と同じ扱い）
+          budget: t.finance?.budget ?? tierBudget(t),
           carryover: 0, grant: tierBudget(t), raceIncome: 0, sponsor: 0, objBonus: 0, expenses: 0 }
       }
       const offers = resignOffers({
         season: state.currentSeason,
         playerTeamId: state.playerTeamId,
-        finalRank: rankOfTeam(seasonLeagueStandings(state.currentSeason, state.playerTeamId), state.playerTeamId),
         // ★来季（＋1）。就任は次のシーズン開始時（★13）
         nextYear: state.currentSeason.year + 1,
         clubs: state.clubs,
         nextBudgets,
-        rng: Math.random,
-        tierNow: id => tierOf(clubById(state.clubs, id)),
-        tierSeed: id => tierOfClubId(id) })
+        rng: Math.random })
       return { gmOffers: offers }
     })
   } })

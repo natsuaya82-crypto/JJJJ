@@ -36,7 +36,7 @@ import { generateSeasonRaces } from '../src/data/races'
 import { DIVISIONS, DIVISION_RACES, divisionOf, newSeasonStandings } from '../src/utils/league'
 import type { Player, Race, SeasonStanding, Team } from '../src/types'
 import { seasonLeaguesFixture } from './seasonFixture'
-import { jpelClubById, myLeagueRaces } from '../src/utils/world'
+import { clubById, jpelClubById, myLeagueRaces } from '../src/utils/world'
 
 const problems: string[] = []
 const check = (name: string, ok: boolean, detail = '') => {
@@ -145,17 +145,20 @@ S().endSeason()
 console.log('')
 console.log('[⑤] 移った先のもので始まっている')
 {
-  const dest = jpelClubById(S().clubs, destId)
+  // 行き先は届いた打診の先頭。日本のクラブのことも海外クラブのこともある（どちらでも同じ道）
+  const dest = clubById(S().clubs, destId)
+  console.log(`  （行き先：${dest?.shortName}・${dest?.leagueId}）`)
   check('新チームが自分のものになっている', !!dest?.isPlayerControlled)
   check('GM名を持って行っている', dest?.gmName === oldTeamName, `${dest?.gmName} / ${oldTeamName}`)
   check('予算が入っている', (S().currentSeason.initialBudget ?? 0) > 0,
     `${S().currentSeason.initialBudget}`)
   check('目標が新しく引かれている', (S().currentSeason.objectives ?? []).length > 0)
-  // ★日程は移籍先の部のもの。3部から1部へ移ったのに3部の日程のままだと本数が食い違う
-  const destDiv = divisionOf(dest)
-  check(`日程が移籍先の部（${destDiv}部）の本数になっている`,
-    myLeagueRaces(S().currentSeason, S().playerTeamId).length === DIVISION_RACES[destDiv],
-    `${myLeagueRaces(S().currentSeason, S().playerTeamId).length}本 / ${DIVISION_RACES[destDiv]}本`)
+  // ★日程は移籍先のリーグのもの。3部から1部へ（または海外リーグへ）移ったのに
+  //   前のリーグの日程のままだと本数が食い違う
+  const destRaces = S().currentSeason.leagues[dest?.leagueId ?? '']?.races.length ?? -1
+  check(`日程が移籍先のリーグ（${dest?.leagueId}）の本数になっている`,
+    destRaces > 0 && myLeagueRaces(S().currentSeason, S().playerTeamId).length === destRaces,
+    `${myLeagueRaces(S().currentSeason, S().playerTeamId).length}本 / ${destRaces}本`)
 }
 
 console.log('')
