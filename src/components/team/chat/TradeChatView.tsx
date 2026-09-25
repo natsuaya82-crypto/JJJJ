@@ -8,7 +8,8 @@ import { ovr, ratingColor, SPEC_COLOR } from '../../../utils/playerUtils'
 import { tradeValues, tradeBalance, TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO } from '../../../utils/tradeValue'
 import { keyPlayerStatus } from '../../../utils/transferDecision'
 import { canBePoached, canTradeAway, ctxForTeam, eligibilityCtx } from '../../../utils/transferEligibility'
-import type { Player, Team } from '../../../types'
+import type { Player, WorldClub } from '../../../types'
+import { holdsDraftPicks } from '../../../data/leagueRules'
 import { TeamLogoSVG } from '../../icons/Icons'
 import { pickKeysValue } from '../../../data/economy'
 import { C, alpha, SAIRA, F } from '../../../styles/tokens'
@@ -19,7 +20,7 @@ import { myClub, myLeagueRaces } from '../../../utils/world'
 
 // --- 他チーム（所属選手を表示し、選手を選ぶと契約オファー＝交渉を開始） ---
 
-export function TradeChatView({ team, onClose, initialGetId }: { team: Team; onClose: () => void; initialGetId?: string; initialMode?: 'fee' | 'trade'; onNegotiateContract?: (playerId: string) => void }) {
+export function TradeChatView({ team, onClose, initialGetId }: { team: WorldClub; onClose: () => void; initialGetId?: string; initialMode?: 'fee' | 'trade'; onNegotiateContract?: (playerId: string) => void }) {
   const { players, clubs, playerTeamId, currentSeason, pastSeasons, proposeTrade, acceptTradeCounter, dismissTradeNegotiation, destinationOf, playerTierOf } = useGameStore()
   // 選べる＝動かせる、になるように候補は成立判定と同じものを使う（utils/transferEligibility.ts）。
   // 以前は相手側を素通しにしていたので、相手が他クラブから借りている選手が「もらう」候補に並び、
@@ -30,6 +31,9 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: Team; onC
   const theirPlayers = players.filter(p => canBePoached(p, ctxForTeam(tradeCtxT, team.id))).sort(comparePlayers('ovr'))
   const myPlayersT = players.filter(p => canTradeAway(p, tradeCtxT)).sort(comparePlayers('ovr'))
   const myTeam = myClub({ clubs, playerTeamId })
+  // 指名権は持てるクラブとだけやり取りする（成立させる store と同じ holdsDraftPicks）
+  const theirPicks = holdsDraftPicks(team) ? (team.draftPicks ?? []) : []
+  const myPicks = holdsDraftPicks(team) ? (myTeam?.draftPicks ?? []) : []
 
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [submitted, setSubmitted] = useState(false)
@@ -117,10 +121,10 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: Team; onC
         <div style={{ padding: '10px 12px 4px', display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ fontSize: F.label, color: C.textDim }}>{team.shortName}から<b style={{ color: C.green }}>貰う選手</b>を選択（複数可）</div>
           {theirPlayers.map(p => <TradeSelRow key={p.id} player={p} selected={getP.has(p.id)} color={C.green} onToggle={() => toggle(setGetP, p.id)} />)}
-          {(team.draftPicks ?? []).length > 0 && (<>
+          {theirPicks.length > 0 && (<>
             <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 6 }}>指名権</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-              {(team.draftPicks ?? []).map(pk => { const k = pickKey(pk); return <PickChip key={k} label={pickLabel(k)} selected={getPk.has(k)} color={C.green} onToggle={() => toggle(setGetPk, k)} /> })}
+              {theirPicks.map(pk => { const k = pickKey(pk); return <PickChip key={k} label={pickLabel(k)} selected={getPk.has(k)} color={C.green} onToggle={() => toggle(setGetPk, k)} /> })}
             </div>
           </>)}
         </div>
@@ -131,10 +135,10 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: Team; onC
         <div style={{ padding: '10px 12px 4px', display: 'flex', flexDirection: 'column', gap: 6 }}>
           <div style={{ fontSize: F.label, color: C.textDim }}>自チームから<b style={{ color: C.red }}>出す選手</b>を選択（複数可）</div>
           {myPlayersT.map(p => <TradeSelRow key={p.id} player={p} selected={give.has(p.id)} color={C.red} onToggle={() => toggle(setGive, p.id)} />)}
-          {(myTeam?.draftPicks ?? []).length > 0 && (<>
+          {myPicks.length > 0 && (<>
             <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 6 }}>指名権</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-              {(myTeam?.draftPicks ?? []).map(pk => { const k = pickKey(pk); return <PickChip key={k} label={pickLabel(k)} selected={givePk.has(k)} color={C.red} onToggle={() => toggle(setGivePk, k)} /> })}
+              {myPicks.map(pk => { const k = pickKey(pk); return <PickChip key={k} label={pickLabel(k)} selected={givePk.has(k)} color={C.red} onToggle={() => toggle(setGivePk, k)} /> })}
             </div>
           </>)}
         </div>

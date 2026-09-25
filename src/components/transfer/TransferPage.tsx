@@ -749,9 +749,9 @@ export default function TransferPage() {
 
       {tab === 'trade' && (
         <div style={{ padding: '4px 18px' }}>
-              <div style={{ fontSize: F.tiny, color: C.cyan, letterSpacing: '2px', fontWeight: '800', marginBottom: '12px', fontFamily: SAIRA }}>選手トレード — 取引相手チームを選択（国内のみ）</div>
+              <div style={{ fontSize: F.tiny, color: C.cyan, letterSpacing: '2px', fontWeight: '800', marginBottom: '12px', fontFamily: SAIRA }}>選手トレード — 取引相手チームを選択</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  {otherClubs(jpelClubs(clubs), playerTeamId).map(t => {
+                  {otherClubs(clubs, playerTeamId).map(t => {
                       // 所属は player.teamId が正（rosterSync）。roster配列だとズレたチームの平均OVRが狂う
                       const theirMain = squadPlayersOf(players, t.id)
                       const avgOvr = theirMain.length > 0 ? Math.round(theirMain.reduce((s, p) => s + ovr(p), 0) / theirMain.length) : 0

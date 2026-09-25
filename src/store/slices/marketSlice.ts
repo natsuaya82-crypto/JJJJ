@@ -6,7 +6,7 @@ import { tradeValueCtxOf, willingFeeFor, finalizeSale } from '../marketOps'
 import { buildContractRequests } from '../../engine/contractRequests'
 import { judgeRenewalOffer } from '../../engine/renewalDecision'
 import { judgeSaleOffer, withSaleRefused } from '../../engine/saleOfferGate'
-import { runTradeMoves, swapDraftPicks } from '../../engine/tradeExecution'
+import { runTradeMoves, swapDraftPicks, tradablePickKeys } from '../../engine/tradeExecution'
 import { tradeConsentBonus, tradeRefuser } from '../../engine/tradeConsent'
 import { reinforcementBanned } from '../../data/economy'
 import { pickKeysValue, roundFee } from '../../data/economy'
@@ -16,13 +16,13 @@ import { type AcquisitionOffer, type ContractRequest, type ExpiredNegKind, type 
 import { MAJOR_NEWS_OVR, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
 import { tierLines, playerTierOf as playerTierFromLines } from '../../utils/playerTier'
 import { clubById, clubMap, isJpelLeague, jpelClubById, mapClubs, myClub, otherClubs, withMyClub, myLeagueRaces, leagueIdOfClub } from '../../utils/world'
+import { payBetween } from '../../utils/clubMoney'
 import { bigClub, findClub } from '../../utils/clubs'
 import { withMorale } from '../../utils/condition'
 import { canOfferRenewal, canReNegotiate, contractTalkCtx, liveContractOf } from '../../utils/contractTalk'
 import { domesticThroughRankOfTeam, rankOfTeam, rankedStandings, seasonDivisionStandings, leagueStandingRows } from '../../utils/league'
 import { fmtYen } from '../../utils/money'
 import { movePlayer } from '../../utils/movePlayer'
-import { settleForeignFee } from '../../utils/clubMoney'
 import { foreignSignedHeadline, joinedHeadline, loanInOutHeadline, renewalHeadline, signedWithFeeHeadline, tradeAcceptedHeadline, tradeSummaryHeadline } from '../../utils/newsItems'
 import { type OfferOutcome } from '../../utils/offerResult'
 import { playRateOf, prevSeasonOf } from '../../utils/playRate'
@@ -240,8 +240,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       bought = true
       return ({
       players: moved.players,
-      // 売り手が海外クラブなら、そのクラブへ入金する（movePlayer は日本のリーグのクラブしか動かさない）
-      clubs: settleForeignFee(moved.clubs, listing.fromTeamId, state.playerTeamId, price),
+      clubs: moved.clubs,
       transferHistory: [...(state.transferHistory ?? []), ...(moved.record ? [moved.record] : [])].slice(-400),
       currentSeason: {
         ...state.currentSeason,
@@ -1253,8 +1252,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
         ? { ...p, contract: { ...p.contract, faEligibleYear: s.currentSeason.year + years } }
         : p
       ),
-      // 売り手が海外クラブなら、そのクラブへ入金する
-      clubs: settleForeignFee(moved.clubs, bid.targetTeamId, s.playerTeamId, bid.offeredFee),
+      clubs: moved.clubs,
       transferHistory: [...(s.transferHistory ?? []), ...(moved.record ? [moved.record] : [])].slice(-400),
       currentSeason: {
         ...s.currentSeason,
@@ -1343,8 +1341,10 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
 
 
 
-  tradePlayer: (offeredIds, requestedIds, targetTeamId, transferFee = 0, offerPickKeys = [], requestPickKeys = []) => {
+  tradePlayer: (offeredIds, requestedIds, targetTeamId, transferFee = 0, offerPickKeysIn = [], requestPickKeysIn = []) => {
     const state = get()
+    const offerPickKeys = tradablePickKeys(state.clubs, targetTeamId, offerPickKeysIn)
+    const requestPickKeys = tradablePickKeys(state.clubs, targetTeamId, requestPickKeysIn)
     const offered = offeredIds.map(id => state.players.find(p => p.id === id)).filter((p): p is Player => !!p)
     const requested = requestedIds.map(id => state.players.find(p => p.id === id)).filter((p): p is Player => !!p)
     const hasContent = offered.length > 0 || offerPickKeys.length > 0
@@ -1409,14 +1409,9 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
         { teamId: targetTeamId, pickKeys: requestPickKeys })
 
       // 名簿も指名権も動かし終わったので、ここで動かすのは現金だけ
-      // （transferFee はマイナス＝受け取りもあるので movePlayer の移籍金には乗せない）
-      // 現金が動くのは日本のリーグのクラブだけ（相手が海外なら片側だけ・いまの振る舞い）
-      const clubs = mapClubs(withPicks, (t): WorldClub => {
-        if (!isJpelLeague(t.leagueId) || !t.finance) return t
-        if (t.id === state.playerTeamId) return { ...t, finance: { ...t.finance, budget: (t.finance.budget ?? 0) - transferFee } }
-        if (t.id === targetTeamId) return { ...t, finance: { ...t.finance, budget: (t.finance.budget ?? 0) + transferFee } }
-        return t
-      })
+      // （transferFee はマイナス＝受け取りもあるので movePlayer の移籍金には乗せない）。
+      // お金を動かすのは utils/clubMoney の payBetween 1本（相手がどのリーグでも両側が動く）
+      const clubs = payBetween(withPicks, state.playerTeamId, targetTeamId, transferFee)
       const parts = [...offered.map(p => p.name), ...offerPickKeys.map(k => k.split('-').slice(0,2).join(' '))]
       const rparts = [...requested.map(p => p.name), ...requestPickKeys.map(k => k.split('-').slice(0,2).join(' '))]
       const tradeNews = {
@@ -1459,8 +1454,10 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
 
 
   // トレードのチャット交渉。提案→相手が承諾/カウンター/拒否（最大3回）。
-  proposeTrade: (targetTeamId, giveIds, givePickKeys, getIds, getPickKeys) => {
+  proposeTrade: (targetTeamId, giveIds, givePickKeysIn, getIds, getPickKeysIn) => {
     const state = get()
+    const givePickKeys = tradablePickKeys(state.clubs, targetTeamId, givePickKeysIn)
+    const getPickKeys = tradablePickKeys(state.clubs, targetTeamId, getPickKeysIn)
     // 評価式は utils/tradeValue.ts の1本。主力の割増は出す側・もらう側の両方に同じだけ掛かる
     const tvCtx = tradeValueCtxOf(state)
     const playersOf = (ids: string[]) => ids.map(id => state.players.find(p => p.id === id)).filter((p): p is Player => !!p)
@@ -1616,8 +1613,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
               personality: p.personality ?? 'salary' }
           : p
         ),
-        // 出した海外クラブへ入金する（この経路は必ず海外が相手）
-        clubs: settleForeignFee(moved.clubs, player.teamId, s.playerTeamId, transferFee),
+        clubs: moved.clubs,
         transferHistory: [...(s.transferHistory ?? []), ...(moved.record ? [moved.record] : [])].slice(-400),
         currentSeason: {
           ...s.currentSeason,

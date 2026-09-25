@@ -2,11 +2,11 @@
  * 【競り勝ったクラブは、海外でも移籍金を払う】
  *
  * ■なぜ要るのか（2026-08-16・オーナー「なんで手書きしてんの？」の調べで発覚）
- *   `movePlayer` は日本のリーグのクラブのお金しか動かしません。相手が海外クラブのときは
- *   `utils/clubMoney` の `settleForeignFee` を **`movePlayer` のすぐ外で**呼ばないと、
- *   **片側しかお金が動きません**（CLAUDE.md の決まり）。
+ *   当時の `movePlayer` は日本のリーグのクラブのお金しか動かさず、相手が海外クラブのときは
+ *   呼ぶ側が海外の側を別に精算する形（`settleForeignFee`・2026-09-25 に廃止）でした。
+ *   いまは `movePlayer` が `utils/clubMoney` の `payBetween` で両側を動かします。
  *
- *   自チームが売る道（`marketOps` / `marketSlice`）には入っていたのに、
+ *   当時、自チームが売る道（`marketOps` / `marketSlice`）には入っていたのに、
  *   **CPU間の売買と、入札に競り負けて選手を持っていかれる道**（`engine/applyTransfers`）
  *   には1行も入っていませんでした。つまり
  *
@@ -107,11 +107,10 @@ console.log('\n[3] 精算した結果を捨てていない（呼ぶ側が state 
     && /let clubsAfterFreeMoves = clubsAfterLoan/.test(race)
     && /^\s*clubs: clubsAfterFreeMoves,/m.test(race))
   const apply = readFileSync('src/engine/applyTransfers.ts', 'utf8')
-  check('CPU間売買のあとに精算する', /settleForeignFee\(m\.clubs, tx\./.test(apply))
-  check('競り負けのあとにも精算する', /settleForeignFee\(m\.clubs, before\?\./.test(apply))
-  // 「国内同士なら何も起きない」ので、呼ぶ側で分岐しないこと（CLAUDE.md）
-  check('呼ぶ側で「海外なら」と分岐していない',
-    !/isForeign[\s\S]{0,60}settleForeignFee/.test(apply))
+  // 移籍金は movePlayer が両側で動かす（utils/clubMoney の payBetween）。その結果を捨てない
+  check('CPU間売買と競り負けの2つとも movePlayer の結果のクラブを受け取る',
+    (apply.match(/clubsNow = m\.clubs\n/g) ?? []).length === 2)
+  check('  お金を止める money: false を渡していない', !/money:\s*false/.test(apply))
 }
 
 console.log('')

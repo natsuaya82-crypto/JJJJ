@@ -14,7 +14,6 @@ import type { ClubTier } from '../utils/clubTier'
 import { MAJOR_NEWS_OVR, tierOfPlayerClub } from '../utils/clubTier'
 import { bigClub, findClub } from '../utils/clubs'
 import { movePlayer, type DepartureNotice } from '../utils/movePlayer'
-import { settleForeignFee } from '../utils/clubMoney'
 import { type NewsItem, transferHeadline } from '../utils/newsItems'
 import { ovr } from '../utils/playerUtils'
 import { appraiseMove, type Destination } from '../utils/transferDecision'
@@ -40,7 +39,7 @@ export function applySettledTransfers(params: {
   playerTierOf: (player: Player) => ClubTier
 }): {
   players: Player[]
-  /** 移籍金を動かしたあとのクラブ（国内は movePlayer・海外は settleForeignFee）。**必ず state に戻すこと** */
+  /** 移籍金を動かしたあとのクラブ（movePlayer が両側で動かす）。**必ず state に戻すこと** */
   clubs: WorldClub[]
   records: TransferRecord[]
   departureNotices: DepartureNotice[]
@@ -67,12 +66,7 @@ export function applySettledTransfers(params: {
   // 自チームから出て行った選手とは1年間交渉不可（transferLockedUntilYear）。
   let playersWithCpuTx: Player[] = playersListedSynced
   let clubsNow = clubs
-  // ★**海外クラブが絡む移籍金の精算**（`utils/clubMoney` の settleForeignFee 1本）。
-  //   `movePlayer` は日本のリーグのクラブのお金しか動かさないので、相手が海外クラブだと
-  //   片側しかお金が動きません。**`movePlayer` のすぐ外で必ず呼ぶこと**
-  //   （国内同士なら何も起きないので、ここで分岐しない）。
-  //   ★競り負けの道はここが抜けていて、**海外クラブが競り勝つと移籍金を払わずに
-  //     選手を持っていけて**いました（オーナー・2026-08-16 の調べで発覚）。
+  // 移籍金は movePlayer が両側（どのリーグのクラブでも）で動かす（utils/clubMoney の payBetween）
   const cpuTxRecords: TransferRecord[] = []
   const myCpuSaleNotices: DepartureNotice[] = []
   let myCpuSaleIncome = 0
@@ -89,7 +83,7 @@ export function applySettledTransfers(params: {
     if (m.record) cpuTxRecords.push(m.record)
     if (m.notice) myCpuSaleNotices.push(m.notice)
     myCpuSaleIncome += m.income
-    clubsNow = settleForeignFee(m.clubs, tx.fromTeamId, tx.toTeamId, tx.fee)
+    clubsNow = m.clubs
   }
 
   // 競り負けた入札。上回ったクラブが実際にその選手を獲る（言うだけで選手が残ると、
@@ -127,7 +121,7 @@ export function applySettledTransfers(params: {
     if (!m.ok) continue
     playersWithCpuTx = m.players
     if (m.record) cpuTxRecords.push(m.record)
-    clubsNow = settleForeignFee(m.clubs, before?.teamId ?? '', mv.toTeamId, mv.fee)
+    clubsNow = m.clubs
     outbidNewsItems.push({
       date: raceDate,
       headline: transferHeadline({

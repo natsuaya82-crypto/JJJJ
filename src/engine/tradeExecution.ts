@@ -14,7 +14,8 @@
 //   ・現金（移籍金）の受け渡し … `tradePlayer` にしか無い（打診を飲む側に現金は無い）
 import { movePlayer, type DepartureNotice } from '../utils/movePlayer'
 import type { Player, Team, TransferRecord, WorldClub } from '../types'
-import { isJpelLeague, jpelClubById, mapClubs } from '../utils/world'
+import { clubById, mapClubs } from '../utils/world'
+import { holdsDraftPicks } from '../data/leagueRules'
 
 /** 誰をどこへ。**渡した順に動かす**（順番を変えると移籍履歴の並びが変わる） */
 export type TradeMove = { playerId: string; toTeamId: string }
@@ -58,12 +59,22 @@ export function runTradeMoves(
 }
 
 /**
+ * トレードの中身に入れてよい指名権。**相手が指名権を持てないクラブなら空**
+ * （data/leagueRules の draftPicks）。持てないクラブへ渡すと、こちらから消えて向こうにも入らない。
+ * 画面（TradeChatView の札）も同じ `holdsDraftPicks` を見て出さない。
+ */
+export function tradablePickKeys(clubs: readonly WorldClub[], targetTeamId: string, keys: readonly string[]): string[] {
+  return holdsDraftPicks(clubById(clubs, targetTeamId)) ? [...keys] : []
+}
+
+/**
  * 指名権を入れ替える。
  *
  * ★**指名権は同一性（オブジェクトそのもの）で数える。** 同じ年・同じ巡・同じ順番の権利が
  *   2つ並ぶことがあるので、キーの文字列で消すと関係ない方が消える。
  *   そのため「渡された clubs から引いて、その clubs へ書き戻す」形を崩さないこと。
- * ★指名権を持つのは日本のリーグのクラブだけ（海外クラブとの入れ替えは片側だけ動く・いまの振る舞い）。
+ * ★指名権を持てるのは決まり（data/leagueRules の draftPicks）のあるリーグのクラブだけ。
+ *   持てないクラブとの入れ替えは呼ぶ側で中身から外してある（`holdsDraftPicks`）。
  */
 export function swapDraftPicks(
   clubs: WorldClub[],
@@ -72,14 +83,14 @@ export function swapDraftPicks(
 ): WorldClub[] {
   const keyOf = (pk: Team['draftPicks'][number]) => `${pk.year}-R${pk.round}-${pk.pickNumber}`
   const picksOf = (teamId: string, keys: string[]) => {
-    const owned = jpelClubById(clubs, teamId)?.draftPicks ?? []
+    const owned = clubById(clubs, teamId)?.draftPicks ?? []
     return keys.map(k => owned.find(pk => keyOf(pk) === k)).filter(Boolean) as Team['draftPicks']
   }
   const aPicks = picksOf(a.teamId, a.pickKeys)
   const bPicks = picksOf(b.teamId, b.pickKeys)
   if (aPicks.length === 0 && bPicks.length === 0) return clubs
   return mapClubs(clubs, (t): WorldClub => {
-    if (!isJpelLeague(t.leagueId)) return t
+    if (!holdsDraftPicks(t)) return t
     if (t.id === a.teamId) return { ...t, draftPicks: [...(t.draftPicks ?? []).filter(pk => !aPicks.includes(pk)), ...bPicks] }
     if (t.id === b.teamId) return { ...t, draftPicks: [...(t.draftPicks ?? []).filter(pk => !bPicks.includes(pk)), ...aPicks] }
     return t

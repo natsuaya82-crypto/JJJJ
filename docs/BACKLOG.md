@@ -79,6 +79,10 @@ CLAUDE.md は「海外クラブの資金も本物。買えば減り、売れば�
 1本（`utils/clubMoney` の `settleForeignFee`）を置きました。渡したIDが海外クラブでなければ
 何もしないので、呼ぶ側で国内・海外を分岐しません。
 
+→ 2026-09-25（世界の一本化 P4）：`settleForeignFee` は廃止。クラブが232の1つの並びになったので、
+`movePlayer` がどのリーグのクラブでも両側のお金を動かす（`utils/clubMoney` の `payBetween` 1本。
+トレードの現金も同じ）。
+
 網は `scripts/check-club-money.ts`。**入口ごとに見ます**——最初は
 「`movePlayer` に移籍金を渡す入口の数 ≦ 精算の数」で数えていて、
 **精算を1つ消しても（4件→3件で 3>=3）緑のまま通りました**。

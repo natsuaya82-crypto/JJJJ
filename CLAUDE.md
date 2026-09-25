@@ -85,7 +85,7 @@ md は消すこと**。2026-08-23 に7本（リファクタリング設計書・
 | `src/utils/transferDecision.ts` の `isSurplus` | **出す側にとって余剰か＝序列15番手以降**（走れる人数の2倍より下）。余剰＝通常の対価、主力＝割増＋本人同意。**形（現金・トレード・レンタル・FA）でも国内／海外でも変わらない**。以前は4通りに割れていて、海外がらみは見てすらいなかった。**人数や「干され」を足さないこと**（名簿が21人超なら余剰、を入れていたら全232クラブが23〜25人で恒真になり、割増が一度も発火しなかった） |
 | `src/utils/transferDecision.ts` の `keyPlayerStatus` | **その選手は、いまのクラブの戦力に入っているか**（`locked` / `key` / `open`）。**答えは序列1本で、`isSurplus` とまったく同じ線**（`SQUAD_DEPTH_SLOTS`）。`key` なら引き抜きに割増（`POACH_PREMIUM`）が要り、レンタル・トレード・引き抜きの打診も断られる。`locked` は**ドラフト当年の新人が `ROOKIE_GUARD_RACES`(3) 戦を走るまで**だけ（いくら積んでも取れない）。★**2本目の材料を足さないこと。** 以前ここは「複数年の本編出場率（P≥3なら60%・P=1〜2なら70%・ECL経験で−10%緩和）」という別の物差しで、しかもその出場を **`season.races`＝自分の部の日程だけ**で数えていました。つまり**2部・3部・海外の選手は1人残らず `open`**＝割増もレンタル拒否も引き抜き拒否も**自分の部の選手にしか効いていません**でした（実測：直したあとの主力の割合は 1部47.8% / 2部48.5% / 3部51.5% / 海外26.8%。直す前は自分の部以外すべて0%）。オーナー・2026-09-16「1.4で」。`check-one-rule` の⑮と `check-transfer-bid` の[3b]が見張る |
 | `src/utils/transferDecision.ts` の `playingStatus` | **その選手は実際に走っているか**（`playing` / `benched` / `unknown`）。材料は `utils/playRate` の `playRateOf` 1本、線は `APPEARANCE_FLOOR`(0.34) 1本。★**呼ぶ側で出走率を数字と比べないこと。** 以前は同じ問いに線が**4本**ありました——0.34（市場に出るか）／0.40（`appraiseMove` の「干されている」）／0.50（2軍契約で納得するか）／0.55（`isDataKeyPlayer`＝主力だから残りたい）。出走率0.45の選手は「市場には出ないが、干されてもおらず、主力でもない」と**3つの問いの答えが全部違って**いました。★**3つ返すのは「分からない」を混ぜないため**（`benched` に混ぜると開幕直後に全員が「出番が無い」になり、`playing` に混ぜると全員が保護される）。**出場率から額や不満の強さを作る「値の曲線」は別の問い**なので、`check-one-rule` の⑯に理由つきで除いてあります |
-| `src/utils/clubMoney.ts` の `settleForeignFee` | **移籍金の海外側の精算**。`movePlayer` は日本のリーグのクラブ（`jpel-*`）のお金しか動かさないので、相手が海外クラブだと片側しかお金が動かない（揃えるのは P4。それまでは必ずこの組で）。**`movePlayer` のすぐ外で必ず呼ぶこと**（国内同士なら何も起きないので、呼ぶ側で分岐しない） |
+| `src/utils/clubMoney.ts` の `payBetween` | **クラブ間でお金を動かす唯一の場所**（払う側 → 受け取る側）。移籍金（`movePlayer`）もトレードの現金もここを通り、**どのリーグのクラブでも両側が動く**（置き場所は `finance.budget` 1本）。★以前は `movePlayer` が日本のリーグのクラブのお金しか動かさず、海外の側は呼ぶ側が `settleForeignFee` で別に精算していた（6か所）。呼び忘れた道だけ片側しか動かず、競り負けの道とトレードの現金で実際にそうなっていた。**海外の側を別に精算する関数を戻さないこと**（2026-09-25 に廃止）。`check-club-money` が組み合わせ4通り（国内・海外の出し手×受け手）で両側と世界の合計を見る |
 | `src/utils/seasonStart.ts` | **開幕してよいか**。`canStartSeason` / `seasonStartBlockers`。**プレシーズンの一覧に並べた用件が全部そろうまで開幕できない**（カード・ドラフト・人数）。一覧に用件を足したらここにも足すこと。**画面で条件を組み直さないこと**——以前 Dashboard に `allReady`（カード・ドラフト・人数）があったのに、ボタンは `rosterShort` しか見ておらず、**ドラフトを終える前に開幕できてその年のドラフトが消えていた**（`endSeason` が `draftState` を null にするので二度と開けない）。押せないときは理由を必ず画面に出すこと |
 | `src/utils/transferEligibility.ts` の `isTransferLocked` | **加入したときの契約が続いている間は動かせない**（`contract.signedOnJoin`）。保有権が移る形（移籍・トレード）だけを止め、**レンタルは止めない**（オーナー・2026-08-14「移籍して2年は動かせなくしよう。レンタルのみ」）。★**「加入から2年」の固定（`TRANSFER_LOCK_YEARS`）から変えました**（オーナー・2026-08-20「新加入選手は最初の契約分はブロックされる仕組みつくれば？」）。契約年数は `newContractYears` で**1〜5年（若いほど長い）**なので、**18歳の新人は5年動かせず、33歳のベテランは1年で動ける**＝育成期間も年齢ごとの扱いも契約で表せる。「1年契約なんだから動きやすさを前提にしてるやろ」「獲得に失敗したらロックは普通じゃね」。**印を付けるのは `movePlayer` 1本**（呼ぶ側で書くと、書き忘れた経路だけロックが効かない）。**契約更新と契約切れで消すこと**——残すと無所属の選手が誰にも獲られなくなる。印が無い選手（初期ロスター・古いセーブ）は止めないこと——止めると世界が丸ごと凍る |
 | `src/utils/transferDecision.ts` の `willRelease` | **契約が残っている選手を、出す側が手放す気になるか**（`RELEASE_CHANCE` ＝ 残り2年75%／3年45%／4年24%／5年12%。残り1年以下は必ず）。**壁ではなく坂**——壁にすると動けるのが残り1〜2年だけになり、移籍金の係数の1.3〜1.5が誰にも当たらない。**1年ぶんの確率を1回ぶんへ割り戻して、市場が回るたびに引くこと**。年に1回だけ引くと年の後半の在庫が尽き（77…/46/5/0）、毎回そのまま引くと1年に16回引けて坂が消える（残り3年＞残り2年に逆転）。**これで「1年でぽんぽん」は消えません**（67.7%→64.4%）——市場が動かす件数のほうが、出せる選手の人数より多いため |
@@ -121,7 +121,7 @@ md は消すこと**。2026-08-23 に7本（リファクタリング設計書・
 | `src/engine/timeTrialRecords.ts` | **記録会の歴代1位**。`updateBestRecord`（世界記録も日本記録も同じ1本。違うのは「誰を見るか」だけ）／`withEventBest` |
 | `src/utils/condition.ts` の `withGmRep` | **GMの評判の上下限**（0〜100）。**下限は 0 の1本**（2026-08-12・`docs/BACKLOG.md` A-8 `済`）。以前は `seasonObjectives` だけ `Math.max(1, …)` で1止まりでした |
 | `src/utils/world.ts` | **世界の層（クラブを探す・書くのは1か所だけ）**。クラブは `GameState.clubs`＝**232の1つの並び**（日本のリーグ52 → 海外180）で、どのリーグかは `club.leagueId` だけが持つ。層の外は `clubById` / `clubsWhere` / `mapClubs` / `clubMap` / `clubsInLeague` / `otherClubs` / `jpelClubs` / `jpelClubById` … を通すこと（`clubs.find(…)` を書かない）。★**実行時の import を持たないこと**（league.ts / clubTier.ts からも呼ばれるので循環する）。`check-world-layer` が層の外の直読みを**0件**で見張る |
-| `src/data/leagues.ts` | **リーグ12本**（日本1部・2部・3部＋海外9）と、**リーグの決まり**（`leagueRules`＝昇降格・格が動くか・ドラフト）。名前・国もここ（セーブには載せない）。日本の部のIDは `jpel-<部>`（`utils/world` の `divisionLeagueId` と同じ字。data は utils を import できないので表として書き、食い違いは `check-world-layer` が見る） |
+| `src/data/leagues.ts` | **リーグ12本**（日本1部・2部・3部＋海外9）と、**リーグの決まり**（`leagueRules`＝昇降格・格が動くか・ドラフト・指名権を持てるか）。★**指名権は持てるクラブ（`holdsDraftPicks`）とだけやり取りする**——トレードの相手は231クラブになったので、持てないクラブへ渡すと、こちらから消えて向こうにも入らない。画面（`TradeChatView` の札）と store（`proposeTrade` / `tradePlayer`）が同じ `holdsDraftPicks` を見る。名前・国もここ（セーブには載せない）。日本の部のIDは `jpel-<部>`（`utils/world` の `divisionLeagueId` と同じ字。data は utils を import できないので表として書き、食い違いは `check-world-layer` が見る） |
 | `src/store/initialWorld.ts` の `initialWorldClubs` | **新しいゲームの世界のクラブ232**。store の初期状態と、旧い形のセーブで入れ物が片方しか無いときの補いの2か所が通る |
 | `src/store/persistence/legacyWorld.ts` の `normalizeWorldClubs` | **旧い形（国内 `teams`＋海外 `foreignLeagues[].clubs`）を1つの並びへ均す唯一の場所**（セーブ v47）。国内の `division` は `leagueId` へ。旧い名前を state として読み書きしてよいのはここと `migrateSave.ts` だけ（`check-world-layer` が見張る） |
 | `src/data/economy.ts` の `pickKeysValue` | 指名権の束の値段（トレードの入口3つが同じ数え方を通る） |
@@ -646,7 +646,7 @@ tab / page / view / division / section のものが一覧に無ければ落ち�
 |---|---|
 | W1 | **クラブを探す・書くのは world 層だけ**（`utils/world.ts`・`utils/clubs.ts`）。層の外で `clubs` を直に find / filter / map / for-of / スプレッド / 添字しない |
 | W2 | **自チームは `myClub` 1本**（書くのは `withMyClub`）。国内か海外かを見ない |
-| W3 | **リーグの違いは `leagueRules(leagueId)` のデータだけ**（昇降格・格が動くか・ドラフト）。`isDomestic` / `isForeign` / `country === 'JPN'` で処理を分けない（見出しの文字を選ぶだけは可） |
+| W3 | **リーグの違いは `leagueRules(leagueId)` のデータだけ**（昇降格・格が動くか・ドラフト・指名権）。`isDomestic` / `isForeign` / `country === 'JPN'` で処理を分けない（見出しの文字を選ぶだけは可） |
 | W4 | 日程・結果・順位表はリーグIDで引く（`Season.leagues`） |
 | W5 | 時計は日付（`engine/leagueDay`） |
 | W6 | CPU の自動処理は「自チームの id 以外」で絞る（`otherClubs`） |
@@ -1137,6 +1137,9 @@ CPU同士の移籍（`engine/transferMarket`）は1本化されているのに�
 
 ★**GMに来るトレードの打診（`engine/aiTradeOffer`）も同じ231クラブから来ます**
 （オーナー・2026-09-16「二も一緒」）。`jpelClubs` で絞ると国内に閉じます。
+**自分から組むトレードの相手も231クラブ**（オーナー・2026-09-25。移籍市場の「トレード」の一覧と
+チャットの相手）。海外が相手でも現金は両側で動き（`payBetween`）、指名権は持てるクラブとだけ
+やり取りする（`holdsDraftPicks`）。`check-trade-world` が実際に成立させて見る。
 
 **231クラブが毎レース抽選するので、上限は必ず埋まります。**
 つまり「1レースの上限 × 打診が来るレース数」がそのまま1年の件数です

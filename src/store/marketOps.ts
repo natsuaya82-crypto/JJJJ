@@ -14,7 +14,6 @@ import { MAJOR_NEWS_OVR, isBigClub, isStepUp } from '../utils/clubTier'
 import { clubById, isJpelLeague, jpelClubById, myClub, myLeagueRaces } from '../utils/world'
 import { bigClub, findClub } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
-import { settleForeignFee } from '../utils/clubMoney'
 import { clubLabel, overseasMoveHeadline, soldPlayerHeadline } from '../utils/newsItems'
 import { marketValueOf, ovr } from '../utils/playerUtils'
 import { type PlayRateWorld } from '../utils/playRate'
@@ -89,8 +88,8 @@ export function sellMove(
  *   違うのは「いくらで売れたか」だけなので、金額だけ受け取る。
  *
  * ■国内と海外の違い
- *   海外クラブは movePlayer がお金を動かさないので settleForeignFee で精算する。見出しも変わり、
- *   ビッグクラブ（格2以上＝世界最高峰）へ送り出したときだけ実績が付く。その3つ以外は同じ。
+ *   見出しが変わり、ビッグクラブ（格2以上＝世界最高峰）へ送り出したときだけ実績が付く。
+ *   お金は movePlayer が両側で動かす（どのリーグのクラブでも同じ）。
  */
 /**
  * そのクラブは格1（世界に数クラブ）か。**大ニュースの判定はこれを通す。**
@@ -123,9 +122,7 @@ export function finalizeSale(
 
   return {
     players: moved.players,
-    // 買った側が海外クラブなら、そのクラブの資金からも引く（`movePlayer` は日本のリーグのクラブしか動かさない）。
-    // 国内同士なら何も起きないので、ここで分岐しないこと
-    clubs: settleForeignFee(moved.clubs, state.playerTeamId, offer.fromTeamId, fee),
+    clubs: moved.clubs,
     transferHistory: [...(state.transferHistory ?? []), ...(moved.record ? [moved.record] : [])].slice(-400),
     // 世界最高峰（ビッグクラブ）へ送り出したのは初回だけ実績になる
     achievements: toBigClub && !(state.achievements ?? []).some(a => a.id === 'overseas-pioneer')

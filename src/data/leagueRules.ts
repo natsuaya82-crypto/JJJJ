@@ -19,17 +19,27 @@ export type LeagueRules = {
   tierMoves: boolean
   /** ドラフトに参加する（指名されなかった候補はFAになるので、ほかのリーグはそこから拾う） */
   draft: boolean
+  /**
+   * ドラフトの指名権を持つ（持てる）。ドラフトに参加するリーグと、昇格してそこへ上がる
+   * リーグのクラブ。**持てないクラブへは指名権を渡せない**（トレードの中身に入れない）
+   */
+  draftPicks: boolean
 }
 
 /** 決まりを持つリーグ。**ここに無いリーグ（海外9）は全部 false** */
 const RULES: Readonly<Record<LeagueId, LeagueRules>> = {
-  'jpel-1': { promotion: true, tierMoves: true, draft: true },
-  'jpel-2': { promotion: true, tierMoves: true, draft: false },
-  'jpel-3': { promotion: true, tierMoves: true, draft: false },
+  'jpel-1': { promotion: true, tierMoves: true, draft: true, draftPicks: true },
+  'jpel-2': { promotion: true, tierMoves: true, draft: false, draftPicks: true },
+  'jpel-3': { promotion: true, tierMoves: true, draft: false, draftPicks: true },
 }
-const NO_RULES: LeagueRules = { promotion: false, tierMoves: false, draft: false }
+const NO_RULES: LeagueRules = { promotion: false, tierMoves: false, draft: false, draftPicks: false }
 
 /** そのリーグの決まり。知らないリーグは何も無い */
 export function leagueRules(leagueId: LeagueId | null | undefined): LeagueRules {
   return (leagueId != null ? RULES[leagueId] : undefined) ?? NO_RULES
+}
+
+/** そのクラブは指名権を持てるか（トレードの画面と、成立させる側が同じここを見る） */
+export function holdsDraftPicks(club: { leagueId?: LeagueId } | null | undefined): boolean {
+  return leagueRules(club?.leagueId).draftPicks
 }

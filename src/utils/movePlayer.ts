@@ -3,7 +3,8 @@ import { canSignContract } from '../data/rosterRules'
 import type { Player, TeamRole, TransferRecord, WorldClub } from '../types'
 import { retiredFromOf } from './domesticPlayers'
 import { ovr } from './playerUtils'
-import { isJpelLeague, jpelClubById, mapClubs } from './world'
+import { jpelClubById } from './world'
+import { payBetween } from './clubMoney'
 
 // ============================================================================
 // 「選手がクラブを移る」を扱う唯一の場所。
@@ -113,21 +114,6 @@ export type MoveResult = {
 //   在籍は player.teamId が唯一の持ち場で、クラブ側の名簿は同じ事実の写しだった。
 //   写しがある限り「片方だけ更新して食い違う」が起き続ける（実際にトレードが片落ちしていた）。
 
-// 移籍金を動かす。移動先が払い、移動元が受け取る。
-// 動かすのは日本のリーグのクラブだけで、海外の側は素通りする（片側だけ動く）。
-// 海外の側は呼ぶ側が `utils/clubMoney` の `settleForeignFee` で精算する（いまの振る舞い）。
-function withMoney(clubs: WorldClub[], fromTeamId: string, toTeamId: string, fee: number): WorldClub[] {
-  if (fee <= 0) return clubs
-  let changed = false
-  const next = mapClubs(clubs, t => {
-    if (!isJpelLeague(t.leagueId) || !t.finance) return t
-    if (t.id === toTeamId) { changed = true; return { ...t, finance: { ...t.finance, budget: t.finance.budget - fee } } }
-    if (t.id === fromTeamId) { changed = true; return { ...t, finance: { ...t.finance, budget: t.finance.budget + fee } } }
-    return t
-  })
-  return changed ? next : clubs
-}
-
 export function movePlayer(
   world: { players: Player[]; clubs: WorldClub[] },
   playerId: string,
@@ -200,7 +186,8 @@ export function movePlayer(
   })
 
   let nextClubs = clubs
-  if (opts.money !== false) nextClubs = withMoney(nextClubs, fromTeamId, dest, fee)
+  // 移籍金は移動先が払い、移動元が受け取る。どのリーグのクラブでも同じ（utils/clubMoney の payBetween 1本）
+  if (opts.money !== false && fee > 0) nextClubs = payBetween(nextClubs, dest, fromTeamId, fee)
 
   // ★**画面に出す契約年数は、実際に結んだ契約から出す。**
   //   呼ぶ側が数字を書けるようにしておくと必ずズレる（`years: 2` の手書きが2つあった）。

@@ -75,7 +75,7 @@ export function settleCpuTransfers(params: {
       // ★**売り手も買い手も国内52＋海外180から引く**（オーナー・2026-09-16「1は海外国内は一緒」）。
       //   国内だけを探すと海外クラブに `undefined` が返り、次の行の
       //   `continue` で**黙って落ちて**いました＝海外がらみの出品は一度も成立しません。
-      //   移籍金の海外側は `engine/applyTransfers` が `settleForeignFee` で精算します。
+      //   移籍金は `engine/applyTransfers` の movePlayer が両側で動かします。
       const seller = clubById(clubs, listing.fromTeamId)
       const buyer = clubById(clubs, buyerTeamId)
       if (!p || !seller || !buyer) continue

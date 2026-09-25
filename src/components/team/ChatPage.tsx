@@ -22,7 +22,7 @@ import { ChatView } from './chat/ChatView'
 import { TradeChatView } from './chat/TradeChatView'
 import { OfferChatRow } from './chat/Cards'
 import { fmtDuration } from '../../utils/chatFormat'
-import { jpelClubById, myLeagueRaces } from '../../utils/world'
+import { clubById, myLeagueRaces } from '../../utils/world'
 
 
 
@@ -185,7 +185,8 @@ export default function ChatPage() {
   const chatPlayer = chatPlayerId ? openablePlayers.find(p => p.id === chatPlayerId) ?? players.find(p => p.id === chatPlayerId) ?? null : null
 
   // 他チーム（トレード交渉の相手）
-  const tradeTeam = tradeTeamId ? jpelClubById(clubs, tradeTeamId) ?? null : null
+  // トレードの相手は自チーム以外の全クラブ（国内52＋海外180）
+  const tradeTeam = tradeTeamId ? clubById(clubs, tradeTeamId) ?? null : null
 
   // ★**チャットを開いたら、いま出ている用件を見た扱いにする。**
   //   ホームの「チャット」の数字はこれで消える（オーナー・2026-08-16
