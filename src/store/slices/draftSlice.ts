@@ -13,9 +13,10 @@ import { draftLotteryOrder, draftOrderTeams, pickExistsAnywhere, standingsPickNu
 import { buildDraftOrder, generateCpuRosters, generateDraftPool, generateForeignLeaguePlayers, generateJpelForeignName, generatePlayerInitialRoster } from '../../engine/playerGenerator'
 import { type ForeignClub, type Player, type Team, type TransferRecord, type WorldClub } from '../../types'
 import { tierBudget, tierOf, tierOfPlayerClub } from '../../utils/clubTier'
-import { clubById, clubsWhere, isJpelLeague, jpelClubById, jpelClubs, mapClubs, myClub, otherClubs, withMyClub, myLeagueId, myLeagueRaces, withLeagueRaces } from '../../utils/world'
+import { clubById, clubsWhere, isJpelLeague, jpelClubs, mapClubs, myClub, otherClubs, withMyClub, myLeagueId, myLeagueRaces, withLeagueRaces } from '../../utils/world'
 import { findClub } from '../../utils/clubs'
-import { draftRoundOf, joinsDraft } from '../../utils/league'
+import { draftPickHolders, draftRoundOf, joinsDraft } from '../../utils/league'
+import { holdsDraftPicks } from '../../data/leagueRules'
 import { movePlayer } from '../../utils/movePlayer'
 import { cpuSignedHeadline, draftPickSoldHeadline, initialNews, type NewsItem } from '../../utils/newsItems'
 import { faMarketSalary, ovr, playerConsentToMove, newContractYears } from '../../utils/playerUtils'
@@ -37,7 +38,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     //   プレイヤーはどのクラブを選んでも3部から始まるので、初年度は必ず観戦になる。
     //   代わりに選手を1人自分で作って加入させる（createMyPlayer）。
     //   指名されなかった候補はFAになるので、2部・3部はそこから拾う。
-    const inauguralRound1 = clubsWhere(jpelClubs(state.clubs), t => joinsDraft(t))
+    const inauguralRound1 = clubsWhere(state.clubs, joinsDraft)
       .sort((a, b) => tierBudget(a) - tierBudget(b))
       .map(t => t.id)
     const pickOrder = [...inauguralRound1, ...[...inauguralRound1].reverse()]
@@ -244,17 +245,17 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       // Generate future draft picks for all teams (yr+1, yr+2, rounds 1-2)
       // 指名権番号は前年順位の逆順（最下位＝全体1位）で振る。
       const currentYear = state.currentSeason.year
-      // 指名権を持つのは日本のリーグのクラブ
-      const jpel = jpelClubs(state.clubs)
-      const pickNumMap = standingsPickNumbers(jpel, teamHistoriesOf(state.pastSeasons))
+      // 指名権を持てるクラブ（utils/league の draftPickHolders）
+      const holders = draftPickHolders(state.clubs)
+      const pickNumMap = standingsPickNumbers(holders, teamHistoriesOf(state.pastSeasons))
       const clubsWithPicks = mapClubs(state.clubs, (c): WorldClub => {
-        if (!isJpelLeague(c.leagueId)) return c
+        if (!holdsDraftPicks(c)) return c
         const t = c as Team
         const pickNum = pickNumMap.get(t.id) ?? 1
         const newPicks: typeof t.draftPicks = []
         for (const yr of [currentYear + 1, currentYear + 2]) {
           for (const round of [1, 2]) {
-            if (!pickExistsAnywhere(jpel, t.id, yr, round)) {
+            if (!pickExistsAnywhere(holders, t.id, yr, round)) {
               newPicks.push({ year: yr, round, pickNumber: pickNum, originallyOwnedBy: t.id })
             }
           }
@@ -445,8 +446,8 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
   sellDraftPick: (pickKey, targetTeamId, price) => {
     const state = get()
     const myTeam = myClub(state)
-    // 指名権を買えるのは日本のリーグのクラブ
-    const buyTeam = jpelClubById(state.clubs, targetTeamId)
+    // 指名権を買えるのは指名権を持てるクラブ（data/leagueRules の holdsDraftPicks。画面の買い手の一覧と同じ）
+    const buyTeam = clubById(draftPickHolders(state.clubs), targetTeamId)
     if (!myTeam || !buyTeam) return false
     const pick = (myTeam.draftPicks ?? []).find(p => `${p.year}-R${p.round}-${p.pickNumber}` === pickKey)
     if (!pick) return false
@@ -456,7 +457,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     const date = myLeagueRaces(state.currentSeason, state.playerTeamId)[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`
     set(s => ({
       clubs: mapClubs(s.clubs, (c): WorldClub => {
-        if (!isJpelLeague(c.leagueId)) return c
+        if (!holdsDraftPicks(c)) return c
         const t = c as Team
         if (t.id === s.playerTeamId) return {
           ...t,
@@ -483,21 +484,21 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
   ensureFuturePicks: () => {
     const state = get()
     const yr = state.currentSeason.year
-    // 指名権を持つのは日本のリーグのクラブ
-    const jpel = jpelClubs(state.clubs)
-    const anyMissingPicks = jpel.some(t =>
+    // 指名権を持てるクラブ（utils/league の draftPickHolders）
+    const holders = draftPickHolders(state.clubs)
+    const anyMissingPicks = holders.some(t =>
       !(t.draftPicks ?? []).some(pk => pk.year > yr)
     )
     if (!anyMissingPicks) return
     // 指名権番号は前年順位の逆順（最下位＝全体1位）で振る。
-    const pickNumMap = standingsPickNumbers(jpel, teamHistoriesOf(state.pastSeasons))
+    const pickNumMap = standingsPickNumbers(holders, teamHistoriesOf(state.pastSeasons))
     const updatedClubs = mapClubs(state.clubs, (c): WorldClub => {
-      if (!isJpelLeague(c.leagueId)) return c
+      if (!holdsDraftPicks(c)) return c
       const t = c as Team
       const newPicks: typeof t.draftPicks = []
       for (const year of [yr + 1, yr + 2]) {
         for (const round of [1, 2]) {
-          if (!pickExistsAnywhere(jpel, t.id, year, round)) {
+          if (!pickExistsAnywhere(holders, t.id, year, round)) {
             newPicks.push({ year, round, pickNumber: pickNumMap.get(t.id) ?? 1, originallyOwnedBy: t.id })
           }
         }
@@ -520,11 +521,11 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     // ドラフト順は「当年分の指名権の所有」で決める：指名スロットの並びは各指名権の
     // 【元保有チームの抽選順】で決まり、現在の保有チームがそこで指名する。
     // 2年目以降は前年下位5チームの加重抽選で1巡目の順を決定。2巡目はスネーク（逆順＝1位から）。
-    // 指名権を持つのは日本のリーグのクラブ
-    const jpel = jpelClubs(state.clubs)
-    const lotteryPos = draftLotteryOrder(jpel, teamHistoriesOf(state.pastSeasons)) // teamId → 全体指名順位(1=全体1位)
-    const teamCount = jpel.length
-    const ownedYearPicks = jpel
+    // 指名権を持てるクラブ（utils/league の draftPickHolders）
+    const holders = draftPickHolders(state.clubs)
+    const lotteryPos = draftLotteryOrder(holders, teamHistoriesOf(state.pastSeasons)) // teamId → 全体指名順位(1=全体1位)
+    const teamCount = holders.length
+    const ownedYearPicks = holders
       .flatMap(t => (t.draftPicks ?? []).filter(pk => pk.year === yr).map(pk => {
         const basePos = lotteryPos.get(pk.originallyOwnedBy ?? t.id) ?? pk.pickNumber
         // 2巡目はスネーク：1巡目の逆順にする（最後に指名したチームが2巡目の先頭）
@@ -534,7 +535,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       .sort((a, b) => a.round - b.round || a.orderKey - b.orderKey)
     // 指名するのは1部のクラブだけ（joinsDraft）。指名権を持っていても、
     // その年に1部にいなければ使えない
-    const draftTeams = clubsWhere(jpel, t => joinsDraft(t))
+    const draftTeams = clubsWhere(holders, t => joinsDraft(t))
     const draftTeamIds = new Set(draftTeams.map(t => t.id))
     const yearPicksInTop = ownedYearPicks.filter(pk => draftTeamIds.has(pk.ownerId))
     const pickOrder = yearPicksInTop.length >= draftTeams.length
@@ -545,14 +546,14 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     // 消化した当年分の指名権はここで名簿から外す（順は上のpickOrderに確定済み）
     // 指名権番号は前年順位の逆順（最下位＝全体1位）。既存の将来指名権も"元保有チームの順位"で振り直し、
     // 初回に配列順で焼き込まれた古い番号を都度上書きして正す（表示と実際の指名順を一致させる）。
-    const pickNumMap = standingsPickNumbers(jpel, teamHistoriesOf(state.pastSeasons))
+    const pickNumMap = standingsPickNumbers(holders, teamHistoriesOf(state.pastSeasons))
     const clubsWithPicks = mapClubs(state.clubs, (c): WorldClub => {
-      if (!isJpelLeague(c.leagueId)) return c
+      if (!holdsDraftPicks(c)) return c
       const t = c as Team
       const newPicks: typeof t.draftPicks = []
       for (const year of [yr + 1, yr + 2]) {
         for (const round of [1, 2]) {
-          if (!pickExistsAnywhere(jpel, t.id, year, round)) {
+          if (!pickExistsAnywhere(holders, t.id, year, round)) {
             newPicks.push({ year, round, pickNumber: pickNumMap.get(t.id) ?? 1, originallyOwnedBy: t.id })
           }
         }

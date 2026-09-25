@@ -12,10 +12,10 @@
 //     無い一方通行になるため。復活させないこと
 import { draftPickValue } from '../data/economy'
 import { deficitPickPenaltyHeadline } from '../utils/newsItems'
-import { domesticThroughRankOfTeam } from '../utils/league'
+import { domesticThroughRankOfTeam, draftPickHolders } from '../utils/league'
 import { pickExistsAnywhere } from './draftOrder'
 import type { GameState, WorldClub } from '../types'
-import { jpelClubs, mapClubs, myClub } from '../utils/world'
+import { mapClubs, myClub } from '../utils/world'
 
 export type DraftPickResult = {
   clubs: WorldClub[]
@@ -23,7 +23,7 @@ export type DraftPickResult = {
 }
 
 export function issueDraftPicks(args: {
-  /** 予算精算まで終わったクラブ（世界の並び。指名権を持つのは日本のリーグのクラブ） */
+  /** 予算精算まで終わったクラブ（世界の並び。指名権を持てるのは utils/league の draftPickHolders） */
   clubs: WorldClub[]
   /** 指名順を数えるときの母数（国内クラブの数） */
   numTeams: number
@@ -35,16 +35,16 @@ export function issueDraftPicks(args: {
   deficitStreak: number
 }): DraftPickResult {
   const { clubs, numTeams, currentSeason, playerTeamId, newYear, deficitStreak } = args
-  const jpel = jpelClubs(clubs)
+  const holders = draftPickHolders(clubs)
 
-  const teamsWithFuturePicks = jpel.map(t => {
+  const teamsWithFuturePicks = holders.map(t => {
     // 部をまたいで並べるので国内通し順位（1〜52）。下位ほど早い番号になる
     const teamFinalRank = domesticThroughRankOfTeam(currentSeason, t.id)
     const pickNum = Math.max(1, numTeams - teamFinalRank + 1)
     const newPicks: typeof t.draftPicks = []
     for (const yr of [newYear, newYear + 1]) {
       for (const round of [1, 2]) {
-        const alreadyHas = pickExistsAnywhere(jpel, t.id, yr, round)
+        const alreadyHas = pickExistsAnywhere(holders, t.id, yr, round)
         if (!alreadyHas) newPicks.push({ year: yr, round, pickNumber: pickNum, originallyOwnedBy: t.id })
       }
     }

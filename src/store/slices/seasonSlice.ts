@@ -34,7 +34,7 @@ import { MORALE_DEFAULT, setMorale } from '../../utils/condition'
 import { backfillDomesticClubs } from '../../utils/domesticClubs'
 import { buildOffer, canResignAsGm, makeGmOffer, resignOffers } from '../../utils/gmOffer'
 import { managedTeamIds, startTenure } from '../../utils/gmTenure'
-import { DIVISIONS, TOP_DIVISION, divisionOf, divisionStandings, myDivSize, newSeasonStandings, rankOfTeam, seasonDivisionStandings, divisionLeagues } from '../../utils/league'
+import { DIVISIONS, TOP_DIVISION, divisionOf, divisionStandings, draftPickHolders, myDivSize, newSeasonStandings, rankOfTeam, seasonLeagueStandings, divisionLeagues } from '../../utils/league'
 import { divisionChampionHeadline, divisionsFoundedHeadline, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline } from '../../utils/newsItems'
 import { comparePlayers } from '../../utils/playerSort'
 import { faMarketSalary, newContractYears, ovr, packForeignApps, perfOf } from '../../utils/playerUtils'
@@ -388,8 +388,8 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const domesticYouth = refreshDomesticYouth(state.clubs, state.currentSeason.year + 1, grownPlayers)
 
       // Morale streak system: apply morale bonus/penalty to player team based on season finish
-      const myFinalRank = rankOfTeam(seasonDivisionStandings(state.currentSeason, state.playerTeamId), state.playerTeamId)
-      const myDivRows = seasonDivisionStandings(state.currentSeason, state.playerTeamId)
+      const myFinalRank = rankOfTeam(seasonLeagueStandings(state.currentSeason, state.playerTeamId), state.playerTeamId)
+      const myDivRows = seasonLeagueStandings(state.currentSeason, state.playerTeamId)
 
       // 来季の格と昇降格は engine/promotion 1本
       // （格は「今季走った部」での順位から。部の入れ替えはそのあと）
@@ -560,7 +560,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
 
       // 指名権の発行・期限切れの掃除・赤字ペナルティは engine/draftPicks 1本
       const picks = issueDraftPicks({
-        clubs: clubsWithSeasonRewards, numTeams: jpelClubs(state.clubs).length, currentSeason: state.currentSeason,
+        clubs: clubsWithSeasonRewards, numTeams: draftPickHolders(state.clubs).length, currentSeason: state.currentSeason,
         playerTeamId: state.playerTeamId, newYear, deficitStreak: newStreakMe })
       const clubsWithCleanedPicks = picks.clubs
       const pickPenaltyNews = picks.pickPenaltyNews
@@ -896,7 +896,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const offers = resignOffers({
         season: state.currentSeason,
         playerTeamId: state.playerTeamId,
-        finalRank: rankOfTeam(seasonDivisionStandings(state.currentSeason, state.playerTeamId), state.playerTeamId),
+        finalRank: rankOfTeam(seasonLeagueStandings(state.currentSeason, state.playerTeamId), state.playerTeamId),
         // ★来季（＋1）。就任は次のシーズン開始時（★13）
         nextYear: state.currentSeason.year + 1,
         clubs: state.clubs,

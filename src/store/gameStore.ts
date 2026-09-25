@@ -20,7 +20,8 @@ import { deviceAdsRemoved, setDeviceAdsRemoved, deviceTwitterIntroSeen, setDevic
 import { setSaveHealth } from './saveHealth'
 import type { GameState, Player, Team, WorldClub, RaceResults, IncomingOffer, TeamRole, FacilityKey, CardRarity, CardStatKey, TrainingCard, Ratings, Race, Nationality, Specialty } from '../types'
 import type { ISim } from '../engine/interactiveRace'
-import { isJpelLeague, jpelClubs, mapClubs } from '../utils/world'
+import { clubsWhere, mapClubs } from '../utils/world'
+import { leagueRules } from '../data/leagueRules'
 
 // 日本のリーグの全チーム（1部20 ＋ 2部16 ＋ 3部16 = 52）。
 // 部は所属リーグ（leagueId＝jpel-<部>）が持つ。「どの部か」は utils/league.ts の divisionOf を通すこと。
@@ -521,20 +522,20 @@ export const useGameStore = create<GameStore>()(
           // ★どのクラブを選んでも最下位（通し52位＝3部・格20）から始まる。
           //   選択はJPEL52クラブ全部から。
           //
-          //   持っているのは「52クラブの並び」1本で、部はそれを切り分けたものにすぎない。
+          //   持っているのは部の入れ替えのあるリーグ（`promotion`）の「52クラブの並び」1本で、部はそれを切り分けたものにすぎない。
           //   選んだクラブを列から抜いて最後尾へ回すと、**下にいたクラブが全部ひとつずつ繰り上がる**。
           //   1クラブと入れ替えるのではなく列がずれるだけなので、各部の人数は自然に 20/16/16 のまま。
           //
           //   繰り上がるのは「枠」＝(部, 格)の組。格は data/clubTiers.ts に手で振ってあり、
           //   部をまたいで重なっている（2部の上位は1部の下位より格が上）。順位から
           //   tierFromDomesticRank で引き直すとその値を捨ててしまうので、枠ごと動かす。
-          const orderedTeams = [...jpelClubs(state.clubs)].sort((a, b) => (a.initialRank ?? 999) - (b.initialRank ?? 999))
+          const ladder = (c: WorldClub) => leagueRules(c.leagueId).promotion
+          const orderedTeams = (clubsWhere(state.clubs, ladder) as Team[]).sort((a, b) => (a.initialRank ?? 999) - (b.initialRank ?? 999))
           const slots = orderedTeams.map(t => ({ leagueId: t.leagueId, tier: tierOf(t) }))
           const reordered = [...orderedTeams.filter(t => t.id !== setup.teamId), orderedTeams.find(t => t.id === setup.teamId)!]
           const placementOf = new Map(reordered.map((t, i) => [t.id, slots[i]]))
           const renamedClubs: WorldClub[] = mapClubs(state.clubs, (c): WorldClub => {
-            // 並べ替えるのは日本のリーグの52クラブだけ
-            if (!isJpelLeague(c.leagueId)) return c
+            if (!ladder(c)) return c
             const t = c as Team
             // initialRank は初期施設のもとになった値なので触らない（枠だけ動かす）
             const placed = placementOf.get(t.id) ?? { leagueId: t.leagueId, tier: tierOf(t) }

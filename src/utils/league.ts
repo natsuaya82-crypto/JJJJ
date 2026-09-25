@@ -15,8 +15,8 @@
 // 必ず divisionOf() を通すこと。
 
 import type { Division, LeagueId, LeagueSeason, Race, SeasonStanding, Team, WorldClub } from '../types'
-import { divisionLeagueId, divisionOfLeague, jpelClubs, jpelClubById, mapClubs } from './world'
-import { leagueRules } from '../data/leagueRules'
+import { clubsWhere, divisionLeagueId, divisionOfLeague, jpelClubs, jpelClubById, leagueIdOfClub, mapClubs } from './world'
+import { holdsDraftPicks, leagueRules } from '../data/leagueRules'
 
 /** 上から順。表示の並びもこの順 */
 export const DIVISIONS: readonly Division[] = [1, 2, 3]
@@ -156,6 +156,14 @@ export function joinsDraft(club: { leagueId?: string } | undefined): boolean {
   return leagueRules(club?.leagueId).draft
 }
 
+/**
+ * 指名権を持てるクラブ（`data/leagueRules` の `draftPicks`）。並びの順のまま。
+ * **指名権の発行・指名順・売り買いはこの並びだけを相手にする**（「日本のリーグなら」と書かないこと）
+ */
+export function draftPickHolders(clubs: readonly WorldClub[]): Team[] {
+  return clubsWhere(clubs, holdsDraftPicks) as Team[]
+}
+
 // ── 区間賞の賞金 ──────────────────────────────────────────────
 //
 // 各区間の上位3人にクラブへ賞金が入る。**自チームもCPUも同じ額**。
@@ -283,25 +291,17 @@ export function divisionInYear(
   return (s && divisionInSeason(s, teamId)) ?? fallback
 }
 
-/** そのチームが走った部の順位表（得点順）。載っていなければ空 */
-export function seasonDivisionStandings<T extends RankableRow & { teamId: string }>(
+/**
+ * そのチームがその年に走ったリーグの順位表（得点順）。載っていなければ空。
+ * **日本の部も海外リーグも同じ**（載っている順位表がその年の所属・`utils/world` の `leagueIdOfClub`）。
+ * 自チームの順位・「自分のリーグの順位表」はここを通す。部番号で引く2本目を作らないこと
+ */
+export function seasonLeagueStandings<T extends RankableRow & { teamId: string }>(
   season: SeasonStandingsLike<T>,
   teamId: string,
 ): T[] {
-  const d = divisionInSeason(season, teamId)
-  return d == null ? [] : divisionStandings(season, d)
-}
-
-/** その年のそのチームの行（どの部にいたかを気にせず引く）。無ければ undefined */
-export function standingRowOf<T extends RankableRow & { teamId: string }>(
-  season: SeasonStandingsLike<T>,
-  teamId: string,
-): T | undefined {
-  for (const d of DIVISIONS) {
-    const row = season.leagues?.[divisionLeagueId(d)]?.standings?.find(r => r.teamId === teamId)
-    if (row) return row
-  }
-  return undefined
+  const id = leagueIdOfClub(season, teamId)
+  return id == null ? [] : rankedStandings(season.leagues?.[id]?.standings)
 }
 
 /** 部ごとの順位表をまとめて（得点順）。全チームぶんの成績を数え直すときに使う */

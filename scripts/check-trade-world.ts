@@ -93,5 +93,39 @@ console.log('\n[2] store：海外クラブと現金・指名権つきのトレ�
   }
 }
 
+console.log('\n[3] 指名権を扱うところは、持てるクラブ（data/leagueRules の draftPicks）だけを相手にする')
+{
+  // 発行・指名順・売り買いの相手は utils/league の draftPickHolders ／ holdsDraftPicks 1本。
+  // 「日本のリーグなら」で絞っていた（いまは同じ集合だが、決まりが動くと割れる）
+  const slice = readFileSync('src/store/slices/draftSlice.ts', 'utf8')
+  const engine = readFileSync('src/engine/draftPicks.ts', 'utf8')
+  const both = slice + engine
+  const exists = both.match(/pickExistsAnywhere\(\w+/g) ?? []
+  check('指名権の重複を見る相手は全部 draftPickHolders の並び', exists.length === 4 && exists.every(m => m.endsWith('(holders')),
+    exists.join(' '))
+  check('  指名権を配り直す枝は holdsDraftPicks で分ける', (slice.match(/if \(!holdsDraftPicks\(c\)\) return c/g) ?? []).length === 4)
+  check('  engine/draftPicks は日本のリーグで絞らない', !/jpelClubs|isJpelLeague/.test(engine))
+  const page = readFileSync('src/components/transfer/TransferPage.tsx', 'utf8')
+  check('  売る画面の買い手も holdsDraftPicks', /clubsWhere\(otherClubs\(clubs, playerTeamId\), holdsDraftPicks\)/.test(page))
+
+  const YEAR = 2031
+  const clubs: WorldClub[] = initialWorldClubs()
+  const ME = jpelClubs(clubs)[0].id
+  const pick = { year: YEAR + 2, round: 1, pickNumber: 3, originallyOwnedBy: ME }
+  const set = () => useGameStore.setState({
+    isInitialized: true, playerTeamId: ME, clubs: clubs.map(c => (c.id === ME ? { ...c, draftPicks: [pick] } : c)), players: [],
+    currentSeason: { year: YEAR, phase: 'regular', currentRaceIndex: 0, leagues: {}, newsFeed: [], objectives: [] },
+    pastSeasons: [],
+  } as never)
+  const key = `${pick.year}-R${pick.round}-${pick.pickNumber}`
+  const fc = clubsWhere(clubs, c => !holdsDraftPicks(c))[0]
+  const jp = clubsWhere(clubs, c => holdsDraftPicks(c) && c.id !== ME)[0]
+  set()
+  check('持てないクラブへは売れない', useGameStore.getState().sellDraftPick(key, fc.id, 1) === false)
+  set()
+  check('持てるクラブへは売れる（空振りではない）', useGameStore.getState().sellDraftPick(key, jp.id, 1) === true
+    && (clubById(useGameStore.getState().clubs, jp.id)!.draftPicks ?? []).some(p => p.originallyOwnedBy === ME))
+}
+
 if (failed > 0) { console.log(`\n✗ ${failed}件`); process.exit(1) }
-console.log('\n✓ トレードの相手は231クラブ・お金は両側で動く・指名権は消えない')
+console.log('\n✓ トレードの相手は231クラブ・お金は両側で動く・指名権は消えない・指名権は持てるクラブとだけ')
