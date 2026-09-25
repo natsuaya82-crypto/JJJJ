@@ -41,7 +41,7 @@ import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
-import { generateIndividualEvents, generateSeasonRaces } from '../src/data/races'
+import { drawSeasonSchedules, generateIndividualEvents } from '../src/data/races'
 import { newSeasonStandings, DIVISIONS, DIVISION_RACES, divisionOf } from '../src/utils/league'
 import { assignLineupByTerrain } from '../src/engine/raceEngine'
 import { stripEphemeral } from '../src/store/ephemeralState'
@@ -103,7 +103,12 @@ function buildState(phase: 'regular' | 'postseason', racesDone: number) {
 
   const teams = base.map(t => ({ ...t, finance: { ...(t.finance ?? {}), budget: 400_000_000 } })) as Team[]
   const myTeam = teams.find(t => t.id === MY)!
-  const allRaces = generateSeasonRaces(YEAR, divisionOf(myTeam))
+  // 部ごとの日程は本物と同じ `drawSeasonSchedules` で引く（乱数はシード固定のもの）。
+  // ★以前は自分の部の10戦しか組まず、**他の部に日程が1本も無い世界**だった。
+  //   裏の部は「日程が無ければ自分の部のコースを流用する」古いセーブの保険の枝を走り、
+  //   シーズン末の追い上げ（engine/catchUpDivisions）は1行も通っていなかった
+  const schedules = drawSeasonSchedules(YEAR, Math.random)
+  const allRaces = schedules[divisionOf(myTeam)]
   // racesDone 本だけ「消化済み」にする
   const races: Race[] = allRaces.map((r, i) => i < racesDone
     ? { ...r, results: { teamResults: [], segmentResults: [] } } as Race
@@ -119,7 +124,7 @@ function buildState(phase: 'regular' | 'postseason', racesDone: number) {
     foreignLeagues: fgen.updatedLeagues,
     currentSeason: {
       year: YEAR, phase, currentRaceIndex: racesDone,
-      races, standings, foreignStandings, newsFeed: [], objectives: [],
+      races, divisionRaces: schedules, standings, foreignStandings, newsFeed: [], objectives: [],
       incomingOffers: [], transferListings: [], contractRequests: [],
     },
     pastSeasons: [],
@@ -178,6 +183,12 @@ function compare(name: string, produce: () => void) {
   if (threw) return
 
   const parts = snapshotParts()
+  // 状態そのものを丸ごと書き出す（形を変える分解で、変換してから中身を突き合わせるため）
+  if (process.env.GOLDEN_DUMP_DIR) {
+    mkdirSync(process.env.GOLDEN_DUMP_DIR, { recursive: true })
+    writeFileSync(`${process.env.GOLDEN_DUMP_DIR}/${name}.json`,
+      JSON.stringify(stripEphemeral(useGameStore.getState() as never), (_k, x) => (typeof x === 'string' ? maskTime(x) : x)))
+  }
   // 状態そのものは数MBあるのでリポジトリには置かず、キーごとのハッシュだけ保存する。
   // どのキーが変わったかはこれで分かる。中身を目で見たいときは下の dump を開く
   const hashes: Record<string, string> = {}
@@ -228,7 +239,7 @@ SCENARIOS['runRace-final'] = () => {
   // 最終戦だけを通る枝がある（engine/seasonFinaleNews の表彰・引退表明）。
   // 開幕戦のシナリオだけだとそこが1行も動かないので、最終戦ぶんも見る
   const my = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS].find(t => t.id === MY) as Team
-  const n = generateSeasonRaces(YEAR, divisionOf(my)).length
+  const n = DIVISION_RACES[divisionOf(my)]
   const { players } = buildState('regular', n - 1)
   const st = useGameStore.getState()
   const race = st.currentSeason.races[n - 1]
@@ -240,7 +251,7 @@ SCENARIOS['runRace-final'] = () => {
 SCENARIOS['endSeason'] = () => {
   console.log('[endSeason] 全戦消化後のオフシーズン')
   const my = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS].find(t => t.id === MY) as Team
-  const n = generateSeasonRaces(YEAR, divisionOf(my)).length
+  const n = DIVISION_RACES[divisionOf(my)]
   buildState('postseason', n)
   compare('endSeason', () => { useGameStore.getState().endSeason() })
 }
@@ -299,7 +310,7 @@ SCENARIOS['draft-flow'] = () => {
   // draftSlice の中核（beginSeasonDraft/playerPick/cpuPick/advanceDraft）を一続きで通す。
   // beginSeasonDraft は CPUの解雇・移籍・レンタル・FA補強もここで一気に走る（911行の大半）。
   const base = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
-  const n = generateSeasonRaces(YEAR, divisionOf(base.find(t => t.id === MY))).length
+  const n = DIVISION_RACES[divisionOf(base.find(t => t.id === MY))]
   buildState('postseason', n)
   const g = () => useGameStore.getState()
   // ★2年目以降の枝（前年順位に基づく指名順）を実際に通すため、去年の順位表を入れておく。
