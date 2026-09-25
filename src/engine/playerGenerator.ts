@@ -12,7 +12,7 @@ import { buildNationalityBag } from '../data/nationTalent'
 import { clubMembersByClub } from '../utils/rosterSync'
 import { joinsDraft } from '../utils/league'
 import { jpelClubs, mapClubs } from '../utils/world'
-import { ROSTER_MAX, ROSTER_MIN } from '../data/rosterRules'
+import { ROSTER_MAX, SEASON_START_ROSTER } from '../data/rosterRules'
 
 const FAMILY_NAMES = [
   '田中','鈴木','佐藤','高橋','伊藤','渡辺','山本','中村','小林','加藤',
@@ -1274,7 +1274,7 @@ const DOMESTIC_YOUTH_RANKS: Rank[] = ['C', 'D']
 /**
  * **クラブに新しい選手を n 人つくる、唯一の幹。**
  *
- * 若手の補充（`refreshDomesticYouth`）も、下限割れの救済（`fillRosterToMin`）も
+ * 若手の補充（`refreshDomesticYouth`）も、開幕の床（`fillRostersForSeason`）も
  * ここから分岐します。**呼ぶ側で選手を手組みしないこと。**
  *
  * 中身は `generateCpuRosters` →（帯を当て直す）`buildRatingsForRank` →
@@ -1282,7 +1282,7 @@ const DOMESTIC_YOUTH_RANKS: Rank[] = ['C', 'D']
  * クラブの数だけ呼ばずに先頭から n 人だけ使います。
  *
  * 分岐で変わるのは3つだけ。
- *   ranks  … 当てる帯（若手は C・D、救済はいちばん下の D）
+ *   ranks  … 当てる帯（若手は C・D、開幕の床はそのクラブの格のランク構成）
  *   prefix … IDの頭（`yth-` / `fill-`。混ざらないように分ける）
  *   n      … 何人つくるか（呼ぶ側が決める）
  */
@@ -1292,7 +1292,7 @@ function makeNewPlayersFor(
   if (n <= 0) return []
   const made = generateCpuRosters([{ id: team.id, tier: tierOf(team) }], year).cpuPlayers.slice(0, n)
   return made.map((p, i) => {
-    // 年齢は若手の帯（19〜22）。伸びしろを持たせるのは補充も救済も同じ
+    // 年齢は若手の帯（19〜22）。伸びしろを持たせるのは補充も開幕の床も同じ
     const age = 19 + (i % 4)
     const { ratings, potential } = buildRatingsForRank({
       id: p.id, rank: ranks[i % ranks.length], specialty: p.specialty,
@@ -1324,54 +1324,46 @@ export function refreshDomesticYouth(
   for (const t of targets) {
     const have = (membersByClub.get(t.id) ?? []).length
     const room = Math.max(0, ROSTER_MAX - have)
-    // 中身は makeNewPlayersFor 1本（下の fillRosterToMin と同じ幹）
+    // 中身は makeNewPlayersFor 1本（下の fillRostersForSeason と同じ幹）
     out.push(...makeNewPlayersFor(t, year, Math.min(DOMESTIC_YOUTH_PER_CLUB, room), DOMESTIC_YOUTH_RANKS, 'yth'))
   }
   return out
 }
 
 /**
- * **在籍が下限（`ROSTER_MIN`）を割ったクラブに、足りないぶんだけ弱い選手を入れる。**
+ * **開幕の直前に、在籍が `SEASON_START_ROSTER`(20) に満たないクラブを20人まで埋める。埋めるのはここ1本。**
  *
- * ■なぜ要るのか（オーナー・2026-08-23
- *   「開幕できないは防ぎたいからもし15人以下だった場合60くらいの弱い選手が
- *     足りない分追加されて15人になるのは？」）
+ * ■なぜ要るのか（オーナー・2026-09-25「チーム人数が開幕できないのを防ぐために
+ *   20人以下の場合は20人になるまで自動補填」「格によって初期値が違う」）
  *
- *   下限を割ると `utils/seasonStart` が開幕を止めますが、**そこから抜ける道が
- *   画面にありませんでした**。ドラフトで獲れるのは1部だけ（`joinsDraft`）で、
- *   2部・3部はFAと移籍しか無く、FAが尽きると詰みます（オーナー・2026-08-16
- *   「fa全部とっても13人にしかならないからロスター埋められない」は実際に起きた）。
+ *   出口（引退・契約満了・移籍）は232クラブ全部にあり、入口（ドラフト・海外の補充・
+ *   国内2・3部の若手）が追いつかない年はクラブが痩せます。ドラフトで獲れるのは1部だけで、
+ *   2部・3部はFAと移籍しか無く、FAが尽きると詰みます（2026-08-16 に実際に起きた）。
  *
  * ■線
- *   ・**足りないぶんだけ**（15人ちょうどにする。それ以上は入れない）
- *   ・いちばん下の帯（ランクD）だけ。実測でOVR60前後
- *   ・中身は `refreshDomesticYouth` と同じ幹（`generateCpuRosters` →
- *     `buildRatingsForRank` → `faMarketSalary`）。**ここで選手を手組みしないこと**
- *   ・年齢は若手の帯（19〜22）。救済で入る選手なので伸びしろは持たせる
- */
-const ROSTER_FILL_RANK: Rank = 'D'
-
-/**
- * **世界中のクラブを、下限（`ROSTER_MIN`）まで埋める。埋めるのはここ1本。**
+ *   ・**足りないぶんだけ**（20人ちょうどにする。それ以上は入れない）
+ *   ・**強さは格から**——そのクラブの格のランク構成（`tierRankSlots`）を当てる。
+ *     初期ロスターと同じ配り方なので、格1のクラブには格1の、格20のクラブには格20の
+ *     選手が入る（以前はどの格でもランクD＝OVR60前後の1本でした）
+ *   ・年齢は若手の帯（19〜22）。中身は `makeNewPlayersFor` 1本（若手の補充と同じ幹）
  *
  * ★**自チームだけを特別扱いしないこと**（オーナー・2026-09-15「そもそも人によって
- *   違うとかおかしいよね」）。以前は自チームにしか効かず、CPUと海外のクラブには
- *   下限がありませんでした。海外の契約満了を直した（`engine/contractExpiry`）とたんに
- *   海外クラブが14人まで痩せて `check-offseason` が落ちたのがそれです。
- *   出口（引退・満了・移籍）は232クラブ全部にあるのだから、**床も全部に要ります。**
- *
- * ★**索引は1回だけ組むこと。** クラブごとに `players.filter(...)` すると
- *   232クラブ × 6,000人 ＝ 140万回の比較になります（`utils/rosterSync` の注意書きと同じ）。
+ *   違うとかおかしいよね」）。出口は232クラブ全部にあるのだから、床も全部に要ります。
+ * ★**呼ぶのは開幕の直前（`startRegularSeason`）1か所だけ。** 満了も引退もドラフトも
+ *   終わったあとの確定した人数を見られるのはそこだけです（`endSeason` の中で満了前の
+ *   名簿を見て足していたころは、満了で割ったクラブに1人も足していませんでした）。
+ * ★**索引は1回だけ組むこと。** 数え方は `data/rosterRules` の `teamRosterSize` と同じ
+ *   （引退していない人は全員・怪我人も入る）を、`clubMembersByClub` で232クラブぶん一度に引く。
+ *   クラブごとに `players.filter(...)` すると 232クラブ × 6,000人 ＝ 140万回の比較になります。
  */
-export function fillAllRostersToMin(
+export function fillRostersForSeason(
   clubs: readonly WorldClub[],
   year: number,
   players: readonly Player[],
 ): Player[] {
   const byClub = clubMembersByClub(players as Player[])
-  // 足りないぶんだけ（15人ちょうどにする）。中身は makeNewPlayersFor 1本
-  return mapClubs(clubs, c =>
-    makeNewPlayersFor(c, year, ROSTER_MIN - (byClub.get(c.id) ?? []).length, [ROSTER_FILL_RANK], 'fill')).flat()
+  return mapClubs(clubs, c => makeNewPlayersFor(
+    c, year, SEASON_START_ROSTER - (byClub.get(c.id) ?? []).length, tierRankSlots(tierOf(c)), 'fill')).flat()
 }
 
 // 海外選手のID採番。カウンタはメモリ上の値なのでアプリ再起動でリセットされる。

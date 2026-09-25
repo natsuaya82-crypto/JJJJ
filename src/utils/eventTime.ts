@@ -23,16 +23,19 @@ export function eventLabelOf(distance: number): string {
 
 // カレンダー進行: 直前に消化したレースと次のレースの間にある未実施の記録会（＝次の予定）を返す。
 // 現在位置より前の日付の未実施分は対象外（過去にさかのぼって実施しない）。
+// 返すのは**自チームが出る記録会だけ**（`data/races` の `entersTimeTrial`）。同じ日に
+// 別の系統の記録会が並ぶ日は、そちらも開くときに一緒に開かれる（`simulateIndividualEvent`）。
 // @param races 自チームのリーグの日程（utils/world の myLeagueRaces）
+// @param leagueId 自チームのリーグ（utils/world の myLeagueId）
 export function getDueIndividualEvent<E extends { id: string; date: string; results?: unknown }>(season: {
   currentRaceIndex: number
   individualEvents?: E[]
-}, races: readonly { date: string }[]): E | null {
+}, races: readonly { date: string }[], leagueId: LeagueId | null | undefined): E | null {
   const idx = season.currentRaceIndex ?? 0
   const lastDate = idx > 0 ? races[idx - 1]?.date ?? '' : ''
   const nextDate = races[idx]?.date ?? '9999-12-31'
   const due = (season.individualEvents ?? [])
-    .filter(e => !e.results && e.date > lastDate && e.date < nextDate)
+    .filter(e => !e.results && e.date > lastDate && e.date < nextDate && entersTimeTrial(e.id, leagueId))
     .sort((a, b) => a.date.localeCompare(b.date))
   return due.length > 0 ? due[0] : null
 }
@@ -56,7 +59,8 @@ export function formatRaceTime(sec: number): string {
 // もともと gameStore.ts にあった物をここへ移した。代表選出エンジン
 // （engine/worldAthletics.ts）からも使うため（gameStore を import すると循環になる）
 // ============================================================================
-import type { Player } from '../types'
+import type { LeagueId, Player } from '../types'
+import { entersTimeTrial } from '../data/races'
 import { safeRatings } from '../engine/raceEngine'
 import { lerpAnchors } from './anchors'
 

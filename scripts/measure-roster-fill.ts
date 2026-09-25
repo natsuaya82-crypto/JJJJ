@@ -66,7 +66,11 @@ function snapshot(label: string) {
   const all = act.map(p => ovr(p))
   const fa = st.players.filter(p => p.status !== 'retired' && p.teamId === '').length
   const newThisYear = act.filter(p => p.joinedYear === st.currentSeason.year && p.yearsPro === 0).length
-  console.log(`\n[${label}] ${st.currentSeason.year}年 開幕  在籍 ${act.length}人（FA ${fa}人）  OVR85+ ${all.filter(v => v >= 85).length} / 90+ ${all.filter(v => v >= 90).length}  今年入った新人 ${newThisYear}人`)
+  // 開幕の床で足された人（IDの頭が `fill-<年>-`）。前と後のコードで同じ頭を使う
+  const filled = act.filter(p => p.id.startsWith(`fill-${st.currentSeason.year}-`))
+  const filledOvr = filled.map(p => ovr(p))
+  console.log(`\n[${label}] ${st.currentSeason.year}年 開幕  在籍 ${act.length}人（FA ${fa}人）  OVR85+ ${all.filter(v => v >= 85).length} / 90+ ${all.filter(v => v >= 90).length}  今年入った新人 ${newThisYear}人`
+    + `  床で足した ${filled.length}人${filled.length ? `（OVR 平均${mean(filledOvr).toFixed(1)} 最高${Math.max(...filledOvr)}）` : ''}`)
   for (const r of rows) console.log('   ' + r)
 }
 

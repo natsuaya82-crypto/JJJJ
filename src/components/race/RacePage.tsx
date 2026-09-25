@@ -30,7 +30,7 @@ import {
 import type { ISim, InteractiveSegResult } from '../../engine/interactiveRace'
 import { buildTeamRankings, countSegmentsByTeam } from '../../engine/raceEngine'
 import ScreenPortal from '../ui/ScreenPortal'
-import { myClub, myLeagueRaces } from '../../utils/world'
+import { myClub, myLeagueId, myLeagueRaces } from '../../utils/world'
 
 type Phase = 'lineup' | 'simulating' | 'results'
 
@@ -779,7 +779,7 @@ export default function RacePage() {
   if (phase === 'lineup') {
     const ttEvent = ttViewId
       ? (currentSeason.individualEvents ?? []).find(e => e.id === ttViewId) ?? null
-      : getDueIndividualEvent(currentSeason, myLeagueRaces(currentSeason, playerTeamId))
+      : getDueIndividualEvent(currentSeason, myLeagueRaces(currentSeason, playerTeamId), myLeagueId(currentSeason, playerTeamId))
     if (ttEvent) return (
       <IndividualEventScreen
         event={ttEvent as NonNullable<typeof currentSeason.individualEvents>[0]}

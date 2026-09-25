@@ -476,14 +476,15 @@ SCENARIOS['market-acquisition'] = () => {
 }
 
 SCENARIOS['race-timetrial'] = () => {
-  console.log('[race-timetrial] 記録会：国内だけの回と、海外も出る回')
+  console.log('[race-timetrial] 記録会：日本だけの回（同じ日の海外の回も一緒に開く）と、両方が出る回')
   // simulateIndividualEvent（194行）。走る人の絞り込み・自己ベスト・疲労・カード報酬・
   // 世界記録／日本記録・チーム歴代記録・ニュースが1本に入っている。
   //
-  // ★2本走らせるのは、**海外クラブの選手が出る回と出ない回で対象が変わる**ため。
-  //   海外も出るのは指定4記録会（tt-5k-1 / tt-10k-2 / tt-mara / tt-half-2）だけなので、
-  //   国内だけの回はそれ以外から選ぶ。距離も分けて、自己ベストの種目キーと
-  //   疲労の増え方（10000m=5 / マラソン=14）を両方通す。
+  // ★日本と海外の両方が出る回（マラソン）と、日本だけの回（04-26 の10000m）を走らせる。
+  //   誰が出るかは data/races の TIME_TRIALS の系統で決まり、日本だけの回には**同じ日・同じ距離の
+  //   海外だけの回**がある。自チームが開くのは日本の1本だけで、海外の1本は同じ日に一緒に開かれる
+  //   （simulateIndividualEvent）ので、その道も通すために一覧に入れておく。距離も分けて、
+  //   自己ベストの種目キーと疲労の増え方（10000m=5 / マラソン=14）を両方通す。
   // ★自チームの選手を最強にする。そうしないと5,800人中の順位が100位より下になり、
   //   **カード報酬も世界記録も1行も通らない**（最初に書いた版が実際にそうだった）。
   buildState('regular', 3)
@@ -491,6 +492,7 @@ SCENARIOS['race-timetrial'] = () => {
   const evts = generateIndividualEvents(YEAR)
   const domesticOnly = evts.find(e => e.id.startsWith('tt-10k-1'))!
   const withForeign = evts.find(e => e.id.startsWith('tt-mara'))!
+  const overseasTwin = evts.find(e => e.date === domesticOnly.date && e.id !== domesticOnly.id)!
   const mine = g().players.filter(p => p.teamId === MY && p.status === 'active')
   const cpuOne = g().players.find(p => p.teamId === 'osaka' && p.status === 'active')!
   useGameStore.setState({
@@ -505,7 +507,7 @@ SCENARIOS['race-timetrial'] = () => {
       // CPUの1人は疲労40以上で自動的に休む枝へ
       return p.id === cpuOne.id ? { ...p, fatigue: 55 } : p
     }),
-    currentSeason: { ...g().currentSeason, individualEvents: [domesticOnly, withForeign],
+    currentSeason: { ...g().currentSeason, individualEvents: [domesticOnly, overseasTwin, withForeign],
       // ★スカウト候補（大学・高校のドラフト候補）も記録会を走る。まだどこにも所属して
       //   いないので teamId は空で、疲労も士気も報酬も付かず記録だけ残る。
       //   3人目は**わざと名簿の選手と同じID**にしてある。二重に走らせない除外を通すため
@@ -523,10 +525,10 @@ SCENARIOS['race-timetrial'] = () => {
     g().simulateIndividualEvent(withForeign.id)
     // 済んだ記録会をもう一度押しても走り直さない
     g().simulateIndividualEvent(domesticOnly.id)
-    const done = (g().currentSeason.individualEvents ?? []).filter(e => e.results)
-    const r0 = done[0]?.results ?? [], r1 = done[1]?.results ?? []
+    const resOf = (id: string) => (g().currentSeason.individualEvents ?? []).find(e => e.id === id)?.results ?? []
+    const r0 = resOf(domesticOnly.id), r1 = resOf(withForeign.id), rT = resOf(overseasTwin.id)
     const myTop = r0.filter(r => r.teamId === MY && r.rank <= 10).length
-    console.log(`      出走 ${r0.length}人（国内だけ） / ${r1.length}人（海外も出る回）`
+    console.log(`      出走 ${r0.length}人（日本だけ） / ${rT.length}人（同じ日の海外だけ） / ${r1.length}人（両方が出る回）`
       + ` / 休ませた=${!r0.some(r => r.playerId === mine[0].id)}`
       + ` 疲労で外れたCPU=${!r0.some(r => r.playerId === cpuOne.id)}`
       + ` 疲れていても走る自チーム=${r0.some(r => r.playerId === mine[1].id)}`

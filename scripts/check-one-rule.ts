@@ -100,15 +100,22 @@ console.log('\n[5] 在籍上限の数を直書きしていない')
   check('数えるのも teamRosterSize を通っている', /suitorSize = teamRosterSize\(/.test(code))
 }
 
-console.log('\n[6] 下限の救済は全クラブに効く（自チームだけを特別扱いしない）')
+console.log('\n[6] 開幕の床は全クラブに効き、線は SEASON_START_ROSTER・強さは格から')
 {
-  // 戻し方：startRegularSeason を `clubsWhere(state.clubs, c => c.id === state.playerTeamId)` に戻す／中で jpelClubs に絞る
+  // 戻し方：startRegularSeason を `clubsWhere(state.clubs, c => c.id === state.playerTeamId)` に戻す／中で jpelClubs に絞る／
+  //         足す人数を ROSTER_MIN から数える／ランクを ['D'] の1本に戻す
   // クラブは GameState.clubs の1つの並び（国内52＋海外180）。それを丸ごと渡せば海外も入る
-  check('全クラブを渡している', /fillAllRostersToMin\(state\.clubs,/.test(code))
+  const fill = (code.match(/export function fillRostersForSeason\([\s\S]*?\n\}/) ?? [''])[0]
+  check('fillRostersForSeason が居る', fill !== '')
+  check('全クラブを渡している', /fillRostersForSeason\(state\.clubs,/.test(code))
+  check('呼ぶのは1か所（開幕の直前）', (code.match(/(?<!function )fillRostersForSeason\(/g) ?? []).length === 1)
   check('海外クラブも入っている（中で国内だけに絞っていない）',
-    /export function fillAllRostersToMin\([\s\S]*?\n\}/.test(code)
-    && !/(?:jpelClubs|isJpelLeague|jpelClubIdSet)\(/.test((code.match(/export function fillAllRostersToMin\([\s\S]*?\n\}/) ?? [''])[0]))
-  check('1クラブぶんだけ埋める旧API（fillRosterToMin）が残っていない', !/fillRosterToMin\(/.test(code))
+    !/(?:jpelClubs|isJpelLeague|jpelClubIdSet)\(/.test(fill))
+  check('線は SEASON_START_ROSTER（ROSTER_MIN で埋めていない）',
+    /SEASON_START_ROSTER\s*-/.test(fill) && !/ROSTER_MIN/.test(fill))
+  check('強さはそのクラブの格から（tierRankSlots）', /tierRankSlots\(tierOf\(c\)\)/.test(fill))
+  check('旧い名前（fillAllRostersToMin / fillRosterToMin / ROSTER_FILL_RANK）が残っていない',
+    !/fillAllRostersToMin|fillRosterToMin\(|ROSTER_FILL_RANK/.test(code))
 }
 
 console.log('\n[7] 国籍のそろい具合（士気のボーナス）は lineupChemistry 1本')

@@ -7,7 +7,7 @@ import { drawSeasonSchedules, generateIndividualEvents, generateSeasonRaces } fr
 import { ACHIEVEMENT_JEWELS, checkSeasonAchievements, podiumJewels, selectSeasonObjectives } from '../../engine/achievements'
 import { buildEclParticipants, buildEclRaces } from '../../engine/eclSeries'
 import { growPlayer } from '../../engine/growth'
-import { generateDraftPool, generateForeignLeaguePlayers, refreshForeignLeagues, refreshDomesticYouth, fillAllRostersToMin } from '../../engine/playerGenerator'
+import { generateDraftPool, generateForeignLeaguePlayers, refreshForeignLeagues, refreshDomesticYouth, fillRostersForSeason } from '../../engine/playerGenerator'
 import { type Division, type GmOffer, type Player, SPECIALTY_LABELS, type SeasonAward, type TransferRecord } from '../../types'
 import { archiveSeason } from '../../utils/archiveSeason'
 import { computeSeasonAwards } from '../../utils/awards'
@@ -175,23 +175,12 @@ function applyGmMove(state: GameStore, offer: GmOffer, inviteId?: string): Parti
 export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
   startRegularSeason: () => set(state => {
-    // ★**在籍が下限を割っていたら、ここで足りないぶんだけ足して開幕する**
-    //   （オーナー・2026-09-15「足りないならシーズン開始に勝手足りない分弱いの足せば？」）。
-    //
-    //   以前は `endSeason` の中で足していましたが、渡していたのが**契約満了と引退を
-    //   適用する前の名簿**だったので、「16人のうち5人が満了」のときに16人あると見て
-    //   1人も足さず、そのあと11人になっていました。**下限を割るいちばん普通の経路が
-    //   契約満了**なので、救済が要る場面でちょうど発火しない形でした。
-    //
-    //   開幕の直前なら、満了も引退もドラフトも全部終わったあとの**確定した人数**を
-    //   見られます。足すのは `fillAllRostersToMin` 1本（若手の補充と同じ幹）。
-    //   **2か所で足さないこと**——`endSeason` 側には置きません。
-    //
-    // ★**自チームだけでなく世界中のクラブを見ます**（オーナー・2026-09-15
-    //   「そもそも人によって違うとかおかしいよね」）。出口（引退・満了・移籍）は
-    //   232クラブ全部にあるのだから、床も全部に要ります。自チームだけ床があった頃は、
-    //   海外の契約満了を直したとたんに海外クラブが14人まで痩せました。
-    const rescued = fillAllRostersToMin(state.clubs, state.currentSeason.year, state.players)
+    // ★**在籍が `SEASON_START_ROSTER`(20) に満たないクラブを、ここで20人まで埋めて開幕する**
+    //   （オーナー・2026-09-25「20人以下の場合は20人になるまで自動補填」「格によって初期値が違う」）。
+    //   開幕の直前なら、満了も引退もドラフトも全部終わったあとの**確定した人数**を見られます。
+    //   足すのは `fillRostersForSeason` 1本で、**2か所で足さないこと**（`endSeason` 側には置かない）。
+    //   自チームだけでなく世界中のクラブを見ます（出口は232クラブ全部にあるので、床も全部に要る）。
+    const rescued = fillRostersForSeason(state.clubs, state.currentSeason.year, state.players)
     const players = rescued.length > 0 ? [...state.players, ...rescued] : state.players
     // プレシーズンのドラフト（今季スカウトした代）が終わったので、
     // 今季スカウトする「翌年の代」を新規生成する。前回ドラフト済みの代の残りを置き換える。

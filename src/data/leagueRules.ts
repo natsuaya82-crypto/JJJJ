@@ -24,15 +24,24 @@ export type LeagueRules = {
    * リーグのクラブ。**持てないクラブへは指名権を渡せない**（トレードの中身に入れない）
    */
   draftPicks: boolean
+  /**
+   * **どの記録会に出るか**（`data/races` の `TIME_TRIALS` の `circuits` と突き合わせる）。
+   * 日本のリーグのクラブは日本の記録会、海外リーグのクラブは海外の記録会を走る
+   *（オーナー・2026-09-25）。両方の印が付いた記録会は全員が走る
+   */
+  timeTrials: TimeTrialCircuit
 }
 
-/** 決まりを持つリーグ。**ここに無いリーグ（海外9）は全部 false** */
+/** 記録会の系統。記録会ごとに「どの系統のクラブが出るか」を持つ */
+export type TimeTrialCircuit = 'japan' | 'overseas'
+
+/** 決まりを持つリーグ。**ここに無いリーグ（海外9）は全部 false**（記録会は海外の系統） */
 const RULES: Readonly<Record<LeagueId, LeagueRules>> = {
-  'jpel-1': { promotion: true, tierMoves: true, draft: true, draftPicks: true },
-  'jpel-2': { promotion: true, tierMoves: true, draft: false, draftPicks: true },
-  'jpel-3': { promotion: true, tierMoves: true, draft: false, draftPicks: true },
+  'jpel-1': { promotion: true, tierMoves: true, draft: true, draftPicks: true, timeTrials: 'japan' },
+  'jpel-2': { promotion: true, tierMoves: true, draft: false, draftPicks: true, timeTrials: 'japan' },
+  'jpel-3': { promotion: true, tierMoves: true, draft: false, draftPicks: true, timeTrials: 'japan' },
 }
-const NO_RULES: LeagueRules = { promotion: false, tierMoves: false, draft: false, draftPicks: false }
+const NO_RULES: LeagueRules = { promotion: false, tierMoves: false, draft: false, draftPicks: false, timeTrials: 'overseas' }
 
 /** そのリーグの決まり。知らないリーグは何も無い */
 export function leagueRules(leagueId: LeagueId | null | undefined): LeagueRules {

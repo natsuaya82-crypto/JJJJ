@@ -1,6 +1,7 @@
-import type { Race, IndividualEvent, Specialty } from '../types'
+import type { Race, IndividualEvent, LeagueId, Specialty } from '../types'
+import { leagueRules, type TimeTrialCircuit } from './leagueRules'
 
-// 記録会（タイムトライアル）年7回。本編レースの合間に配置。種目を散らし、負荷の高いマラソンは夏の休養期に。
+// 記録会（タイムトライアル）。本編レースの合間に配置。種目を散らし、負荷の高いマラソンは夏の休養期に。
 /**
  * **天候の呼び名。ここ1本。**
  *
@@ -18,17 +19,57 @@ const pickTTWeather = (): IndividualEvent['weather'] => {
   const r = Math.random()
   return r < 0.4 ? 'sunny' : r < 0.7 ? 'cloudy' : r < 0.87 ? 'windy' : 'rainy'
 }
+/**
+ * **記録会の一覧（年10本）。どの記録会に誰が出るかは、ここの `circuits` 1本で決まる。**
+ *
+ * 選手が出るのは、所属クラブのリーグの系統（`data/leagueRules` の `timeTrials`）が
+ * `circuits` に入っている記録会だけ。日本のリーグのクラブは日本の記録会、海外リーグの
+ * クラブは海外の記録会を走り、両方の印が付いた4本は全員が走る。自チームが海外クラブなら、
+ * 自チームは海外の記録会を走る。判定は `entersTimeTrial` 1本（呼ぶ側で系統を書かないこと）。
+ *
+ * ★海外の3本（オーナー・2026-09-25）は、日本だけの3本と**同じ日・同じ距離**。
+ *   記録（世界記録・日本記録・自己ベスト）は距離で分かれるので、同じ表に入る。
+ * ★以前は `engine/timeTrial` に「海外も出る記録会」の手書きの表（`FOREIGN_TT_KEYS`）が
+ *   あり、IDの頭で見ていました。系統はデータとしてここへ寄せています。
+ * ★`key` は ID の頭（`<key>-<年>`）。**セーブに載っている記録会の ID と同じ字なので変えないこと。**
+ */
+type TimeTrialDef = {
+  key: string
+  name: string
+  /** MM-DD */
+  date: string
+  distance: IndividualEvent['distance']
+  circuits: readonly TimeTrialCircuit[]
+}
+const BOTH: readonly TimeTrialCircuit[] = ['japan', 'overseas']
+export const TIME_TRIALS: readonly TimeTrialDef[] = [
+  { key: 'tt-5k-1',      name: '春季5000m記録会',       date: '03-29', distance: 5000,  circuits: BOTH },
+  { key: 'tt-10k-1',     name: '春季10000m記録会',      date: '04-26', distance: 10000, circuits: ['japan'] },
+  { key: 'tt-os-10k',    name: 'スプリング10000mクラシック', date: '04-26', distance: 10000, circuits: ['overseas'] },
+  { key: 'tt-half-1',    name: '初夏ハーフ記録会',       date: '05-24', distance: 21097, circuits: ['japan'] },
+  { key: 'tt-os-half',   name: 'サマーハーフマラソン',   date: '05-24', distance: 21097, circuits: ['overseas'] },
+  { key: 'tt-mara',      name: '夏季マラソン記録会',     date: '08-02', distance: 42195, circuits: BOTH },
+  { key: 'tt-10k-2',     name: '夏季10000m記録会',      date: '08-23', distance: 10000, circuits: BOTH },
+  { key: 'tt-5k-2',      name: '秋季5000m記録会',       date: '10-18', distance: 5000,  circuits: ['japan'] },
+  { key: 'tt-os-5k',     name: 'オータム5000mクラシック', date: '10-18', distance: 5000,  circuits: ['overseas'] },
+  { key: 'tt-half-2',    name: '冬季ハーフ記録会',       date: '12-06', distance: 21097, circuits: BOTH },
+]
+
 export function generateIndividualEvents(year: number): IndividualEvent[] {
   const y = String(year)
-  return [
-    { id: `tt-5k-1-${y}`,   name: `${y} 春季5000m記録会`,   date: `${y}-03-29`, distance: 5000,  weather: pickTTWeather() },
-    { id: `tt-10k-1-${y}`,  name: `${y} 春季10000m記録会`,  date: `${y}-04-26`, distance: 10000, weather: pickTTWeather() },
-    { id: `tt-half-1-${y}`, name: `${y} 初夏ハーフ記録会`,   date: `${y}-05-24`, distance: 21097, weather: pickTTWeather() },
-    { id: `tt-mara-${y}`,   name: `${y} 夏季マラソン記録会`, date: `${y}-08-02`, distance: 42195, weather: pickTTWeather() },
-    { id: `tt-10k-2-${y}`,  name: `${y} 夏季10000m記録会`,  date: `${y}-08-23`, distance: 10000, weather: pickTTWeather() },
-    { id: `tt-5k-2-${y}`,   name: `${y} 秋季5000m記録会`,   date: `${y}-10-18`, distance: 5000,  weather: pickTTWeather() },
-    { id: `tt-half-2-${y}`, name: `${y} 冬季ハーフ記録会`,   date: `${y}-12-06`, distance: 21097, weather: pickTTWeather() },
-  ]
+  return TIME_TRIALS.map(t => ({
+    id: `${t.key}-${y}`, name: `${y} ${t.name}`, date: `${y}-${t.date}`, distance: t.distance, weather: pickTTWeather() }))
+}
+
+/**
+ * **そのリーグのクラブの選手は、その記録会に出るか。判定はここ1本。**
+ * リーグが分からない（無所属）ときは出ない。一覧に無い記録会には誰も出ない。
+ */
+export function entersTimeTrial(eventId: string, leagueId: LeagueId | null | undefined): boolean {
+  if (leagueId == null) return false
+  const key = eventId.replace(/-\d+$/, '')
+  const def = TIME_TRIALS.find(t => t.key === key)
+  return !!def && def.circuits.includes(leagueRules(leagueId).timeTrials)
 }
 
 // W = statWeights shorthand. Each segment gets its own unique calibration.

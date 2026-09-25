@@ -19,14 +19,14 @@ import { resolveLoanRequests } from '../../engine/loanRequests'
 import { generatePlayerWishes } from '../../engine/playerWishes'
 import { settleSaleAnswers } from '../marketOps'
 import { updateBestRecord, withEventBest } from '../../engine/timeTrialRecords'
-import { TT_REST_RECOVERY, runTimeTrial, timeTrialBoosted, timeTrialFatigueGain, timeTrialRewardCards, timeTrialRunners, updateTeamEventRecords } from '../../engine/timeTrial'
+import { TT_REST_RECOVERY, runTimeTrial, timeTrialBoosted, timeTrialFatigueGain, timeTrialFieldOf, timeTrialRewardCards, timeTrialRunners, updateTeamEventRecords } from '../../engine/timeTrial'
 import { eventDistKey } from '../../utils/eventTime'
 import { generateIndividualEvents } from '../../data/races'
 import { ACHIEVEMENT_JEWELS, checkRaceAchievements } from '../../engine/achievements'
 import { generateLoanOffers, generateTransferActivity } from '../../engine/cpuMarket'
 import { applyRaceBoosts } from '../../engine/raceBoosts'
 import { buildCpuLineups, simulateRace } from '../../engine/raceEngine'
-import { type ExpiredNegotiation, type GameState, type Player, type Ratings, type TransferRecord } from '../../types'
+import { type ExpiredNegotiation, type GameState, type IndividualEvent, type Player, type Ratings, type TransferRecord } from '../../types'
 import { generateDropCards } from '../../utils/cardCombo'
 import { myClub, myLeagueId, myLeagueRaces, withLeagueRaces } from '../../utils/world'
 import { GM_REP_DEFAULT, withFatigue, withMorale } from '../../utils/condition'
@@ -40,6 +40,100 @@ import { tierOfPlayerClub } from '../../utils/clubTier'
 
 type Slice = Pick<GameStore,
   'setRaceLineup' | 'clearRaceLineup' | 'runRace' | 'setRaceStrategy' | 'setActiveRaceSim' | 'setActiveRacePhase' | 'setActiveRaceResults' | 'setActiveRaceLocked' | 'clearActiveRace' | 'simulateIndividualEvent' | 'ensureIndividualEvents'>
+
+
+/**
+ * 記録会を1本開く（走る人を集める → 走らせる → 疲労・自己ベスト・報酬・ニュース・記録）。
+ * 同じ日に並ぶ記録会は `simulateIndividualEvent` がこれを1本ずつ通す。
+ */
+function holdTimeTrial(state: GameStore, event: IndividualEvent, skip: Set<string>): Partial<GameStore> {
+  // 誰が走るか・走らせて順位を付けるところは engine/timeTrial 1本
+  const runners = timeTrialRunners(
+    { players: state.players, clubs: state.clubs,
+      playerTeamId: state.playerTeamId, prospects: state.currentSeason.scoutProspects ?? [] },
+    event, skip)
+  const ranked = runTimeTrial(runners, event)
+
+  const bestKey = eventDistKey(event.distance)
+  const timeByPlayer = new Map(ranked.map(r => [r.playerId, r.timeSec]))
+  // 自チームの上位3人は士気と調子が上がる
+  const boosted = timeTrialBoosted(ranked, state.playerTeamId)
+  // 走れば距離ぶん疲れ、この記録会に出る側で休んだ現役選手は回復する（同じ日のもう1本を走った人は休みではない）
+  const fatGain = timeTrialFatigueGain(event.distance)
+  const inField = timeTrialFieldOf(state.clubs, event)
+  const updatedPlayers = state.players.map(p => {
+    const ran = timeByPlayer.get(p.id)
+    let next = p
+    if (ran != null) {
+      next = withEventBest(withFatigue(next, fatGain), bestKey, ran, state.currentSeason.year)
+    } else if (p.status === 'active' && inField(p.teamId)) {
+      next = withFatigue(next, TT_REST_RECOVERY)
+    }
+    if (boosted.has(p.id)) {
+      next = { ...withMorale(next, 8), form: Math.min(2, (next.form ?? 0) + 1) }
+    }
+    return next
+  })
+
+  // スカウト候補は記録だけ残す（未所属なので疲労・士気・報酬は対象外）
+  const updatedProspects = (state.currentSeason.scoutProspects ?? []).map(p => {
+    const ran = timeByPlayer.get(p.id)
+    if (ran == null) return p
+    return withEventBest(p, bestKey, ran, state.currentSeason.year)
+  })
+
+  const rewardCards = timeTrialRewardCards(ranked, state.playerTeamId, event.id)
+
+  // 自チームの最上位をニュースに
+  const myBest = ranked.find(r => r.teamId === state.playerTeamId)
+  const myBestPlayer = myBest ? state.players.find(p => p.id === myBest.playerId) : null
+  const newsItem = myBestPlayer ? {
+    date: event.date,
+    headline: worldChampFinishHeadline({
+      eventName: event.name, playerName: myBestPlayer.name,
+      distance: event.distance, rank: myBest!.rank, timeSec: myBest!.timeSec }),
+    category: 'race' as const,
+    relatedIds: [myBestPlayer.id] } : null
+
+  // 世界記録・日本記録の更新（種目別の歴代1位。名前焼き込みで永続）。
+  // **世界も日本も engine/timeTrialRecords の updateBestRecord 1本**を通る。
+  // 違うのは「誰を見るか（全員／JPNだけ）」と「どこへ書くか」だけ
+  const allPById = new Map([...state.players, ...(state.currentSeason.scoutProspects ?? [])].map(p => [p.id, p]))
+  const recCtx = {
+    eligible: () => true,
+    nameOf: (id: string) => allPById.get(id)?.name,
+    year: state.currentSeason.year, date: event.date, distance: event.distance }
+  const wr = updateBestRecord(state.worldRecords?.[bestKey], ranked, { ...recCtx, scope: 'world' })
+  const jr = updateBestRecord(state.japanRecords?.[bestKey], ranked, {
+    ...recCtx, scope: 'japan', eligible: r => allPById.get(r.playerId)?.nationality === 'JPN' })
+  const newWorldRecords = wr.record ? { ...state.worldRecords, [bestKey]: wr.record } : state.worldRecords
+  const newJapanRecords = jr.record ? { ...state.japanRecords, [bestKey]: jr.record } : state.japanRecords
+  const recordNewsItems = [...wr.news, ...jr.news]
+
+  // チーム歴代記録（選手ごと最速・種目別）。名前と国籍も焼き込む
+  const updatedClubs = updateTeamEventRecords(
+    state.clubs, ranked, new Map(state.players.map(p => [p.id, p])), bestKey, state.currentSeason.year)
+
+  return {
+    players: updatedPlayers,
+    clubs: updatedClubs,
+    worldRecords: newWorldRecords,
+    japanRecords: newJapanRecords,
+    trainingCards: rewardCards.length > 0 ? [...(state.trainingCards ?? []), ...rewardCards] : state.trainingCards,
+    currentSeason: {
+      ...state.currentSeason,
+      individualEvents: state.currentSeason.individualEvents?.map(e =>
+        e.id === event.id ? { ...e, results: ranked, rewardCards } : e
+      ),
+      // 他の書き込み箇所と同じ上限(30)。ここだけ無かったため、記録会を連続で消化すると
+      // 次にrunRace等が上限付きで書き込むまでの間、際限なく積み上がっていた
+      newsFeed: [
+        ...recordNewsItems,
+        ...(newsItem ? [newsItem] : []),
+        ...(state.currentSeason.newsFeed ?? []),
+      ].slice(0, 30),
+      scoutProspects: updatedProspects } }
+}
 
 export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
@@ -533,92 +627,13 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
     set(state => {
       const event = state.currentSeason.individualEvents?.find(e => e.id === eventId)
       if (!event || event.results) return state
-      const skip = new Set(skipPlayerIds ?? [])
-      // 誰が走るか・走らせて順位を付けるところは engine/timeTrial 1本
-      const runners = timeTrialRunners(
-        { players: state.players, clubs: state.clubs,
-          playerTeamId: state.playerTeamId, prospects: state.currentSeason.scoutProspects ?? [] },
-        event, skip)
-      const ranked = runTimeTrial(runners, event)
-
-      const bestKey = eventDistKey(event.distance)
-      const timeByPlayer = new Map(ranked.map(r => [r.playerId, r.timeSec]))
-      // 自チームの上位3人は士気と調子が上がる
-      const boosted = timeTrialBoosted(ranked, state.playerTeamId)
-      // 走れば距離ぶん疲れ、休んだ現役選手は回復する
-      const fatGain = timeTrialFatigueGain(event.distance)
-      const updatedPlayers = state.players.map(p => {
-        const ran = timeByPlayer.get(p.id)
-        let next = p
-        if (ran != null) {
-          next = withEventBest(withFatigue(next, fatGain), bestKey, ran, state.currentSeason.year)
-        } else if (p.status === 'active' && p.teamId) {
-          next = withFatigue(next, TT_REST_RECOVERY)
-        }
-        if (boosted.has(p.id)) {
-          next = { ...withMorale(next, 8), form: Math.min(2, (next.form ?? 0) + 1) }
-        }
-        return next
-      })
-
-      // スカウト候補は記録だけ残す（未所属なので疲労・士気・報酬は対象外）
-      const updatedProspects = (state.currentSeason.scoutProspects ?? []).map(p => {
-        const ran = timeByPlayer.get(p.id)
-        if (ran == null) return p
-        return withEventBest(p, bestKey, ran, state.currentSeason.year)
-      })
-
-      const rewardCards = timeTrialRewardCards(ranked, state.playerTeamId, event.id)
-
-      // 自チームの最上位をニュースに
-      const myBest = ranked.find(r => r.teamId === state.playerTeamId)
-      const myBestPlayer = myBest ? state.players.find(p => p.id === myBest.playerId) : null
-      const newsItem = myBestPlayer ? {
-        date: event.date,
-        headline: worldChampFinishHeadline({
-          eventName: event.name, playerName: myBestPlayer.name,
-          distance: event.distance, rank: myBest!.rank, timeSec: myBest!.timeSec }),
-        category: 'race' as const,
-        relatedIds: [myBestPlayer.id] } : null
-
-      // 世界記録・日本記録の更新（種目別の歴代1位。名前焼き込みで永続）。
-      // **世界も日本も engine/timeTrialRecords の updateBestRecord 1本**を通る。
-      // 違うのは「誰を見るか（全員／JPNだけ）」と「どこへ書くか」だけ
-      const allPById = new Map([...state.players, ...(state.currentSeason.scoutProspects ?? [])].map(p => [p.id, p]))
-      const recCtx = {
-        eligible: () => true,
-        nameOf: (id: string) => allPById.get(id)?.name,
-        year: state.currentSeason.year, date: event.date, distance: event.distance }
-      const wr = updateBestRecord(state.worldRecords?.[bestKey], ranked, { ...recCtx, scope: 'world' })
-      const jr = updateBestRecord(state.japanRecords?.[bestKey], ranked, {
-        ...recCtx, scope: 'japan', eligible: r => allPById.get(r.playerId)?.nationality === 'JPN' })
-      const newWorldRecords = wr.record ? { ...state.worldRecords, [bestKey]: wr.record } : state.worldRecords
-      const newJapanRecords = jr.record ? { ...state.japanRecords, [bestKey]: jr.record } : state.japanRecords
-      const recordNewsItems = [...wr.news, ...jr.news]
-
-      // チーム歴代記録（選手ごと最速・種目別）。名前と国籍も焼き込む
-      const updatedClubs = updateTeamEventRecords(
-        state.clubs, ranked, new Map(state.players.map(p => [p.id, p])), bestKey, state.currentSeason.year)
-
-      return {
-        players: updatedPlayers,
-        clubs: updatedClubs,
-        worldRecords: newWorldRecords,
-        japanRecords: newJapanRecords,
-        trainingCards: rewardCards.length > 0 ? [...(state.trainingCards ?? []), ...rewardCards] : state.trainingCards,
-        currentSeason: {
-          ...state.currentSeason,
-          individualEvents: state.currentSeason.individualEvents?.map(e =>
-            e.id === eventId ? { ...e, results: ranked, rewardCards } : e
-          ),
-          // 他の書き込み箇所と同じ上限(30)。ここだけ無かったため、記録会を連続で消化すると
-          // 次にrunRace等が上限付きで書き込むまでの間、際限なく積み上がっていた
-          newsFeed: [
-            ...recordNewsItems,
-            ...(newsItem ? [newsItem] : []),
-            ...(state.currentSeason.newsFeed ?? []),
-          ].slice(0, 30),
-          scoutProspects: updatedProspects } }
+      // ★**その日の記録会は全部ここで開く。** 日本の記録会と海外の記録会が同じ日に並ぶ日があり
+      //   （data/races の TIME_TRIALS）、自チームが開くのは自分の出る1本だけ。もう1本を
+      //   ここで開かないと、そちらの選手は一度も走らない。自チームの休みは自分の出る1本にだけ効く
+      const sameDay = (state.currentSeason.individualEvents ?? []).filter(e => e.date === event.date && !e.results && e.id !== event.id)
+      let next: GameStore = { ...state, ...holdTimeTrial(state, event, new Set(skipPlayerIds ?? [])) }
+      for (const other of sameDay) next = { ...next, ...holdTimeTrial(next, other, new Set()) }
+      return next
     })
     // 記録会の完了でも入札・レンタル要請の応答を進める（本編以外でも返答が来るように）
     try { get().advanceMarketOneRace() } catch (e) { console.error('advanceMarketOneRace failed', e) }

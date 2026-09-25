@@ -34,7 +34,7 @@ const OUT = join(ROOT, 'node_modules/.cache/checks')
 const CHECKS = [
   // 一本化そのものの見張り
   'single-source',
-  // 引退・年齢込みの強さ・在籍人数・在籍上限・下限の救済。**src 全体**を見る唯一の点検
+  // 引退・年齢込みの強さ・在籍人数・在籍上限・開幕の床。**src 全体**を見る唯一の点検
   // （single-source は store と engine しか読まないので、utils と components が網の外だった）
   'one-rule',
   // 層をまたいだ import（下から上）を機械的に落とす。
@@ -206,6 +206,8 @@ const CHECKS = [
   { name: 'gm-invite', shim: true },
   // 海外クラブの監督に就任して1年走り切る（本物の手順で世界を作る）
   { name: 'gm-foreign', shim: true },
+  // 記録会の系統（日本のリーグのクラブは日本の記録会・海外は海外の記録会）。自チームが日本と海外の2年を回す
+  { name: 'time-trial-circuit', shim: true },
   // クラブの部はクラブのもの（監督が去っても元の部へ引き戻されない）
   'club-division-pin',
   // セーブの書き出し（本体＋走行記録の別ファイル）
@@ -273,8 +275,8 @@ const CHECKS = [
   // 他人の名前が出る画面に段位の紋章が付いているか（画面を数える）。
   // 付け忘れても何も壊れない＝出ないだけ、なので人の目では見つからない
   'rank-badge',
-  // 下限（15人）を割ったら足りないぶんを埋めるか。埋めないと開幕が止まったまま
-  // 抜ける道が無い（ドラフトで獲れるのは1部だけ・FAが尽きると詰む）
+  // 開幕の直前に、20人（SEASON_START_ROSTER）に満たないクラブを格に応じた若手で埋めるか。
+  // 埋めないと開幕できる人数に戻す道が無い（ドラフトで獲れるのは1部だけ・FAが尽きると詰む）
   'roster-fill',
   // 相手のロゴが remoteLogoId 1本を通っているか。ランクマッチの順位表だけが
   // logoId を渡さず teamId={r.userId}（＝サーバーのUUID）を渡していて、

@@ -14,15 +14,11 @@
 //   走者の並び順も、順位表をなめる順も変えないこと。
 import { CARD_UNIT_EXP } from '../data/cardShop'
 import { simulateIndividualTime } from './individualRace'
-import { clubIdSet, clubsWhere, isJpelLeague, jpelClubIdSet, mapClubs } from '../utils/world'
+import { clubMap, isJpelLeague, mapClubs } from '../utils/world'
+import { entersTimeTrial } from '../data/races'
+import { leaguesWhere } from '../data/leagues'
 import type { CardRarity, CardStatKey, IndividualEvent, Player, TrainingCard, WorldClub } from '../types'
 import type { EventDistKey } from '../types'
-
-/**
- * **海外クラブの選手も走れる記録会**（この4つだけ）。
- * それ以外は国内リーグ所属だけ。IDの頭で見るので、年が付いていても当たる。
- */
-export const FOREIGN_TT_KEYS = ['tt-5k-1', 'tt-10k-2', 'tt-mara', 'tt-half-2']
 
 /** 疲れていると自動で休む線（自チームだけはプレイヤーの選択に従うので効かない） */
 const AUTO_REST_FATIGUE = 40
@@ -40,12 +36,26 @@ export function timeTrialFatigueGain(distance: number): number {
 }
 
 /**
+ * **そのクラブの選手は、この記録会に出る側か**（所属クラブのリーグで決まる。判定は
+ * `data/races` の `entersTimeTrial` 1本）。走る人の絞り込みと、休んで回復する人の両方がここを通る——
+ * 同じ日に別の系統の記録会が並ぶので、「この記録会を走らなかった人」を全員休みにすると、
+ * もう1本を走った人まで回復してしまう。
+ */
+export function timeTrialFieldOf(clubs: WorldClub[], event: Pick<IndividualEvent, 'id'>): (teamId: string) => boolean {
+  const leagueOf = clubMap(clubs, c => c.leagueId)
+  return teamId => entersTimeTrial(event.id, leagueOf.get(teamId))
+}
+
+/**
  * その記録会に出る人を集める。
  *
+ * ★**出るのは、所属クラブのリーグがその記録会に出るときだけ**（`data/races` の
+ *   `entersTimeTrial` 1本）。日本の記録会と海外の記録会が同じ日に並ぶ日がある。
  * ★**自チームだけは疲労で自動的に外れない**（出る／休むはプレイヤーが決めるので、
  *   `skip` に入っていなければ疲れていても走る）。
  * ★スカウト候補（大学・高校のドラフト候補）も走らせて実力タイムを残す。まだどこにも
- *   所属していないので `teamId` は空。**名簿にも居る候補は二重に数えない**。
+ *   所属していないので `teamId` は空。走るのは**ドラフトを開くリーグ**が出る記録会
+ *  （指名されればそこへ入る）。**名簿にも居る候補は二重に数えない**。
  * ★返す順番がそのまま乱数を引く順番になる。並べ替えないこと。
  */
 export function timeTrialRunners(
@@ -58,20 +68,17 @@ export function timeTrialRunners(
   event: Pick<IndividualEvent, 'id'>,
   skip: Set<string>,
 ): Player[] {
-  const domesticIds = jpelClubIdSet(w.clubs)
-  const foreignAllowed = FOREIGN_TT_KEYS.some(k => event.id.startsWith(k))
-  const foreignIds = foreignAllowed ? clubIdSet(clubsWhere(w.clubs, c => !isJpelLeague(c.leagueId))) : new Set<string>()
-  const prospects = w.prospects.filter(p =>
+  const inField = timeTrialFieldOf(w.clubs, event)
+  const prospectsRun = leaguesWhere(l => l.rules.draft).some(l => entersTimeTrial(event.id, l.id))
+  const prospects = !prospectsRun ? [] : w.prospects.filter(p =>
     (p.status === 'active' || p.status === 'draft_eligible')
     && !skip.has(p.id)
     && !w.players.some(pl => pl.id === p.id))
   return [
     ...w.players.filter(p =>
       p.status === 'active' && !skip.has(p.id)
-      && (
-        (domesticIds.has(p.teamId) && (p.teamId === w.playerTeamId || (p.fatigue ?? 0) < AUTO_REST_FATIGUE))
-        || (foreignIds.has(p.teamId) && (p.fatigue ?? 0) < AUTO_REST_FATIGUE)
-      )),
+      && inField(p.teamId)
+      && (p.teamId === w.playerTeamId || (p.fatigue ?? 0) < AUTO_REST_FATIGUE)),
     ...prospects,
   ]
 }

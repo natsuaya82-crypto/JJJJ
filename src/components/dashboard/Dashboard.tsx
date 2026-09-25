@@ -34,7 +34,7 @@ import { seasonLeagueStandings, rankOfTeam } from '../../utils/league'
 import { panelStyle } from '../ui/Panel'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { MORALE_DEFAULT } from '../../utils/condition'
-import { clubById, jpelClubById, myClub, myLeagueRaces } from '../../utils/world'
+import { clubById, jpelClubById, myClub, myLeagueId, myLeagueRaces } from '../../utils/world'
 
 
 
@@ -267,7 +267,7 @@ export default function Dashboard() {
     ? { race: nextMainRace, kind: 'main', number: currentSeason.currentRaceIndex + 1, total: myLeagueRaces(currentSeason, playerTeamId).length }
     : null
   // カレンダー進行: 次のリーグ戦より前に未実施の記録会があればNEXTはそちら
-  const dueTT = getDueIndividualEvent(currentSeason, myLeagueRaces(currentSeason, playerTeamId))
+  const dueTT = getDueIndividualEvent(currentSeason, myLeagueRaces(currentSeason, playerTeamId), myLeagueId(currentSeason, playerTeamId))
   const showTTNext = !!dueTT && (!nextRaceData || dueTT.date <= nextRaceData.race.date)
   const seasonDone = currentSeason.currentRaceIndex >= myLeagueRaces(currentSeason, playerTeamId).length && myLeagueRaces(currentSeason, playerTeamId).length > 0
   // 自分が走っているリーグの順位表（日本の部も海外リーグも同じ・utils/league）

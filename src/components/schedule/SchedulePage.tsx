@@ -6,10 +6,10 @@ import { hostForYear, qualHostForYear, WA_HOST_CITY, waRaceDate } from '../../en
 import { NAT_LABEL } from '../../data/nationalities'
 import Flag from '../ui/Flag'
 import { C, alpha, SAIRA, TT_COLOR, F } from '../../styles/tokens'
-import { courseTypeOf } from '../../data/races'
+import { courseTypeOf, entersTimeTrial } from '../../data/races'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
-import { myLeagueRaces } from '../../utils/world'
+import { myLeagueId, myLeagueRaces } from '../../utils/world'
 
 
 function getCourseColor(type: string): string {
@@ -28,7 +28,8 @@ export default function SchedulePage() {
 
 
   // カレンダー進行: 次のリーグ戦の前に未実施の記録会があればNEXTはそちら
-  const dueTT = getDueIndividualEvent(currentSeason, myLeagueRaces(currentSeason, playerTeamId))
+  const myLeague = myLeagueId(currentSeason, playerTeamId)
+  const dueTT = getDueIndividualEvent(currentSeason, myLeagueRaces(currentSeason, playerTeamId), myLeague)
 
   // 進行は日付順。リーグ戦とECLの次戦が同時にNEXTにならないよう、日付が最も早いものだけを光らせる。
   const nextMainObj = myLeagueRaces(currentSeason, playerTeamId)[currentSeason.currentRaceIndex]
@@ -58,8 +59,8 @@ export default function SchedulePage() {
     myRank: r.results?.teamRankings.find(tr => tr.teamId === playerTeamId)?.rank ?? null,
   }))
 
-  // 記録会（タイムトライアル）をレースと同じ時系列に混ぜる
-  const ttItems = (currentSeason.individualEvents ?? []).map(ev => ({
+  // 記録会（タイムトライアル）をレースと同じ時系列に混ぜる。載せるのは自チームが出る記録会だけ（data/races の entersTimeTrial）
+  const ttItems = (currentSeason.individualEvents ?? []).filter(ev => entersTimeTrial(ev.id, myLeague)).map(ev => ({
     type: 'tt' as const, date: ev.date, ev, isDone: !!ev.results,
   }))
   const raceItems = [...mainRaces, ...eclRaces].map(r => ({ type: 'race' as const, date: r.race.date, r }))
