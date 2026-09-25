@@ -64,6 +64,7 @@ import { newSeasonStandings, syncSeasonLeagues, divisionLeagues, withDivisionRac
 import { tierBudget, tierOf } from '../utils/clubTier'
 // 端末に置いているものの登録表（キーと寿命）。データ削除で消すのはここから引く
 import { clearGameStorage } from './appStorage'
+import { withForeignSchedules } from '../engine/leagueDay'
 
 /**
  * セーブ形式の版。**上げるのはここ1本。**
@@ -267,8 +268,9 @@ export type GameStore = GameState & {
 
   // Second team
 
-  // 海外リーグ：本編レースに同期して裏で1戦進める（プレイヤーは干渉せず結果閲覧のみ）
-  advanceForeignLeagues: () => void
+  // 自チーム以外のリーグ（国内の他の部・海外）を、その日までの開催ぶん日付の順に裏で走らせる
+  // （engine/leagueDay の runLeaguesThrough。時計は日付1本）
+  advanceLeaguesTo: (date: string) => void
   runCpuMarketRound: (date: string) => void  // CPU同士の移籍・トレード・レンタル。日付で3週ごと（部のレース数に依らない）
   advanceMarketOneRace: () => void           // 本編以外(リザーブ/記録会)のレースでも入札・レンタル要請の応答を進める
   // ECL：前年の各リーグ上位2（計16チーム）がシーズン中の5戦をポイント制で争う。
@@ -581,8 +583,10 @@ export const useGameStore = create<GameStore>()(
               //   順位表は部ごとに分けて持つ＝部がキーなので、teams の部だけ動かすと
               //   「走る部」と「順位表に載っている部」が食い違い、自分の行が書き込み先に
               //   存在しなくなる（2部のクラブを選ぶと自分だけ0ptのまま・元の2部が裏で走り続けた）
-              leagues: syncSeasonLeagues({
-                leagues: withDivisionRaces(state.currentSeason.leagues, schedules), teams, playerTeamId: setup.teamId }) },
+              // 海外リーグは日本1部と同じ10日を走る（engine/leagueDay）
+              leagues: withForeignSchedules(syncSeasonLeagues({
+                leagues: withDivisionRaces(state.currentSeason.leagues, schedules), teams, playerTeamId: setup.teamId }),
+                state.foreignLeagues) },
             // 監督の在任履歴はここが起点。以後の移籍でここに積んでいく（utils/gmTenure.ts）
             gmTenures: [{ teamId: setup.teamId, fromYear: state.currentSeason.year }] }
         })

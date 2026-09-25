@@ -9,7 +9,6 @@ import { ECL_COURSES } from '../../data/eclCourses'
 import { FOREIGN_CLUB_CITY } from '../../data/foreignClubCities'
 import { FOREIGN_LEAGUES } from '../../data/foreignLeagues'
 import { NAT_LABEL } from '../../data/nationalities'
-import { initForeignStandings } from '../../engine/foreignLeague'
 import { generateForeignLeaguePlayers, nationalityToForeignCategory } from '../../engine/playerGenerator'
 import { type Nationality, type Player } from '../../types'
 import { normalizeSeasonLeagues, toArchivedShape } from './legacySeason'
@@ -160,7 +159,9 @@ export const migrateSave = (persistedState: unknown, version: number) => {
           // 補完したリーグの順位表が currentSeason に無いと表示が壊れるので、欠けている分だけ初期化して足す
           const cs = (s.currentSeason ?? {}) as Record<string, unknown>
           const standings = { ...((cs.foreignStandings as Record<string, unknown>) ?? {}) }
-          const initAll = initForeignStandings(merged as Parameters<typeof initForeignStandings>[0])
+          // 全クラブ 0pt の順位表（この段の時点の形＝リーグID → 行）
+          const initAll = Object.fromEntries((merged as { id: string; clubs: { id: string }[] }[])
+            .map(l => [l.id, l.clubs.map(c => ({ teamId: c.id, totalPoints: 0, raceResults: [] }))]))
           for (const [lid, st] of Object.entries(initAll)) {
             if (!standings[lid]) standings[lid] = st
           }

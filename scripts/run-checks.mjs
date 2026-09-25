@@ -96,6 +96,8 @@ const CHECKS = [
   // レース・順位・記録
   'race-points', 'race-record', 'background-race', 'round-robin', 'division-rank',
   'division-sync', 'away-records', 'domestic-records', 'segment-recommend',
+  // 日程・結果・順位表はリーグIDで引く1つの入れ物（Season.leagues）。ほかのリーグは日付で進む
+  { name: 'season-leagues', shim: true },
   // 出場率が移籍の判断に届いているか。**関門は書いてあるのに材料が渡っていない**という
   // 形（2026-08-20）を見張る
   'play-rate',

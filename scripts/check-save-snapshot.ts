@@ -93,7 +93,7 @@ const acts: [string, () => void][] = [
   ['generateDevProspects', () => st().generateDevProspects?.()],
   ['startRegularSeason', () => st().startRegularSeason?.()],
   ['runRace', () => st().runRace(assignLineupByTerrain(P, races[0]) as never)],
-  ['advanceForeignLeagues', () => st().advanceForeignLeagues?.()],
+  ['advanceLeaguesTo', () => st().advanceLeaguesTo?.(`${YEAR}-12-31`)],
   ['advanceMarketOneRace', () => st().advanceMarketOneRace?.()],
   ['runCpuMarketRound', () => st().runCpuMarketRound?.()],
   ['advanceEclRace', () => st().advanceEclRace?.()],

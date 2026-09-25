@@ -4,13 +4,13 @@ import type { GameStore, SetGame } from '../gameStore'
 import { ACHIEVEMENT_JEWELS, podiumJewels } from '../../engine/achievements'
 import { type EclParticipant, simulateEclEvent } from '../../engine/ecl'
 import { buildEclParticipants, buildEclRaces } from '../../engine/eclSeries'
-import { initForeignStandings, simulateForeignLeagueRound } from '../../engine/foreignLeague'
+import { runLeaguesThrough } from '../../engine/leagueDay'
 import { cpuMarketRounds, runCpuMarketTick } from '../../engine/cpuOffseason'
 import { decideLoanRequests } from '../../engine/loanRequests'
 import { tradeValueCtxOf } from '../marketOps'
 import { ROSTER_MAX, rosterCapOf } from '../../data/rosterRules'
 import { type LoanResponse, type EclStanding, type ExpiredNegotiation, type GameState, type Player, type TransferRecord } from '../../types'
-import { withMyClub, allTieredClubs, myLeagueRaces } from '../../utils/world'
+import { withMyClub, allTieredClubs, myLeagueRaces, myLeagueId } from '../../utils/world'
 import { findClub } from '../../utils/clubs'
 import { TOP_DIVISION, divisionStandings, rankedStandings, pointSeriesStandings } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
@@ -23,44 +23,20 @@ import { locksNegotiation } from '../../engine/bidResolution'
 
 
 type Slice = Pick<GameStore,
-  'advanceForeignLeagues' | 'runCpuMarketRound' | 'advanceMarketOneRace' | 'advanceEclRace' | 'ensureEclSeries'>
+  'advanceLeaguesTo' | 'runCpuMarketRound' | 'advanceMarketOneRace' | 'advanceEclRace' | 'ensureEclSeries'>
 
 export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
-  // 海外リーグを1マッチデー進める。本編レースの完走に同期して runRace 末尾から呼ばれる。
-  // 本編と同じコース（自チームのリーグの日程の、海外が消化した回の次）を各海外クラブが走り、
-  // 順位表と選手の記録を積む。
-  advanceForeignLeagues: () => set(state => {
-    const leagues = state.foreignLeagues ?? []
-    if (leagues.length === 0) return {}
-    const races = myLeagueRaces(state.currentSeason, state.playerTeamId)
-    const seasonLeagues = state.currentSeason.leagues
-    // 海外が消化した回の数（どのリーグも同じ日に1戦ずつ走る）
-    const idx = Math.max(0, ...leagues.map(l => (seasonLeagues[l.id]?.races ?? []).filter(r => r.results).length))
-    if (idx >= races.length) return {}
-    const race = races[idx]
-    if (!race) return {}
-    const prevStandings = Object.fromEntries(leagues.map(l => [l.id, seasonLeagues[l.id]?.standings
-      ?? initForeignStandings([l])[l.id]]))
-    const seasonProgress = races.length > 0 ? idx / races.length : 0
-    const { standingsByLeague, players, appearances, raced } = simulateForeignLeagueRound(race, leagues, state.players, prevStandings, seasonProgress)
-    // 走らせた結果をそのまま残す。捨てると区間タイムも順位も戻らない（utils/raceRecord.ts）
-    const nextLeagues = { ...seasonLeagues }
-    for (const [lid, st] of Object.entries(standingsByLeague)) {
-      nextLeagues[lid] = { races: [...(nextLeagues[lid]?.races ?? []), ...(raced[lid] ? [raced[lid]] : [])], standings: st }
-    }
-    // 今季の海外出場記録に加算（選手詳細の在籍履歴に海外クラブ行として表示するため）
-    const foreignAppearances = { ...(state.currentSeason.foreignAppearances ?? {}) }
-    for (const [id, add] of Object.entries(appearances)) {
-      const cur = foreignAppearances[id] ?? { clubId: add.clubId, races: 0, wins: 0 }
-      foreignAppearances[id] = {
-        clubId: add.clubId || cur.clubId, races: cur.races + add.races, wins: cur.wins + add.wins,
-        // 平均区間順位用。導入前から積まれたレース分は rankedRaces に入れない（平均が狂わないように）
-        rankSum: (cur.rankSum ?? 0) + add.rankSum, rankedRaces: (cur.rankedRaces ?? 0) + add.rankedRaces }
-    }
-    return {
-      players,
-      currentSeason: { ...state.currentSeason, leagues: nextLeagues, foreignAppearances } }
+  // 自チーム以外のリーグを、その日までの開催ぶん日付の順に裏で走らせる。
+  // 本編の1戦の前（runRace）と、シーズンの終わり（endSeason）から呼ぶ。
+  // 走らせ方・数え方は engine/leagueDay の runLeaguesThrough 1本（国内の部も海外も同じ）
+  advanceLeaguesTo: (date) => set(state => {
+    const out = runLeaguesThrough({
+      season: state.currentSeason, players: state.players, teams: state.teams,
+      foreignLeagues: state.foreignLeagues, through: date,
+      skip: myLeagueId(state.currentSeason, state.playerTeamId),
+    })
+    return out ? { players: out.players, currentSeason: out.season } : {}
   }),
 
 

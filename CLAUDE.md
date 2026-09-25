@@ -141,12 +141,15 @@ md は消すこと**。2026-08-23 に7本（リファクタリング設計書・
 | `src/utils/wordFilter.ts` | **書き込みの伏せ字（※）**。`maskText` / `hasMaskedWord`。掲示板の本文と自由入力の名前が通る唯一の判定。**伏せるのは表示のときだけ**——保存は書かれたそのまま（通報が来たときに中身が分からないと処理できない）。**書いた本人の画面でも伏せる**（自分だけ素で見えると通っていると誤解する）。バカ・アホ・うざいの類は入れない（オーナー判断）。**「※が含まれるか」で点検しないこと**——語の表に `http` があるので、URLの網を消しても `※※※※※://foo.xyz` で通ってしまう（URLと電話番号は「全部が※か」を見る） |
 | `src/utils/chatLines.ts` | チャットで**2か所以上に出る文面**。承諾の返事・契約の提示・引き留めなど。**発言には必ず `kind` を付ける**（付いていないと重複が潰せない）。`npm run check` が文面の重複と `kind` の有無を見張る |
 | `src/utils/raceHistory.ts` | **走ったレースの取り出し**。`ranRaces`（自分の部・他の部・大学・2軍・ECL・海外リーグ・世界大会をリーグ名つきで返す）。同じ駅伝名でも部が違えば別の記録 |
-| `src/utils/clubStanding.ts` | **「そのクラブは今どこにいるか」の引き方**。`clubStandingRow` / `clubSeasonRank` / `clubRacesDone` / `clubWonLeague`。順位表の**行の型は1つ**（`SeasonStanding`・キーは `teamId`）。置き場所は国内(`standings`)と海外(`foreignStandings`)で分かれているが、読む側は区別しない。旧セーブ（キーが `clubId`）を均すのも `normalizeForeignStandings` 1本 |
-| `src/utils/playRate.ts` | **その選手が今季どれだけ走っているか**。`playRateOf` / `clubSeasonRaces` と、**出場を数える `seasonAppearances`**（`playerUtils` から移しました。あちらに置くと `playRate` → `playerUtils` → `transferDecision` → `playRate` の輪ができます）。自分の部・他の部・海外で日程の置き場所が違うだけなので、読む側は区別しない。**`currentSeason.races` で数えないこと**（自分の部だけなので他の部の選手が全員0％になり、移籍判定の「干されている」が全員に付く） |
+| `src/utils/clubStanding.ts` | **「そのクラブは今どこにいるか」の引き方**。`clubStandingRow` / `clubSeasonRank` / `clubRacesDone` / `clubWonLeague`。順位表の**行の型は1つ**（`SeasonStanding`・キーは `teamId`）。置き場所もリーグごとの1つ（`Season.leagues`）で、読む側は国内か海外かを区別しない。旧セーブ（キーが `clubId`）の行を均すのは `normalizeStandingRows` 1本 |
+| `src/utils/playRate.ts` | **その選手が今季どれだけ走っているか**。`playRateOf` / `clubSeasonRaces` と、**出場を数える `seasonAppearances`**（`playerUtils` から移しました。あちらに置くと `playRate` → `playerUtils` → `transferDecision` → `playRate` の輪ができます）。日程はそのクラブのリーグ（`Season.leagues`）から引く。**自チームのリーグの日程（`myLeagueRaces`）で数えないこと**（自分の部だけなので他の部の選手が全員0％になり、移籍判定の「干されている」が全員に付く） |
 | `src/utils/clubStanding.ts` の `clubSeasonRank` | **画面に出す順位**。国内＝部内順位（1部1〜20／2部・3部1〜16）、海外＝リーグ内順位。**通し順位（1〜52）は返さない**（格を決める内部の数。「47位」「52位」に意味は無い）。`{rank, total, division}` |
-| `src/utils/segmentRecords.ts` | **区間記録**。1部・2部・3部は同じコースを分け合って走るので、**そのコースでいちばん速いタイム1本**。部で分けない（`divisionRaces` も一緒に数える） |
+| `src/utils/segmentRecords.ts` | **区間記録**。1部・2部・3部は同じコースを分け合って走るので、**そのコースでいちばん速いタイム1本**。部で分けない（国内3部のリーグを全部一緒に数える） |
 | `src/utils/awards.ts` | **年度表彰（MVP・新人王）。部ごとに選ぶ**（1部MVP・2部MVP・3部MVP）。走る相手も本数も違うので混ぜない。分け方は `racesByDivision` 1本 |
-| `src/utils/league.ts` | 順位の出し方。**順位表は部ごとに分けて持つ**（`Season.standings` は `Record<部, 順位表>`）。`divisionStandings` / `seasonDivisionStandings` / `newSeasonStandings` |
+| `src/utils/league.ts` | 順位の出し方。**日程・結果・順位表はリーグごとに持つ**（`Season.leagues`＝リーグID → 日程・順位表。国内の部のリーグIDは `divisionLeagueId`）。`leagueRaces` / `leagueStandingRows` / `divisionStandings` / `seasonDivisionStandings` / `newSeasonStandings` |
+| `src/utils/world.ts` の `myLeagueId` / `myLeagueRaces` | **自チームのいるリーグ**。順位表に載っている場所がその年の所属なので、過去の年にもそのまま使える。**部番号（`divisionOf(myClub(…))`）から自チームの日程・順位表を引く2本目を作らないこと** |
+| `src/engine/leagueDay.ts` | **時計は日付1本**。`runLeaguesThrough`＝その日までに開催のある、自チーム以外の全リーグ（国内の他の部・海外9）を日付の順に走らせる（本編の1戦の前と、シーズン末に残り全部）。`withForeignSchedules`＝海外リーグの日程（日本1部と同じ10日・同じコースの並び・呼び名は地域のもの）。順位表へ足すのは `addRaceToStandings` 1本（自チームのリーグも同じ）。**「自チームの何戦目か」でほかのリーグを進めないこと** |
+| `src/store/persistence/legacySeason.ts` | **旧い形のシーズンを均す唯一の場所**（`normalizeSeasonLeagues`）。旧い入れ物の名前（`races`／`divisionRaces`／`standings`／`foreignRaces`／`foreignStandings`／`foreignRaceIndex`）を書いてよいのはここと `migrateSave.ts` だけ（`check-season-leagues` が見張る） |
 | `src/data/rosterRules.ts` | ロスター人数の上限・下限。`ROSTER_MAX` / `ROSTER_MIN`（自チームの操作を止める線＝15人はOK）／ **`CPU_SELL_FLOOR`（裏で動くクラブが「これ以上は出さない」＝16。売って15人以下にはならない）**。以前は16／18／15の3通りに割れていた。★**名簿が減る経路は3つ。どれもこの1本を通すこと**——現金の移籍（`engine/transferMarket` の`sellCandidatesOf`）／解雇（`engine/cpuOffseason` の `runCpuReleases`）／**レンタルで貸す**（同 `runCpuLoans`）。貸すと `movePlayer` が `teamId` を借り手へ移すので**出した側の在籍が1人減ります**。★**解雇の中でも理由ごとに線を持たないこと**——切る理由は2つ（衰えた選手／払える年俸に収まらない）ありますが、**出せる人数は `canLeave` 1つ**で先に決めます。以前は「年俸」の枝だけが下限を見ていて、**「衰えた選手」は何人でも切れました**（16人のクラブに「平均より6低くて契約も切れる」選手が1人いると15人になる）。`check-offseason` の⑨が**そのための世界を1件だけ作って**確かめます（世界を1つ流す形では6回に1回しか当たらず、ほとんど何も守っていませんでした）。`check-one-rule` の⑧が3経路とも見張る |
 | `src/data/rosterRules.ts` の `teamRosterSize` | **在籍人数の数え方**。条件は `utils/rosterSync` の `belongsToClub` と同じ＝**引退していない人は全員**で、**怪我（`status === 'injured'`）も在籍に入る**（走れないだけで名簿に居て年俸も払っている）。★**画面や store で `filter(p => p.teamId === … && p.status === 'active')` と数え直さないこと。** `'active'` で数えると怪我人が落ちるので、同じ「うちの人数」が食い違います。実際に4か所が手書きで割れていました——ホームは `!== 'retired'`、通知の上限超え警告と `engine/offerExpiry` と `marketSlice` のレンタル可否は `=== 'active'`。上限を止めるのは前者なので、**怪我人が2人いると30人で埋まっているのに通知は「28人」**になり、レンタルは「まだ空きがある」と見えます（オーナー・2026-08-23「29人なのに30人が上限で入れませんとも言われるけど？」と同じ形）。`check-one-rule` の④⑤が見張る |
 | `src/engine/playerGenerator.ts` の `fillAllRostersToMin` | **在籍が下限を割ったクラブを、足りないぶんだけ埋める**（ランクD・19〜22歳。中身は `makeNewPlayersFor` 1本で若手の補充と同じ幹）。呼ぶのは**開幕の直前（`startRegularSeason`）1か所だけ**——満了も引退もドラフトも終わったあとの確定した人数を見られるのはそこだけです（オーナー・2026-09-15「足りないならシーズン開始に勝手足りない分弱いの足せば？」）。★**自チームだけを特別扱いしないこと。** 出口（引退・満了・移籍）は232クラブ全部にあるのだから、床も全部に要ります。自チームにしか床が無かったころ、海外の契約満了を直したとたんに海外クラブが14人まで痩せました。★**人数で開幕を止めないこと**（`utils/seasonStart`）——止めると下限を割った人はボタンが押せず、**この救済に一生たどり着けません**（それが塞ぎたかった行き止まり）。★以前は `endSeason` の中で足していて、渡していたのが**契約満了と引退を当てる前の名簿**だったので、「16人のうち5人が満了」のときに16人あると見て1人も足さず、そのあと11人になっていました。`check-one-rule` の⑥と `check-roster-fill` の⑤が見張る |
@@ -836,7 +839,7 @@ push まで済んでいたのに「コミットしていません」と報告し
 並べてはいけません**（部ごとにレース数が10/8/7と違うので3部が2部を追い抜く）。
 
 そもそも並べられないように、**順位表は部ごとに分けて持っています**
-（`Season.standings: Record<Division, SeasonStanding[]>`。海外の `foreignStandings` と同じ形）。
+（部ごとに1つのリーグ＝`Season.leagues` の `jpel-1` / `jpel-2` / `jpel-3`。海外リーグと同じ形）。
 以前は全52チームを1本の配列で持ち「表示するときに部で絞る」形にしていて、
 絞っていたのは順位表ページだけでした。ホーム・チーム画面・レース結果・記録室・
 ドラフト順・契約更新が全部混ざったまま動いていて、2部の首位が9位・3部の首位が13位と
@@ -1239,8 +1242,11 @@ CPU同士の移籍（`engine/transferMarket`）は1本化されているのに�
 
 レースに出るのは自分と同じ部のチームだけです。そのため2部・3部の順位表は
 0ptのまま動かず、昇降格も通算成績も決まりませんでした。
-`src/engine/domesticLeague.ts` が、海外8リーグ（`engine/foreignLeague.ts`）と
-同じ形で自分の部以外も裏で走らせます。順位表も通算成績も本編と同じだけ動きます。
+`src/engine/leagueDay.ts` の `runLeaguesThrough` が、国内の他の部も海外9リーグも
+**同じ1本で、日付の順に**裏で走らせます（本編の1戦の日付までの開催ぶん・シーズン末に残り全部）。
+順位表も通算成績も本編と同じだけ動きます。以前の `engine/domesticLeague.ts`（他の部）と
+`engine/foreignLeague.ts` の `simulateForeignLeagueRound`（海外）は「自チームの何戦目か」で
+別々に進めていたので消しました。
 
 **移籍は `engine/transferMarket.ts` の `runTransferMarket` 1本を通します。**
 回すのは `beginSeasonDraft`（CPUの解雇が終わって枠が空いたあと）とシーズン中の

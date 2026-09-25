@@ -15,11 +15,11 @@ import { nationalityToForeignCategory } from '../../engine/playerGenerator'
 import { type AcquisitionOffer, type ContractRequest, type ExpiredNegKind, type ForeignCategory, type IncomingOffer, type Player, type TradeNegotiation, type TransferListing } from '../../types'
 import { MAJOR_NEWS_OVR, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
 import { tierLines, playerTierOf as playerTierFromLines } from '../../utils/playerTier'
-import { myClub, withMyClub, teamById, allTieredClubs, myLeagueRaces } from '../../utils/world'
+import { myClub, withMyClub, teamById, allTieredClubs, myLeagueRaces, leagueIdOfClub } from '../../utils/world'
 import { allForeignClubs, bigClub, findClub, leagueOfClub } from '../../utils/clubs'
 import { withMorale } from '../../utils/condition'
 import { canOfferRenewal, canReNegotiate, contractTalkCtx, liveContractOf } from '../../utils/contractTalk'
-import { divisionOf, divisionStandings, domesticThroughRankOfTeam, rankOfTeam, rankedStandings, seasonDivisionStandings, leagueStandingRows } from '../../utils/league'
+import { domesticThroughRankOfTeam, rankOfTeam, rankedStandings, seasonDivisionStandings, leagueStandingRows } from '../../utils/league'
 import { fmtYen } from '../../utils/money'
 import { movePlayer } from '../../utils/movePlayer'
 import { settleForeignFee } from '../../utils/clubMoney'
@@ -292,23 +292,17 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     const team = teamById(state.teams, clubId)
     const tier = team ? tierOf(team) : (tierOfPlayerClub(clubId, allTieredClubs(state.teams, state.foreignLeagues)) ?? tierOfClubId(clubId))
     const inEcl = (state.currentSeason.eclSeries?.participants ?? []).some(pt => pt.id === clubId)
-    // 国内は順位表、海外はそのリーグの順位表から順位を引く
+    // 順位はそのクラブのリーグの順位表から引く（国内の部も海外も同じ。utils/world の leagueIdOfClub）
     let leagueRank: number | undefined
     let leagueSize: number | undefined
-    if (team) {
-      const rows = divisionStandings(state.currentSeason, divisionOf(team))
+    {
+      const rows = rankedStandings(leagueStandingRows(state.currentSeason, leagueIdOfClub(state.currentSeason, clubId)))
       const i = rows.findIndex(r => r.teamId === clubId)
       if (i >= 0) { leagueRank = i + 1; leagueSize = rows.length }
     }
-    // 海外クラブは所属リーグから順位と地域を引く（地域は「憧れの地域」の突き合わせに使う）
-    let region: import('../../types').OverseasRegion | undefined
-    if (!team) {
-      const lg = leagueOfClub(state.foreignLeagues, clubId)
-      region = regionOfLeague(lg?.id)
-      const rows = rankedStandings(leagueStandingRows(state.currentSeason, lg?.id))
-      const i = rows.findIndex(r => r.teamId === clubId)
-      if (i >= 0) { leagueRank = i + 1; leagueSize = rows.length }
-    }
+    // 地域（「憧れの地域」の突き合わせに使う）は海外クラブだけ持つ
+    const region: import('../../types').OverseasRegion | undefined = team ? undefined
+      : regionOfLeague(leagueOfClub(state.foreignLeagues, clubId)?.id)
     return buildDestination(clubId, tier, state.players, { inEcl, leagueRank, leagueSize, isForeign: !team, region, player })
   },
 

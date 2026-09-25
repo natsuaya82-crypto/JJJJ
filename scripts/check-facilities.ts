@@ -89,7 +89,7 @@ console.log('\n④ 施設の効き目は withFacilityBoost 1本')
     '他の部・海外リーグ・ECL は全部ここを通る。抜けると自分の部だけ速くなる')
   // 海外クラブが走る2経路は teams に居ないので clubs を渡しているか
   for (const [f, why] of [
-    ['src/engine/foreignLeague.ts', '海外リーグ'],
+    ['src/engine/leagueDay.ts', 'ほかのリーグ（国内の他の部・海外）'],
     ['src/store/slices/competitionSlice.ts', 'ECL（国内＋海外）'],
   ] as [string, string][]) {
     check(`${why} が clubs を渡している`, /clubs:/.test(readFileSync(f, 'utf8')),

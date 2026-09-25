@@ -24,7 +24,6 @@ import { eventDistKey } from '../../utils/eventTime'
 import { generateIndividualEvents } from '../../data/races'
 import { ACHIEVEMENT_JEWELS, checkRaceAchievements } from '../../engine/achievements'
 import { generateLoanOffers, generateTransferActivity } from '../../engine/cpuMarket'
-import { applyAwayDivisionRound, applyRacedToSchedule, simulateAwayDivisions } from '../../engine/domesticLeague'
 import { applyRaceBoosts } from '../../engine/raceBoosts'
 import { buildCpuLineups, simulateRace } from '../../engine/raceEngine'
 import { type ExpiredNegotiation, type GameState, type Player, type Ratings, type TransferRecord } from '../../types'
@@ -33,11 +32,12 @@ import { myClub, allTieredClubs, myLeagueId, myLeagueRaces, withLeagueRaces } fr
 import { allForeignClubs } from '../../utils/clubs'
 import { GM_REP_DEFAULT, withFatigue, withMorale } from '../../utils/condition'
 import { isLiveContract } from '../../utils/contractTalk'
-import { divisionOf, domesticThroughRank, myDivSize, segmentPrizeByTeam, DIVISIONS, divisionLeagueId, leagueRaces, divisionStandingsRecord, withDivisionStandings } from '../../utils/league'
+import { divisionOf, domesticThroughRank, myDivSize, segmentPrizeByTeam, leagueStandingRows, addRaceToStandings } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
 import { segmentPrizeHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
 import { playerConsentToMove, racesConsumed } from '../../utils/playerUtils'
 import { tierOfPlayerClub } from '../../utils/clubTier'
+
 
 type Slice = Pick<GameStore,
   'setRaceLineup' | 'clearRaceLineup' | 'runRace' | 'setRaceStrategy' | 'setActiveRaceSim' | 'setActiveRacePhase' | 'setActiveRaceResults' | 'setActiveRaceLocked' | 'clearActiveRace' | 'simulateIndividualEvent' | 'ensureIndividualEvents'>
@@ -56,19 +56,26 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
     // 「譲る」と返事をした話の決着は store/marketOps の settleSaleAnswers 1本
     settleSaleAnswers(set, get)
 
-    // 期日を過ぎたECL戦を先に自動消化する。
-    // ただし自チームが出場するシリーズは自動消化しない（AI配置で勝手に走らせず、プレイヤーに配置させる）。
+    // ★**時計は日付1本**（engine/leagueDay）。本編の1戦の日付までに開催のある
+    //   ほかのリーグ（国内の他の部・海外）のレースと、期日を過ぎたECL戦を、**日付の順に**
+    //   全部走らせてから本編を走る。「自チームの何戦目か」でほかのリーグを進めないこと。
+    // ECLは自チームが出場するシリーズは自動消化しない（AI配置で勝手に走らせず、プレイヤーに配置させる）。
     // 観戦（非出場）のシリーズだけAIで裏消化する。
     {
-      let guard = 0
-      while (guard++ < 6) {
-        const cs = get().currentSeason
-        const es = cs.eclSeries
-        const nextLeague = myLeagueRaces(cs, get().playerTeamId)[cs.currentRaceIndex]
-        if (!es || es.raceIndex >= es.races.length || !nextLeague) break
-        if (es.participants?.some(pt => pt.isPlayerTeam)) break   // 自チーム出場シリーズは自動消化しない
-        if (es.races[es.raceIndex].date > nextLeague.date) break
-        get().advanceEclRace()
+      const cs0 = get().currentSeason
+      const next = myLeagueRaces(cs0, get().playerTeamId)[cs0.currentRaceIndex]
+      if (next) {
+        let guard = 0
+        while (guard++ < 6) {
+          const es = get().currentSeason.eclSeries
+          if (!es || es.raceIndex >= es.races.length) break
+          if (es.participants?.some(pt => pt.isPlayerTeam)) break   // 自チーム出場シリーズは自動消化しない
+          const eclDate = es.races[es.raceIndex].date
+          if (eclDate > next.date) break
+          get().advanceLeaguesTo(eclDate)   // ECLの日までのリーグ戦を先に
+          get().advanceEclRace()
+        }
+        get().advanceLeaguesTo(next.date)
       }
     }
     const state = get()
@@ -89,6 +96,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
     // 出走するのは自分と同じ部のチームだけ。判定は engine/raceEngine.ts の buildCpuLineups 1本。
     // 以前はここと RacePage（中継つきレース）の2箇所に手書きしていて、RacePage 側だけ
     // 部で絞っていなかった（3部なのに52チームで走って48位になっていた）。
+    // ★部は見出し（「1部」）と区間記録の名前に使うだけ。日程・順位表はリーグIDで引く
     const myDivision = divisionOf(myClub({ teams, playerTeamId }))
     const lineups: Record<string, Record<number, string>> = {
       [playerTeamId]: lineup,
@@ -98,12 +106,6 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
     const results = preComputedResults ?? simulateRace(race, lineups, teams, playersForSimFinal, seasonProgress, playerTeamId, segmentTactics)
 
-    // 自分の部以外も同じ日に裏で走らせる（海外8リーグと同じ扱い）。
-    // これが無いと2部3部の順位表が0ptのまま動かず、昇降格も通算成績も決まらない
-    const awayRound = simulateAwayDivisions(
-      race, teams, players, myDivision, seasonProgress,
-      Object.fromEntries(DIVISIONS.map(d => [d, leagueRaces(currentSeason, divisionLeagueId(d))])), raceIndex,
-    )
 
     // Persist results into race, update standings, advance index
     set(state => {
@@ -111,44 +113,12 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
         i === raceIndex ? { ...r, results } : r
       )
       // このレースの結果まで載せたシーズン（出場率・実績を見る engine に渡す）。
-      // 他のリーグと順位表はまだこのレースの前のまま
+      // 自チームのリーグの順位表はまだこのレースの前のまま
       const seasonWithRace = withLeagueRaces(state.currentSeason, myLeague, updatedRaces)
-      const prevStandings = divisionStandingsRecord(state.currentSeason)
-
-      const myDivStandings = (prevStandings[myDivision] ?? []).map(s => {
-        const tr = results.teamRankings.find(r => r.teamId === s.teamId)
-        if (!tr) return s
-        const earned = tr.positionPoints + tr.segmentPoints
-        return {
-          ...s,
-          leaguePoints: (s.leaguePoints ?? 0) + tr.positionPoints,
-          segmentPoints: (s.segmentPoints ?? 0) + tr.segmentPoints,
-          totalPoints: s.totalPoints + earned,
-          raceResults: [...s.raceResults, { raceId: race.id, rank: tr.rank, points: earned }] }
-      })
-      const updatedStandings = applyAwayDivisionRound(
-        { ...prevStandings, [myDivision]: myDivStandings },
-        myDivision, awayRound, race,
-      )
-      // 裏の部の走行記録を日程へ書き戻す。捨てると区間タイムも順位も戻らない
-      const updatedLeagues = (() => {
-        const out = withDivisionStandings(seasonWithRace.leagues, updatedStandings)
-        const sched = applyRacedToSchedule(
-          Object.fromEntries(DIVISIONS.map(d => [d, out[divisionLeagueId(d)]?.races ?? []])), awayRound.raced)
-        for (const d of DIVISIONS) {
-          if (d === myDivision) continue
-          const id = divisionLeagueId(d)
-          out[id] = { ...out[id], races: sched?.[d] ?? out[id].races }
-        }
-        return out
-      })()
-      // 裏の部の出走記録。通算成績は保存したレース結果から数え直すので、
-      // ここに残さないと1部・2部の選手が全員0回出走のままになる（海外の foreignAppearances と同じ役割）
-      const awayApps: Record<string, { races: number; wins: number }> = { ...(state.currentSeason.awayAppearances ?? {}) }
-      for (const [pid, v] of Object.entries(awayRound.careerAdd)) {
-        const cur = awayApps[pid] ?? { races: 0, wins: 0 }
-        awayApps[pid] = { races: cur.races + v.races, wins: cur.wins + v.segWins }
-      }
+      // 順位表へ足すのは engine/leagueDay の addRaceToStandings 1本（ほかのリーグと同じ）
+      const myStandings = addRaceToStandings(leagueStandingRows(state.currentSeason, myLeague), { ...race, results })
+      const updatedLeagues = myLeague == null ? state.currentSeason.leagues
+        : { ...state.currentSeason.leagues, [myLeague]: { races: updatedRaces, standings: myStandings } }
 
       // レース結果のニュースは engine/raceNews 1本（見出しの文面は utils/newsItems）
       const playerResult = results.teamRankings.find(r => r.teamId === playerTeamId)
@@ -209,11 +179,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const progress = applyRaceProgress({
         players: updatedPlayers, results, racingIds, teams: state.teams,
         foreignLeagues: state.foreignLeagues,
-        playerTeamId, currentSeason: state.currentSeason,
-        awayCareerAdd: awayRound.careerAdd,
-        // ★士気は走ったクラブ全部が動く（engine/raceMorale）。裏の部のぶんもここで渡す
-        awayStanding: new Map(Object.entries(awayRound.ranks)
-          .map(([id, rank]) => [id, { rank, teamCount: awayRound.entrantCount[id] ?? 0 }])) })
+        playerTeamId, currentSeason: state.currentSeason })
       const finalPlayers = progress.players
       const raceExpGainsMap = progress.raceExpGains
 
@@ -257,10 +223,8 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
         hasExistingOffer: existingTrades.length > 0 })
 
       // 区間賞のぶんだけを翌季の予算に繰り越す（レース賞金・観客収入は廃止）。
-      // 自分の部＋裏で走らせた部を合わせて、全クラブぶんを積む
+      // ほかのリーグのぶんは、ほかのリーグを走らせたとき（engine/leagueDay）に積んである
       const raceIncomeAccum = segPrize
-      const segPrizeAll: Record<string, number> = { ...segPrizeByTeam }
-      for (const [tid, v] of Object.entries(awayRound.segPrize)) segPrizeAll[tid] = (segPrizeAll[tid] ?? 0) + v
       const teamsWithPrize = state.teams
 
       // Transfer market activity
@@ -405,7 +369,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       // 札は1人につき1つだけ（判定は utils/talkSync の openWishIds）
       const wishes = generatePlayerWishes({
         players: playersAfterLoan, currentSeason: state.currentSeason,
-        standings: updatedStandings, myDivision, playerTeamId,
+        myStandings, playerTeamId,
         races: updatedRaces, raceIndex, retiringWishIds,
         worldRepresentatives: state.worldRepresentatives })
       const newTransferReqs = wishes.transferRequests
@@ -535,11 +499,10 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
           // 旧セーブの期限なし要求(expiresAtRaceなし)もここで失効する
           contractRequests: (state.currentSeason.contractRequests ?? []).filter(r => !expiredContractIds.has(r.id)),
           seasonRaceIncome: (state.currentSeason.seasonRaceIncome ?? 0) + raceIncomeAccum,
-          awayAppearances: awayApps,
           // 全クラブぶんの区間賞（翌季の予算に入れる。自チームだけの seasonRaceIncome とは別に持つ）
           seasonSegPrize: (() => {
             const acc = { ...(state.currentSeason.seasonSegPrize ?? {}) }
-            for (const [tid, v] of Object.entries(segPrizeAll)) acc[tid] = (acc[tid] ?? 0) + v
+            for (const [tid, v] of Object.entries(segPrizeByTeam)) acc[tid] = (acc[tid] ?? 0) + v
             return acc
           })(),
           expiredNegotiations: [...(state.currentSeason.expiredNegotiations ?? []), ...allExpiredNegs, ...faSnipedNegs],
@@ -548,9 +511,6 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
           departureNotices: [...(state.currentSeason.departureNotices ?? []), ...myCpuSaleNotices] } }
     })
 
-    // 本編レース完走に同期して海外リーグも1戦進める（別set・裏進行）。
-    // 万一エラーが出てもコアのレース進行を壊さないようガードする。
-    try { get().advanceForeignLeagues() } catch (e) { console.error('advanceForeignLeagues failed', e) }
     // 移籍ウィンドウ中は日本↔海外の移籍も裏で少数発生させる（別set・裏進行）。
     // CPU同士の移籍・トレード・レンタルも、オフだけでなくシーズン中に回す。
     // **何回ぶん進むかは日付で決まる**ので、部ごとのレース数の違いに影響されない

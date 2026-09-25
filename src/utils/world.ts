@@ -87,7 +87,7 @@ type LeaguesLike = {
  * そのシーズン、そのクラブがどのリーグで走ったか。順位表に載っていなければ undefined。
  * **順位表に載っている場所がその年の所属**（昇降格しても過去の年が狂わない）
  */
-export function leagueOfClub(season: LeaguesLike | null | undefined, clubId: string | null | undefined): LeagueId | undefined {
+export function leagueIdOfClub(season: LeaguesLike | null | undefined, clubId: string | null | undefined): LeagueId | undefined {
   if (!clubId) return undefined
   for (const [id, lg] of Object.entries(season?.leagues ?? {})) {
     if (lg.standings?.some(r => r.teamId === clubId)) return id
@@ -97,7 +97,7 @@ export function leagueOfClub(season: LeaguesLike | null | undefined, clubId: str
 
 /** 自チームのいるリーグのID。**自チームのリーグを引くのはここ1本** */
 export function myLeagueId(season: LeaguesLike | null | undefined, playerTeamId: string | null | undefined): LeagueId | undefined {
-  return leagueOfClub(season, playerTeamId)
+  return leagueIdOfClub(season, playerTeamId)
 }
 
 /** 自チームのリーグの日程（結果つき）。見つからなければ空 */

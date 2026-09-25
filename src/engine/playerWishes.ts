@@ -14,8 +14,7 @@
 // ★乱数は引数で受ける（既定は Math.random）。呼ぶ順は切り出し前と同じで、
 //   先に移籍希望、そのあと海外挑戦。
 import type { OverseasRegion, Player, Race, Season, SeasonStanding } from '../types'
-import { DIVISION_SIZE, rankOfTeam } from '../utils/league'
-import type { Division } from '../types'
+import { rankOfTeam } from '../utils/league'
 import { faMarketSalary, ovr, seasonPerfProfile } from '../utils/playerUtils'
 import { seasonAppearances } from '../utils/playRate'
 import { openWishIds } from '../utils/talkSync'
@@ -26,8 +25,8 @@ import { MORALE_DEFAULT } from '../utils/condition'
 export function generatePlayerWishes(params: {
   players: Player[]
   currentSeason: Season
-  standings: Partial<Record<Division, SeasonStanding[]>>
-  myDivision: Division
+  /** 自チームのリーグの順位表（このレースの結果まで載せたもの） */
+  myStandings: readonly SeasonStanding[]
   playerTeamId: string
   races: Race[]
   raceIndex: number
@@ -36,7 +35,7 @@ export function generatePlayerWishes(params: {
   worldRepresentatives: { playerId: string; year: number }[] | undefined
   rng?: () => number
 }) {
-  const { currentSeason, standings, myDivision, playerTeamId, races, raceIndex, retiringWishIds, worldRepresentatives, rng = Math.random } = params
+  const { currentSeason, myStandings, playerTeamId, races, raceIndex, retiringWishIds, worldRepresentatives, rng = Math.random } = params
   const players = params.players
   // ── 移籍希望：契約残り2年切った(≤1)選手から毎レース最大1人。理由は出場機会/強豪志向/待遇不満。 ──
   // 直訴（引退したい・移籍したい・海外に行きたい）の札は1人につき1つだけ。
@@ -44,10 +43,10 @@ export function generatePlayerWishes(params: {
   // 同時に持ててしまい、ベルは2件なのにチャットには1行、という数のズレになっていた。
   // 「もう何か言っている選手か」の判定は talkSync の openWishIds 1本に寄せる
   const openWish = openWishIds(currentSeason)
-  // 順位の物差しは自分の部の中（52で見ると3部が永久に「上位」になる）
-  const trTotalTeams = DIVISION_SIZE[myDivision]
+  // 順位の物差しは自分のリーグの中（52で見ると3部が永久に「上位」になる）
+  const trTotalTeams = myStandings.length
   const myStandRank = (() => {
-    const r = rankOfTeam(standings[myDivision], playerTeamId)
+    const r = rankOfTeam(myStandings, playerTeamId)
     return r > 0 ? r : Math.ceil(trTotalTeams / 2)
   })()
   const trCandidates = players

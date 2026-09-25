@@ -6,8 +6,8 @@
 //
 // ★成長は「所属していれば全員同じだけ」。走ったかどうかで分けない。
 //   分けていた頃は、出場機会の差がそのまま育成の差になっていた。
-// ★裏で走った部の選手も通算成績が増える（awayCareerAdd）。抜くと2部3部のCPUだけ
-//   実績が伸びず、年俸・移籍金の実績倍率が上がらない。
+// ★ほかのリーグ（国内の他の部・海外）の選手の通算成績と士気は、そのリーグのレースを
+//   走らせたとき（engine/leagueDay の runLeaguesThrough）に動く。ここは自チームのリーグの1戦だけ。
 //
 // ★乱数は引数で受ける（既定は Math.random）。1人につき「調子の引き直し」1回、
 //   練習プランが効く条件のときだけもう1回。順序は切り出し前と同じ。
@@ -17,7 +17,7 @@ import { myClub, allTieredClubs, myLeagueRaces } from '../utils/world'
 import { ANNUAL_BASE_EXP, tierOfPlayerClub } from '../utils/clubTier'
 import { GROW_STAT_KEYS, applyGrowth, growWorldPlayer } from './growth'
 import { facilitiesOf } from '../utils/facilities'
-import { applyRaceMorale, standingOf, type RaceStanding } from './raceMorale'
+import { applyRaceMorale, standingOf } from './raceMorale'
 
 /**
  * **練習プランが当たる確率。ここ1本。**
@@ -36,13 +36,9 @@ export function applyRaceProgress(params: {
   foreignLeagues?: ForeignLeague[]
   playerTeamId: string
   currentSeason: Season
-  /** 裏で走った部の通算成績の増分（engine/domesticLeague の結果） */
-  awayCareerAdd: Record<string, { races: number; segWins: number }>
-  /** 裏で走った部の着順（クラブID → 着順と出走数）。士気に使う */
-  awayStanding?: Map<string, RaceStanding>
   rng?: () => number
 }): { players: Player[]; raceExpGains: Record<string, Partial<Record<CardStatKey, number>>> } {
-  const { players, results, racingIds, teams, foreignLeagues, playerTeamId, currentSeason, awayCareerAdd, awayStanding, rng = Math.random } = params
+  const { players, results, racingIds, teams, foreignLeagues, playerTeamId, currentSeason, rng = Math.random } = params
   // ★チームトーク（レース前に「楽しくいこう／勝ちにいく」で士気 +5／+10）は**廃止**
   //   （オーナー・2026-08-12「チームトークは無くした」）。
   //   選ぶ画面がどこにも無く、build 121 から一度も効いていなかった枝。
@@ -73,14 +69,9 @@ export function applyRaceProgress(params: {
     const segWinsThisRace = isRacer
       ? results.segmentResults.filter(sr => sr.runners[0]?.playerId === p.id).length
       : 0
-    // 裏で走った部（自分の部以外）の選手も同じだけ通算成績が増える。
-    // ここを抜くと2部3部のCPUだけ実績が伸びず、年俸・移籍金の実績倍率が上がらない
-    const away = awayCareerAdd[p.id]
     const careerUpdate = isRacer
       ? { career: { ...p.career, totalRaces: p.career.totalRaces + 1, segmentWins: p.career.segmentWins + segWinsThisRace } }
-      : away
-        ? { career: { ...p.career, totalRaces: p.career.totalRaces + away.races, segmentWins: p.career.segmentWins + away.segWins } }
-        : {}
+      : {}
 
     // ★**CPU・海外の成長もここで配ります**（2026-08-20。オーナー「レースごとだと
     //   嬉しいけど、重くなるようなら仕方ない」→ 実測 15ms/レース＝runRace の +3%）。
@@ -140,15 +131,11 @@ export function applyRaceProgress(params: {
 
   // ★士気は `engine/raceMorale` 1本。**自チームだけでなく、走ったクラブ全部**が動く
   //   （以前はここで自チームだけを動かしていたので、CPU・海外は一生100のままだった）。
-  //   自分の部の着順に、裏で走った部のぶんを重ねる（同じ日に走った全クラブが対象）。
-  const standing = new Map(standingOf(results.teamRankings))
-  if (awayStanding) for (const [id, st] of awayStanding) standing.set(id, st)
-  const segWinIds = new Set<string>([
-    ...results.segmentResults.map(sr => sr.runners[0]?.playerId).filter((v): v is string => !!v),
-    ...Object.entries(awayCareerAdd).filter(([, a]) => a.segWins > 0).map(([id]) => id),
-  ])
-  const ranAll = new Set<string>([...racingIds, ...Object.keys(awayCareerAdd)])
-  const withMoraleApplied = applyRaceMorale({ players: finalPlayers, standing, segWinIds, racingIds: ranAll })
+  //   ほかのリーグのぶんは、そのリーグのレースを走らせたとき（engine/leagueDay）に動く。
+  const standing = standingOf(results.teamRankings)
+  const segWinIds = new Set<string>(
+    results.segmentResults.map(sr => sr.runners[0]?.playerId).filter((v): v is string => !!v))
+  const withMoraleApplied = applyRaceMorale({ players: finalPlayers, standing, segWinIds, racingIds })
 
   return { players: withMoraleApplied, raceExpGains: raceExpGainsMap }
 }

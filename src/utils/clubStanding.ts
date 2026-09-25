@@ -3,7 +3,7 @@ import {
   DIVISIONS, DIVISION_SIZE, divisionOfLeague,
   domesticThroughRank, rankedStandings, rankOfTeam,
 } from './league'
-import { leagueOfClub } from './world'
+import { leagueIdOfClub } from './world'
 
 // ============================================================================
 // 「そのクラブは今どこにいるか」を引く唯一の入口。国内も海外も同じ。
@@ -67,7 +67,7 @@ export function normalizeForeignStandings(
  * どこにも載っていなければ undefined（＝その年は走っていない）。
  */
 export function clubStandingRow(season: StandingSeasonLike, clubId: string): ClubStandingRow | undefined {
-  const id = leagueOfClub(season, clubId)
+  const id = leagueIdOfClub(season, clubId)
   return id == null ? undefined : season.leagues?.[id]?.standings?.find(r => r.teamId === clubId)
 }
 
@@ -87,7 +87,7 @@ export function clubSeasonRank(
   season: StandingSeasonLike,
   clubId: string,
 ): { rank: number; total: number; division?: Division } {
-  const id = leagueOfClub(season, clubId)
+  const id = leagueIdOfClub(season, clubId)
   if (id == null) return { rank: 0, total: 0 }
   const rows = rankedStandings(season.leagues?.[id]?.standings ?? [])
   const division = divisionOfLeague(id)

@@ -431,6 +431,23 @@ type RanRace = {
   results?: { teamRankings?: { teamId: string; rank: number; positionPoints: number; segmentPoints: number }[] }
 }
 
+/** そのレースの結果を順位表へ足す。**どのリーグも（自チームのリーグも）この1本** */
+export function addRaceToStandings<R extends StandingRow>(rows: readonly R[], race: RanRace): R[] {
+  const byTeam = new Map((race.results?.teamRankings ?? []).map(tr => [tr.teamId, tr]))
+  return rows.map(s => {
+    const tr = byTeam.get(s.teamId)
+    if (!tr) return s
+    const earned = tr.positionPoints + tr.segmentPoints
+    return {
+      ...s,
+      leaguePoints: (s.leaguePoints ?? 0) + tr.positionPoints,
+      segmentPoints: (s.segmentPoints ?? 0) + tr.segmentPoints,
+      totalPoints: s.totalPoints + earned,
+      raceResults: [...s.raceResults, { raceId: race.id, rank: tr.rank, points: earned }],
+    }
+  })
+}
+
 /**
  * 自分の部の順位表を、**保存してあるレース結果から数え直す**。
  *
@@ -443,19 +460,9 @@ export function divisionStandingsFromRaces(
   races: readonly RanRace[],
 ): StandingRow[] {
   return rows.map(row => {
+    // 0点の行から、走ったレースを1本ずつ足す（足し方は addRaceToStandings 1本）
     let r: StandingRow = { teamId: row.teamId, leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [] }
-    for (const race of races) {
-      const tr = race.results?.teamRankings?.find(x => x.teamId === row.teamId)
-      if (!tr) continue
-      const earned = tr.positionPoints + tr.segmentPoints
-      r = {
-        teamId: row.teamId,
-        leaguePoints: (r.leaguePoints ?? 0) + tr.positionPoints,
-        segmentPoints: (r.segmentPoints ?? 0) + tr.segmentPoints,
-        totalPoints: r.totalPoints + earned,
-        raceResults: [...r.raceResults, { raceId: race.id, rank: tr.rank, points: earned }],
-      }
-    }
+    for (const race of races) r = addRaceToStandings([r], race)[0]
     // 1本も走っていない部（シーズン頭）は、いま持っている行のまま
     return r.raceResults.length > 0 ? r : row
   })

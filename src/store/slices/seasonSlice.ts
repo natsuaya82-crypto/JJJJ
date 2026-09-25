@@ -7,7 +7,6 @@ import { drawSeasonSchedules, generateIndividualEvents, generateSeasonRaces } fr
 import { INITIAL_TEAMS } from '../../data/teams'
 import { ACHIEVEMENT_JEWELS, checkSeasonAchievements, podiumJewels, selectSeasonObjectives } from '../../engine/achievements'
 import { buildEclParticipants, buildEclRaces } from '../../engine/eclSeries'
-import { initForeignStandings } from '../../engine/foreignLeague'
 import { growPlayer } from '../../engine/growth'
 import { generateDraftPool, generateForeignLeaguePlayers, refreshForeignLeagues, refreshDomesticYouth, fillAllRostersToMin } from '../../engine/playerGenerator'
 import { type Division, type GmOffer, type Player, SPECIALTY_LABELS, type SeasonAward, type TransferRecord } from '../../types'
@@ -18,7 +17,6 @@ import { applySeasonCareerRecords } from '../../engine/careerRecords'
 import { computeDynastyMilestones } from '../../engine/dynastyMilestones'
 import { collectEventSeasonTops } from '../../engine/eventSeasonTops'
 import { settleSeasonObjectives } from '../../engine/seasonObjectives'
-import { catchUpAwayDivisions } from '../../engine/catchUpDivisions'
 import { collectDepartures } from '../../engine/departureNotices'
 import { processForeignSeason } from '../../engine/foreignSeason'
 import { prepareSeasonArchive } from '../../engine/seasonArchivePrep'
@@ -48,6 +46,7 @@ import { teamHistoryOf } from '../../utils/teamHistory'
 import { hasNoPlayingTime } from '../../utils/transferDecision'
 import { writeSeasonArchive } from '../seasonArchive'
 import { facilitiesOf, facilityScoutPoints } from '../../utils/facilities'
+import { withForeignSchedules } from '../../engine/leagueDay'
 
 type Slice = Pick<GameStore,
   'startRegularSeason' | 'initObjectivesIfEmpty' | 'endSeason' | 'acceptGmOffer' | 'declineGmOffer' | 'resignAsGm'>
@@ -258,11 +257,9 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         try { get().advanceEclRace() } catch (e) { console.error('advanceEclRace failed', e); break }
       }
     }
-    // 他の部の残り日程の消化は engine/catchUpDivisions 1本
-    // （自分の部の戦数が少ないと、他の部の日程が残ったままシーズンが終わる）
-    set(state => catchUpAwayDivisions({
-      currentSeason: state.currentSeason, teams: state.teams,
-      players: state.players, playerTeamId: state.playerTeamId }) ?? state)
+    // ほかのリーグ（国内の他の部・海外）の残り日程を全部走らせる（engine/leagueDay 1本）。
+    // 自分のリーグの戦数が少ない（3部は7戦）と、ほかのリーグの日程が残ったままシーズンが終わる
+    get().advanceLeaguesTo(`${get().currentSeason.year}-12-31`)
     set(state => {
       const newYear = state.currentSeason.year + 1
 
@@ -751,12 +748,11 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
           phase: 'preseason',
           // 国内3部の日程と順位表。補ったクラブぶんも来季の順位表に並ぶよう、state.teams ではなく
           // 補完後を使う。部の割り振りは昇降格を通したあとの部（＝来季走る部）で決まる
-          leagues: {
-            ...divisionLeagues(nextSchedules, newSeasonStandings(syncedTeams, teamId => ({
+          // 海外リーグは日本1部と同じ10日を走る（engine/leagueDay）
+          leagues: withForeignSchedules(
+            divisionLeagues(nextSchedules, newSeasonStandings(syncedTeams, teamId => ({
               teamId, leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [] }))),
-            ...Object.fromEntries(Object.entries(initForeignStandings(foreignRefresh.updatedLeagues))
-              .map(([lid, standings]) => [lid, { races: [], standings }])),
-          },
+            foreignRefresh.updatedLeagues),
           collegeRaces: [],
           // スカウトPTの効き目は `utils/facilities` の1本（画面の効き目の表示と同じ式）
           scoutPoints: 5 + objBonus + facilityScoutPoints(facilitiesOf(myClub(state)).scoutOffice),

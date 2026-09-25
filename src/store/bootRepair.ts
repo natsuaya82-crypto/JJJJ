@@ -8,6 +8,7 @@ import {
 } from '../utils/league'
 import type { LeagueSeason } from '../types'
 import { normalizeStandingRows } from '../utils/clubStanding'
+import { withForeignSchedules } from '../engine/leagueDay'
 
 // ============================================================================
 // 起動時のつじつま合わせ。**セーブを直す場所はここ1本。**
@@ -132,6 +133,17 @@ export function repairLoadedSave(input: RepairInput): RepairResult {
       return { ...ps, leagues }
     })
     if (moved > 0) repairs.push(`過去 ${moved}シーズンの自チームの部を、実際に走った部へ直した`)
+  }
+
+  // ── 4b. 海外リーグの日程（日本1部と同じ10日）がそろっているか ────────────
+  // 旧セーブの海外リーグは自チームの部の日程を借りて走っていたので、自分の日程を持たない。
+  // 走り終えた回は残し、足りないぶんだけ足す（engine/leagueDay の withForeignSchedules）
+  if (isInitialized && currentSeason?.leagues) {
+    const leagues = withForeignSchedules(currentSeason.leagues, foreignLeagues)
+    if (leagues !== currentSeason.leagues) {
+      currentSeason = { ...currentSeason, leagues }
+      repairs.push('海外リーグの日程をそろえた')
+    }
   }
 
   // ── 5. 順位表の行の形をそろえる ──────────────────────────────

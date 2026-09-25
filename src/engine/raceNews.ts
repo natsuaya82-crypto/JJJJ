@@ -6,7 +6,7 @@
 // ★乱数は引数で受ける（既定は Math.random）。呼ぶ順は切り出し前と同じ:
 //   ① 3本の見出しが共有する pick を1回、② 首脳陣の評価が出るときだけもう1回。
 import type { Division, Race, RaceResults, Player, Season, Team } from '../types'
-import { DIVISION_SIZE, divisionStandings, rankOfTeam } from '../utils/league'
+import { DIVISION_SIZE, rankOfTeam, seasonDivisionStandings } from '../utils/league'
 import { type NewsItem, boardEvalHeadline, myFinishHeadline, raceWinnerHeadline, rivalHeadline, segmentWinHeadline } from '../utils/newsItems'
 import { teamById, myLeagueRaces } from '../utils/world'
 
@@ -62,7 +62,7 @@ export function buildRaceNews(params: {
     const raceIndex = currentSeason.currentRaceIndex
     const totalRaces = myLeagueRaces(currentSeason, playerTeamId).length
     if (raceIndex >= 3 && raceIndex % 3 === 0) {
-      const sortedStandingsNow = divisionStandings(currentSeason, myDivision)
+      const sortedStandingsNow = seasonDivisionStandings(currentSeason, playerTeamId)
       const myCurrentRank = rankOfTeam(sortedStandingsNow, playerTeamId)
       // 「うちは弱い」の基準は**自分の部の中で**見る。52で割ると3部(16)は
       // 最下位でも18位以内に入ってしまい、誰も不満を言わなくなる
