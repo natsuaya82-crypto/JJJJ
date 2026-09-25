@@ -18,6 +18,7 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
 import { DIVISION_LABEL, seasonDivisionStandings, standingRowOf, rankOfTeam, divisionInSeason, type SeasonStandingsLike } from '../../utils/league'
 import Panel from '../ui/Panel'
+import { myClub, teamById } from '../../utils/world'
 
 
 // 記録室の各ページ共通のヘッダー付き外枠（ハブと同じ見た目・横タブは廃止）
@@ -165,7 +166,7 @@ function FranchiseTab({ teams, pastSeasons, currentSeason, playerTeamId, players
   players: GameStore['players']
   seasonAwards: SeasonAward[]
 }) {
-  const myTeam = teams.find(t => t.id === playerTeamId)
+  const myTeam = myClub({ teams, playerTeamId })
   const longPress = usePlayerLongPress()
   // 優勝回数・連続上位はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
   //
@@ -617,7 +618,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
           <div style={{ fontSize: F.caption, color: C.textSub, lineHeight: 1.7, marginTop: 10 }}>
             {gmTitles.byClub.map(c => (
               <div key={c.teamId}>
-                <span style={{ fontWeight: 800, color: C.text }}>{teams.find(t => t.id === c.teamId)?.shortName ?? '—'}</span>
+                <span style={{ fontWeight: 800, color: C.text }}>{teamById(teams, c.teamId)?.shortName ?? '—'}</span>
                 <span style={{ marginLeft: 6 }}>{c.wins.length}回</span>
                 <span style={{ marginLeft: 6, color: C.textGhost, fontFamily: SAIRA }}>
                   {c.wins.map(w => `${DIVISION_LABEL[w.division]}${w.year}`).join(' / ')}
@@ -656,7 +657,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
         if (cur.length > 1) segments.push(cur.join(' '))
         // クラブが変わった年の手前（前の年との中間）に区切りを置く
         const clubBreaks = pts.map((p, i) => (i > 0 && p.teamId !== pts[i - 1].teamId
-          ? { at: (xFor(i - 1) + xFor(i)) / 2, name: teams.find(t => t.id === p.teamId)?.shortName ?? '' }
+          ? { at: (xFor(i - 1) + xFor(i)) / 2, name: teamById(teams, p.teamId)?.shortName ?? '' }
           : null)).filter((b): b is { at: number; name: string } => b != null)
         return (
           <CardPanel>
@@ -684,7 +685,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
                   クラブが変わった最初の年にだけ名前を置く（毎年出すと重なって読めない）。 */}
               {pts.map((p, i) => (i === 0 || p.teamId !== pts[i - 1].teamId) ? (
                 <div key={'cl' + p.year} style={{ position: 'absolute', left: `${xFor(i)}%`, top: '-2px', transform: 'translateX(-50%)', whiteSpace: 'nowrap', fontSize: F.micro, fontWeight: 800, color: C.textSub }}>
-                  {teams.find(t => t.id === p.teamId)?.shortName ?? '—'}
+                  {teamById(teams, p.teamId)?.shortName ?? '—'}
                 </div>
               ) : null)}
             </div>
@@ -716,7 +717,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
         const minOvr = Math.min(...yearEntries.map(e => e.avg))
         const maxOvr = Math.max(...yearEntries.map(e => e.avg))
         const range = maxOvr - minOvr || 1
-        const teamPrimary = teams.find(t => t.id === playerTeamId)?.colors.primary ?? C.blue
+        const teamPrimary = myClub({ teams, playerTeamId })?.colors.primary ?? C.blue
         return (
           <CardPanel>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
@@ -794,7 +795,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, teams, p
         <SectionLabel>在任履歴</SectionLabel>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
           {[...tenures].reverse().map(t => {
-            const team = teams.find(x => x.id === t.teamId)
+            const team = teamById(teams, t.teamId)
             const inTenure = allSeasons.filter(s => s.year >= t.fromYear && (t.toYear == null || s.year <= t.toYear))
             const ranks = inTenure.map(s => rankIn(s, t.teamId)).filter((r): r is number => r != null)
             const titles = inTenure.filter(s => s.year !== currentSeason.year && rankIn(s, t.teamId) === 1).length

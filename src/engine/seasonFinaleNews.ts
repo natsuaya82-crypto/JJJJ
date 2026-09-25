@@ -8,6 +8,7 @@
 //   （分け方は utils/awards の computeSeasonAwards 1本）。
 // ★引退表明は開幕時の引退判定と同じ式（utils/playerUtils の retirementAgeOf 1本）を
 //   1歳先で評価する。ここに別の年齢を書かないこと。
+import { myClub, teamById } from '../utils/world'
 import { findClub } from '../utils/clubs'
 import type { Player, Race, Season, Team, ForeignLeague } from '../types'
 import { computeSeasonAwards } from '../utils/awards'
@@ -31,11 +32,11 @@ export function buildSeasonFinaleNews(params: {
   const seasonEndNews: NewsItem[] = []
   {
     // ★MVPは部ごと（1部MVP・2部MVP・3部MVP）。ここは自分の部のぶん
-    const award = computeSeasonAwards(races, players, currentSeason.year, divisionOf(teams.find(t => t.id === playerTeamId)))
+    const award = computeSeasonAwards(races, players, currentSeason.year, divisionOf(myClub({ teams, playerTeamId })))
     const mvpP = award.mvpId ? players.find(p => p.id === award.mvpId) : undefined
     const rookieP = award.rookieId ? players.find(p => p.id === award.rookieId) : undefined
-    if (mvpP) seasonEndNews.push({ date: raceDate, headline: awardHeadline({ kind: 'mvp', division: divisionOf(teams.find(t => t.id === mvpP.teamId)), clubShort: teams.find(t => t.id === mvpP.teamId)?.shortName ?? '', playerName: mvpP.name }), category: 'race' as const, relatedIds: [mvpP.id] })
-    if (rookieP) seasonEndNews.push({ date: raceDate, headline: awardHeadline({ kind: 'rookie', division: divisionOf(teams.find(t => t.id === rookieP.teamId)), clubShort: teams.find(t => t.id === rookieP.teamId)?.shortName ?? '', playerName: rookieP.name }), category: 'race' as const, relatedIds: [rookieP.id] })
+    if (mvpP) seasonEndNews.push({ date: raceDate, headline: awardHeadline({ kind: 'mvp', division: divisionOf(teamById(teams, mvpP.teamId)), clubShort: teamById(teams, mvpP.teamId)?.shortName ?? '', playerName: mvpP.name }), category: 'race' as const, relatedIds: [mvpP.id] })
+    if (rookieP) seasonEndNews.push({ date: raceDate, headline: awardHeadline({ kind: 'rookie', division: divisionOf(teamById(teams, rookieP.teamId)), clubShort: teamById(teams, rookieP.teamId)?.shortName ?? '', playerName: rookieP.name }), category: 'race' as const, relatedIds: [rookieP.id] })
     // 引退表明。開幕時の引退判定とまったく同じ `isRetiringAge` を1歳先で評価する。
     // ★**国内だけに絞らないこと**（2026-09-15）。以前は `teams`（国内52クラブ）の
     //   IDで絞っていたので、**海外の選手の引退は一度もニュースにならなかった**。
@@ -51,7 +52,7 @@ export function buildSeasonFinaleNews(params: {
       // クラブ名は `utils/clubs` の `findClub` 1本（国内・海外を区別しない引き方）。
       // ★`teams.find(...)` で引くと**海外所属の選手だけクラブ名が空**になる
       const club = findClub(teams, foreignLeagues ?? [], p.teamId)
-      seasonEndNews.push({ date: raceDate, headline: retirementHeadline({ division: divisionOf(teams.find(t => t.id === p.teamId)), clubShort: club?.shortName ?? '', playerName: p.name, age: p.age }), category: 'race' as const, relatedIds: [p.id] })
+      seasonEndNews.push({ date: raceDate, headline: retirementHeadline({ division: divisionOf(teamById(teams, p.teamId)), clubShort: club?.shortName ?? '', playerName: p.name, age: p.age }), category: 'race' as const, relatedIds: [p.id] })
     }
   }
   return seasonEndNews

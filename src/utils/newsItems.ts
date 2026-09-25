@@ -20,6 +20,7 @@ import type { Division, Team } from '../types'
 import { divisionOf, DIVISION_LABEL, DIVISION_SIZE } from './league'
 import { fmtYen } from './money'
 import { eventLabelOf, formatRaceTime } from './eventTime'
+import { teamById } from './world'
 
 /** ニュース1件。gameStore の newsFeed に入る形と同じ */
 export type NewsItem = {
@@ -38,7 +39,7 @@ export function clubLabel(
   teams: readonly Pick<Team, 'id' | 'shortName' | 'division'>[],
   foreign?: { id: string; shortName: string; leagueName?: string },
 ): string {
-  const t = teams.find(x => x.id === clubId)
+  const t = teamById(teams, clubId)
   if (t) return `${t.shortName}（${DIVISION_LABEL[divisionOf(t)]}）`
   if (foreign) return foreign.leagueName ? `${foreign.shortName}（${foreign.leagueName}）` : foreign.shortName
   return '他クラブ'

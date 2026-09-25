@@ -1,4 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
+import { leagueById } from '../../utils/world'
 import { rankedStandings } from '../../utils/league'
 import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
@@ -15,7 +16,7 @@ export default function ForeignLeagueDetailPage() {
   const foreignLeagues = useGameStore(s => s.foreignLeagues) ?? []
   const players = useGameStore(s => s.players)
   const foreignStandings = useGameStore(s => s.currentSeason.foreignStandings)
-  const league = foreignLeagues.find(l => l.id === leagueId)
+  const league = leagueById(foreignLeagues, leagueId)
 
   if (!league) return (
     <div style={{ padding: '40px 20px', textAlign: 'center', color: C.textGhost, fontFamily: SAIRA }}>

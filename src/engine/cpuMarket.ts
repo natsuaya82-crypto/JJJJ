@@ -23,6 +23,7 @@ import { needsPlayer, squadRankOf, thinSpecialties, wouldMakeLineup } from '../u
 import { MAX_OFFERS_PER_PLAYER, appraiseMove, hasNoPlayingTime, regionOfLeague } from '../utils/transferDecision'
 import { playerTierOf, tierLines } from '../utils/playerTier'
 import { canBePoached, canClubApproachAgain, canGoOverseasDream, canLoanOut, canReceiveFreeContact, isOwnedBy } from '../utils/transferEligibility'
+import { myClub, teamById } from '../utils/world'
 
 export function cpuStrategy(lastRank: number, totalTeams: number, avgAge: number): 'contend' | 'rebuild' | 'balanced' {
   if (avgAge >= 30) return 'contend'          // 主力が高齢＝今のうちに勝負
@@ -511,10 +512,10 @@ export function generateTransferActivity(
   //   **関門を写さないこと。** 本人が答えるのと同じ関数をそのまま呼びます
   //   （買う側の取り合い `rivalClubsFor` も同じ形）。`inTierBand` は `appraiseMove` の
   //   中（`outOfBand`）にあるので、ここで別に呼ぶ必要はありません。
-  const myTier = tierOf(teams.find(t => t.id === playerTeamId) ?? { tier: 20 } as Team)
+  const myTier = tierOf(myClub({ teams, playerTeamId }) ?? { tier: 20 } as Team)
   // 選手の格の線は世界全体から1回だけ組む（utils/playerTier）
   const myTierLines = tierLines(players, id =>
-    tierOf(teams.find(t => t.id === id) ?? foreignClubs.find(c => c.id === id)))
+    tierOf(teamById(teams, id) ?? foreignClubs.find(c => c.id === id)))
 
 
   for (const club of offerClubs) {

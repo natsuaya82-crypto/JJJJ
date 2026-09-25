@@ -8,6 +8,7 @@
 import type { Division, Race, RaceResults, Player, Season, Team } from '../types'
 import { DIVISION_SIZE, divisionStandings, rankOfTeam } from '../utils/league'
 import { type NewsItem, boardEvalHeadline, myFinishHeadline, raceWinnerHeadline, rivalHeadline, segmentWinHeadline } from '../utils/newsItems'
+import { teamById } from '../utils/world'
 
 export function buildRaceNews(params: {
   race: Race
@@ -22,7 +23,7 @@ export function buildRaceNews(params: {
 }): NewsItem[] {
   const { race, results, teams, players, playerTeamId, myDivision, currentSeason, rivalTeamId, rng = Math.random } = params
 
-  const winnerTeam = teams.find(t => t.id === results.teamRankings[0]?.teamId)
+  const winnerTeam = teamById(teams, results.teamRankings[0]?.teamId)
   const playerResult = results.teamRankings.find(r => r.teamId === playerTeamId)
   const playerRank = playerResult?.rank ?? 0
   const rankSuffix = playerRank === 1 ? '優勝' : `第${playerRank}位`
@@ -80,7 +81,7 @@ export function buildRaceNews(params: {
   // ライバルとの比較
   if (rivalTeamId && playerRank > 0) {
     const rivalRank = results.teamRankings.find(r => r.teamId === rivalTeamId)?.rank
-    const rivalShort = teams.find(t => t.id === rivalTeamId)?.shortName
+    const rivalShort = teamById(teams, rivalTeamId)?.shortName
     if (rivalRank != null && rivalShort && playerRank !== rivalRank) {
       newsItems.push({
         date: race.date,

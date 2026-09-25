@@ -199,7 +199,8 @@ for (let i = 0; i < 12; i++) {
 
 
 // ── ここから A-15★ の集計 ────────────────────────────────
-import { tierOfPlayerClub, allTieredClubs } from '../src/utils/clubTier'
+import { allTieredClubs } from '../src/utils/world'
+import { tierOfPlayerClub } from '../src/utils/clubTier'
 import { needsPlayer, squadRankOf } from '../src/utils/squadNeeds'
 
 const clubsAll = allTieredClubs(tiersAfterEnd.teams, tiersAfterEnd.foreignLeagues)

@@ -12,7 +12,8 @@ import { runTransferMarket } from '../../engine/transferMarket'
 import { draftLotteryOrder, draftOrderTeams, pickExistsAnywhere, standingsPickNumbers } from '../../engine/draftOrder'
 import { buildDraftOrder, generateCpuRosters, generateDraftPool, generateForeignLeaguePlayers, generateJpelForeignName, generatePlayerInitialRoster } from '../../engine/playerGenerator'
 import { type Player, type TransferRecord } from '../../types'
-import { allTieredClubs, tierBudget, tierOf, tierOfPlayerClub } from '../../utils/clubTier'
+import { tierBudget, tierOf, tierOfPlayerClub } from '../../utils/clubTier'
+import { myClub, withMyClub, teamById, allTieredClubs } from '../../utils/world'
 import { allForeignClubs, findClub } from '../../utils/clubs'
 import { draftRoundOf, joinsDraft } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
@@ -55,17 +56,15 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     )
     // 自チームの初期ロスターも「格」から作る。CPU・海外と同じ tierRankComposition を通るので、
     // 3部のクラブを選べば3部相当の顔ぶれで始まる（前はどのクラブでも同じ固定の強さだった）
-    const myTeamForRoster = state.teams.find(t => t.id === state.playerTeamId)
+    const myTeamForRoster = myClub(state)
     const { players: prPlayers } = generatePlayerInitialRoster(state.currentSeason.year, tierOf(myTeamForRoster))
     const prPlayersWithTeam = prPlayers.map(p => ({ ...p, teamId: state.playerTeamId }))
 
-    const seededTeams = state.teams.map(t => t.id === state.playerTeamId
-      ? {
-          ...t,
-          // 最弱スタート：予算はそのクラブの格ぶん、施設は0から自分で建てる
-          facilities: {},
-          finance: { ...t.finance, budget: tierBudget(t) } }
-      : t)
+    const seededTeams = withMyClub(state, t => ({
+      ...t,
+      // 最弱スタート：予算はそのクラブの格ぶん、施設は0から自分で建てる
+      facilities: {},
+      finance: { ...t.finance, budget: tierBudget(t) } }))
 
     // Generate foreign league players
     const { players: foreignPlayers, updatedLeagues } = generateForeignLeaguePlayers(
@@ -127,7 +126,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     if (currentPick >= pickOrder.length || pool.length === 0) return
 
     const teamId = pickOrder[currentPick]
-    const team = state.teams.find(t => t.id === teamId)
+    const team = teamById(state.teams, teamId)
     if (!team) return
 
     // ★**在籍上限に届いているクラブは指名を見送る**（2026-09-15）。
@@ -331,7 +330,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
 
   signDevProspect: (prospectId) => {
     set(state => {
-      const team = state.teams.find(t => t.id === state.playerTeamId)
+      const team = myClub(state)
       if (!team) return state
       const prospect = (state.currentSeason.devProspects ?? []).find(p => p.id === prospectId)
       if (!prospect) return state
@@ -441,8 +440,8 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
 
   sellDraftPick: (pickKey, targetTeamId, price) => {
     const state = get()
-    const myTeam = state.teams.find(t => t.id === state.playerTeamId)
-    const buyTeam = state.teams.find(t => t.id === targetTeamId)
+    const myTeam = myClub(state)
+    const buyTeam = teamById(state.teams, targetTeamId)
     if (!myTeam || !buyTeam) return false
     const pick = myTeam.draftPicks.find(p => `${p.year}-R${p.round}-${p.pickNumber}` === pickKey)
     if (!pick) return false

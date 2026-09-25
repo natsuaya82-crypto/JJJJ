@@ -802,7 +802,7 @@ push まで済んでいたのに「コミットしていません」と報告し
 | 国内の順位→格 | `tierFromDomesticRank(通し順位)`。通し順位は `utils/league.ts` の `domesticThroughRank` |
 | 部ごとの格の帯 | `DOMESTIC_TIER_BAND`（1部5〜11 / 2部11〜16 / 3部16〜20）。**初期値も毎年の更新もここ1本から出す** |
 | 海外リーグごとの格 | `FOREIGN_TIER_BAND`（東アフリカ1〜7、アジア10〜20 など）。**帯だけでなく配り方（heavy／flat）もここ**。帯の中での位置→格は `tierInBand` 1本（初期値を作るときだけ通る。海外の格は動かないので更新は無い） |
-| 格を引くクラブ一覧 | `allTieredClubs(teams, foreignLeagues)`。国内52＋海外180を1つの並びで渡す（海外の格は初期値が正なので、渡し忘れても `CLUB_TIER_BY_ID` に落ちて同じ値になる） |
+| 格を引くクラブ一覧 | `utils/world.ts` の `allTieredClubs(teams, foreignLeagues)`。国内52＋海外180を1つの並びで渡す（海外の格は初期値が正なので、渡し忘れても `CLUB_TIER_BY_ID` に落ちて同じ値になる） |
 
 予算は 21.1億（格1）から 4.2億（格20）。**格1〜4は海外クラブだけ**で、
 国内の頭打ちは格5（1部優勝＝16.8億）です。3部最下位（格20）から4倍。

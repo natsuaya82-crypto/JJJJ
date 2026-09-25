@@ -14,7 +14,8 @@
 // ■ここでやらないこと
 //   ・釣り合っているか（`utils/tradeValue` の `tradeBalance` / `tradeNotLopsided`）
 //   ・ロスター上限・予算・出していい選手か … `tradePlayer` の側の関門
-import { allTieredClubs, tierOfPlayerClub } from '../utils/clubTier'
+import { allTieredClubs } from '../utils/world'
+import { tierOfPlayerClub } from '../utils/clubTier'
 import type { ClubTier } from '../utils/clubTier'
 import { playRateOf, prevSeasonOf, type PlayRateSeason } from '../utils/playRate'
 import { playerConsentToMove } from '../utils/playerUtils'

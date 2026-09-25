@@ -10,7 +10,8 @@ import { saleAnswers, keepSaleAnswers } from '../utils/saleAnswer'
 import { counterCeiling } from '../data/economy'
 
 import { type GameState, type Player, type Team } from '../types'
-import { MAJOR_NEWS_OVR, allTieredClubs, isBigClub, isStepUp } from '../utils/clubTier'
+import { MAJOR_NEWS_OVR, isBigClub, isStepUp } from '../utils/clubTier'
+import { myClub, teamById, allTieredClubs } from '../utils/world'
 import { allForeignClubs, bigClub, findClub, leagueOfClub } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
 import { settleForeignFee } from '../utils/clubMoney'
@@ -61,7 +62,7 @@ export function willingFeeFor(
   const ceil = counterCeiling(marketValueOf(player, state), offer.offeredPrice)
   // クラブは国内52＋海外180から引く（どちらも `finance.budget` を持つ）。
   // 上限の式は `transferCapOf`（手元の資金）1本＝他所とまったく同じ
-  const club = state.teams.find(t => t.id === offer.fromTeamId)
+  const club = teamById(state.teams, offer.fromTeamId)
     ?? allForeignClubs(state.foreignLeagues ?? []).find(c => c.id === offer.fromTeamId)
   return Math.min(transferCapOf(club?.finance?.budget ?? 0), ceil)
 }
@@ -110,12 +111,12 @@ export function finalizeSale(
   // 以前は「4大リーグのIDに入っているか」で、格3まで上がったクラブが最高峰扱いされず、
   // 格9まで落ちたクラブが最高峰のままだった。
   const destClub = allTieredClubs(state.teams, state.foreignLeagues).find(c => c.id === offer.fromTeamId)
-  const myClub = state.teams.find(t => t.id === state.playerTeamId)
+  const me = myClub(state)
   const toBigClub = !!offer.fromForeign && isBigClub(destClub)
-  const toStepUp = !!offer.fromForeign && isStepUp(myClub, destClub)
+  const toStepUp = !!offer.fromForeign && isStepUp(me, destClub)
   const toName = offer.fromForeign
     ? (league?.clubs.find(c => c.id === offer.fromTeamId)?.shortName ?? '海外クラブ')
-    : (state.teams.find(t => t.id === offer.fromTeamId)?.shortName ?? '')
+    : (teamById(state.teams, offer.fromTeamId)?.shortName ?? '')
 
   const moved = sellMove(state, offer.playerId, offer.fromTeamId, fee, toName)
   const headline = offer.fromForeign

@@ -1,5 +1,6 @@
 import type { ForeignLeague, Player, Race, Team } from '../types'
 import { divisionOf, divisionOfRaces } from './league'
+import { teamById } from './world'
 
 /**
  * **「そのレースにその選手が走ったか」を数えるのに要る形だけ。**
@@ -60,7 +61,7 @@ export function clubSeasonRaces(
   teams: readonly Team[],
   foreignLeagues?: readonly ForeignLeague[],
 ): Race[] {
-  const team = teams.find(t => t.id === clubId)
+  const team = teamById(teams, clubId)
   if (team) {
     const d = divisionOf(team)
     // 自分の部は結果が season.races の側に入っている

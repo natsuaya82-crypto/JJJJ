@@ -13,6 +13,7 @@ import PressButton from '../ui/PressButton'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { leaveRoom } from '../../lib/roomsApi'
 import { useScreenCovered } from '../../lib/screenCover'
+import { myClub } from '../../utils/world'
 
 type MenuAction = { label: string; path?: string; action?: () => void; color?: string }
 /**
@@ -124,7 +125,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const adsRemoved = useGameStore(s => s.adsRemoved ?? false)
   // 買い切り版は下部広告なし。確保していた高さ(50px)を詰めてタブ・本文を下まで広げる。
   const adH = adsRemoved ? 0 : AD_H
-  const team = teams.find(t => t.id === playerTeamId)
+  const team = myClub({ teams, playerTeamId })
   const location = useLocation()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)

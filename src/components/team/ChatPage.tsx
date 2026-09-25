@@ -22,6 +22,7 @@ import { ChatView } from './chat/ChatView'
 import { TradeChatView } from './chat/TradeChatView'
 import { OfferChatRow } from './chat/Cards'
 import { fmtDuration } from '../../utils/chatFormat'
+import { teamById } from '../../utils/world'
 
 
 
@@ -184,7 +185,7 @@ export default function ChatPage() {
   const chatPlayer = chatPlayerId ? openablePlayers.find(p => p.id === chatPlayerId) ?? players.find(p => p.id === chatPlayerId) ?? null : null
 
   // 他チーム（トレード交渉の相手）
-  const tradeTeam = tradeTeamId ? teams.find(t => t.id === tradeTeamId) ?? null : null
+  const tradeTeam = tradeTeamId ? teamById(teams, tradeTeamId) ?? null : null
 
   // ★**チャットを開いたら、いま出ている用件を見た扱いにする。**
   //   ホームの「チャット」の数字はこれで消える（オーナー・2026-08-16

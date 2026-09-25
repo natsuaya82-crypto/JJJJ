@@ -9,6 +9,7 @@ import { ensureMyProfile, pushMyProfile, pushMyRoster } from './friendsApi'
 import { gmCareerTitles } from '../utils/teamHistory'
 import { ONLINE_ENABLED } from '../data/featureFlags'
 import { saveSlotSuffix } from '../store/saveSlot'
+import { myClub } from '../utils/world'
 
 // 指紋の置き場もスロットごと。共通だと、別スロットで送った指紋と一致して
 // 「前と同じだから送らない」と誤判定し、そのスロットの情報が一生送られない
@@ -35,7 +36,7 @@ export async function syncNow(): Promise<void> {
     await ensureMyProfile()
 
     const st = useGameStore.getState()
-    const team = st.teams.find(t => t.id === st.playerTeamId)
+    const team = myClub(st)
     if (!st.playerTeamId || !team) return   // ゲーム開始前はアカウントを作るだけ
 
     const roster = st.players.filter(p => p.teamId === st.playerTeamId)

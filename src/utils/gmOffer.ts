@@ -3,6 +3,7 @@ import type { GmOffer, GmTenure, Team } from '../types'
 import { divisionOf, seasonDivisionStandings, type SeasonStandingsLike } from './league'
 import { tierOf, tierOfClubId } from './clubTier'
 import { facilitiesOf, facilityScoutPoints } from './facilities'
+import { teamById } from './world'
 
 // ============================================================================
 // 監督（GM）オファー。「シーズンが終わったあと、別のチームから声がかかる」仕組み。
@@ -166,7 +167,7 @@ export function makeGmOffer(params: {
   if (lastOfferYear != null && nextYear - lastOfferYear < GM_OFFER_COOLDOWN) return null
   if (rng() >= offerChance(finalRank, gmRep, teamCount)) return null
 
-  const tierNow = (id: string) => tierOf(teams.find(t => t.id === id))
+  const tierNow = (id: string) => tierOf(teamById(teams, id))
   const tierSeed = (id: string) => tierOfClubId(id)
   const rankFrac = teamCount > 1 ? Math.min(1, Math.max(0, (finalRank - 1) / (teamCount - 1))) : 0
   // 引いた種類に候補がいなければ他の種類へ回す（せっかく当たった機会を捨てない）
@@ -200,7 +201,7 @@ export function buildOffer(a: {
   finalRank: number
 }): GmOffer {
   const b = a.nextBudgets[a.teamId]
-  const dest = a.teams.find(t => t.id === a.teamId)
+  const dest = teamById(a.teams, a.teamId)
   // 前季順位は**移籍先の部の中での順位**（順位表は部ごとに分かれている）。
   // 来季の目標をここから引き直すので、部をまたいだ順位を使うと目標が的外れになる
   const destDivision = divisionOf(dest)

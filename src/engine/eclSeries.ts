@@ -12,6 +12,7 @@ import { ECL_COURSES } from '../data/eclCourses'
 import { rankedStandings } from '../utils/league'
 import { ovr } from '../utils/playerUtils'
 import type { Player, Race } from '../types'
+import { teamById } from '../utils/world'
 
 /** ECLシリーズに出るチーム1つぶん（国内チームでも海外クラブでも同じ形にそろえる） */
 export type EclSeriesParticipant = {
@@ -58,7 +59,7 @@ export function buildEclParticipants(args: {
   const parts: EclSeriesParticipant[] = []
 
   for (const s of rankedStandings(standings).slice(0, ECL_SLOTS_PER_LEAGUE)) {
-    const t = teams.find(tm => tm.id === s.teamId)
+    const t = teamById(teams, s.teamId)
     if (t) {
       parts.push({
         id: t.id, name: t.name, shortName: t.shortName,

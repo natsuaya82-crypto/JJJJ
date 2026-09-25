@@ -9,6 +9,7 @@ import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
 import { seasonDivisionStandings, rankOfTeam } from '../../utils/league'
 import { panelStyle } from '../ui/Panel'
 import { facilitiesOf } from '../../utils/facilities'
+import { myClub } from '../../utils/world'
 
 
 export default function TeamHub() {
@@ -16,7 +17,7 @@ export default function TeamHub() {
   const { teams, players, playerTeamId, currentSeason } = useGameStore()
   const trainingCards = useGameStore(s => s.trainingCards) ?? []
   const raceDroppedCards = useGameStore(s => s.raceDroppedCards) ?? []
-  const myTeam = teams.find(t => t.id === playerTeamId)
+  const myTeam = myClub({ teams, playerTeamId })
   const myPlayers = players.filter(p => p.teamId === playerTeamId)
   const expiringCount = myPlayers.filter(p => p.contract.yearsLeft <= 1).length
   // 全52チームぶんの順位表から、自分が走っている部だけに絞る（utils/league）
@@ -89,7 +90,7 @@ export default function TeamHub() {
       label: 'スポンサー', en: 'SPONSORS',
       desc: 'チーム・個人スポンサー契約管理',
       countLabel: (() => {
-        const team = teams.find(t => t.id === playerTeamId)
+        const team = myClub({ teams, playerTeamId })
         const cnt = (team?.sponsors ?? []).length
         const myPl = players.filter(p => p.teamId === playerTeamId)
         const personal = myPl.reduce((s, p) => s + (p.personalSponsors?.length ?? 0), 0)
@@ -111,7 +112,7 @@ export default function TeamHub() {
       label: '施設強化', en: 'FACILITIES',
       desc: '合宿・医療・スカウト・戦術分析施設のアップグレード',
       countLabel: (() => {
-        const team = teams.find(t => t.id === playerTeamId)
+        const team = myClub({ teams, playerTeamId })
         const total = Object.values(facilitiesOf(team)).reduce((s, v) => s + v, 0)
         return total > 0 ? `施設合計Lv${total}` : '未建設'
       })(),
@@ -132,7 +133,7 @@ export default function TeamHub() {
       label: '財務・予算', en: 'FINANCE',
       desc: '予算・収支・年俸・スポンサー収入の管理',
       countLabel: (() => {
-        const team = teams.find(t => t.id === playerTeamId)
+        const team = myClub({ teams, playerTeamId })
         const b = team?.finance.budget ?? 0
         return `予算 ${fmtYen(b)}`
       })(),

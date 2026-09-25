@@ -20,6 +20,7 @@ import { deviceAdsRemoved, setDeviceAdsRemoved, deviceTwitterIntroSeen, setDevic
 import { setSaveHealth } from './saveHealth'
 import type { GameState, Player, Team, RaceResults, IncomingOffer, TeamRole, FacilityKey, CardRarity, CardStatKey, TrainingCard, Ratings, Race, Nationality, Specialty } from '../types'
 import type { ISim } from '../engine/interactiveRace'
+import { teamById } from '../utils/world'
 
 // リーグの全チーム（1部20 ＋ 2部16 ＋ 3部16 = 52）。
 // 部の切り分けは Team.division が持つ。
@@ -594,7 +595,7 @@ export const useGameStore = create<GameStore>()(
       ...createDraftSlice(set, get),
       ...createRaceSlice(set, get),
 
-      getTeam: (teamId) => get().teams.find(t => t.id === teamId),
+      getTeam: (teamId) => teamById(get().teams, teamId),
       getPlayer: (playerId) => get().players.find(p => p.id === playerId),
       // 在籍選手は player.teamId から直接引く（team.roster の写しは見ない）。
       // 以前は roster 配列を見ていたため、更新し損ねると「ロスター画面にだけ出ない選手」が生まれていた。

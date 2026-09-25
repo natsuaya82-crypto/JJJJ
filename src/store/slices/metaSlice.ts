@@ -3,6 +3,7 @@
 import type { GameStore, SetGame } from '../gameStore'
 import { loginPrevKey, loginTodayKey } from '../../utils/loginDate'
 import { ADS_PER_DAY, AD_REWARD_JEWELS, getAdDay } from '../../utils/ads'
+import { myClub, withMyClub, teamById } from '../../utils/world'
 import { findClub } from '../../utils/clubs'
 import { canRegisterHof, isHofEligible, registerHof, removeHof } from '../../utils/hofRoster'
 import { MY_PLAYER_POINTS_GRANT, myPlayerBlockReason, myPlayerCaps } from '../../utils/myPlayer'
@@ -49,7 +50,7 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
     // 登録していい相手かは hofRoster の1本（レンタルで借りている選手は入れない）
     if (!isHofEligible(p, state.playerTeamId)) return false
     if (!canRegisterHof(state.hofRoster, playerId)) return false
-    const teamName = state.teams.find(t => t.id === p.teamId)?.name
+    const teamName = teamById(state.teams, p.teamId)?.name
       ?? findClub(state.teams, state.foreignLeagues ?? [], p.teamId)?.name
       ?? '—'
     set({ hofRoster: registerHof(state.hofRoster, p, state.currentSeason.year, teamName) })
@@ -188,14 +189,14 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
   updateMyTeam: (patch) => {
     set(s => ({
-      teams: s.teams.map(t => t.id === s.playerTeamId ? {
+      teams: withMyClub(s, t => ({
         ...t,
         ...(patch.name !== undefined ? { name: patch.name } : {}),
         ...(patch.shortName !== undefined ? { shortName: patch.shortName } : {}),
         ...(patch.gmName !== undefined ? { gmName: patch.gmName } : {}),
         ...(patch.logoId !== undefined ? { logoId: patch.logoId } : {}),
         ...(patch.region !== undefined ? { region: patch.region } : {}),
-        ...(patch.city !== undefined ? { city: patch.city } : {}) } : t) }))
+        ...(patch.city !== undefined ? { city: patch.city } : {}) })) }))
   },
 
 
@@ -213,7 +214,7 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
     // ★**振り分けの決まりは `utils/myPlayer` 1本**（画面と同じ関門を通す）。
     //   ここを素通しにすると、画面の下限を外しただけで極端な選手が作れます
     if (myPlayerBlockReason(params.ratings, grants[0], params.name, true) !== null) return false
-    const myTeam = state.teams.find(t => t.id === state.playerTeamId)
+    const myTeam = myClub(state)
     if (!myTeam) return false
     // 成長上限は**タイプごと**（`utils/myPlayer` の `myPlayerCaps` 1本）。
     // 平均は92のまま、得意な能力は99・不得意はその下になる。

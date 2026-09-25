@@ -15,6 +15,7 @@ import { C, alpha, SAIRA, F } from '../../../styles/tokens'
 import { tradeConsentBonus, tradeRefuser } from '../../../engine/tradeConsent'
 import { fmtYen } from '../../../utils/money'
 import { SpecChip } from '../../player/PlayerChips'
+import { myClub } from '../../../utils/world'
 
 // --- 他チーム（所属選手を表示し、選手を選ぶと契約オファー＝交渉を開始） ---
 
@@ -29,7 +30,7 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: Team; onC
   const tradeCtxT = eligibilityCtx(currentSeason, playerTeamId)
   const theirPlayers = players.filter(p => canBePoached(p, ctxForTeam(tradeCtxT, team.id))).sort(comparePlayers('ovr'))
   const myPlayersT = players.filter(p => canTradeAway(p, tradeCtxT)).sort(comparePlayers('ovr'))
-  const myTeam = teams.find(t => t.id === playerTeamId)
+  const myTeam = myClub({ teams, playerTeamId })
 
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [submitted, setSubmitted] = useState(false)

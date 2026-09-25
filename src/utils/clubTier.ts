@@ -401,20 +401,6 @@ export function tierOfClubId(clubId: string): ClubTier {
 }
 
 /**
- * 国内チームと海外クラブを1つの配列にまとめる。格を引くときの「クラブ一覧」はこれ。
- *
- * 国内・海外で別の引き方をしないための入口。どちらも `{ id, tier }` を持つので、
- * tierOf から見れば区別が要らない（いずれ海外のクラブを指揮することがあるので、
- * ここで分けてしまうとその時に全部書き直しになる）。
- */
-export function allTieredClubs(
-  teams: readonly TieredTeam[] | undefined,
-  foreignLeagues?: readonly { clubs: readonly TieredTeam[] }[],
-): TieredTeam[] {
-  return [...(teams ?? []), ...(foreignLeagues ?? []).flatMap(l => [...l.clubs])]
-}
-
-/**
  * その選手の所属クラブの格。国内クラブ・海外クラブ・無所属（FA）のどれでも通る入口。
  * 無所属は undefined を返す。
  *

@@ -18,6 +18,7 @@ import type { Division, Player, Season, Sponsor, Team } from '../types'
 import { computeNextSeasonBudget } from '../data/economy'
 import { operatingCostOf, tierBudget, type ClubTier } from '../utils/clubTier'
 import { facilityUpkeepOf } from '../utils/facilities'
+import { myClub } from '../utils/world'
 
 export function computeSeasonBudgets(params: {
   players: Player[]
@@ -58,7 +59,7 @@ export function computeSeasonBudgets(params: {
     objBudgetBonus,
     bonusPayout: bonusTotalPayout,
     salaryTotal: playerSalaryTotal,
-    facilityUpkeep: facilityUpkeepOf(teams.find(t => t.id === playerTeamId)) })
+    facilityUpkeep: facilityUpkeepOf(myClub({ teams, playerTeamId })) })
   // 初期予算の内訳（財務ページで「何が合わさって初期予算か」を表示）。
   // 繰越は「前季の最終収支」＝期末残高から年俸・運営費・ボーナスを精算した後の額。
   const newBudgetBreakdown = {

@@ -72,6 +72,9 @@ const CHECKS = [
   'size',
   // クラブ・格・お金
   'club-tiers', 'club-standing', 'foreign-money', 'club-money', 'clubs', 'offseason', 'market-rate', 'owner-decisions',
+  // 世界の層。クラブを探す・書くのは utils/clubs.ts だけ（自チームは myClub / withMyClub）。
+  // 層の外の入れ物の直読みは「今日より増えたら落ちる」
+  'world-layer',
   // 選手が**入ってくる口**。海外は毎年1クラブ最大3人入るのに、国内はドラフト
   // （1部20クラブだけ）しか無く、2部・3部が毎年痩せて FA も尽きていた
   // （オーナー・2026-08-16「fa全部とっても１３人にしかならない」）。

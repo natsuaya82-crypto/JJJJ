@@ -10,6 +10,7 @@ import { teamHistoryOf, titleRows } from '../../utils/teamHistory'
 
 // 予算は格1本、施設も1本（国内CPUも海外も同じ決まり）
 import { tierBudget } from '../../utils/clubTier'
+import { teamById, leagueById } from '../../utils/world'
 import { clubCity, clubFounded, clubGmName } from '../../utils/clubs'
 import { facilitiesOf, FACILITY_LABEL } from '../../utils/facilities'
 import { useClubIndex } from '../../lib/useClubIndex'
@@ -163,9 +164,9 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   //   後ろに置くとフック数が変わって「Rendered fewer hooks than expected」で白画面になる。
 
   const isForeign = !!clubId
-  const league = isForeign ? foreignLeagues.find(l => l.id === leagueId) : undefined
+  const league = isForeign ? leagueById(foreignLeagues, leagueId) : undefined
   const club = isForeign ? league?.clubs.find(c => c.id === clubId) : undefined
-  const domesticTeam = !isForeign ? teams.find(t => t.id === teamId) : undefined
+  const domesticTeam = !isForeign ? teamById(teams, teamId) : undefined
 
   // 国内チーム or 海外クラブを共通の表示モデルに正規化する
   const id = isForeign ? clubId! : teamId!

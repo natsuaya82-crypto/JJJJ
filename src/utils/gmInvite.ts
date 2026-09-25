@@ -2,7 +2,8 @@ import type { ForeignLeague, Player, Season, Team } from '../types'
 import { squadRankOf } from './squadNeeds'
 import type { ClubTier } from './clubTier'
 import { appraiseMove, isSurplus, moveDeclineText, type Appraisal, type Destination } from './transferDecision'
-import { allTieredClubs, tierOfPlayerClub } from './clubTier'
+import { teamById, allTieredClubs } from './world'
+import { tierOfPlayerClub } from './clubTier'
 import { comparePlayers } from './playerSort'
 import { perfOf, transferFeeFor } from './playerUtils'
 import { playRateOf } from './playRate'
@@ -93,7 +94,7 @@ export function appraiseGmInvite(ctx: GmInviteCtx, playerId: string, destTeamId:
   if (!a.ok) return { ok: false, fee, lead: a.lead, reason: a.reason }
   // 払えなければ連れて行けない。**聞く前にここまで見る**ので、
   // 「ついて行きます」と言われたのに移らない、が起きない
-  const destBudget = ctx.teams.find(t => t.id === destTeamId)?.finance.budget ?? 0
+  const destBudget = teamById(ctx.teams, destTeamId)?.finance.budget ?? 0
   if (destBudget < fee) {
     // 文面は移籍と同じ1本（ここで書かない）
     return { ok: false, fee, lead: 'fee', reason: moveDeclineText('fee', { dream: '' }) }

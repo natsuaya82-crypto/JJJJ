@@ -15,6 +15,7 @@
 // 必ず divisionOf() を通すこと。
 
 import type { Division, Team } from '../types'
+import { myClub } from './world'
 
 /** 上から順。表示の並びもこの順 */
 export const DIVISIONS: readonly Division[] = [1, 2, 3]
@@ -413,7 +414,7 @@ export function syncSeasonStandings(params: {
   }))
   // ★自チームが見つからないときに `divisionOf(undefined)` の既定値（1部）へ落ちないこと。
   //   落ちると1部だけ数え直し、自分の部の点はいつまでも0のまま＝直したつもりで直らない。
-  const me = teams.find(t => t.id === playerTeamId)
+  const me = myClub({ teams, playerTeamId })
   if (!me) return fixed
   const myDiv = divisionOf(me)
   return { ...fixed, [myDiv]: divisionStandingsFromRaces(fixed[myDiv], races ?? []) }
@@ -498,4 +499,4 @@ export function draftRoundOf(pickIndex: number, pickOrderLength: number): { roun
 }
 
 /** 自分の部のチーム数。「リーグの規模」を teams.length(52) で見ないための入口。gameStore から移設 */
-export const myDivSize = (st: { teams: import('../types').Team[]; playerTeamId: string }) => DIVISION_SIZE[divisionOf(st.teams.find(t => t.id === st.playerTeamId))]
+export const myDivSize = (st: { teams: import('../types').Team[]; playerTeamId: string }) => DIVISION_SIZE[divisionOf(myClub(st))]

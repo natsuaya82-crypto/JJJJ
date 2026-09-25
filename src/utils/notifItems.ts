@@ -11,6 +11,7 @@ import type { Season, Player, Team, ExpiredNegKind } from '../types'
 import { ROSTER_MAX, teamRosterSize } from '../data/rosterRules'
 import { loginTodayKey } from './loginDate'
 import { saleAnsweredIds } from './saleAnswer'
+import { myClub } from './world'
 
 // 「交渉期限切れ」の通知に出す文言。
 // この箱には3種類（入札・獲得オファー・契約更新）が入るのに、通知ページ側が
@@ -274,7 +275,7 @@ export function collectNotifications(input: NotifInput) {
     && players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status !== 'retired' && !p.transferListed && !p.loan))
 
   // スポンサー枠（3）が満杯なら、これ以上契約できないのでオファー通知は出さない
-  const myTeam = teams.find(t => t.id === playerTeamId)
+  const myTeam = myClub({ teams, playerTeamId })
   const sponsorSlotsLeft = 3 - (myTeam?.sponsors?.length ?? 0)
   const sponsorOffers = sponsorSlotsLeft > 0 ? (currentSeason.sponsorOffers ?? []) : []
 

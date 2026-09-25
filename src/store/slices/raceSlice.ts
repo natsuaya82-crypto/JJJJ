@@ -29,6 +29,7 @@ import { applyRaceBoosts } from '../../engine/raceBoosts'
 import { buildCpuLineups, simulateRace } from '../../engine/raceEngine'
 import { type ExpiredNegotiation, type GameState, type Player, type Ratings, type TransferRecord } from '../../types'
 import { generateDropCards } from '../../utils/cardCombo'
+import { myClub, allTieredClubs } from '../../utils/world'
 import { allForeignClubs } from '../../utils/clubs'
 import { GM_REP_DEFAULT, withFatigue, withMorale } from '../../utils/condition'
 import { isLiveContract } from '../../utils/contractTalk'
@@ -36,7 +37,7 @@ import { divisionOf, domesticThroughRank, myDivSize, segmentPrizeByTeam } from '
 import { movePlayer } from '../../utils/movePlayer'
 import { segmentPrizeHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
 import { playerConsentToMove, racesConsumed } from '../../utils/playerUtils'
-import { allTieredClubs, tierOfPlayerClub } from '../../utils/clubTier'
+import { tierOfPlayerClub } from '../../utils/clubTier'
 
 type Slice = Pick<GameStore,
   'setRaceLineup' | 'clearRaceLineup' | 'runRace' | 'setRaceStrategy' | 'setActiveRaceSim' | 'setActiveRacePhase' | 'setActiveRaceResults' | 'setActiveRaceLocked' | 'clearActiveRace' | 'simulateIndividualEvent' | 'ensureIndividualEvents'>
@@ -86,7 +87,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
     // 出走するのは自分と同じ部のチームだけ。判定は engine/raceEngine.ts の buildCpuLineups 1本。
     // 以前はここと RacePage（中継つきレース）の2箇所に手書きしていて、RacePage 側だけ
     // 部で絞っていなかった（3部なのに52チームで走って48位になっていた）。
-    const myDivision = divisionOf(teams.find(t => t.id === playerTeamId))
+    const myDivision = divisionOf(myClub({ teams, playerTeamId }))
     const lineups: Record<string, Record<number, string>> = {
       [playerTeamId]: lineup,
       ...buildCpuLineups(teams, players, race, playerTeamId) }
@@ -312,7 +313,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const finalPlayerRank = results.teamRankings.find(r => r.teamId === playerTeamId)?.rank ?? myDivSize(state)
       // カードは国内の通し順位で決まる（部内順位だと3部優勝も1部優勝も同じだった）。
       // 部内1位のときだけ1段上げる扱いは utils/cardCombo の中
-      const myDivForCards = divisionOf(state.teams.find(t => t.id === playerTeamId))
+      const myDivForCards = divisionOf(myClub({ teams: state.teams, playerTeamId }))
       const droppedCards = generateDropCards(
         domesticThroughRank(myDivForCards, finalPlayerRank),
         mySegWinCount,

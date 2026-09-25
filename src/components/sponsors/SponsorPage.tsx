@@ -8,6 +8,7 @@ import { fmtYen } from '../../utils/money'
 import type { SponsorTarget } from '../../types'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
+import { myClub } from '../../utils/world'
 
 // 枠の数は `data/sponsors` の `SPONSOR_SLOTS` 1本（store の受け口と同じところから出す）
 const MAX_SPONSORS = SPONSOR_SLOTS
@@ -40,7 +41,7 @@ export default function SponsorPage() {
   // ★見ているタブはURLに覚えさせる（`?tab=offers`。`lib/useStickyTab`）
   const [tab, setTab] = useStickyTab<'active' | 'offers'>('tab', ['active', 'offers'], 'active')
 
-  const myTeam = teams.find(t => t.id === playerTeamId)
+  const myTeam = myClub({ teams, playerTeamId })
   const teamSponsorIds = myTeam?.sponsors ?? []
   const activeSponsors = teamSponsorIds.map(id => sponsors.find(s => s.id === id)).filter(Boolean) as typeof sponsors
 

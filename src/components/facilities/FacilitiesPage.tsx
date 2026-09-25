@@ -10,6 +10,7 @@ import {
   facilityMedFatigueMultiplier, facilityScoutPoints, facilityScoutNegoBonus, facilityTacticsStatBonus,
 } from '../../utils/facilities'
 import { facilityExpMultiplier } from '../../engine/growth'
+import { myClub } from '../../utils/world'
 
 
 function FacilityIconSVG({ facilityKey, color, size = 26 }: { facilityKey: FacilityKey; color: string; size?: number }) {
@@ -104,7 +105,7 @@ export default function FacilitiesPage() {
   const upgradeFacility = useGameStore(s => s.upgradeFacility)
   const jewels = useGameStore(s => s.jewels)
 
-  const myTeam = teams.find(t => t.id === playerTeamId)
+  const myTeam = myClub({ teams, playerTeamId })
 
   if (!myTeam) return null
   // ★施設は `facilitiesOf` を通す（格から出る土台＋自分で建てたぶん）

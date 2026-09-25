@@ -3,6 +3,7 @@
 import type { GameStore, SetGame } from '../gameStore'
 import { SPONSOR_SLOTS } from '../../data/sponsors'
 import { facilitiesOf, facilityUpgradeCost } from '../../utils/facilities'
+import { myClub, withMyClub } from '../../utils/world'
 
 type Slice = Pick<GameStore,
   'signSponsor' | 'terminateSponsor' | 'acceptSponsorOffer' | 'collectSponsorIncome' | 'upgradeFacility' | 'dismissBudgetNotice'>
@@ -18,10 +19,7 @@ export const createEconomySlice = (set: SetGame, get: () => GameStore): Slice =>
     if (targetId === null) {
       // Team sponsor
       set(s => ({
-        teams: s.teams.map(t => t.id === s.playerTeamId
-          ? { ...t, sponsors: [...(t.sponsors ?? []), sponsorId] }
-          : t
-        ) }))
+        teams: withMyClub(s, t => ({ ...t, sponsors: [...(t.sponsors ?? []), sponsorId] })) }))
     } else {
       // Personal sponsor
       set(s => ({
@@ -37,10 +35,7 @@ export const createEconomySlice = (set: SetGame, get: () => GameStore): Slice =>
   terminateSponsor: (sponsorId, targetId) => {
     if (targetId === null) {
       set(s => ({
-        teams: s.teams.map(t => t.id === s.playerTeamId
-          ? { ...t, sponsors: (t.sponsors ?? []).filter(id => id !== sponsorId) }
-          : t
-        ) }))
+        teams: withMyClub(s, t => ({ ...t, sponsors: (t.sponsors ?? []).filter(id => id !== sponsorId) })) }))
     } else {
       set(s => ({
         players: s.players.map(p => p.id === targetId
@@ -55,7 +50,7 @@ export const createEconomySlice = (set: SetGame, get: () => GameStore): Slice =>
     set(state => {
       const offer = (state.currentSeason.sponsorOffers ?? []).find(o => o.id === offerId)
       if (!offer) return state
-      const myTeam = state.teams.find(t => t.id === state.playerTeamId)
+      const myTeam = myClub(state)
       if (!myTeam) return state
       const currentTeamSponsors = myTeam.sponsors ?? []
       if (currentTeamSponsors.length >= SPONSOR_SLOTS) return state
@@ -71,11 +66,7 @@ export const createEconomySlice = (set: SetGame, get: () => GameStore): Slice =>
         logoColor: offer.logoColor }
       return {
         sponsors: [...(state.sponsors ?? []), newSponsor],
-        teams: state.teams.map(t =>
-          t.id === state.playerTeamId
-            ? { ...t, sponsors: [...currentTeamSponsors, newSponsor.id] }
-            : t
-        ),
+        teams: withMyClub(state, t => ({ ...t, sponsors: [...currentTeamSponsors, newSponsor.id] })),
         currentSeason: {
           ...state.currentSeason,
           sponsorOffers: (state.currentSeason.sponsorOffers ?? []).filter(o => o.id !== offerId) } }
@@ -85,7 +76,7 @@ export const createEconomySlice = (set: SetGame, get: () => GameStore): Slice =>
 
   collectSponsorIncome: () => {
     const state = get()
-    const myTeam = state.teams.find(t => t.id === state.playerTeamId)
+    const myTeam = myClub(state)
     if (!myTeam) return
 
     let totalIncome = 0
@@ -108,10 +99,7 @@ export const createEconomySlice = (set: SetGame, get: () => GameStore): Slice =>
 
     if (totalIncome > 0) {
       set(s => ({
-        teams: s.teams.map(t => t.id === s.playerTeamId
-          ? { ...t, finance: { ...t.finance, budget: t.finance.budget + totalIncome } }
-          : t
-        ) }))
+        teams: withMyClub(s, t => ({ ...t, finance: { ...t.finance, budget: t.finance.budget + totalIncome } })) }))
     }
   },
 
@@ -119,7 +107,7 @@ export const createEconomySlice = (set: SetGame, get: () => GameStore): Slice =>
   // ── Facilities ────────────────────────────────────────────────────
   upgradeFacility: (key) => {
     const state = get()
-    const myTeam = state.teams.find(t => t.id === state.playerTeamId)
+    const myTeam = myClub(state)
     if (!myTeam) return false
     // ★いまのレベルは `facilitiesOf`（格の土台＋建てたぶん）。0 から数え直さないこと
     const currentLv = facilitiesOf(myTeam)[key]
@@ -128,9 +116,9 @@ export const createEconomySlice = (set: SetGame, get: () => GameStore): Slice =>
     if (cost === null || state.jewels < cost) return false
     set(state => ({
       jewels: state.jewels - cost,
-      teams: state.teams.map(t => t.id === state.playerTeamId ? {
+      teams: withMyClub(state, t => ({
         ...t,
-        facilities: { ...t.facilities, [key]: currentLv + 1 } } : t) }))
+        facilities: { ...t.facilities, [key]: currentLv + 1 } })) }))
     return true
   },
 

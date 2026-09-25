@@ -11,7 +11,8 @@
 // ★自チームから出て行った選手とは1年間交渉不可（lockUntilYear）。
 import type { ForeignLeague, Player, Season, Team, TransferListing, TransferRecord, ExpiredNegotiation } from '../types'
 import type { ClubTier } from '../utils/clubTier'
-import { MAJOR_NEWS_OVR, allTieredClubs, tierOfPlayerClub } from '../utils/clubTier'
+import { MAJOR_NEWS_OVR, tierOfPlayerClub } from '../utils/clubTier'
+import { allTieredClubs } from '../utils/world'
 import { bigClub, findClub } from '../utils/clubs'
 import { movePlayer, type DepartureNotice } from '../utils/movePlayer'
 import { settleForeignFee } from '../utils/clubMoney'

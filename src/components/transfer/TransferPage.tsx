@@ -33,6 +33,7 @@ import { fmtYen } from '../../utils/money'
 import { offersAwaitingReply } from '../../utils/notifItems'
 import { SpecChip } from '../player/PlayerChips'
 import PlayerList from '../player/PlayerList'
+import { myClub } from '../../utils/world'
 
 const MARKET_SORT_OPTIONS: { value: PlayerSortKey; label: string }[] = [
   { value: 'ovr', label: PLAYER_SORT_LABEL.ovr },
@@ -133,7 +134,7 @@ export default function TransferPage() {
   const { results: offerResults, push: pushOfferResult, dismiss: dismissOfferResult } = useOfferResults()
 
 
-  const myTeam = teams.find(t => t.id === playerTeamId)
+  const myTeam = myClub({ teams, playerTeamId })
   if (!myTeam) return null
 
   // 補強不可の判定は `utils/bidGate` の各 `*BlockReason` の中（`data/economy` の `reinforcementBanned` 1本）。**同じ式をここに書き写さないこと**

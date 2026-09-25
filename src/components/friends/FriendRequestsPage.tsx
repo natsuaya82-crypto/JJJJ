@@ -23,6 +23,7 @@ import { RankBadge } from '../rated/ratedUi'
 import { OFFLINE_TEXT } from '../../lib/supabase'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import ScreenPortal from '../ui/ScreenPortal'
+import { myClub } from '../../utils/world'
 
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -75,7 +76,7 @@ function RequestRow({ r, rating, dim, right }: { r: FriendRequest; rating: numbe
 
 export default function FriendRequestsPage() {
   const { teams, playerTeamId } = useGameStore()
-  const myTeam = teams.find(t => t.id === playerTeamId)
+  const myTeam = myClub({ teams, playerTeamId })
 
   const code = useFriendsQuery(myCode, [], 'myCode')
   const recvQ = useFriendsQuery(listReceived, [], 'received')

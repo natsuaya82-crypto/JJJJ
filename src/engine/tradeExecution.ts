@@ -14,6 +14,7 @@
 //   ・現金（移籍金）の受け渡し … `tradePlayer` にしか無い（打診を飲む側に現金は無い）
 import { movePlayer, type DepartureNotice } from '../utils/movePlayer'
 import type { Player, Team, TransferRecord } from '../types'
+import { teamById } from '../utils/world'
 
 /** 誰をどこへ。**渡した順に動かす**（順番を変えると移籍履歴の並びが変わる） */
 export type TradeMove = { playerId: string; toTeamId: string }
@@ -70,7 +71,7 @@ export function swapDraftPicks(
 ): Team[] {
   const keyOf = (pk: Team['draftPicks'][number]) => `${pk.year}-R${pk.round}-${pk.pickNumber}`
   const picksOf = (teamId: string, keys: string[]) => {
-    const owned = teams.find(t => t.id === teamId)?.draftPicks ?? []
+    const owned = teamById(teams, teamId)?.draftPicks ?? []
     return keys.map(k => owned.find(pk => keyOf(pk) === k)).filter(Boolean) as Team['draftPicks']
   }
   const aPicks = picksOf(a.teamId, a.pickKeys)

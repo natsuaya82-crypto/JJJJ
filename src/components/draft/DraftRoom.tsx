@@ -19,6 +19,7 @@ import { draftRoundOf, DRAFT_ROUNDS } from '../../utils/league'
 import { SpecChip, ForeignChip } from '../player/PlayerChips'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
+import { myClub, teamById } from '../../utils/world'
 
 
 type SortKey = 'ovr' | 'potential' | 'age'
@@ -125,7 +126,7 @@ export default function DraftRoom() {
       const after = useGameStore.getState().draftState
       if (after && after.picks.length > prevLen) {
         const pk  = after.picks[after.picks.length - 1]
-        const team = state.teams.find(t => t.id === pk.teamId)
+        const team = teamById(state.teams, pk.teamId)
         const p   = state.players.find(pl => pl.id === pk.playerId)
         setPickLog(prev => [...prev, {
           pickNum: pk.pickNumber, teamId: pk.teamId,
@@ -156,7 +157,7 @@ export default function DraftRoom() {
         <div style={{ width: '100%', maxWidth: 360, display: 'flex', flexDirection: 'column', gap: 8 }}>
           {[5, 4, 3, 2, 1].map(pos => {
             const revealed = lotteryRevealed >= 6 - pos
-            const t = teams.find(tm => tm.id === topFive[pos - 1])
+            const t = teamById(teams, topFive[pos - 1])
             const isMine = t?.id === playerTeamId
             return (
               <div key={pos} style={{
@@ -193,13 +194,13 @@ export default function DraftRoom() {
     )
   }
 
-  const currentTeam  = teams.find(t => t.id === pickOrder[currentPick])
+  const currentTeam  = teamById(teams, pickOrder[currentPick])
   const { round, pickInRound } = draftRoundOf(currentPick, pickOrder.length)
   // 1巡の件数（＝参加チーム数）。draftRoundOf と同じ数え方を指名ボードでも使う
   const perRound = Math.max(1, Math.round(pickOrder.length / DRAFT_ROUNDS))
   const myPicksDone  = picks.filter(p => p.teamId === playerTeamId).length
   const myPicksTotal = pickOrder.filter(id => id === playerTeamId).length
-  const playerTeamObj = teams.find(t => t.id === playerTeamId)
+  const playerTeamObj = myClub({ teams, playerTeamId })
 
   const specOrder: readonly Specialty[] = SPECIALTIES
   const myRosterSpecs = [
@@ -248,7 +249,7 @@ export default function DraftRoom() {
       const after = useGameStore.getState().draftState
       if (after && after.picks.length > prevLen) {
         const pk   = after.picks[after.picks.length - 1]
-        const team = state.teams.find(t => t.id === pk.teamId)
+        const team = teamById(state.teams, pk.teamId)
         const p    = state.players.find(pl => pl.id === pk.playerId)
         setPickLog(prev => [...prev, {
           pickNum: pk.pickNumber, teamId: pk.teamId,
@@ -429,7 +430,7 @@ export default function DraftRoom() {
             const isCurrent   = idx === currentPick
             const isMe        = teamId === playerTeamId
             const isPast      = idx < currentPick
-            const t           = teams.find(tm => tm.id === teamId)
+            const t           = teamById(teams, teamId)
             const accentColor = isMe ? C.gold : (t?.colors.primary ?? C.border2)
             return (
               <div
@@ -573,7 +574,7 @@ export default function DraftRoom() {
                   {rOrder.map((teamId, i) => {
                     const pickNum   = (r - 1) * perRound + i + 1
                     const pk        = pickLog.find(p => p.pickNum === pickNum)
-                    const t         = teams.find(tm => tm.id === teamId)
+                    const t         = teamById(teams, teamId)
                     const isMe      = teamId === playerTeamId
                     const isCurr    = pickNum === currentPick + 1
                     const accentColor = isMe ? C.gold : (t?.colors.primary ?? C.border2)
@@ -859,7 +860,7 @@ function DraftComplete({ picks, teams, playerTeamId, onFinish }: {
 }) {
   const adH = useAdHeight()
   const myPicks    = picks.filter(p => p.teamId === playerTeamId)
-  const playerTeam = teams.find(t => t.id === playerTeamId)
+  const playerTeam = myClub({ teams, playerTeamId })
   const { players, setDraftContract } = useGameStore()
 
   const myDrafted = myPicks

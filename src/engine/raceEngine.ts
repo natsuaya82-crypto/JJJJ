@@ -4,6 +4,7 @@ import { positionPointsFor, segmentAwardPoints, divisionOf, teamsInDivision } fr
 import { MORALE_DEFAULT } from '../utils/condition'
 import { terrainWeights } from '../data/segmentWeights'
 import { lerpAnchors } from '../utils/anchors'
+import { myClub } from '../utils/world'
 
 // セーブ破損や旧データで ratings 自体（または一部の能力）が欠けている選手が混ざっても、
 // 描画・計算の途中で例外を投げてアプリが真っ白にならないようにするための防御。
@@ -343,7 +344,7 @@ export function buildCpuLineups(
   race: Race,
   playerTeamId: string,
 ): Record<string, Record<number, string>> {
-  const myDivision = divisionOf(teams.find(t => t.id === playerTeamId))
+  const myDivision = divisionOf(myClub({ teams, playerTeamId }))
   const out: Record<string, Record<number, string>> = {}
   for (const team of teamsInDivision(teams, myDivision)) {
     if (team.id === playerTeamId) continue

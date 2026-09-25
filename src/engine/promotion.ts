@@ -20,6 +20,7 @@ import { tierFromDomesticRank } from '../utils/clubTier'
 import { domesticClubsComplete, originalDivisionOf } from '../utils/domesticClubs'
 import { DIVISIONS, PROMOTION_SLOTS, divisionOf, domesticThroughRank, rankOfTeam, teamsInDivision } from '../utils/league'
 import { divisionMoveHeadline } from '../utils/newsItems'
+import { myClub, teamById } from '../utils/world'
 
 export function computePromotion(params: {
   teams: Team[]
@@ -45,7 +46,7 @@ export function computePromotion(params: {
     const m = new Map<Division, SeasonStanding[]>()
     for (const d of DIVISIONS) {
       for (const r of currentSeason.standings[d] ?? []) {
-        const e = effDivisionOf(teams.find(x => x.id === r.teamId) ?? { id: r.teamId })
+        const e = effDivisionOf(teamById(teams, r.teamId) ?? { id: r.teamId })
         const list = m.get(e)
         if (list) list.push(r); else m.set(e, [r])
       }
@@ -56,7 +57,7 @@ export function computePromotion(params: {
     rankOfTeam(rowsByEffDiv.get(effDivisionOf(t)), t.id)
   const nextTierOf = (t: { id: string; division?: Division }) =>
     tierFromDomesticRank(domesticThroughRank(effDivisionOf(t), divisionRankOf(t)))
-  const myNextTier = nextTierOf(teams.find(t => t.id === playerTeamId) ?? { id: playerTeamId })
+  const myNextTier = nextTierOf(myClub({ teams, playerTeamId }) ?? { id: playerTeamId })
 
   // ── 昇降格 ──────────────────────────────────────────────────
   // 各部の上位2チームが昇格、下位2チームが降格。プレーオフなし。
@@ -84,6 +85,6 @@ export function computePromotion(params: {
       headline: divisionMoveHeadline({ clubName: t.name, from, to }),
       category: 'race' as const,
       relatedIds: [t.id] }))
-  const myNextDivision = nextDivisionOf(teams.find(t => t.id === playerTeamId) ?? { id: playerTeamId })
+  const myNextDivision = nextDivisionOf(myClub({ teams, playerTeamId }) ?? { id: playerTeamId })
   return { nextTierOf, nextDivisionOf, myNextTier, myNextDivision, divisionMoveNews }
 }

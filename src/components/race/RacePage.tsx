@@ -30,6 +30,7 @@ import {
 import type { ISim, InteractiveSegResult } from '../../engine/interactiveRace'
 import { buildTeamRankings, countSegmentsByTeam } from '../../engine/raceEngine'
 import ScreenPortal from '../ui/ScreenPortal'
+import { myClub } from '../../utils/world'
 
 type Phase = 'lineup' | 'simulating' | 'results'
 
@@ -435,7 +436,7 @@ export default function RacePage() {
 
     const playerPlayerId = raceLineup[segIdx]
     const playerObj = racePlayers.find(p => p.id === playerPlayerId)
-    const playerTeam = teams.find(t => t.id === playerTeamId)
+    const playerTeam = myClub({ teams, playerTeamId })
     const seasonProgress = raceIndex / currentSeason.races.length
     const totalSegs = activeRace.segments.length
 
@@ -564,7 +565,7 @@ export default function RacePage() {
 
     const playerPlayerId = raceLineup[sim.currentSegIdx]
     const playerObj2 = racePlayers.find(p => p.id === playerPlayerId)
-    const playerTeam2 = teams.find(t => t.id === playerTeamId)
+    const playerTeam2 = myClub({ teams, playerTeamId })
     const seg2 = race.segments.find(s => s.index === sim.currentSegIdx)
     const seasonProgress2 = raceIndex / currentSeason.races.length
     const totalSegs2 = race.segments.length
@@ -693,7 +694,7 @@ export default function RacePage() {
       if (doneSeg.has(seg.index)) continue
       const pid = raceLineup[seg.index]
       const playerObj = racePlayers.find(p => p.id === pid)
-      const playerTeam = teams.find(t => t.id === playerTeamId)
+      const playerTeam = myClub({ teams, playerTeamId })
 
       const cpuTimes = calcCpuTimesForSeg(seg, teams, sim.cpuLineups, racePlayers, playerTeamId, race, seasonProgress, totalSegs)
       // スキップ区間もCPUと同じ消耗込み計算で見積もる
@@ -748,7 +749,7 @@ export default function RacePage() {
     for (const seg of race.segments) {
       const pid = raceLineup[seg.index]
       const playerObj = racePlayers.find(p => p.id === pid)
-      const playerTeam = teams.find(t => t.id === playerTeamId)
+      const playerTeam = myClub({ teams, playerTeamId })
       const cpuTimes = calcCpuTimesForSeg(seg, teams, cpuLineups, racePlayers, playerTeamId, race, seasonProgress, totalSegs)
       const skSegOvr = playerObj ? calcSegOvr(playerObj, seg) : 50
       const skSegStamina = Math.max(1, skSegOvr - calcNaturalDrain(skSegOvr, seg.distanceKm))
@@ -823,7 +824,7 @@ export default function RacePage() {
 
     // ライブ表示用：現在のスタミナ・イベント補正を反映した投影最終タイム（実結果と一致させる）
     const livePlayerObj = racePlayers.find(p => p.id === raceLineup[segIdx])
-    const livePlayerTeam = teams.find(t => t.id === playerTeamId)
+    const livePlayerTeam = myClub({ teams, playerTeamId })
     const liveSeg = race.segments.find(s => s.index === segIdx)
     const liveSeasonProgress = raceIndex / currentSeason.races.length
     const livePlayerTime = livePlayerObj && liveSeg

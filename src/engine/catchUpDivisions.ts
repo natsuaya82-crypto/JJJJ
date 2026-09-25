@@ -13,6 +13,7 @@
 import { applyAwayDivisionRound, applyRacedToSchedule, simulateAwayDivisions } from './domesticLeague'
 import { DIVISIONS, divisionOf } from '../utils/league'
 import type { GameState, Player, Team } from '../types'
+import { myClub } from '../utils/world'
 
 export function catchUpAwayDivisions(args: {
   currentSeason: GameState['currentSeason']
@@ -24,7 +25,7 @@ export function catchUpAwayDivisions(args: {
 
 const divRaces = currentSeason.divisionRaces
 if (!divRaces) return null
-const myDivision = divisionOf(teams.find(t => t.id === playerTeamId))
+const myDivision = divisionOf(myClub({ teams, playerTeamId }))
 const doneRounds = currentSeason.races.length
 const maxRounds = Math.max(...Object.values(divRaces).map(rs => rs.length))
 if (maxRounds <= doneRounds) return null

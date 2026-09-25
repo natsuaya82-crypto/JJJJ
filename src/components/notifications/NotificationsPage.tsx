@@ -24,6 +24,7 @@ import { useClubGifts, dropClubGift } from '../../lib/useClubGifts'
 import { claimClubGift } from '../../lib/clubsApi'
 import { stashGifts, peekGifts, clearGifts } from '../../lib/giftInbox'
 import ScreenCover from '../ui/ScreenCover'
+import { myClub } from '../../utils/world'
 
 const EMPTY_IDS: string[] = []
 
@@ -195,7 +196,7 @@ export default function NotificationsPage() {
   const renewalWaiting = renewalPlayers.filter(r => r.req).length
   // 数えるのは `data/rosterRules` の `teamRosterSize` 1本（上限を止める側と同じ条件）
   const myRosterCount = teamRosterSize(players, playerTeamId)
-  const myTeamFinance = teams.find(t => t.id === playerTeamId)?.finance
+  const myTeamFinance = myClub({ teams, playerTeamId })?.finance
 
   // 通知から用件を片付けるための操作
   const dismissFreeTransferNotice = useGameStore(s => s.dismissFreeTransferNotice)

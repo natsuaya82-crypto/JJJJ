@@ -14,6 +14,7 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { useSegmentRecords } from '../../lib/useSegmentRecords'
 import { FaceOrDot } from './SegmentDetailCard'
 import ScreenPortal from '../ui/ScreenPortal'
+import { teamById } from '../../utils/world'
 
 
 function computeAnimGaps(
@@ -206,7 +207,7 @@ export function RaceTrack({
         <div style={{ padding: '4px 0' }}>
           <div style={{ padding: '4px 12px 2px', fontSize: F.tiny, color: C.textDim, letterSpacing: 2, fontWeight: 700 }}>総合順位</div>
           {positions.map((pos, rank) => {
-            const t = teams.find(t => t.id === pos.teamId)
+            const t = teamById(teams, pos.teamId)
             if (!t) return null
             const isMe = pos.teamId === playerTeamId
             const pct = distanceKm > 0 ? (pos.km / distanceKm) * 100 : 0

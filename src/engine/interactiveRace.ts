@@ -4,6 +4,7 @@ import {
   calcTraitModifier, calcWeatherModifier, calcClubModifier, scoreToTime,
 } from './raceEngine'
 import { MORALE_DEFAULT } from '../utils/condition'
+import { teamById } from '../utils/world'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -336,7 +337,7 @@ export function generateSegmentEvents(params: {
 
   // ─── 総合順位コンテキスト計算 ───
   const teamName = (id: string): string | null =>
-    id === '__player__' ? null : (teams.find(t => t.id === id)?.shortName ?? null)
+    id === '__player__' ? null : (teamById(teams, id)?.shortName ?? null)
 
   // 総合タイム昇順ソート（プレイヤー含む）
   const sortedCum = cpuCumArr.slice().sort(([, a], [, b]) => a - b)

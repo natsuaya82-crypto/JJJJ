@@ -10,6 +10,7 @@ import { decideLoanRequests } from '../../engine/loanRequests'
 import { tradeValueCtxOf } from '../marketOps'
 import { ROSTER_MAX, rosterCapOf } from '../../data/rosterRules'
 import { type LoanResponse, type EclStanding, type ExpiredNegotiation, type GameState, type Player, type TransferRecord } from '../../types'
+import { withMyClub, allTieredClubs } from '../../utils/world'
 import { findClub } from '../../utils/clubs'
 import { TOP_DIVISION, divisionStandings, rankedStandings, pointSeriesStandings } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
@@ -19,7 +20,6 @@ import { belongsToClub } from '../../utils/rosterSync'
 import { segmentRecordsOf } from '../../utils/segmentRecords'
 import { resolveBid } from '../../utils/transferBid'
 import { locksNegotiation } from '../../engine/bidResolution'
-import { allTieredClubs } from '../../utils/clubTier'
 
 
 type Slice = Pick<GameStore,
@@ -290,7 +290,7 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
       eclFinalRank = myRank
       const prize = myRank === 1 ? 200_000_000 : myRank === 2 ? 100_000_000 : myRank > 0 ? 50_000_000 : 0
       if (prize > 0) {
-        updatedTeams = state.teams.map(t => t.id === state.playerTeamId ? { ...t, finance: { ...t.finance, budget: t.finance.budget + prize } } : t)
+        updatedTeams = withMyClub(state, t => ({ ...t, finance: { ...t.finance, budget: t.finance.budget + prize } }))
       }
       const won = champion?.id === state.playerTeamId
       eclWon = won

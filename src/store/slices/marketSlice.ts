@@ -13,8 +13,9 @@ import { pickKeysValue, roundFee } from '../../data/economy'
 import { ROSTER_MAX, canReleaseFromRoster, canSignContract, canSignPlayer, teamRosterSize } from '../../data/rosterRules'
 import { nationalityToForeignCategory } from '../../engine/playerGenerator'
 import { type AcquisitionOffer, type ContractRequest, type ExpiredNegKind, type ForeignCategory, type IncomingOffer, type Player, type TradeNegotiation, type TransferListing } from '../../types'
-import { MAJOR_NEWS_OVR, allTieredClubs, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
+import { MAJOR_NEWS_OVR, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
 import { tierLines, playerTierOf as playerTierFromLines } from '../../utils/playerTier'
+import { myClub, withMyClub, teamById, allTieredClubs } from '../../utils/world'
 import { allForeignClubs, bigClub, findClub, leagueOfClub } from '../../utils/clubs'
 import { withMorale } from '../../utils/condition'
 import { canOfferRenewal, canReNegotiate, contractTalkCtx, liveContractOf } from '../../utils/contractTalk'
@@ -217,7 +218,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     if (!listing) return false
     const player = state.players.find(p => p.id === listing.playerId)
     if (!player || player.teamId !== listing.fromTeamId) return false
-    const myTeam = state.teams.find(t => t.id === state.playerTeamId)
+    const myTeam = myClub(state)
     if (!myTeam || myTeam.finance.budget < price) return false
     if (reinforcementBanned(myTeam)) return false  // 赤字ペナルティ中・残高マイナスは新規補強不可（ドラフト・契約更新は可）
     if (!canSignContract(state.players, state.playerTeamId)) return false  // 総在籍30人の上限（31人化の防止）
@@ -288,7 +289,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
   // 国内チームでも海外クラブでも同じ入口。判断そのものは utils/transferDecision.ts
   destinationOf: (clubId, player) => {
     const state = get()
-    const team = state.teams.find(t => t.id === clubId)
+    const team = teamById(state.teams, clubId)
     const tier = team ? tierOf(team) : (tierOfPlayerClub(clubId, allTieredClubs(state.teams, state.foreignLeagues)) ?? tierOfClubId(clubId))
     const inEcl = (state.currentSeason.eclSeries?.participants ?? []).some(pt => pt.id === clubId)
     // 国内は順位表、海外はそのリーグの順位表から順位を引く
@@ -618,7 +619,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       //   来ない」になっていました（`submitTransferBid` とまったく同じ事故）。
       if (acquisitionBlockReason(player, source, {
         currentSeason: state.currentSeason,
-        myTeam: state.teams.find(t => t.id === state.playerTeamId),
+        myTeam: myClub(state),
         myTeamId: state.playerTeamId,
         bidsOnPlayer: [],
         players: state.players,
@@ -683,7 +684,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
         return Math.max(-0.08, Math.min(0.08, (theirRank - myRank) * -0.012))
       })()
       // スカウト拠点: Lv×2%ぶん受諾ラインを緩和（獲得・移籍しやすくなる）
-      const scoutLv = facilitiesOf(state.teams.find(t => t.id === state.playerTeamId)).scoutOffice
+      const scoutLv = facilitiesOf(myClub(state)).scoutOffice
       // スカウト拠点の交渉ボーナスは `utils/facilities` の1本（画面の効き目の表示と同じ式）
       const scoutNegoBonus = facilityScoutNegoBonus(scoutLv)
       const acceptThresh = (personality === 'loyalty' ? 0.97 : personality === 'winning' ? 1.0 : 1.02) + infoPenalty - rlx + roleBonus + typeAdjust + yearsBonus + appealAdj - scoutNegoBonus
@@ -817,9 +818,8 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       released = true
       return {
         players: moved.players,
-        teams: moved.teams.map(t => t.id === state.playerTeamId
-          ? { ...t, finance: { ...t.finance, budget: t.finance.budget - buyoutCost } }
-          : t) }
+        teams: withMyClub({ teams: moved.teams, playerTeamId: state.playerTeamId },
+          t => ({ ...t, finance: { ...t.finance, budget: t.finance.budget - buyoutCost } })) }
     })
     return released
   },
@@ -1054,7 +1054,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
 
   loanInPlayer: (playerId, years, force = false) => {
     const st = get()
-    if (reinforcementBanned(st.teams.find(t => t.id === st.playerTeamId))) return false  // 赤字・残高マイナスは補強不可
+    if (reinforcementBanned(myClub(st))) return false  // 赤字・残高マイナスは補強不可
     const player = st.players.find(p => p.id === playerId)
     if (!player || player.teamId === '' || player.teamId === st.playerTeamId || player.loan) return false
     // レンタル枠 最大3（借りている選手＝loan.ownerTeamId が自分でない）
@@ -1111,7 +1111,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
         until: state.currentSeason.year + yrs,
         years: yrs,
         myTeamId: state.playerTeamId,
-        toName: state.teams.find(t => t.id === toTeamId)?.shortName ?? '他クラブ' })
+        toName: teamById(state.teams, toTeamId)?.shortName ?? '他クラブ' })
       if (!moved.ok) return state
       return {
         players: moved.players,
@@ -1132,7 +1132,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     // 出せるかどうかは utils/bidGate 1本（入札と同じで、画面の「押せるか」と同じもの）
     const loanReason = loanBlockReason(player, {
       currentSeason: st.currentSeason,
-      myTeam: st.teams.find(t => t.id === st.playerTeamId),
+      myTeam: myClub(st),
       myTeamId: st.playerTeamId,
       bidsOnPlayer: [],
       // 借りている人数は `utils/rosterSync` の `loanedInCount` 1本（`belongsToClub` を通る）。
@@ -1180,7 +1180,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     const priorBids = (state.currentSeason.transferBids ?? []).filter(b => b.playerId === playerId)
     const reason = bidBlockReason(player, {
       currentSeason: state.currentSeason,
-      myTeam: state.teams.find(t => t.id === state.playerTeamId),
+      myTeam: myClub(state),
       myTeamId: state.playerTeamId,
       bidsOnPlayer: priorBids })
     if (reason) return { ok: false, reason }
@@ -1222,7 +1222,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     if (!canBePoached(player, { teamId: bid.targetTeamId, currentYear: state.currentSeason.year })) {
       return { ok: false, reason: '彼の状況が変わったため、この移籍は成立しませんでした。' }
     }
-    const myTeam = state.teams.find(t => t.id === state.playerTeamId)
+    const myTeam = myClub(state)
     if (!myTeam || myTeam.finance.budget < bid.offeredFee) return { ok: false, reason: `貴クラブの予算では移籍金${fmtYen(bid.offeredFee)}を支払えないようです。資金を確保してから改めてお願いします。` }
     // ロスター枠チェック（移籍金ルートは本契約として加入する）。枠不足は決裂扱いにしない
     if (!canSignContract(state.players, state.playerTeamId)) {
@@ -1368,7 +1368,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
 
     // 移籍金を払う場合は予算チェック（予算が無条件にマイナスへ落ちるのを防ぐ）
     if (transferFee > 0) {
-      const myBudget = state.teams.find(t => t.id === state.playerTeamId)?.finance.budget ?? 0
+      const myBudget = myClub(state)?.finance.budget ?? 0
       if (myBudget < transferFee) return { ok: false, reason: 'そちらの予算では移籍金を払えないようだ。' }
     }
 
@@ -1576,7 +1576,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
   signForeignPlayer: (playerId, salary, years) => {
     const state = get()
     const player = state.players.find(p => p.id === playerId)
-    const myTeam = state.teams.find(t => t.id === state.playerTeamId)
+    const myTeam = myClub(state)
     if (!player || !myTeam) return false
     if (reinforcementBanned(myTeam)) return false  // 赤字ペナルティ中・残高マイナスは補強不可
 

@@ -13,7 +13,8 @@
 //   練習プランが効く条件のときだけもう1回。順序は切り出し前と同じ。
 import type { CardStatKey, ForeignLeague, Player, RaceResults, Season, Team } from '../types'
 import { withFatigue } from '../utils/condition'
-import { ANNUAL_BASE_EXP, allTieredClubs, tierOfPlayerClub } from '../utils/clubTier'
+import { myClub, allTieredClubs } from '../utils/world'
+import { ANNUAL_BASE_EXP, tierOfPlayerClub } from '../utils/clubTier'
 import { GROW_STAT_KEYS, applyGrowth, growWorldPlayer } from './growth'
 import { facilitiesOf } from '../utils/facilities'
 import { applyRaceMorale, standingOf, type RaceStanding } from './raceMorale'
@@ -49,7 +50,7 @@ export function applyRaceProgress(params: {
   // 強化合宿: 自チームのレース獲得EXP ×(1 + Lv×6%)
   // ★施設は `facilitiesOf` を通す（格から出る土台＋自分で建てたぶん）。
   //   `facilities` を直接読むと、建てていない施設が0になって**維持費だけ払う**形になる
-  const campLv = facilitiesOf(teams.find(t => t.id === playerTeamId)).trainingCamp
+  const campLv = facilitiesOf(myClub({ teams, playerTeamId })).trainingCamp
   // ★CPU・海外の成長の速さはそのクラブの格から（`tierGrowthRate`）。
   //   **232クラブの配列は1回だけ組み、格はクラブごとに1回だけ引くこと**——
   //   5,800人ぶん引き直すと1レースが数秒になります

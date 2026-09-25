@@ -42,6 +42,7 @@ import { comparePlayers } from '../utils/playerSort'
 import { playerTierOf, tierLines } from '../utils/playerTier'
 import { clubSeasonRaces, playRateOf, type PlayRateSeason } from '../utils/playRate'
 import { buildCareerCounts } from '../utils/careerStats'
+import { allTieredClubs } from '../utils/world'
 import { allForeignClubs } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
 import { roundRobin } from '../utils/roundRobin'
@@ -52,10 +53,7 @@ import {
   acquisitionDesiredSalary, faMarketSalary, newContractYears, ovr, seasonPerfProfile, playerConsentToMove,
   transferFeeFor,
 } from '../utils/playerUtils'
-import {
-  DOMESTIC_BOTTOM_TIER, MAJOR_NEWS_OVR, allTieredClubs, isBigClub, isStepUp, tierBudget, tierOf, tierOfPlayerClub, tierStrength,
-  type ClubTier,
-} from '../utils/clubTier'
+import { DOMESTIC_BOTTOM_TIER, MAJOR_NEWS_OVR, isBigClub, isStepUp, tierBudget, tierOf, tierOfPlayerClub, tierStrength, type ClubTier } from '../utils/clubTier'
 import { CPU_SELL_FLOOR } from '../data/rosterRules'
 import {
   clubLabel, crossBorderHeadline, overseasBreakthroughHeadline, seekPlayingTimeHeadline,

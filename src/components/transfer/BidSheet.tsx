@@ -8,7 +8,8 @@ import { useGameStore } from '../../store/gameStore'
 import { C, SAIRA, F, bottomStack } from '../../styles/tokens'
 import type { Player, TransferListing } from '../../types'
 import { fmtYen } from '../../utils/money'
-import { tierOfPlayerClub, allTieredClubs } from '../../utils/clubTier'
+import { myClub, allTieredClubs } from '../../utils/world'
+import { tierOfPlayerClub } from '../../utils/clubTier'
 import GlassButton from '../ui/GlassButton'
 import { facilitiesOf } from '../../utils/facilities'
 import ScreenCover from '../ui/ScreenCover'
@@ -39,7 +40,7 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
   // 本人の実際の答えと 40.4% 食い違っていた（「前向き」と出るのに断られる）
   const myDest = destinationOf(playerTeamId, player)
   const srcTier = tierOfPlayerClub(player.teamId, allTieredClubs(teams, foreignLeagues))
-  const scoutLv = facilitiesOf(teams.find(t => t.id === playerTeamId)).scoutOffice
+  const scoutLv = facilitiesOf(myClub({ teams, playerTeamId })).scoutOffice
   const consentBase = scoutLv * 0.02
   // 出場率は utils/playRate 1本。**store の finalizeTransfer と同じ数字を見ること**
   // （画面が「前向き」と出すのに store が断る、が起きる）

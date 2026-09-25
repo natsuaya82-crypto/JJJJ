@@ -23,6 +23,7 @@ import ScreenCover from '../ui/ScreenCover'
 import { OFFLINE_TEXT } from '../../lib/supabase'
 import { useRatedRanks } from '../../lib/useRatedRanks'
 import { RankBadge } from '../rated/ratedUi'
+import { myClub, teamById } from '../../utils/world'
 
 
 
@@ -198,7 +199,7 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
   const { resetGame } = useGameStore()
   const teams = useGameStore(s => s.teams)
   const playerTeamId = useGameStore(s => s.playerTeamId)
-  const myTeam = teams.find(t => t.id === playerTeamId)
+  const myTeam = myClub({ teams, playerTeamId })
   const raceEventsEnabled = useGameStore(s => s.raceEventsEnabled ?? true)
   const setRaceEventsEnabled = useGameStore(s => s.setRaceEventsEnabled)
 
@@ -390,7 +391,7 @@ function TeamEditScreen({ onClose }: { onClose: () => void }) {
   const teams = useGameStore(s => s.teams)
   const playerTeamId = useGameStore(s => s.playerTeamId)
   const updateMyTeam = useGameStore(s => s.updateMyTeam)
-  const team = teams.find(t => t.id === playerTeamId)
+  const team = myClub({ teams, playerTeamId })
 
   const [name, setName] = useState(team?.name ?? '')
   const [shortName, setShortName] = useState(team?.shortName ?? '')
@@ -583,11 +584,11 @@ function SoundScreen({ onClose }: { onClose: () => void }) {
 //   （画面と store で別々に数えると、押せるのにボタンが灰色、が起きる）
 function ResignScreen({ onClose }: { onClose: () => void }) {
   const resign = useGameStore(s => s.resignAsGm)
-  const myTeam = useGameStore(s => s.teams.find(t => t.id === s.playerTeamId))
+  const myTeam = useGameStore(s => myClub(s))
   const gmTenures = useGameStore(s => s.gmTenures)
   const year = useGameStore(s => s.currentSeason.year)
   const booked = useGameStore(s => s.pendingGmMove)
-  const bookedTeam = useGameStore(s => s.teams.find(t => t.id === s.pendingGmMove?.teamId))
+  const bookedTeam = useGameStore(s => teamById(s.teams, s.pendingGmMove?.teamId))
   const gate = canResignAsGm(gmTenures, year)
   const [done, setDone] = useState(false)
   return (

@@ -2,6 +2,8 @@ import { FOREIGN_CLUB_CITY } from '../data/foreignClubCities'
 import { hashedGmName } from '../engine/playerGenerator'
 import type { ForeignClub, ForeignLeague, Nationality, Team } from '../types'
 import { strHash } from './hash'
+import { isBigClub } from './clubTier'
+import { allTieredClubs } from './world'
 
 // ============================================================================
 // 「クラブ」は1種類だけ。ここが唯一の引き場所。
@@ -251,7 +253,6 @@ export function leagueOfClub(
 //   ・憧れの地域の行き先 … utils/transferDecision.ts の `leaguesOfRegion`
 
 // 「そのクラブはビッグクラブか」をIDから引く（実体を探して isBigClub へ）。gameStore から移設
-import { isBigClub, allTieredClubs } from './clubTier'
 export function bigClub(state: { teams: import('../types').Team[]; foreignLeagues: import('../types').ForeignLeague[] }, clubId: string | undefined): boolean {
   if (!clubId) return false
   return isBigClub(allTieredClubs(state.teams, state.foreignLeagues).find(c => c.id === clubId))

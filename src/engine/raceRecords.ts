@@ -9,6 +9,7 @@
 import type { Division, Player, Race, RaceResults, Team } from '../types'
 import { segmentRecordsOf, type SeasonRacesLike } from '../utils/segmentRecords'
 import { type NewsItem, segmentRecordHeadline } from '../utils/newsItems'
+import { teamById } from '../utils/world'
 
 export function detectSegmentRecords(params: {
   race: Race
@@ -37,7 +38,7 @@ export function detectSegmentRecords(params: {
     if (prevBest != null && fastestRunner && fastestRunner.timeSec < prevBest) {
       const isMine = fastestRunner.teamId === playerTeamId
       const plName = players.find(x => x.id === fastestRunner.playerId)?.name ?? '不明'
-      const tmShort = teams.find(x => x.id === fastestRunner.teamId)?.shortName ?? '?'
+      const tmShort = teamById(teams, fastestRunner.teamId)?.shortName ?? '?'
       marks.push({ segmentIndex: sr.segmentIndex, playerId: fastestRunner.playerId })
       news.push({
         date: race.date,

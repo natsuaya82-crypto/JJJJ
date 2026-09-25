@@ -12,6 +12,7 @@ import LoanSheet from '../transfer/LoanSheet'
 // 出せるかどうかは utils/bidGate 1本。**ここで条件を組み直さないこと**——
 // この画面は長いあいだ何も見ておらず、押せるのに store が黙って捨てていた
 import { bidBlockReason, loanBlockReason } from '../../utils/bidGate'
+import { myClub } from '../../utils/world'
 
 
 function PlayerHead({ player }: { player: Player }) {
@@ -51,7 +52,7 @@ export function useOpponentMenu() {
     if (!menuPlayer) return []
     const gate = {
       currentSeason,
-      myTeam: teams.find(t => t.id === playerTeamId),
+      myTeam: myClub({ teams, playerTeamId }),
       myTeamId: playerTeamId,
       bidsOnPlayer: (currentSeason.transferBids ?? []).filter(b => b.playerId === menuPlayer.id),
       loanSlotsUsed: players.filter(pl => pl.teamId === playerTeamId && pl.loan && pl.loan.ownerTeamId !== playerTeamId).length,
@@ -76,7 +77,7 @@ export function useOpponentMenu() {
 
       {offerId && (() => {
         const p = players.find(x => x.id === offerId); if (!p) return null
-        const budget = teams.find(t => t.id === playerTeamId)?.finance.budget ?? 0
+        const budget = myClub({ teams, playerTeamId })?.finance.budget ?? 0
         const listing = (currentSeason.transferListings ?? []).find(l => l.playerId === p.id)
         return <BidSheet player={p} budget={budget} listing={listing} onSubmit={fee => { submitTransferBid(p.id, fee); setOfferId(null) }} onClose={() => setOfferId(null)} />
       })()}

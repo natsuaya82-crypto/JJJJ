@@ -15,6 +15,7 @@ import { deficitPickPenaltyHeadline } from '../utils/newsItems'
 import { domesticThroughRankOfTeam } from '../utils/league'
 import { pickExistsAnywhere } from './draftOrder'
 import type { GameState, Team } from '../types'
+import { myClub } from '../utils/world'
 
 export type DraftPickResult = {
   teams: Team[]
@@ -58,7 +59,7 @@ export function issueDraftPicks(args: {
   // 来季ドラフトの自チーム最上位指名権が、資金力のあるチームへ強制売却される（売却額は補填として入金）
   const pickPenaltyNews: DraftPickResult['pickPenaltyNews'] = []
   if (deficitStreak >= 3) {
-    const meT = result.find(t => t.id === playerTeamId)
+    const meT = myClub({ teams: result, playerTeamId })
     const myNextPicks = (meT?.draftPicks ?? []).filter(pk => pk.year === newYear)
     const soldPick = [...myNextPicks].sort((a, b) => a.round - b.round || a.pickNumber - b.pickNumber)[0]
     const buyer = [...result].filter(t => t.id !== playerTeamId).sort((a, b) => b.finance.budget - a.finance.budget)[0]

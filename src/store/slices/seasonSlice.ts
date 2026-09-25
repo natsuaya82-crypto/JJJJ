@@ -29,8 +29,9 @@ import { processRetirements } from '../../engine/retirement'
 import { processSeasonSponsors } from '../../engine/sponsorSeason'
 import { settleBonusClauses } from '../../engine/bonusPayout'
 import { computeSeasonBudgets } from '../../engine/seasonBudget'
-import { allTieredClubs, tierBudget, tierOf, tierOfClubId } from '../../utils/clubTier'
+import { tierBudget, tierOf, tierOfClubId } from '../../utils/clubTier'
 import { appraiseGmInvite, gmInviteFeeFor } from '../../utils/gmInvite'
+import { myClub, teamById, allTieredClubs } from '../../utils/world'
 import { allForeignClubs, foreignClubIdSet } from '../../utils/clubs'
 import { MORALE_DEFAULT, setMorale } from '../../utils/condition'
 import { backfillDomesticClubs } from '../../utils/domesticClubs'
@@ -69,7 +70,7 @@ type Slice = Pick<GameStore,
 function applyGmMove(state: GameStore, offer: GmOffer, inviteId?: string): Partial<GameStore> {
   const oldTeamId = state.playerTeamId
   // 監督名は人について回る。前のチームには元のGM名を戻す
-  const myGmName = state.teams.find(t => t.id === oldTeamId)?.gmName
+  const myGmName = teamById(state.teams, oldTeamId)?.gmName
     ?? state.setupData?.gmName ?? '監督'
   const oldOriginalGm = INITIAL_TEAMS.find(t => t.id === oldTeamId)?.gmName ?? '新監督'
   const teams = state.teams.map(t => {
@@ -158,7 +159,7 @@ function applyGmMove(state: GameStore, offer: GmOffer, inviteId?: string): Parti
       ),
       // ★日程は移籍先の部のものへ差し替える。3部から1部へ移ったのに3部の日程のままだと
       //   走る本数（10／8／7）も相手も食い違う。部ごとの日程は divisionRaces に入っている
-      races: state.currentSeason.divisionRaces?.[divisionOf(teams.find(t => t.id === offer.teamId))]
+      races: state.currentSeason.divisionRaces?.[divisionOf(teamById(teams, offer.teamId))]
         ?? state.currentSeason.races,
       trainingAssignments: {},
       transferSpend: inviteSpend,
@@ -433,7 +434,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // 来季の日程も部ごとに引き直す（25コースのうちファイナル3本は固定、22本を3部で取り合う）。
       // 自分の部は昇降格のあとの部で引く
       const nextSchedules = drawSeasonSchedules(newYear)
-      const myNextDivision = nextDivisionOf(state.teams.find(t => t.id === state.playerTeamId) ?? { id: state.playerTeamId })
+      const myNextDivision = nextDivisionOf(myClub(state) ?? { id: state.playerTeamId })
       const newRaces = nextSchedules[myNextDivision] ?? generateSeasonRaces(newYear)
       // 王者は「部ごと」。52チームを得点で並べた先頭ではない（部ごとにレース数が違う）。
       // 表に出すのは1部の王者だが、2部・3部の優勝も同じ形でニュースに出す
@@ -482,7 +483,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // Check objectives + award scout points + budget rewards
       // 目標の順位は自分の部の中での順位（「3位以内」は自分の部での3位）
       const finalRank = rankOfTeam(myDivRows, state.playerTeamId)
-      const playerBudgetAtSeasonEnd = teamsWithFA.find(t => t.id === state.playerTeamId)?.finance.budget ?? 0
+      const playerBudgetAtSeasonEnd = myClub({ teams: teamsWithFA, playerTeamId: state.playerTeamId })?.finance.budget ?? 0
 
       const aiSigningNews: typeof faNews = []  // AI signing happens at draft start now
 
@@ -515,7 +516,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const playerTeamRosterIds = squadIdsOf(playersAfterRetire, state.playerTeamId)
 
       // League MVP・新人王（選出ルールは utils/awards.ts に一元化。画面表示側と同じ実装を使う）
-      const newSeasonAward: SeasonAward = computeSeasonAwards(state.currentSeason.races, grownPlayers, state.currentSeason.year, divisionOf(state.teams.find(t => t.id === state.playerTeamId)))
+      const newSeasonAward: SeasonAward = computeSeasonAwards(state.currentSeason.races, grownPlayers, state.currentSeason.year, divisionOf(myClub(state)))
 
       // 記録会のシーズン別トップ10は engine/eventSeasonTops 1本（全結果は保存時に捨てるため）
       const newEventTops = collectEventSeasonTops({ currentSeason: state.currentSeason, players: state.players })
@@ -537,7 +538,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         .filter(p => p.teamId === state.playerTeamId)
         .reduce((s, p) => s + p.contract.annualSalary, 0)
 
-      const playerTeamObj = teamsWithFA.find(t => t.id === state.playerTeamId)
+      const playerTeamObj = myClub({ teams: teamsWithFA, playerTeamId: state.playerTeamId })
       // スポンサー収入は myActiveSponsorIds（契約満了を反映する前のリスト）が基準。
       // teamsWithFA からだと今季で満了したスポンサーが既に外れていて、
       // 最終年ぶんの協賛金をまるごと受け取れていなかった。
@@ -730,7 +731,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         // 優勝トロフィー：**JPEL 1部優勝で1個**（ECL優勝ぶんは competitionSlice が足す）。
         // ★1部だけ。2部・3部の優勝では出ない（オーナー・2026-08-20「1部優勝で1個でしょ」）
         trophies: (state.trophies ?? 0)
-          + (divisionOf(state.teams.find(t => t.id === state.playerTeamId)) === TOP_DIVISION && myFinalRank === 1 ? 1 : 0),
+          + (divisionOf(myClub(state)) === TOP_DIVISION && myFinalRank === 1 ? 1 : 0),
         // 最終戦ぶんがまだ未表示なので上書きせず足す
         jewelGains: [...(state.jewelGains ?? []), ...seasonJewelGains].slice(-20),
         gmRep: newGmRep,
@@ -754,7 +755,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
           divisionRaces: nextSchedules,
           collegeRaces: [],
           // スカウトPTの効き目は `utils/facilities` の1本（画面の効き目の表示と同じ式）
-          scoutPoints: 5 + objBonus + facilityScoutPoints(facilitiesOf(state.teams.find(t => t.id === state.playerTeamId)).scoutOffice),
+          scoutPoints: 5 + objBonus + facilityScoutPoints(facilitiesOf(myClub(state)).scoutOffice),
           initialBudget: newBudget,   // 来期の開始予算（＝繰越+クラブ予算+スポンサー）。収支表示の基準。
           seasonGrant: newBudgetBreakdown.grant,   // 来期のクラブ予算（＝来季の格の年間予算）。内訳表示と一致させる。
           budgetBreakdown: newBudgetBreakdown,       // 初期予算の内訳（財務ページで表示）
@@ -846,7 +847,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // 届いている中から選ぶ。1件しか無いときは指定なしでもよい
       const offer = teamId ? (state.gmOffers ?? []).find(o => o.teamId === teamId) : (state.gmOffers ?? [])[0]
       if (!offer) return {}
-      const dest = state.teams.find(t => t.id === offer.teamId)
+      const dest = teamById(state.teams, offer.teamId)
       if (!dest) return { gmOffers: [] }
       // ★**頷いた相手だけを連れて行く関門はここ1つ。**
       //   画面はチャットで同じ関数の答えを見せているだけなので、

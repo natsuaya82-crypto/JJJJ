@@ -10,6 +10,7 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { operatingCostOf, CARRYOVER_CAP_SHARE } from '../../data/economy'
 import { facilityUpkeepOf } from '../../utils/facilities'
 import { panelStyle } from '../ui/Panel'
+import { myClub } from '../../utils/world'
 
 
 
@@ -36,7 +37,7 @@ export default function BudgetPage() {
   const { teams, players, playerTeamId, currentSeason, sponsors } = useGameStore()
   const longPress = usePlayerLongPress()
 
-  const myTeam = teams.find(t => t.id === playerTeamId)
+  const myTeam = myClub({ teams, playerTeamId })
   // 過去シーズンの成績はセーブに持たず、順位表から数え直す（utils/teamHistory.ts）
   const myHistory = useTeamHistory(playerTeamId)
   const myPlayers = players.filter(p => p.teamId === playerTeamId)

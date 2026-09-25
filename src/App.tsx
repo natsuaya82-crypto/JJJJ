@@ -101,6 +101,7 @@ import { APP_VERSION as APP_VERSION_LABEL } from './data/appMeta'
 import { C, alpha, SAIRA, F } from './styles/tokens'
 import GlassButton from './components/ui/GlassButton'
 import Panel, { panelStyle } from './components/ui/Panel'
+import { teamById } from './utils/world'
 
 const BUNDLE_ID = 'com.tokinets.jpelmanager'
 // 強制アップデート判定用の現在バージョン。過去に App.tsx 内の手書き定数の上げ忘れで
@@ -203,7 +204,7 @@ function GmOfferNotice() {
   const invited = myRoster.find(p => p.id === invite)
   if (offers.length === 0) return null
   const offer = offers[Math.min(pick, offers.length - 1)]
-  const dest = teams.find(t => t.id === offer.teamId)
+  const dest = teamById(teams, offer.teamId)
   if (!dest) return null
   return (
     <>
@@ -214,7 +215,7 @@ function GmOfferNotice() {
         {offers.length > 1 && (
           <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
             {offers.map((o, i) => {
-              const t = teams.find(x => x.id === o.teamId)
+              const t = teamById(teams, o.teamId)
               const on = i === Math.min(pick, offers.length - 1)
               return (
                 <GlassButton key={o.teamId} size="sm" color={on ? C.gold : C.textDim}
