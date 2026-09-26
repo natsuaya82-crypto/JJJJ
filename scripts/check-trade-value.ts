@@ -231,7 +231,8 @@ console.log('\n[7] 呼び出し側が自前で閾値を書いていない')
   check('ストアに主力割増(1.5)のべた書きが無い', !/!== 'open' \? 1\.5 : 1/.test(store))
   check('チャットに主力割増(1.5)のべた書きが無い', !/\? 1\.5 : 1/.test(chat))
   // ★「主力か」を画面で書き直さないこと。答えは `transferDecision` の `keyPlayerStatus` 1本
-  check('チャットが主力の判定を自前で書き直していない', !/isDataKeyPlayer\(|playFraction\s*>=\s*0\.\d/.test(chat))
+  //   （2本目の `isDataKeyPlayer` の復活は check-one-rule が src 全体で見る）
+  check('チャットが主力の判定を自前で書き直していない', !/playFraction\s*>=\s*0\.\d/.test(chat))
   check('出場の上乗せ(0.4)を自前で書いていない', !/frac \* 0\.4/.test(store) && !/frac \* 0\.4/.test(chat))
 
   check('成立(tradePlayer)が tradeBalance を通る', store.includes('const bal = tradeBalance(tradeIn, tvCtx)'))

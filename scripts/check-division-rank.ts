@@ -15,6 +15,13 @@ import type { WorldClub } from '../src/types'
 
 type Row = { teamId: string; totalPoints: number }
 
+// ★判定した結果は必ず exit につなぐこと（以前は ✓/✗ を出すだけで、✗ でも exit 0 だった）
+let ng = 0
+function check(name: string, ok: boolean, detail = '') {
+  console.log(`  ${ok ? 'ok' : 'NG'}  ${name}${detail ? ` — ${detail}` : ''}`)
+  if (!ok) ng++
+}
+
 // 52クラブぶんを**実際の配点**で作る。
 //   順位ポイント = そのレースに出たチーム数 + 1 - 着順（positionPointsFor）
 // 毎回同じ着順で走ったチーム、という単純な形にする。
@@ -50,6 +57,8 @@ for (const d of DIVISIONS) {
   const asMixed = rankOfTeam(mixed, top.teamId)
   const through = domesticThroughRankOfTeam(season, top.teamId)
   console.log(`  ${DIVISION_LABEL[d].padEnd(4)} ${String(inDiv).padStart(4)}位  ${String(asMixed).padStart(10)}位  ${String(through).padStart(12)}位`)
+  const firstThrough = DIVISIONS.filter(x => x < d).reduce((n, x) => n + DIVISION_SIZE[x], 0) + 1
+  check(`${DIVISION_LABEL[d]}の首位は部の中で1位・通し順位は${firstThrough}位`, inDiv === 1 && through === firstThrough, `${inDiv}位 / 通し${through}位`)
 }
 console.log('')
 
@@ -63,6 +72,9 @@ console.log(`  ${me} → ${DIVISION_LABEL[divisionInSeason(season, me)!]} / そ�
 const movedTeams = teams.map(t => (t.id === me ? { ...t, leagueId: divisionLeagueId(3) } : t))
 const stillDiv = divisionInSeason(season, me)
 console.log(`  そのあと3部へ降格しても → ${DIVISION_LABEL[stillDiv!]} / ${rankOfTeam(seasonLeagueStandings(season, me), me)}位`)
-console.log(movedTeams.length === teams.length && stillDiv === 1
-  ? '\n✓ いまの所属を変えても、過去の年の部と順位は動かない'
-  : '\n✗ 過去の年が今の所属に引きずられている')
+check('いまの所属を変えても、過去の年の部と順位は動かない',
+  movedTeams.length === teams.length && stillDiv === 1 && rankOfTeam(seasonLeagueStandings(season, me), me) === 10,
+  `${stillDiv}部 / ${rankOfTeam(seasonLeagueStandings(season, me), me)}位`)
+
+if (ng > 0) { console.log(`\n✗ ${ng}件 NG`); process.exit(1) }
+console.log('\n✓ 順位表は部ごとに分かれていて、過去の年の部と順位は動かない')

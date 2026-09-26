@@ -38,8 +38,15 @@ const api = readFileSync('src/lib/ratedApi.ts', 'utf8')
 
 console.log('[1] 大会の情報は fetchEvent 1本（始まる前でも返る）')
 {
+  // ★コメントではなくコードを見ること（以前は説明文の「始まる前でも返る」に当たって緑だった）。
+  //   null を返すのが「大会の名前が無いとき」だけで、受付が開いているか（open）を見ていないこと
+  const at = api.indexOf('export async function fetchEvent(')
+  const body = at < 0 ? '' : api.slice(at, api.indexOf('\n}\n', at))
+    .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+  const nullLines = body.split('\n').filter(l => /return null/.test(l))
   check('fetchEvent が開始前も返す形になっている',
-    /始まる前でも返る/.test(api) && /startsOn/.test(api))
+    nullLines.length > 0 && nullLines.every(l => !/\bopen\b/.test(l)) && /startsOn:\s*d\.startsOn/.test(body),
+    nullLines.join(' / ') || 'fetchEvent が見つからない')
   check('ランクマッチの画面が fetchEvent を読む', /fetchEvent\(\)/.test(page))
   // ★大会の情報を2か所から引かないこと（ratedApi のコメントの決まり）
   check('画面が rpc を直接叩いていない', !/supabase\.rpc\(/.test(page))

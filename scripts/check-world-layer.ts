@@ -205,8 +205,9 @@ check(`旧い名前（teams / foreignLeagues）を state として読み書き�
   legacyHits.length === 0, legacyHits.join(' ／ '))
 
 // 2つの入れ物を前提にした関数（国内用と海外用の2本立て）。1つにしたので戻さないこと
+// domesticCpuTeamIds … オフの処理が国内のCPUクラブだけを集めていた（いまは utils/world の otherClubs＝自チームの id で外す）
 const TWO_BOX_FNS = ['teamById', 'allTieredClubs', 'allForeignClubs', 'foreignClubIdSet', 'domesticTeamIdSet',
-  'leagueOfClub', 'clubOfTeam', 'clubOfForeign', 'teamsInDivision']
+  'domesticCpuTeamIds', 'leagueOfClub', 'clubOfTeam', 'clubOfForeign', 'teamsInDivision']
 const twoBox: string[] = []
 for (const f of walk('src')) {
   const code = stripComments(readFileSync(f, 'utf8'))

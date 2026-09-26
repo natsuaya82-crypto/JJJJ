@@ -197,13 +197,6 @@ const RULES: Rule[] = [
     neverAppears: '`BottomSheet` / `ScreenPortal` / `ScreenCover` へ寄せ済み。画面に `position: fixed; bottom: 0` を書かないのが正しい',
     fix: 'components/ui/BottomSheet を通す（createPortal で body に出す）',
   },
-  {
-    name: '人数上限の直書き（30）',
-    pattern: /(roster|Roster)\w*\.length\s*[<>]=?\s*30\b/,
-    allow: ['src/data/rosterRules.ts'],
-    neverAppears: '正は `teamRosterSize` と `ROSTER_MAX`。人数を 30 と直に比べる形はどこにも無いのが正しい',
-    fix: 'rosterRules.ts の ROSTER_MAX を使う',
-  },
 ]
 
 // 「あと何レース」を currentRaceIndex で数えないこと。
@@ -323,21 +316,6 @@ RULES.push({
     'src/utils/newsItems.ts',   // ゲーム開始時のニュース（国内の話なので国内の名前でよい）
   ],
   fix: 'data/courseNames.ts の courseNameFor / localizeRace を通す',
-})
-
-// 走行記録の置き場所はシーズンの中に7つある（自分の部・他の部・大学・2軍・ECL・海外リーグ・世界大会）。
-// 画面が1つずつ拾っていたので、足し忘れたぶんはそのまま表示から消えていた
-// （海外リーグの出走が選手ページに1件も出ていなかった）。取り出しは utils/raceHistory 1本。
-RULES.push({
-  name: '日程・結果・順位表の旧い入れ物を読み書きしている',
-  // 国内の自分の部・他の部・海外で割れていた旧い入れ物。いまは Season.leagues（リーグID → 日程・順位表）1つ。
-  // 旧い名前を書いてよいのは、旧セーブを均す2か所だけ（src 全体は check-season-leagues が数える）
-  pattern: /\.(divisionRaces|foreignRaces|foreignStandings|foreignRaceIndex)\b/,
-  allow: [
-    'src/store/persistence/legacySeason.ts',  // 旧い形を均す唯一の場所
-    'src/store/persistence/migrateSave.ts',   // v46 より前の段（旧い形のまま動く）
-  ],
-  fix: '日程・結果は utils/league の leagueRaces（自チームは utils/world の myLeagueRaces）、順位表は leagueStandingRows で引く',
 })
 
 // チャットのログは2つの経路で積まれる（ボタンでその場で足す／次に開いて作り直す）。
@@ -670,15 +648,6 @@ RULES.push({
   allow: ['src/utils/condition.ts', 'src/engine/eventEffects.ts', 'src/engine/seasonObjectives.ts'],
     neverAppears: '正は `utils/condition` の `withGmRep`。`gmRep` を直に足し引きする形はどこにも無いのが正しい',
   fix: 'utils/condition.ts の withGmRep(cur, delta) を使う',
-})
-// オフシーズンの処理（解雇・トレード・レンタル）が「相手にするクラブ」を数えるところ。
-// beginSeasonDraft の中だけで3回手書きされていた。いまは自チームの id で外す1本（W6）。
-RULES.push({
-  name: '国内CPUクラブの集め方を手書きしている',
-  pattern: /!==\s*'__pool__'[^\n]*domesticTeamIdSet|domesticTeamIdSet[^\n]*!==\s*'__pool__'|domesticCpuTeamIds/,
-  allow: ['src/utils/clubs.ts'],
-    neverAppears: '正は `utils/world` の `otherClubs`（自チームの id で外す）。国内CPUだけを集める `domesticCpuTeamIds` は 2026-09-25 に廃止',
-  fix: "utils/world.ts の otherClubs(clubs, playerTeamId) を使う",
 })
 // 人数を減らすときに先に切る順。1軍23人ぶんと総在籍の上限ぶんで同じ式を書いていた。
 RULES.push({

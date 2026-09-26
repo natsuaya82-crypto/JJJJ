@@ -400,6 +400,23 @@ for (const group of [entries.filter(e => !e.nativeFakes), entries.filter(e => e.
   }
 }
 
+// ── 計測（scripts/measure-*.ts）は**組めるかだけ**見る（走らせない）──
+// 計測は CHECKS に載らないので、消したAPIを読んだまま**誰にも気づかれずに壊れる**。
+// 実際に measure-continental（消した simulateContinentalQualifiers）と measure-outbid
+// （撤廃した TRANSFER_BUDGET_SHARE）が組めないまま CLAUDE.md から名指しされていた。
+// 役目が終わった計測は直さずに消すこと（組めない計測を残さない）。
+const measureErrors = new Map()
+{
+  const measures = readdirSync(join(ROOT, 'scripts')).filter(f => /^measure-.*\.ts$/.test(f))
+  const args = BUILD_ARGS.map(a => a.startsWith('--outdir=') ? `--outdir=${join(OUT, 'measure')}` : a)
+  if (measures.length > 0 && esbuild([...measures.map(f => join(ROOT, 'scripts', f)), ...args]).status !== 0) {
+    for (const f of measures) {
+      const r = esbuild([join(ROOT, 'scripts', f), ...args])
+      if (r.status !== 0) measureErrors.set(f, (r.stderr || r.stdout || '').trim())
+    }
+  }
+}
+
 const built = entries.map(e => {
   const outfile = join(OUT, `check-${e.name}.cjs`)
   const buildError = buildErrors.get(e.name) ?? (existsSync(outfile) ? undefined : '出力が作られませんでした')
@@ -502,6 +519,12 @@ for (const e of built) {
     if (broke) console.log('    ※ NG の行が1件も無いのに落ちました。点検そのものが壊れています（未修理の印では見逃せません）')
     ;(isFailure ? failed : pendingFailed).push(e.name)
   }
+}
+
+for (const [f, err] of measureErrors) {
+  console.log(`NG   scripts/${f}`)
+  console.log(`    計測がビルドできませんでした（消したAPIを読んでいます。直すか、役目が終わっていれば消すこと）\n${err}`)
+  failed.push(f)
 }
 
 console.log('')

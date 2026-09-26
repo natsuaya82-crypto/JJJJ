@@ -49,10 +49,13 @@ for (const f of files) {
 const total = Object.values(counts).reduce((a, b) => a + b, 0)
 
 const FIX = 'scripts/fixtures/bottom-sheet-budget.json'
-if (process.env.UPDATE_GOLDEN === '1' || !existsSync(FIX)) {
+// ★fixture が無いときに黙って焼き直さないこと（ファイルを消すだけで許可の要る見張りが緑になる）
+if (process.env.UPDATE_GOLDEN === '1') {
   writeFileSync(FIX, JSON.stringify(counts, null, 1) + '\n')
   console.log(`  -- 引き直しました（${Object.keys(counts).length}ファイル / 合計 ${total}件）`)
   console.log('     ★オーナーの許可があるときだけ引き直すこと')
+} else if (!existsSync(FIX)) {
+  check(`${FIX} がある`, false, '無い。オーナーの許可があるときだけ、この点検を UPDATE_GOLDEN=1 で走らせて生成すること')
 } else {
   const want = JSON.parse(readFileSync(FIX, 'utf8')) as Record<string, number>
   const wantTotal = Object.values(want).reduce((a, b) => a + b, 0)

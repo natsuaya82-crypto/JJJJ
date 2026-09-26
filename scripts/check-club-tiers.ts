@@ -22,7 +22,7 @@
  *   数年で世界から格1が消えていた。⑤はこれが復活しないことを見る。
  */
 import { readFileSync } from 'node:fs'
-import { logicSource } from './storeSource'
+import { logicSource, srcSource } from './storeSource'
 import { CLUB_TIER_BY_ID } from '../src/data/clubTiers'
 import {
   tierFromDomesticRank, tierInBand, tierOfClubId,
@@ -130,10 +130,10 @@ console.log('[5] 海外クラブの格を書き換えているコードが1つ�
   //   ForeignClub に `tier:` を書くコードは1つもあってはいけない。
   //   （国内の Team.tier は engine/seasonBudget が engine/promotion の nextPlaceOf で毎年書く。それは残す）
   const src = logicSource()
-  check('tierFromForeignRank は廃止されている（src に無い）', !src.includes('tierFromForeignRank'))
-  const clubTier = readFileSync('src/utils/clubTier.ts', 'utf8')
-  check('定義そのものも消えている',
-    !/export function tierFromForeignRank/.test(clubTier))
+  // src 全体で見る（store と engine だけだと、utils に書き戻されても緑になる）
+  //   コメント（「廃止しました。戻さないこと」の説明）は数えない
+  const code = srcSource().replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
+  check('tierFromForeignRank は廃止されている（src に無い）', !/\btierFromForeignRank\b/.test(code))
   // クラブに来季の格を書く口は engine/promotion の nextPlaceOf 1本で、書くのは決まり（tierMoves）の
   // あるリーグだけ。実際に232クラブを精算して海外に格が書かれないことは check-season-budget の[2]が見る
   const promo = readFileSync('src/engine/promotion.ts', 'utf8')

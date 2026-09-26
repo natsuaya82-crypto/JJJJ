@@ -31,7 +31,7 @@ const KEY = 'jpel-manager-save'
 const mkSave = (year: number, n = 300) => JSON.stringify({
   state: {
     isInitialized: true, playerTeamId: 'tokyo', year,
-    teams: [{ id: 'tokyo' }],
+    clubs: [{ id: 'tokyo' }],
     players: Array.from({ length: n }, (_, i) => ({ id: `p${i}`, specialty: 'ace' })),
   },
   version: 40,

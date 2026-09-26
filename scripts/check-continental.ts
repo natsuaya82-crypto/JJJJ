@@ -2,7 +2,7 @@
  * 大陸予選を実レースにしたら、強い国がちゃんと通過するようになったかを確かめる。
  *   npx esbuild --bundle --platform=node --format=cjs scripts/check-continental.ts --outfile=/tmp/cc.cjs && node /tmp/cc.cjs
  *
- * 前（国力＋当日ブレ）は通過が実質くじ引きだった（scripts/measure-continental.ts）。
+ * 前（国力＋当日ブレ）は通過が実質くじ引きだった。
  *   国力の幅 2.5% に対して当日ブレ ±8%。ケニアの通過率45%、アメリカ大陸はジャマイカが1位。
  * いまはアジア予選と同じ3戦を実際に走る。代表20人の強さ（幅6.5点）で決まるはずなので、
  *   ・代表の強さ順と通過率の順がだいたい合う

@@ -17,7 +17,7 @@ const mkSave = (n: number) => JSON.stringify({
   state: {
     isInitialized: true,
     playerTeamId: 'tokyo',
-    teams: [{ id: 'tokyo', name: '東京' }],
+    clubs: [{ id: 'tokyo', name: '東京' }],
     players: Array.from({ length: n }, (_, i) => ({
       id: `p${i}`, name: `選手${i}`, age: 22, specialty: 'ace', teamId: 'tokyo', status: 'active',
     })),
