@@ -1,5 +1,5 @@
 import type { LeagueId, Player, Race, WorldClub } from '../types'
-import { divisionOfLeague, leagueRaces } from './league'
+import { leagueRaces } from './league'
 import { clubById } from './world'
 
 /**
@@ -82,12 +82,6 @@ export function prevSeasonOf(
 /** 走り終わったレースの数（結果が入っているぶんだけ） */
 export function racesDone(races: readonly Race[]): number {
   return races.filter(r => r.results).length
-}
-
-/** 海外リーグが今季消化した回の数（海外の出場記録の分母。どのリーグも同じ日程で走る） */
-export function foreignRacesDone(season: PlayRateSeason): number {
-  return Math.max(0, ...Object.entries(season.leagues ?? {})
-    .filter(([id]) => divisionOfLeague(id) == null).map(([, lg]) => racesDone(lg.races)))
 }
 
 /**

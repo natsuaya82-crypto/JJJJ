@@ -1202,21 +1202,25 @@ CLAUDE.md の「まだ無いもの」に書いてある **自チームの2チー
   （一部はコードに「（いまの振る舞い）」と書いてある）。直すか・どちらに揃えるかはオーナー判断。
 - 見つけ方 … 2026-09-26、`jpelClubs` / `isJpelLeague` / `divisionOf` / 名前に foreign を含む分岐を
   `src/` で全部洗ったときに実物で確認
+- 結末 … 同じ日にオーナー「日本と海外関係ないでしょ？」「日本だけになってるやつは全部バグなんだから直して」。
+  下の表はほぼ全部 `済`。残したのは①新しいゲームの初期ロスターの国籍の配り方（表の中）②世界選手権は日本代表を
+  率いる（国の代表の話で、どのクラブを指揮していても日本）③「世界へ挑戦」の見出し（オーナーの決定＝日本から海外）
+  ④部の仕組みそのもの（昇降格・部の人数・ドラフト・指名権）。`check-one-rule` の㉒が戻りを見張る
 
 | 何が違うか | どこ |
 |---|---|
-| シーズン中に「貸してほしい」（borrow_in）と言ってくるのは日本のリーグのクラブだけ（「借りたい」は231クラブ） | `engine/cpuMarket.ts` の `generateLoanOffers`（`otherClubs(jpelClubs(…))`） |
-| 記録会のチーム歴代記録を持つのは日本のリーグのクラブだけ（海外クラブの監督になると自チームの記録が付かない） | `engine/timeTrial.ts`（`isJpelLeague`）・`engine/savePruning.ts` |
-| 「海外」は常に「日本のリーグでないクラブ」。海外挑戦の登録・`fromForeign`・憧れの地域の加点（`destinationOf` の `domestic`）・売ったときの見出しが、自チームが海外クラブでも日本基準のまま | `engine/cpuMarket.ts`・`store/slices/marketSlice.ts`・`store/marketOps.ts`・`utils/transferDecision.ts` |
-| オフのFA補強で、海外クラブだけ市場を回す**前**の資金を見る（日本のリーグのクラブは回したあと） | `store/slices/draftSlice.ts` の `clubsForFa` |
-| 今季の出場実績（`perfOf`）：海外リーグの選手は `foreignAppearances` の別の物差し（最低出場数の関門なし・分母は海外リーグの最大消化数） | `utils/playerUtils.ts` の `perfOf` |
-| 過去シーズンの順位表：海外リーグだけ1戦ごとの結果を落として保存 | `engine/seasonArchivePrep.ts` |
-| 開幕の床（20人）で海外クラブに入る選手も、日本の生成（日本の名前・国籍）を通る。新しいゲームの初期ロスターも日本と海外で生成が別 | `engine/playerGenerator.ts` の `makeNewPlayersFor`・`store/slices/draftSlice.ts` |
-| 海外クラブの監督のとき、部（`divisionOf`＝部に居ないクラブは1部）で決めているもの：レースと区間記録の見出しの［1部］・カード報酬の順位の読み方・年度表彰（海外リーグの MVP が「1部MVP」として数えられる）・監督の節目の見出し | `store/slices/raceSlice.ts`・`engine/raceNews.ts`・`engine/raceRecords.ts`・`store/slices/seasonSlice.ts`（`computeSeasonAwards`）・`engine/dynastyMilestones.ts` |
-| 起動時の順位表の自己修復が日本の部のリーグだけ | `utils/league.ts` の `syncSeasonLeagues` |
-| ECL：日本は1部の順位表の上位2だけ（順位表が無ければ出ない）、海外は順位表が無い年はクラブの戦力で代わりを出す | `engine/eclSeries.ts` |
-| 海外クラブの名前を引かず「他クラブ」／空になる表示：レンタルの見出し・退団のお知らせ（呼ぶ側が名前を渡さないとき）・レンタル元の札 | `utils/newsItems.ts` の `clubLabel`・`utils/movePlayer.ts`・`components/team/TeamManagement.tsx`・`store/slices/marketSlice.ts`（レンタルに出す） |
-| クラブ詳細の「優勝回数」：海外クラブはタイトルの先頭の数（リーグ優勝が無くECL優勝があるとECLの数が出る） | `components/teams/TeamDetailPage.tsx` の `infoChampions` |
+| シーズン中に「貸してほしい」（borrow_in）と言ってくるのは日本のリーグのクラブだけ（「借りたい」は231クラブ） | `engine/cpuMarket.ts` の `generateLoanOffers`（`otherClubs(jpelClubs(…))`）<br>**済（2026-09-26）自チーム以外の231クラブから来る。「海外クラブからの打診」の印は国をまたぐか（`isAbroad`）** |
+| 記録会のチーム歴代記録を持つのは日本のリーグのクラブだけ（海外クラブの監督になると自チームの記録が付かない） | `engine/timeTrial.ts`（`isJpelLeague`）・`engine/savePruning.ts`<br>**済（2026-09-26）232クラブ全部が持つ。セーブの掃除で守るのは指揮したクラブの記録の保持者だけ（名前と国籍は記録に焼き込み済み）** |
+| 「海外」は常に「日本のリーグでないクラブ」。海外挑戦の登録・`fromForeign`・憧れの地域の加点（`destinationOf` の `domestic`）・売ったときの見出しが、自チームが海外クラブでも日本基準のまま | `engine/cpuMarket.ts`・`store/slices/marketSlice.ts`・`store/marketOps.ts`・`utils/transferDecision.ts`<br>**済（2026-09-26）「海外」＝国をまたぐか（`utils/clubs` の `isAbroad`。基準はその選手のいまのクラブの国）。ただし「世界へ挑戦」の見出しはオーナーの決定（日本から海外）のまま** |
+| オフのFA補強で、海外クラブだけ市場を回す**前**の資金を見る（日本のリーグのクラブは回したあと） | `store/slices/draftSlice.ts` の `clubsForFa`<br>**済（2026-09-26）どのクラブも市場・トレード・レンタルのあとの資金** |
+| 今季の出場実績（`perfOf`）：海外リーグの選手は `foreignAppearances` の別の物差し（最低出場数の関門なし・分母は海外リーグの最大消化数） | `utils/playerUtils.ts` の `perfOf`<br>**済（2026-09-26）どのリーグもそのクラブの日程で数える（`foreignPerfProfile` は削除）** |
+| 過去シーズンの順位表：海外リーグだけ1戦ごとの結果を落として保存 | `engine/seasonArchivePrep.ts`<br>**済（2026-09-26）どのリーグも同じ形のまま残す。国内・海外で分けて積んでいた出走の集計（awayAppearances / foreignAppearances）は新しい年はもう積まない。在籍は `seasonMemberships` 1本** |
+| 開幕の床（20人）で海外クラブに入る選手も、日本の生成（日本の名前・国籍）を通る。新しいゲームの初期ロスターも日本と海外で生成が別 | `engine/playerGenerator.ts` の `makeNewPlayersFor`・`store/slices/draftSlice.ts`<br>**一部済（2026-09-26）開幕の床と若手の補充で入る選手は、そのクラブの国の名前・国籍（どのリーグも同じ）。★新しいゲームの初期ロスターは別のまま（日本のクラブは日本人中心、海外クラブは国ごとの選手層の比率で配る。そろえ方はオーナー判断）** |
+| 海外クラブの監督のとき、部（`divisionOf`＝部に居ないクラブは1部）で決めているもの：レースと区間記録の見出しの［1部］・カード報酬の順位の読み方・年度表彰（海外リーグの MVP が「1部MVP」として数えられる）・監督の節目の見出し | `store/slices/raceSlice.ts`・`engine/raceNews.ts`・`engine/raceRecords.ts`・`store/slices/seasonSlice.ts`（`computeSeasonAwards`）・`engine/dynastyMilestones.ts`<br>**済（2026-09-26）見出しはリーグの呼び名（`leagueLabelOf`）、カード報酬は `leagueThroughRank`、年度表彰はリーグごと、監督の節目は `myLeagueSize`** |
+| 起動時の順位表の自己修復が日本の部のリーグだけ | `utils/league.ts` の `syncSeasonLeagues`<br>**済（2026-09-26）自分のリーグを数え直す（どのリーグでも）。海外リーグの行もいま所属しているクラブにそろえる** |
+| ECL：日本は1部の順位表の上位2だけ（順位表が無ければ出ない）、海外は順位表が無い年はクラブの戦力で代わりを出す | `engine/eclSeries.ts`<br>**済（2026-09-26）頂点のリーグ（日本1部と海外9）それぞれの上位2、順位表が無ければ戦力で代わり＝どのリーグも同じ。途中からの補充も前年の順位表で全リーグそろえる** |
+| 海外クラブの名前を引かず「他クラブ」／空になる表示：レンタルの見出し・退団のお知らせ（呼ぶ側が名前を渡さないとき）・レンタル元の札 | `utils/newsItems.ts` の `clubLabel`・`utils/movePlayer.ts`・`components/team/TeamManagement.tsx`・`store/slices/marketSlice.ts`（レンタルに出す）<br>**済（2026-09-26）`clubLabel` はどのクラブも「短い名前（リーグの呼び名）」、退団のお知らせ・レンタル元の札・レンタルの見出しも `clubById`** |
+| クラブ詳細の「優勝回数」：海外クラブはタイトルの先頭の数（リーグ優勝が無くECL優勝があるとECLの数が出る） | `components/teams/TeamDetailPage.tsx` の `infoChampions`<br>**済（2026-09-26）優勝回数は12リーグ同じ `teamHistoryOf`（キーは `TitleKey`）** |
 
 
 ### A-新4. 決まりと食い違ったまま残っているところ（2026-09-26 の棚卸し）

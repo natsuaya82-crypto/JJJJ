@@ -8,7 +8,7 @@
 //   レースIDは `<手本のレースID>@<リーグID>`（同じ日に9リーグが同じコースを走るので分ける）。
 import type { LeagueId, LeagueSeason, Player, Race, Season, SeasonStanding, WorldClub } from '../types'
 import { courseRegionOfNation, localizeRace } from '../data/courseNames'
-import { addRaceToStandings, divisionOfLeague } from '../utils/league'
+import { addRaceToStandings } from '../utils/league'
 import { clubsInLeague } from '../utils/world'
 import { leaguesWhere, type WorldLeague } from '../data/leagues'
 import { playersByClub } from '../utils/rosterSync'
@@ -109,8 +109,6 @@ export function runLeaguesThrough(o: {
   // 施設（戦術室）は国内・海外とも所属クラブのもの
   let players = o.players
   const segPrize = { ...(o.season.seasonSegPrize ?? {}) }
-  const awayApps = { ...(o.season.awayAppearances ?? {}) }
-  const foreignApps = { ...(o.season.foreignAppearances ?? {}) }
 
   for (const d of due) {
     const lg = leagues[d.leagueId]
@@ -133,25 +131,13 @@ export function runLeaguesThrough(o: {
       racingIds: new Set(Object.keys(out.ranFor)),
     })
     for (const [tid, v] of Object.entries(out.segPrize)) segPrize[tid] = (segPrize[tid] ?? 0) + v
-    // 旧い集計（走行記録を残す前の年の読み口と、海外の実績倍率 perfOf が読む）。
-    // 国内の部は awayAppearances、海外は foreignAppearances に積む（置き場所が違うだけ）
-    const isDivision = divisionOfLeague(d.leagueId) != null
-    for (const [pid, a] of Object.entries(out.careerAdd)) {
-      if (isDivision) {
-        const cur = awayApps[pid] ?? { races: 0, wins: 0 }
-        awayApps[pid] = { races: cur.races + a.races, wins: cur.wins + a.segWins }
-      } else {
-        const cur = foreignApps[pid] ?? { clubId: out.ranFor[pid] ?? '', races: 0, wins: 0 }
-        foreignApps[pid] = {
-          clubId: out.ranFor[pid] || cur.clubId, races: cur.races + a.races, wins: cur.wins + a.segWins,
-          rankSum: (cur.rankSum ?? 0) + a.rankSum, rankedRaces: (cur.rankedRaces ?? 0) + a.races,
-        }
-      }
-    }
+    // ★出走の集計（旧 awayAppearances / foreignAppearances）はもう積まない。走行記録（`Season.leagues`）が
+    //   12リーグ全部に残るので、通算成績（utils/careerStats）も在籍（seasonMemberships）もそこから数える。
+    //   以前は日本の部と海外で置き場所を分けて積んでいた
   }
 
   return {
     players,
-    season: { ...o.season, leagues, seasonSegPrize: segPrize, awayAppearances: awayApps, foreignAppearances: foreignApps },
+    season: { ...o.season, leagues, seasonSegPrize: segPrize },
   }
 }

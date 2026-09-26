@@ -102,12 +102,12 @@ console.log('\n[3] ★タイムが実際に速くなる（PACE_TABLE を伸ば�
   console.log(`      8km区間：速さ99 ${t99}秒 → 105 ${t105}秒（-${t99 - t105}） → 110 ${t110}秒（-${t99 - t110}）`)
 }
 
-console.log('\n[4] 増える口は2つだけ（1部優勝・ECL優勝）')
+console.log('\n[4] 増える口は2つだけ（頂点のリーグの優勝・ECL優勝）')
 {
   const logic = logicSource()
   // ★**口を名前で数えること。** 「+ 1」の字面で数えると、書き方（改行・三項）が変わった
   //   だけで見失う。増える道は「1部優勝」と「ECL優勝」の2つだけ
-  check('増える道その1：JPEL 1部優勝', /leagueId === divisionLeagueId\(TOP_DIVISION\) && myFinalRank === 1 \? 1 : 0/.test(logic))
+  check('増える道その1：頂点のリーグの優勝（日本1部・海外リーグ）', /titleTier\(titleKeyOf\(myLeagueNow\)\) === TOP_DIVISION && myFinalRank === 1 \? 1 : 0/.test(logic))
   check('増える道その2：ECL優勝', /eclWon \? \{ trophies:/.test(logic))
   // 増える道は3つ（1部優勝・ECL優勝・運営からの配布）、減る道は1つ（使う）。
   // ★配布はギフト1本を通すこと（`grantUpdateGifts` の GIFT_VERSION を変えると全員に配られる）。
@@ -116,7 +116,8 @@ console.log('\n[4] 増える口は2つだけ（1部優勝・ECL優勝）')
   const touches = (logic.match(/trophies: \(state\.trophies \?\? 0\)/g) ?? []).length
   check('trophies を書き換えているのは4か所だけ（増3・減1）', touches === 4, `${touches}か所`)
   check('減らしているのは1か所', (logic.match(/trophies: \(state\.trophies \?\? 0\) - 1/g) ?? []).length === 1)
-  check('1部だけ（日本1部のリーグを見ている）', /divisionLeagueId\(TOP_DIVISION\) && myFinalRank === 1/.test(logic))
+  // 2部・3部の優勝では出ない＝段（titleTier）が頂点のときだけ。段の数え方は utils/league 1本
+  check('頂点の段だけ（2部・3部の優勝では出ない）', /titleTier\(titleKeyOf\(myLeagueNow\)\) === TOP_DIVISION/.test(logic))
   // ★部を `divisionOf` で読まないこと。部のリーグに居ないクラブ（海外）も1部と読むので、
   //   海外リーグの優勝でもトロフィーが出る（check-gm-foreign が実際に走らせて見る）
   check('部を divisionOf で読んでいない（海外リーグの優勝で出ない）', !/divisionOf\([^)]*\)\)? === TOP_DIVISION && myFinalRank/.test(logic))

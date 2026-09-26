@@ -23,7 +23,7 @@
  *   [3] 海外リーグの日程を本編で全部走れる・順位表に自チームが載る
  *   [4] 次のオファー：走り終えた海外リーグの順位から、範囲どおり＋日本の1件
  *   [5] シーズン末を通る：予算は自チームの精算1本・格とリーグは動かない（海外）・
- *       トロフィー（日本1部の優勝だけ）は出ない・GMキャリアの順位が引ける
+ *       トロフィー（頂点のリーグの優勝＝海外リーグも）は優勝したときだけ出る・GMキャリアの順位が引ける
  *   [6] 海外クラブから日本のクラブへ戻れる（離れた海外クラブは国の名前プールの監督へ）
  *
  * ■壊して確かめたこと
@@ -209,7 +209,8 @@ g().endSeason()
     `${me?.finance?.budget} / ${g().currentSeason.initialBudget}`)
   check('クラブ予算は格の年間予算', g().currentSeason.budgetBreakdown?.grant === tierBudget(me), `${g().currentSeason.budgetBreakdown?.grant}`)
   check('来季予算のお知らせが出る', g().seasonBudgetNotice?.budget === g().currentSeason.initialBudget)
-  check('優勝トロフィー（日本1部の優勝だけ）は出ない', (g().trophies ?? 0) === trophiesBefore, `${rankAbroad}位 ${trophiesBefore}→${g().trophies}`)
+  // 海外リーグは下に部が無い＝頂点のリーグ。優勝したときだけ1個（日本1部と同じ決まり・utils/league の titleTier）
+  check('優勝トロフィーは頂点のリーグで優勝したときだけ（海外リーグも同じ）', (g().trophies ?? 0) === trophiesBefore + (rankAbroad === 1 ? 1 : 0), `${rankAbroad}位 ${trophiesBefore}→${g().trophies}`)
   check('来季の日程も海外リーグ', myLeagueId(g().currentSeason, g().playerTeamId) === destLeague)
   const ranks = gmSeasonRanks(g().pastSeasons, g().gmTenures, g().playerTeamId)
   const abroad = ranks.find(r => r.year === yearAbroad)

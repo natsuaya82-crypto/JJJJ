@@ -21,7 +21,8 @@ import { needsPlayer, thinSpecialties, wouldMakeLineup } from '../utils/squadNee
 import { MAX_OFFERS_PER_PLAYER, appraiseMove, hasNoPlayingTime, playingStatus, regionOfLeague } from '../utils/transferDecision'
 import { playerTierOf, tierLines } from '../utils/playerTier'
 import { canBePoached, canClubApproachAgain, canGoOverseasDream, canLoanOut, canReceiveFreeContact, eligibilityCtx, isOwnedBy, type EligibilityCtx } from '../utils/transferEligibility'
-import { clubById, clubIdSet, clubMap, clubsWhere, isJpelLeague, jpelClubs, mapClubs, myClub, otherClubs } from '../utils/world'
+import { clubById, clubIdSet, clubMap, clubsWhere, mapClubs, myClub, otherClubs } from '../utils/world'
+import { clubCountryOf, isAbroad } from '../utils/clubs'
 
 export function cpuStrategy(lastRank: number, totalTeams: number, avgAge: number): 'contend' | 'rebuild' | 'balanced' {
   if (avgAge >= 30) return 'contend'          // 主力が高齢＝今のうちに勝負
@@ -264,8 +265,10 @@ export function generateLoanOffers(params: {
     && !wouldMakeLineup(myRoster, p)              // 走れる7人に入っている＝主力。貸さない
     && notPlaying(p.id, playerTeamId))
   const loanTargetIds = new Set(existingLoans.map(o => o.playerId))
-  // 借りたい・貸したいと言ってくる相手。日本のリーグのCPUクラブ（貸したい側はこちらだけ・いまの振る舞い）
-  const aiTeams = otherClubs(jpelClubs(clubs), playerTeamId)
+  // 貸したいと言ってくる相手は自チーム以外の231クラブ（借りたい側と同じ。どのリーグでも同じ）
+  const aiTeams = otherClubs(clubs, playerTeamId)
+  // 「海外クラブからの打診」の印は国をまたぐか（utils/clubs の isAbroad 1本。日本を基準にしない）
+  const myCountry = clubCountryOf(clubById(clubs, playerTeamId))
 
   // 2) レンタル打診：相手（国内/海外）が自チームの選手を借りたい（lend_out）。
   // 貸出歓迎に設定した選手がいれば優先的・高確率（70%）でその中から。いなければ従来どおり低確率で若手に
@@ -279,7 +282,7 @@ export function generateLoanOffers(params: {
     if (target) {
       // 借りたいと言ってくるのは国内52＋海外180（自チームを除く）。並びは世界の並びのまま
       const pool: { id: string; fromForeign: boolean }[] = mapClubs(otherClubs(clubs, playerTeamId),
-        c => ({ id: c.id, fromForeign: !isJpelLeague(c.leagueId) }))
+        c => ({ id: c.id, fromForeign: isAbroad(myCountry, c) }))
       if (pool.length > 0) {
         const from = pool[(ovr(target) + raceIndex) % pool.length]
         loanOffers.push({ id: `loanout-${raceIndex}-${from.id}-${target.id}`, fromTeamId: from.id, playerId: target.id, direction: 'lend_out', years: 1 + (target.age % 2), expiresAtRace: raceIndex + 3, fromForeign: from.fromForeign })
@@ -287,7 +290,7 @@ export function generateLoanOffers(params: {
     }
   }
 
-  // 3) レンタル打診：相手が自チームに選手を貸したい（borrow_in・国内チームのみ）。
+  // 3) レンタル打診：相手が自チームに選手を貸したい（borrow_in）。
   // クラブが貸しに出すのは「出番のない選手」：出場率が低い26歳以下から、こちらの補強ニーズに合う選手を優先して提示
   if (aiTeams.length > 0 && Math.random() < 0.20) {
     const myNeedsLoan = cpuSpecialtyNeeds(playerTeamId, players)
@@ -357,8 +360,10 @@ export function generateTransferActivity(
   // ★**並びはシャッフルすること。** 下の `competingTeams` は「先頭から3つ」を取るので、
   //   国内52を先に並べると海外180には順番が一度も回りません（打診のループが
   //   シャッフルしているのと同じ理由）。
-  // ★海外からの打診か（`fromForeign`）は**所属リーグで判定する**（日本のリーグでないクラブ）
-  const foreignClubIds = clubIdSet(clubsWhere(clubs, c => !isJpelLeague(c.leagueId)))
+  // ★海外からの打診か（`fromForeign`）は**国をまたぐか**で判定する（utils/clubs の isAbroad 1本。
+  //   日本を基準にしない＝海外クラブを指揮していると、日本のクラブからの打診が「海外」）
+  const myCountry = clubCountryOf(clubById(clubs, playerTeamId))
+  const foreignClubIds = clubIdSet(clubsWhere(clubs, c => isAbroad(myCountry, c)))
   const aiTeams: WorldClub[] = otherClubs(clubs, playerTeamId)
     .sort(() => Math.random() - 0.5)
 
@@ -590,8 +595,8 @@ export function generateTransferActivity(
     const tv = marketValue(target)
     // 相場まで払えないクラブはオファーを出さない。
     // 上限は**手元の資金だけ**（economy の transferCapOf 1本。オーナー・2026-08-21「上限撤廃」）。
-    // ★finance が無い古いセーブ（海外クラブ）は、次の endSeason で入るまで格の年間予算ちょうどとみなす
-    const budget = club.finance?.budget ?? (fromForeign ? tierBudget(club) : 0)
+    // ★finance が無い古いセーブのクラブは、次の endSeason で入るまで格の年間予算ちょうどとみなす
+    const budget = club.finance?.budget ?? tierBudget(club)
     if (transferCapOf(budget) < tv) continue
     // 提示額は相場の80〜105%。格が高いクラブほど強気に出す（格1で85〜105%、格20で80〜97%）
     const ratio = 0.80 + 0.05 * tierStrength(tier) + Math.random() * (0.17 + 0.03 * tierStrength(tier))

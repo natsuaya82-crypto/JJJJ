@@ -151,7 +151,7 @@ md は消すこと**。2026-08-23 に7本（リファクタリング設計書・
 | `src/utils/playRate.ts` | **その選手が今季どれだけ走っているか**。`playRateOf` / `clubSeasonRaces` と、**出場を数える `seasonAppearances`**（`playerUtils` から移しました。あちらに置くと `playRate` → `playerUtils` → `transferDecision` → `playRate` の輪ができます）。日程はそのクラブのリーグ（`Season.leagues`）から引く。**自チームのリーグの日程（`myLeagueRaces`）で数えないこと**（自分の部だけなので他の部の選手が全員0％になり、移籍判定の「干されている」が全員に付く） |
 | `src/utils/clubStanding.ts` の `clubSeasonRank` | **画面に出す順位**。国内＝部内順位（1部1〜20／2部・3部1〜16）、海外＝リーグ内順位。**通し順位（1〜52）は返さない**（格を決める内部の数。「47位」「52位」に意味は無い）。`{rank, total, division}` |
 | `src/utils/segmentRecords.ts` | **区間記録**。1部・2部・3部は同じコースを分け合って走るので、**そのコースでいちばん速いタイム1本**。部で分けない（国内3部のリーグを全部一緒に数える） |
-| `src/utils/awards.ts` | **年度表彰（MVP・新人王）。部ごとに選ぶ**（1部MVP・2部MVP・3部MVP）。走る相手も本数も違うので混ぜない。分け方は `racesByDivision` 1本 |
+| `src/utils/awards.ts` | **年度表彰（MVP・新人王）。リーグごとに選ぶ**（12リーグ。1部MVP・2部MVP・3部MVP・海外9はリーグ名つき。オーナー・2026-09-26「mvpはそれぞれのリーグごとに」）。走る相手も本数も違うので混ぜない。分け方は `racesByLeague` 1本。★**新人王の候補は「その年に世界に入った選手」**（`draftYear === 年`＝ドラフト・若手の補充・海外の補充・開幕の床）で、育成選手（IDの頭が `data/rosterRules` の `DEV_PROSPECT_ID_PREFIX`）だけ外す。以前は「ドラフト指名選手」だけで、ドラフトの無い2部・3部・海外には候補が居なかった。見出しの字は `utils/league` の `leagueLabelOf` 1本 |
 | `src/utils/league.ts` | 順位の出し方。**日程・結果・順位表はリーグごとに持つ**（`Season.leagues`＝リーグID → 日程・順位表。国内の部のリーグIDは `divisionLeagueId`）。`leagueRaces` / `leagueStandingRows` / `divisionStandings`（部）／ **`seasonLeagueStandings`（そのクラブがその年に走ったリーグの順位表＝自チームの順位はここ。日本の部も海外リーグも同じ）** / `newSeasonStandings`。**指名権を持てるクラブは `draftPickHolders`**（`data/leagueRules` の `draftPicks`。発行・指名順・売り買いはこの並びだけを相手にする） |
 | `src/utils/clubs.ts` の `leagueRoutePath` | **そのリーグの順位表の行き先**（日本の部＝順位表の画面でその部を開く／海外＝リーグの画面）。「自分のリーグを開く」はここを通す。**`/standings` を決め打ちしないこと**——海外クラブを指揮していると日本の1部が開く。クラブ詳細の行き先は隣の `clubRoutePath` |
 | `src/utils/world.ts` の `myLeagueId` / `myLeagueRaces` | **自チームのいるリーグ**。順位表に載っている場所がその年の所属なので、過去の年にもそのまま使える。**部番号（`divisionOf(myClub(…))`）から自チームの日程・順位表を引く2本目を作らないこと** |
@@ -675,23 +675,32 @@ tab / page / view / division / section のものが一覧に無ければ落ち�
 
 同じにしてあるもの：区間賞は海外リーグにも払う／
 トレードと監督オファーは自チーム以外の231クラブから／開幕の床20人（格から）は232クラブ全部／
-リーグ優勝の優勝回数は12リーグ同じ式（`engine/careerRecords`）。
+リーグ優勝の優勝回数は12リーグ同じ式（`engine/careerRecords`・クラブと監督の優勝回数は `utils/teamHistory`）。
+★2026-09-26 に**日本だけに絞っていた残りを全部そろえました**（オーナー「日本だけになってるやつは全部バグなんだから直して」）。
+年度表彰・記録会のチーム歴代記録・優勝回数（クラブ・監督）・優勝トロフィー（頂点のリーグ＝日本1部と海外9）・
+ECLの出場枠（頂点のリーグそれぞれの上位2）・レースと表彰の見出しのリーグ名（`leagueLabelOf`）・フロントの評価と
+カード報酬の順位の読み方（`myLeagueSize` / `leagueThroughRank`）・順位表の自己修復（`syncSeasonLeagues`）・
+「海外」の意味（`utils/clubs` の `isAbroad`＝**国をまたぐか**。日本を基準にしない）・在籍の記録（`seasonMemberships`）・
+出場実績（`perfOf`）・保存の形（`engine/seasonArchivePrep`）・開幕の床で入る選手の国籍（そのクラブの国）・記録室の対象
+（`samePyramid`＝自分のリーグとつながっているリーグ）。`check-one-rule` の㉒が戻りを見張る。
+★**優勝回数のキーは `TitleKey`**（日本の部＝部の番号 1/2/3、ほか＝リーグID）。部の番号のままなのは、フレンドの
+プロフィールに `titles: {1: 2}` の形で載っていて古いアプリがそれを読むため
 
 - **お金**は `utils/clubMoney` の `payBetween` 1本（移籍金もトレードの現金も、どのリーグのクラブでも両側が動く）。
   来季予算の精算は `engine/seasonBudget` 1か所（232クラブ）。CPU の自動処理と ECL は自チームを id で外す
   （`check-season-budget` / `check-club-money` / `check-self-by-id` / `check-trade-world`）
-- **画面**は自チームを `myClub`、自分のリーグを順位表から引く。日本の部にしか無いもの（ホームの「JPEL優勝」・
-  年度表彰）は、自チームが部のリーグにいないときは出さない。優勝トロフィーは**日本1部のリーグ**
-  （`divisionLeagueId(TOP_DIVISION)`）で見ること——`divisionOf` は部のリーグに居ないクラブを1部と読むので、
-  海外リーグの優勝でも出ていた。`check-foreign-screens` が、日本のクラブを指揮している世界と海外クラブの
+- **画面**は自チームを `myClub`、自分のリーグを順位表から引く。ホームの優勝回数は日本の部なら「JPEL優勝」、
+  ほかは「リーグ優勝」（字だけ選ぶ）。優勝トロフィーは**頂点のリーグの優勝**（`titleTier(titleKeyOf(リーグ)) === TOP_DIVISION`
+  ＝日本1部と海外9。2部・3部の優勝では出ない）。`divisionOf` で読まないこと——部のリーグに居ないクラブを1部と読む。
+  `check-foreign-screens` が、日本のクラブを指揮している世界と海外クラブの
   監督に就任した世界の2つで、**アプリの道すじ（`App.tsx` の `AppRoutes`）を全部ブラウザで開いて**見張る
   （落ちない・何か出る・自分のリーグの順位と名前が出る・海外の世界で自チームの画面に「JPEL」「◯部」が出ない）
 - **監督**は海外クラブにも就任できる。受けたら国内も海外も `applyGmMove` 1本で移り、就任したクラブのリーグを
   本編で走る（上の表の `utils/gmOffer` の行）。`check-gm-foreign` が本物の手順（1年走る → 退任 → 海外クラブの
   打診を受ける → 海外リーグを1年走り切る → シーズン末 → 次のオファー → 日本へ戻る）で見張る
 
-**オーナーの決定の外で、まだ日本と海外で振る舞いが分かれているところ**は `docs/BACKLOG.md` の
-A-新3 に一覧があります。直すかはオーナーが決めること。
+**まだ日本と海外で振る舞いが分かれているところ**は `docs/BACKLOG.md` の A-新3 に一覧があります
+（2026-09-26 に大半を `済` にした。残りはオーナーの決定か、部の仕組みそのもの）。
 新しく書くときは `jpelClubs` / `isJpelLeague` で絞る分岐を増やさず、リーグの決まりから引くこと。
 
 `check-world-layer` が見張るもの：層の外の直読み**0件**（予算の fixture は置かない＝1件でも落ちる）／

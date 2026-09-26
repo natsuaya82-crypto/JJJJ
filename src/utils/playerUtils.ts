@@ -7,7 +7,7 @@ import { strHash } from './hash'
 import { POACH_PREMIUM, roundSalary } from '../data/economy'
 import { MORALE_DEFAULT } from './condition'
 import { lerpAnchors } from './anchors'
-import { clubSeasonRaces, foreignRacesDone, racesDone, type PlayRateWorld } from './playRate'
+import { clubSeasonRaces, racesDone, type PlayRateWorld } from './playRate'
 
 /**
  * 記録や結果に「焼き込まれた名前」ではなく、いまの名前を返す。
@@ -301,20 +301,6 @@ export function seasonPerfProfile(playerId: string, races: readonly SegRaceLike[
     playFraction: teamRaces > 0 ? Math.min(1, apps / teamRaces) : 0,
     avgSegRank: apps > 0 ? rankSum / apps : undefined,
     seasonSegWins: segWins,
-  }
-}
-
-// 海外リーグの今季成績（foreignAppearances の1件）から同じ形の活躍データを作る
-export function foreignPerfProfile(
-  entry: { races: number; wins: number; rankSum?: number; rankedRaces?: number } | undefined,
-  teamRaces: number,
-): PerfProfile | undefined {
-  if (!entry) return undefined
-  const ranked = entry.rankedRaces ?? 0
-  return {
-    playFraction: teamRaces > 0 ? Math.min(1, entry.races / teamRaces) : 0,
-    avgSegRank: ranked > 0 ? (entry.rankSum ?? 0) / ranked : undefined,
-    seasonSegWins: entry.wins,
   }
 }
 
@@ -704,12 +690,8 @@ export function ratingColor(v: number, maxed = false): string {
   return '#4A4658'                // ブラック（40以下）
 }
 
-/** `perfOf` に渡す世界。出場率（`playRateOf`）とまったく同じ材料＋海外の出場記録 */
-export type PerfWorld = PlayRateWorld & {
-  currentSeason: {
-    foreignAppearances?: Record<string, { clubId: string; races: number; wins: number; rankSum?: number; rankedRaces?: number }>
-  }
-}
+/** `perfOf` に渡す世界。出場率（`playRateOf`）とまったく同じ材料 */
+export type PerfWorld = PlayRateWorld
 
 /**
  * **その選手の今季の出場実績。年俸（`faMarketSalary`）と移籍金（`calcTransferValue`）に
@@ -730,8 +712,8 @@ export type PerfWorld = PlayRateWorld & {
  *   `transferDecision` の `playingStatus` が `'unknown'` を返すのとまったく同じ扱いです。
  */
 export function perfOf(p: Pick<Player, 'id' | 'teamId'>, w: PerfWorld): PerfProfile | undefined {
-  const fa = w.currentSeason.foreignAppearances?.[p.id]
-  if (fa && fa.races > 0) return foreignPerfProfile(fa, foreignRacesDone(w.currentSeason) || fa.races)
+  // ★どのリーグの選手も同じ物差し（そのクラブの日程・`PLAY_SAMPLE_RACES` の関門）。以前は海外リーグの
+  //   選手だけ `foreignAppearances` の別の数え方（関門なし・分母は海外リーグの最大消化数）だった
   const list = clubSeasonRaces(w.currentSeason, p.teamId, w.clubs)
   const teamRaces = racesDone(list)
   if (teamRaces < PLAY_SAMPLE_RACES) return undefined

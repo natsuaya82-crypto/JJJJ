@@ -26,7 +26,7 @@ const foreignClubs = [
 const P = (id: string, o: Partial<Player> = {}) => ({ id, name: id, teamId: '', status: 'active', ...o }) as unknown as Player
 
 console.log('\n[1] 現役選手の判定（今までと同じであること）')
-const isDomestic = makeIsDomestic([...teams, ...foreignClubs])
+const isDomestic = makeIsDomestic([...teams, ...foreignClubs], 'jpel-1')
 check('国内チームの現役選手は国内', isDomestic(P('a', { teamId: 't1' })))
 check('海外クラブの現役選手は国内でない', !isDomestic(P('b', { teamId: 'kor_1' })))
 check('FA（無所属）の現役選手は国内扱い', isDomestic(P('c', { teamId: '' })))
@@ -40,7 +40,17 @@ check('旧セーブ（引退時の所属が不明）は今まで通り国内扱�
   isDomestic(P('f', { teamId: '', status: 'retired' })))
 check('もう存在しない古い海外クラブIDでも国内には入れない',
   !isDomestic(P('g', { teamId: '', status: 'retired', retiredTeamId: 'seoul_hangang' })))
-check('海外リーグのデータが無くても落ちない', makeIsDomestic(teams)(P('h', { teamId: 't1' })))
+check('海外リーグのデータが無くても落ちない', makeIsDomestic(teams, 'jpel-1')(P('h', { teamId: 't1' })))
+
+console.log('\n[2b] 海外クラブを指揮しているときは、そのリーグの記録（日本を基準にしない）')
+{
+  const inKor = makeIsDomestic([...teams, ...foreignClubs], 'kor')
+  check('同じリーグのクラブの現役は数える', inKor(P('ka', { teamId: 'kor_2' })))
+  check('日本のクラブの現役は数えない', !inKor(P('kb', { teamId: 't1' })))
+  check('そのリーグで引退した選手は数える', inKor(P('kc', { teamId: '', status: 'retired', retiredTeamId: 'kor_1' })))
+  check('日本で引退した選手は数えない', !inKor(P('kd', { teamId: '', status: 'retired', retiredTeamId: 't1' })))
+  check('引退時の所属が無い旧セーブ（日本のリーグだけの時代）は数えない', !inKor(P('ke', { teamId: '', status: 'retired' })))
+}
 
 console.log('\n[3] 引退時の所属の控え方')
 check('通常は今の所属', retiredFromOf(P('i', { teamId: 't2' })) === 't2')

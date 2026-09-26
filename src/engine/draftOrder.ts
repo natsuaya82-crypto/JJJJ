@@ -2,7 +2,7 @@
 // 順位からの基準番号（standingsPickNumbers）とロッタリー（draftLotteryOrder）。
 
 import { type Division, type SeasonStanding, type Team } from '../types'
-import { domesticThroughRank } from '../utils/league'
+import { leagueThroughRank } from '../utils/league'
 import { EMPTY_TEAM_HISTORY, type TeamHistoryMap, teamHistoriesOf } from '../utils/teamHistory'
 
 export function pickExistsAnywhere(holders: readonly Team[], ownerId: string, year: number, round: number): boolean {
@@ -27,7 +27,7 @@ function latestRank(t: Team, histories: TeamHistoryMap): number {
   const past = histories[t.id]?.seasonResults ?? []
   if (past.length === 0) return Number.POSITIVE_INFINITY
   const last = past.reduce((best, r) => (r.year > best.year ? r : best))
-  return domesticThroughRank(last.division, last.rank)
+  return leagueThroughRank(last.leagueId, last.rank)
 }
 
 /** 成績が悪い順（順位の数字が大きい順）に並べる。ドラフト順の入口2つが同じ並びを使う */

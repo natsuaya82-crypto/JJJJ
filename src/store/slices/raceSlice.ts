@@ -31,7 +31,7 @@ import { generateDropCards } from '../../utils/cardCombo'
 import { myClub, myLeagueId, myLeagueRaces, withLeagueRaces } from '../../utils/world'
 import { withFatigue, withMorale } from '../../utils/condition'
 import { isLiveContract } from '../../utils/contractTalk'
-import { divisionOf, domesticThroughRank, myDivSize, segmentPrizeByTeam, leagueStandingRows, addRaceToStandings } from '../../utils/league'
+import { leagueThroughRank, myLeagueSize, segmentPrizeByTeam, leagueStandingRows, addRaceToStandings } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
 import { segmentPrizeHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
 import { playerConsentToMove, racesConsumed } from '../../utils/playerUtils'
@@ -190,8 +190,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
     // 出走するのは自分と同じ部のチームだけ。判定は engine/raceEngine.ts の buildCpuLineups 1本。
     // 以前はここと RacePage（中継つきレース）の2箇所に手書きしていて、RacePage 側だけ
     // 部で絞っていなかった（3部なのに52チームで走って48位になっていた）。
-    // ★部は見出し（「1部」）と区間記録の名前に使うだけ。日程・順位表はリーグIDで引く
-    const myDivision = divisionOf(myClub({ clubs, playerTeamId }))
+    // ★リーグ（上の myLeague）は見出し（「1部」「アジア駅伝リーグ」）とフロントの評価の線にも使う
     const lineups: Record<string, Record<number, string>> = {
       [playerTeamId]: lineup,
       ...buildCpuLineups(clubs, players, race, playerTeamId) }
@@ -218,7 +217,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const playerResult = results.teamRankings.find(r => r.teamId === playerTeamId)
       const playerRank = playerResult?.rank ?? 0
       const newsItems = buildRaceNews({
-        race, results, clubs, players, playerTeamId, myDivision,
+        race, results, clubs, players, playerTeamId, myLeagueId: myLeague, leagueSize: myLeagueSize({ clubs, playerTeamId }),
         currentSeason: state.currentSeason, rivalTeamId: state.rivalTeamId })
 
       // Fatigue + injury (strategy modifier)
@@ -380,12 +379,12 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const bidExpiredPlayerIds = bidResult.expiredPlayerIds
       const outbidMoves = bidResult.outbidMoves
 
-      const finalPlayerRank = results.teamRankings.find(r => r.teamId === playerTeamId)?.rank ?? myDivSize(state)
-      // カードは国内の通し順位で決まる（部内順位だと3部優勝も1部優勝も同じだった）。
-      // 部内1位のときだけ1段上げる扱いは utils/cardCombo の中
-      const myDivForCards = divisionOf(myClub({ clubs: state.clubs, playerTeamId }))
+      const finalPlayerRank = results.teamRankings.find(r => r.teamId === playerTeamId)?.rank ?? myLeagueSize(state)
+      // カードはピラミッドの通し順位で決まる（部内順位だと3部優勝も1部優勝も同じだった）。
+      // 部の無いリーグ（海外）はリーグ内順位そのもの（utils/league の leagueThroughRank）。
+      // リーグ内1位のときだけ1段上げる扱いは utils/cardCombo の中
       const droppedCards = generateDropCards(
-        domesticThroughRank(myDivForCards, finalPlayerRank),
+        leagueThroughRank(myClub({ clubs: state.clubs, playerTeamId })?.leagueId, finalPlayerRank),
         mySegWinCount,
         finalPlayerRank === 1,
       )
@@ -401,7 +400,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       // 区間新記録の判定は engine/raceRecords 1本（歴代記録は保存済みの結果から数え直す）
       const segRecords = detectSegmentRecords({
         race, results, players: state.players, clubs: state.clubs,
-        playerTeamId, myDivision, pastSeasons: state.pastSeasons, currentSeason: state.currentSeason })
+        playerTeamId, myLeagueId: myLeague, pastSeasons: state.pastSeasons, currentSeason: state.currentSeason })
       const segRecordNewsItems = segRecords.news
       const newSegRecordMarks = segRecords.marks
 

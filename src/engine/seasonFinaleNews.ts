@@ -4,15 +4,14 @@
 // 実際の引退・表彰の確定は次シーズンの開幕処理のままなので、ここは**お知らせだけ**。
 // 状態は何も変えない（ニュースを作って返すだけ）。
 //
-// ★MVPは部ごと（1部MVP・2部MVP・3部MVP）。走る相手も本数も違うので混ぜない
+// ★MVPはリーグごと（12リーグ）。走る相手も本数も違うので混ぜない
 //   （分け方は utils/awards の computeSeasonAwards 1本）。
 // ★引退表明は開幕時の引退判定と同じ式（utils/playerUtils の retirementAgeOf 1本）を
 //   1歳先で評価する。ここに別の年齢を書かないこと。
-import { jpelClubById, myClub } from '../utils/world'
+import { clubById, myLeagueId } from '../utils/world'
 import { findClub } from '../utils/clubs'
 import type { Player, Race, Season, WorldClub } from '../types'
 import { computeSeasonAwards } from '../utils/awards'
-import { divisionOf } from '../utils/league'
 import { type NewsItem, awardHeadline, retirementHeadline } from '../utils/newsItems'
 import { comparePlayers } from '../utils/playerSort'
 import { isRetiringAge, ovr } from '../utils/playerUtils'
@@ -30,12 +29,13 @@ export function buildSeasonFinaleNews(params: {
   const { players, clubs, currentSeason, races, playerTeamId, raceDate } = params
   const seasonEndNews: NewsItem[] = []
   {
-    // ★MVPは部ごと（1部MVP・2部MVP・3部MVP）。ここは自分の部のぶん
-    const award = computeSeasonAwards(races, players, currentSeason.year, divisionOf(myClub({ clubs, playerTeamId })))
+    // ★MVPはリーグごと。ここは自分のリーグのぶん
+    const myLeague = myLeagueId(currentSeason, playerTeamId)
+    const award = computeSeasonAwards(races, players, currentSeason.year, myLeague)
     const mvpP = award.mvpId ? players.find(p => p.id === award.mvpId) : undefined
     const rookieP = award.rookieId ? players.find(p => p.id === award.rookieId) : undefined
-    if (mvpP) seasonEndNews.push({ date: raceDate, headline: awardHeadline({ kind: 'mvp', division: divisionOf(jpelClubById(clubs, mvpP.teamId)), clubShort: jpelClubById(clubs, mvpP.teamId)?.shortName ?? '', playerName: mvpP.name }), category: 'race' as const, relatedIds: [mvpP.id] })
-    if (rookieP) seasonEndNews.push({ date: raceDate, headline: awardHeadline({ kind: 'rookie', division: divisionOf(jpelClubById(clubs, rookieP.teamId)), clubShort: jpelClubById(clubs, rookieP.teamId)?.shortName ?? '', playerName: rookieP.name }), category: 'race' as const, relatedIds: [rookieP.id] })
+    if (mvpP) seasonEndNews.push({ date: raceDate, headline: awardHeadline({ kind: 'mvp', leagueId: myLeague, clubShort: clubById(clubs, mvpP.teamId)?.shortName ?? '', playerName: mvpP.name }), category: 'race' as const, relatedIds: [mvpP.id] })
+    if (rookieP) seasonEndNews.push({ date: raceDate, headline: awardHeadline({ kind: 'rookie', leagueId: myLeague, clubShort: clubById(clubs, rookieP.teamId)?.shortName ?? '', playerName: rookieP.name }), category: 'race' as const, relatedIds: [rookieP.id] })
     // 引退表明。開幕時の引退判定とまったく同じ `isRetiringAge` を1歳先で評価する。
     // ★**国内だけに絞らないこと**（2026-09-15）。以前は国内52クラブの
     //   IDで絞っていたので、**海外の選手の引退は一度もニュースにならなかった**。
@@ -53,7 +53,7 @@ export function buildSeasonFinaleNews(params: {
       // クラブ名は `utils/clubs` の `findClub` 1本（国内・海外を区別しない引き方）。
       // ★国内だけを探すと**海外所属の選手だけクラブ名が空**になる
       const club = findClub(clubs, p.teamId)
-      seasonEndNews.push({ date: raceDate, headline: retirementHeadline({ division: divisionOf(jpelClubById(clubs, p.teamId)), clubShort: club?.shortName ?? '', playerName: p.name, age: p.age }), category: 'race' as const, relatedIds: [p.id] })
+      seasonEndNews.push({ date: raceDate, headline: retirementHeadline({ leagueId: club?.leagueId, clubShort: club?.shortName ?? '', playerName: p.name, age: p.age }), category: 'race' as const, relatedIds: [p.id] })
     }
   }
   return seasonEndNews

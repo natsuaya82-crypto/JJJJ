@@ -50,6 +50,15 @@ export function leagueById(leagueId: LeagueId | null | undefined): WorldLeague |
   return leagueId == null ? undefined : BY_ID.get(leagueId)
 }
 
+/**
+ * そのクラブの国。持っていればそれ（海外クラブ）、無ければ所属リーグの国（日本の部＝日本）。
+ * 「海外か」は `utils/clubs` の `isAbroad`、補充で入る選手の国籍（`engine/playerGenerator`）もこれ
+ */
+export function clubCountryOf(c: { country?: string; leagueId?: string } | null | undefined): Nationality | undefined {
+  if (!c) return undefined
+  return (c.country as Nationality | undefined) ?? leagueById(c.leagueId as LeagueId)?.country
+}
+
 /** 決まりに合うリーグ（12本の並びの順） */
 export function leaguesWhere(pred: (l: WorldLeague) => boolean): WorldLeague[] {
   return WORLD_LEAGUES.filter(pred)

@@ -1,7 +1,7 @@
 import { FOREIGN_CLUB_CITY } from '../data/foreignClubCities'
 import { hashedGmName } from '../engine/playerGenerator'
 import type { ForeignClub, Nationality, Team, WorldClub } from '../types'
-import { leagueById } from '../data/leagues'
+import { clubCountryOf, leagueById } from '../data/leagues'
 import { strHash } from './hash'
 import { isBigClub } from './clubTier'
 import { clubById, divisionOfLeague, isJpelLeague } from './world'
@@ -122,6 +122,28 @@ export function clubRoutePath(club: Club | null | undefined): string | null {
  */
 export function leagueRoutePath(leagueId: string): string {
   return divisionOfLeague(leagueId) != null ? `/standings/${leagueId}` : `/teams/foreign/${leagueId}`
+}
+
+export { clubCountryOf }
+
+/**
+ * **「海外」の唯一の決まり＝国をまたぐか。** 基準（home）はその選手がいまいるクラブの国
+ *（無所属なら本人の国籍）。**日本を基準にしないこと**——海外クラブを指揮していると、
+ * 日本のクラブが「海外」で、同じ国のクラブは「国内」になる（オーナー・2026-09-26
+ * 「日本だけになってるやつは全部バグ」）。海外挑戦の打診・憧れの地域の加点・「海外クラブからの打診」の印が通る
+ */
+export function isAbroad(homeCountry: string | null | undefined, to: { country?: string; leagueId?: string } | null | undefined): boolean {
+  const dest = clubCountryOf(to)
+  return !!homeCountry && !!dest && homeCountry !== dest
+}
+
+/** 選手の「国内」の国（いまいるクラブの国。無所属なら国籍） */
+export function homeCountryOf(
+  p: { teamId?: string | null; nationality?: string } | null | undefined,
+  clubs: readonly WorldClub[],
+): string | undefined {
+  if (!p) return undefined
+  return clubCountryOf(clubById(clubs, p.teamId ?? undefined)) ?? p.nationality
 }
 
 export type ClubIndex = {

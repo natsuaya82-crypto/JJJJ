@@ -189,14 +189,14 @@ console.log('\n[指名順] 昇格組は「19位・20位の枠」に入る（部�
   //   ★ここは**実際に並べて確かめる**こと。字面（domesticThroughRank を呼んでいるか）
   //     だけだと、呼んだ結果を捨てても緑になる。
   const teams: { id: string }[] = []
-  const histories: Record<string, { seasonResults: { year: number; rank: number; points: number; division: 1 | 2 | 3 }[] }> = {}
+  const histories: Record<string, { seasonResults: { year: number; rank: number; points: number; division: 1 | 2 | 3; leagueId: string }[] }> = {}
   for (let i = 1; i <= 18; i++) {
     teams.push({ id: `d1_${i}` })
-    histories[`d1_${i}`] = { seasonResults: [{ year: 2030, rank: i, points: 0, division: 1 }] }
+    histories[`d1_${i}`] = { seasonResults: [{ year: 2030, rank: i, points: 0, division: 1, leagueId: 'jpel-1' }] }
   }
   for (const [id, r] of [['up_a', 1], ['up_b', 2]] as [string, number][]) {
     teams.push({ id })
-    histories[id] = { seasonResults: [{ year: 2030, rank: r, points: 0, division: 2 }] }
+    histories[id] = { seasonResults: [{ year: 2030, rank: r, points: 0, division: 2, leagueId: 'jpel-2' }] }
   }
   const order = standingsPickNumbers(teams as never, histories as never)
   check('昇格組が全体1位・2位の指名',

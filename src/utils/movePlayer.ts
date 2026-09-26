@@ -3,7 +3,7 @@ import { canSignContract } from '../data/rosterRules'
 import type { Player, TeamRole, TransferRecord, WorldClub } from '../types'
 import { retiredFromOf } from './domesticPlayers'
 import { ovr } from './playerUtils'
-import { jpelClubById } from './world'
+import { clubById } from './world'
 import { payBetween } from './clubMoney'
 
 // ============================================================================
@@ -212,7 +212,7 @@ export function movePlayer(
     : null
 
   // 退団のお知らせは自チームから出ていくときだけ
-  const toName = opts.toName ?? jpelClubById(clubs, dest)?.name ?? ''
+  const toName = opts.toName ?? clubById(clubs, dest)?.name ?? ''
   // 引退は退団のお知らせを出さない（引退のニュースは呼び出し側で別に作っている）
   const leavingMyTeam = !!opts.myTeamId && clubChanged && !opts.retire && fromTeamId === opts.myTeamId
   const notice: DepartureNotice | null = leavingMyTeam

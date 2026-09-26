@@ -1,3 +1,4 @@
+import { seasonMemberships } from '../../utils/careerStats'
 import { useRef, useEffect } from 'react'
 import { clubSalaryTotal } from '../../utils/clubMoney'
 import { useStickyTab } from '../../lib/useStickyTab'
@@ -10,14 +11,14 @@ import { teamHistoryOf, titleRows } from '../../utils/teamHistory'
 
 // 予算は格1本、施設も1本（国内CPUも海外も同じ決まり）
 import { tierBudget } from '../../utils/clubTier'
-import { clubById, clubsInLeague, jpelClubById, myLeagueRaces } from '../../utils/world'
+import { clubById, clubsInLeague, jpelClubById } from '../../utils/world'
 import { leagueById } from '../../data/leagues'
 import { clubCity, clubFounded, clubGmName } from '../../utils/clubs'
 import { facilitiesOf, FACILITY_LABEL } from '../../utils/facilities'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { useEclHistory } from '../../lib/useEclHistory'
 import { TeamLogoSVG } from '../icons/Icons'
-import { ovr, ratingColor, SPEC_COLOR, playerLabel, foreignClubsOf } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, playerLabel } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
 import { SPECIALTY_LABELS } from '../../types'
 import type { Division } from '../../types'
@@ -29,7 +30,7 @@ import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import PlayerRow from '../player/PlayerRow'
 import { useOpponentMenu } from './opponentMenu'
 import { rankedStandings, DIVISION_LABEL } from '../../utils/league'
-import { clubStandingRow, clubSeasonRank, clubRacesDone, clubWonLeague, divisionAxisPos, divisionAxisBands } from '../../utils/clubStanding'
+import { clubStandingRow, clubSeasonRank, clubRacesDone, divisionAxisPos, divisionAxisBands } from '../../utils/clubStanding'
 import PlayerList from '../player/PlayerList'
 
 
@@ -205,16 +206,12 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
 
   // トロフィー
   const titles: { label: string; count: number; color: string }[] = []
-  if (isForeign) {
-    // 海外はリーグ優勝回数（過去シーズンの当該リーグ順位表1位）
-    const leagueTitles = (pastSeasons ?? []).filter(s => clubWonLeague(s, id)).length
-    if (leagueTitles > 0) titles.push({ label: `${league?.name ?? 'リーグ'}優勝`, count: leagueTitles, color: CARD.gold })
-  } else {
-    // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
-    // ★**部ごとに出す**（オーナー・2026-08-12）。合計にすると3部優勝と1部優勝が混ざる
+  {
+    // 優勝回数はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）。どのリーグのクラブも同じ
+    // ★**リーグごとに出す**（オーナー・2026-08-12）。合計にすると3部優勝と1部優勝が混ざる
     for (const r of titleRows(teamHistoryOf(pastSeasons, id).titles)) {
-      titles.push({ label: `${DIVISION_LABEL[r.division]}優勝`, count: r.count,
-        color: r.division === 1 ? CARD.gold : r.division === 2 ? '#9FB4CC' : '#7A6E58' })
+      titles.push({ label: `${r.label}優勝`, count: r.count,
+        color: r.tier === 1 ? CARD.gold : r.tier === 2 ? '#9FB4CC' : '#7A6E58' })
     }
     const reserveTitles = (pastSeasons ?? []).filter(s => {
       const st = s.secondTeamStandings
@@ -250,9 +247,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
     { key: 'scoutOffice', label: FACILITY_LABEL.scoutOffice, color: C.orange },
     { key: 'tacticsRoom', label: FACILITY_LABEL.tacticsRoom, color: C.blue },
   ]
-  const infoChampions = isForeign
-    ? (titles[0]?.count ?? 0)
-    : teamHistoryOf(pastSeasons, id).championships
+  const infoChampions = teamHistoryOf(pastSeasons, id).championships
   // 最高順位。**部をまたいで数の大小では比べられない**（3部1位と1部10位はどちらも「1」「10」）。
   // 部が上のほう → その中で順位が上のほう、の順で選び、部つきで出す
   const infoBest = historyRanks.filter(h => h.rank > 0)
@@ -273,14 +268,8 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
       if (!s) { s = new Set(); ym.set(year, s) }
       s.add(t)
     }
-    for (const s of seasons) {
-      for (const race of [...myLeagueRaces(s, playerTeamId), ...(s.secondTeamRaces ?? [])]) {
-        if (!race.results) continue
-        for (const sr of race.results.segmentResults) for (const r of sr.runners) add(r.playerId, s.year, r.teamId)
-      }
-      for (const [pid, clubId] of Object.entries(foreignClubsOf(s))) add(pid, s.year, clubId)
-      for (const z of s.zeroAppearances ?? []) add(z.playerId, s.year, z.teamId)
-    }
+    // その年の在籍は utils/careerStats の seasonMemberships 1本（12リーグのレース＋0戦の在籍）
+    for (const s of seasons) for (const [pid, t] of seasonMemberships(s)) add(pid, s.year, t)
     // 今季未出走の現役選手も今季の所属として拾う（加入直後の選手を落とさない）
     for (const p of players) if (p.status !== 'retired') add(p.id, currentSeason.year, p.teamId)
 

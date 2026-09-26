@@ -103,6 +103,12 @@ export function canReleaseFromRoster(players: Player[], teamId: string): boolean
 
 export type ContractType = 'standard' | 'development' | 'dual'
 
+/**
+ * 育成選手（`signDevProspect`）の選手IDの頭。**入口の印はここ1本**（契約の種類は更新で変わるので印にならない）。
+ * 新人王は「その年に世界に入った選手」から選ぶが、育成選手は外す（utils/awards）
+ */
+export const DEV_PROSPECT_ID_PREFIX = 'dev_'
+
 // フラットな人数上限だけで判定。契約形態(ContractType)による枠の違いは廃止済みなので、
 // 受け取るだけで使わない第3引数は持たない（呼び出し側が「形態で枠が変わる」と誤解する元）
 export function canSignContract(players: Player[], teamId: string): boolean {

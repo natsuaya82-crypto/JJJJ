@@ -15,7 +15,6 @@ import { leagueRoutePath } from '../../utils/clubs'
 import HeroCard from './HeroCard'
 import NextRaceCard from './NextRaceCard'
 import { computeSeasonAwards } from '../../utils/awards'
-import { clubSeasonRank } from '../../utils/clubStanding'
 import type { Race } from '../../types'
 import { eventLabelOf, getDueIndividualEvent } from '../../utils/eventTime'
 import { hostForYear } from '../../engine/worldAthletics'
@@ -34,7 +33,7 @@ import { seasonLeagueStandings, rankOfTeam } from '../../utils/league'
 import { panelStyle } from '../ui/Panel'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { MORALE_DEFAULT } from '../../utils/condition'
-import { clubById, jpelClubById, myClub, myLeagueId, myLeagueRaces } from '../../utils/world'
+import { clubById, myClub, myLeagueId, myLeagueRaces } from '../../utils/world'
 
 
 
@@ -347,9 +346,9 @@ export default function Dashboard() {
   /* Season end */
   const isChampion = seasonDone && sorted[0]?.teamId === playerTeamId
   // リーグMVP・新人王（endSeasonで保存されるのと同じルール: 6戦以上・平均区間順位）
-  // ★MVPは部ごと（1部MVP・2部MVP・3部MVP）。ここは自分の部のぶん。表彰は部にしか無い（utils/awards）
-  const myDivision = clubSeasonRank(currentSeason, playerTeamId).division
-  const seasonAward = seasonDone && myDivision != null ? computeSeasonAwards(myLeagueRaces(currentSeason, playerTeamId), players, currentSeason.year, myDivision) : null
+  // ★MVPはリーグごと（12リーグ）。ここは自分のリーグのぶん（utils/awards）
+  const myLeague = myLeagueId(currentSeason, playerTeamId)
+  const seasonAward = seasonDone && myLeague != null ? computeSeasonAwards(myLeagueRaces(currentSeason, playerTeamId), players, currentSeason.year, myLeague) : null
   const mvp = seasonAward?.mvpId ? players.find(p => p.id === seasonAward.mvpId) : null
   const rookie = seasonAward?.rookieId ? players.find(p => p.id === seasonAward.rookieId) : null
 
@@ -536,7 +535,7 @@ export default function Dashboard() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.gold, letterSpacing: '2px', marginBottom: 3 }}>MVP</div>
                       <div style={{ fontSize: F.sub, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{mvp.name}</div>
-                      <div style={{ fontSize: F.label, color: C.textDim, marginTop: 2 }}>{jpelClubById(clubs, mvp.teamId)?.shortName ?? ''}</div>
+                      <div style={{ fontSize: F.label, color: C.textDim, marginTop: 2 }}>{clubById(clubs, mvp.teamId)?.shortName ?? ''}</div>
                     </div>
                   </div>
                 )}
@@ -548,7 +547,7 @@ export default function Dashboard() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontFamily: SAIRA, fontSize: F.tiny, color: '#4FC3F7', letterSpacing: '2px', marginBottom: 3 }}>新人王</div>
                       <div style={{ fontSize: F.sub, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rookie.name}</div>
-                      <div style={{ fontSize: F.label, color: C.textDim, marginTop: 2 }}>{jpelClubById(clubs, rookie.teamId)?.shortName ?? ''}</div>
+                      <div style={{ fontSize: F.label, color: C.textDim, marginTop: 2 }}>{clubById(clubs, rookie.teamId)?.shortName ?? ''}</div>
                     </div>
                   </div>
                 )}

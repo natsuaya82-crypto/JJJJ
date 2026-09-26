@@ -16,11 +16,11 @@
 //   クラブ名には必ず部を添える（clubLabel）。国内クラブだけが部を持つので、
 //   海外クラブはリーグ名を添える。呼ぶ側が国内・海外を気にしなくてよいのが狙い。
 
-import type { Division, WorldClub } from '../types'
-import { divisionOf, DIVISION_LABEL, DIVISION_SIZE } from './league'
+import type { Division, LeagueId, WorldClub } from '../types'
+import { DIVISION_LABEL, leagueLabelOf } from './league'
 import { fmtYen } from './money'
 import { eventLabelOf, formatRaceTime } from './eventTime'
-import { jpelClubById } from './world'
+import { clubById, divisionOfLeague } from './world'
 
 /** ニュース1件。gameStore の newsFeed に入る形と同じ */
 export type NewsItem = {
@@ -33,22 +33,18 @@ export type NewsItem = {
   toTeamId?: string
 }
 
-/** クラブの呼び名。国内は「札幌（2部）」、海外は「ロンドン（欧州西）」 */
-export function clubLabel(
-  clubId: string,
-  clubs: readonly WorldClub[],
-  foreign?: { id: string; shortName: string; leagueName?: string },
-): string {
-  // 国内の呼び名は日本のリーグのクラブだけ。海外は foreign で渡す（いまの振る舞い）
-  const t = jpelClubById(clubs, clubId)
-  if (t) return `${t.shortName}（${DIVISION_LABEL[divisionOf(t)]}）`
-  if (foreign) return foreign.leagueName ? `${foreign.shortName}（${foreign.leagueName}）` : foreign.shortName
-  return '他クラブ'
+/** クラブの呼び名。「札幌（2部）」「ナイロビ（東アフリカ駅伝リーグ）」。**どのリーグのクラブも同じ形**（リーグの字は `leagueLabelOf`） */
+export function clubLabel(clubId: string, clubs: readonly WorldClub[]): string {
+  const c = clubById(clubs, clubId)
+  if (!c) return '他クラブ'
+  const l = leagueLabelOf(c.leagueId)
+  return l ? `${c.shortName}（${l}）` : c.shortName
 }
 
-/** その部の呼び名を頭に付ける（レース・記録・表彰など、クラブではなく大会に添える） */
-export function divisionTag(division: Division): string {
-  return `［${DIVISION_LABEL[division]}］`
+/** そのリーグの呼び名を頭に付ける（レース・記録・表彰など、クラブではなく大会に添える）。呼び名は `leagueLabelOf` 1本 */
+export function leagueTag(leagueId: LeagueId | string | null | undefined): string {
+  const l = leagueLabelOf(leagueId)
+  return l ? `［${l}］` : ''
 }
 
 /** 移籍の見出し。国内・海外の区別なく同じ形で出す */
@@ -92,27 +88,28 @@ export function loanHeadline(a: {
 /** 表彰（MVP・新人王）。部を書かないと1部と3部のMVPが同格に見える */
 export function awardHeadline(a: {
   kind: 'mvp' | 'rookie'
-  division: Division
+  leagueId: LeagueId | string | undefined
   clubShort: string
   playerName: string
 }): string {
   const label = a.kind === 'mvp' ? 'シーズンMVP' : '新人王'
-  return `【${label}】${divisionTag(a.division)}${a.clubShort}の${a.playerName}が受賞`
+  return `【${label}】${leagueTag(a.leagueId)}${a.clubShort}の${a.playerName}が受賞`
 }
 
 /** 引退表明 */
 export function retirementHeadline(a: {
-  division: Division
+  leagueId: LeagueId | string | undefined
   clubShort: string
   playerName: string
   age: number
 }): string {
-  return `【引退表明】${divisionTag(a.division)}${a.clubShort}の${a.playerName}（${a.age}歳）が今季限りでの現役引退を表明`
+  return `【引退表明】${leagueTag(a.leagueId)}${a.clubShort}の${a.playerName}（${a.age}歳）が今季限りでの現役引退を表明`
 }
 
-/** 各部の優勝 */
-export function divisionChampionHeadline(year: number, division: Division, clubName: string): string {
-  return `${year} JPEL${DIVISION_LABEL[division]} 優勝：${clubName}`
+/** 各リーグの優勝（日本の部は「JPEL1部」、ほかはリーグ名） */
+export function leagueChampionHeadline(year: number, leagueId: LeagueId, clubName: string): string {
+  const d = divisionOfLeague(leagueId)
+  return `${year} ${d != null ? `JPEL${DIVISION_LABEL[d]}` : leagueLabelOf(leagueId)} 優勝：${clubName}`
 }
 
 /**
@@ -253,8 +250,8 @@ function variant(list: string[], pick: number): string {
 }
 
 /** そのレースの優勝クラブ */
-export function raceWinnerHeadline(a: { division: Division; raceName: string; winnerName: string; points?: number; pick: number }): string {
-  const tag = divisionTag(a.division)
+export function raceWinnerHeadline(a: { leagueId: LeagueId | string | undefined; raceName: string; winnerName: string; points?: number; pick: number }): string {
+  const tag = leagueTag(a.leagueId)
   return variant([
     `${tag}${a.raceName}：${a.winnerName}が圧倒的な走りで優勝！`,
     `${tag}${a.raceName}：${a.winnerName}が頂点に立つ`,
@@ -264,8 +261,8 @@ export function raceWinnerHeadline(a: { division: Division; raceName: string; wi
 }
 
 /** 自チームの着順。順位帯で語り口を変える */
-export function myFinishHeadline(a: { division: Division; raceName: string; rank: number; rankSuffix: string; pick: number }): string {
-  const tag = divisionTag(a.division)
+export function myFinishHeadline(a: { leagueId: LeagueId | string | undefined; raceName: string; rank: number; rankSuffix: string; pick: number }): string {
+  const tag = leagueTag(a.leagueId)
   const list = a.rank === 1
     ? [`${tag}${a.raceName} — 自チームが優勝！完璧な作戦が結実`, `${tag}${a.raceName} 優勝。チーム全員の力を証明した`]
     : a.rank <= 3
@@ -309,11 +306,12 @@ export function rivalHeadline(a: { rivalShort: string; myRank: number; rivalRank
 }
 
 /**
- * 区間新記録。国内リーグは部を付け、ECLは部の外なので付けない。
+ * 区間新記録。リーグのレースはリーグの呼び名を付け、ECLはリーグの外なので付けない。
  * 以前は同じ文面が国内用とECL用に2つコピーされていて、片方だけ部が付いていた。
  */
 export function segmentRecordHeadline(a: {
-  division?: Division
+  /** そのレースのリーグ（ECLはリーグの外なので渡さない） */
+  leagueId?: LeagueId | string
   raceName: string
   segmentIndex: number
   playerName: string
@@ -322,7 +320,7 @@ export function segmentRecordHeadline(a: {
   prevTimeSec: number
   mine: boolean
 }): string {
-  const tag = a.division ? divisionTag(a.division) : ''
+  const tag = leagueTag(a.leagueId)
   return `【区間新記録】${tag}${a.raceName} 第${a.segmentIndex}区 ${a.playerName}（${a.clubShort}）`
     + `${formatRaceTime(a.timeSec)}（従来 ${formatRaceTime(a.prevTimeSec)}）${a.mine ? ' ★自チーム' : ''}`
 }
@@ -475,7 +473,8 @@ export function dynastyHeadlines(a: {
   championships: number
   seasons: number
   currentStreak: number
-  division: Division
+  /** 自分のリーグのクラブ数（日本の部も海外も同じ。utils/league の myLeagueSize） */
+  leagueSize: number
   /** 今季を終えた時点の自チーム通算区間賞 */
   segWinsAfter: number
   /** 今季を始める前の自チーム通算区間賞 */
@@ -490,8 +489,8 @@ export function dynastyHeadlines(a: {
     if (a.currentStreak === 3) out.push('【3連覇達成】誰もこのチームを止められない')
     if (a.currentStreak === 5) out.push('【5連覇の怪物王朝】リーグの歴史を塗り替えた')
   }
-  // 「5年やって下位のまま」。下位の基準は自分の部の中で見る（3部を52で割らない）
-  if (a.seasons === 5 && a.finalRank > DIVISION_SIZE[a.division] - 3) {
+  // 「5年やって下位のまま」。下位の基準は自分のリーグの中で見る（3部を52で割らない）
+  if (a.seasons === 5 && a.finalRank > a.leagueSize - 3) {
     out.push('【再建の岐路】5年でタイトルなし — チームの方向性を見直す時')
   }
   // 今季のあいだに50回を跨いだときだけ

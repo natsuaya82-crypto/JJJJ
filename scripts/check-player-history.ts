@@ -70,19 +70,21 @@ check('降格した3年ぶんが同じ部にならない（現在値で引いて
 // ───────────────────────────────────────────────────────────────
 // ② 表彰のパッチには部が入る（getPlayerBadges）
 //
-//   表彰は部ごとに選ばれる（utils/awards.ts の racesByDivision）。
+//   表彰はリーグごとに選ばれる（utils/awards.ts の racesByLeague）。
 //   同じ年に3人のMVPが居るので、ラベルで部が分からないと区別が付かない。
 // ───────────────────────────────────────────────────────────────
 console.log('\n② 表彰パッチの部（utils/badges の getPlayerBadges）')
 
 const player = (id: string) => ({ id, nationality: 'JPN' } as Player)
-const award = (year: number, division: Division | undefined, mvpId: string, rookieId: string): SeasonAward =>
-  ({ year, ...(division != null ? { division } : {}), mvpId, rookieId })
+// 表彰はリーグごと（12リーグ）。持つのはリーグID（日本の部は jpel-<部>）
+const award = (year: number, division: Division | 'asia_league' | undefined, mvpId: string, rookieId: string): SeasonAward =>
+  ({ year, ...(division != null ? { leagueId: typeof division === 'number' ? divisionLeagueId(division) : division } : {}), mvpId, rookieId })
 
 const awards: SeasonAward[] = [
   award(2030, 1, 'p1', 'r1'),
   award(2030, 2, 'p2', 'r2'),
   award(2030, 3, 'p3', 'r3'),
+  award(2030, 'asia_league', 'pa', 'ra'),  // 海外リーグの表彰（リーグ名が入る）
   award(2029, undefined, 'p9', 'r9'),   // 部を持たない旧データの年
 ]
 const src = { worldRecords: {}, japanRecords: {}, seasonAwards: awards } as Parameters<typeof getPlayerBadges>[1]
@@ -95,6 +97,8 @@ for (const [id, want] of [['p1', '1部'], ['p2', '2部'], ['p3', '3部']] as con
 for (const [id, want] of [['r1', '1部'], ['r2', '2部'], ['r3', '3部']] as const) {
   check(`${want}新人王のラベルに「${want}」が入る`, labelOf(id).includes(want), labelOf(id))
 }
+check('海外リーグのMVPのラベルにリーグ名が入る（「1部」と読まない）', labelOf('pa').includes('アジア') && !labelOf('pa').includes('1部'), labelOf('pa'))
+check('海外リーグの新人王のラベルにもリーグ名が入る', labelOf('ra').includes('アジア'), labelOf('ra'))
 // ★同じ年の3人が全部同じ字なら、部を出していない
 const mvpLabels = ['p1', 'p2', 'p3'].map(labelOf)
 check('同じ年の1部・2部・3部MVPが同じ字にならない',

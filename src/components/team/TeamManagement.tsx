@@ -22,7 +22,7 @@ import SortSelect from '../ui/SortSelect'
 import { comparePlayers, PLAYER_SORT_LABEL, type PlayerSortKey } from '../../utils/playerSort'
 import PlayerList from '../player/PlayerList'
 import ScreenCover from '../ui/ScreenCover'
-import { jpelClubById, myClub } from '../../utils/world'
+import { clubById, myClub } from '../../utils/world'
 import { clubCity, clubFounded, clubGmName } from '../../utils/clubs'
 
 const SORT_OPTIONS: { value: PlayerSortKey; label: string }[] = [
@@ -364,7 +364,7 @@ export default function TeamManagement() {
           {players.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 0', color: C.textGhost, fontSize: F.sub }}>登録選手なし</div>
           ) : (
-            players.map(p => <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} loanOwner={p.loan ? jpelClubById(clubs, p.loan!.ownerTeamId) : undefined}/>)
+            players.map(p => <PlayerRow key={p.id} player={p} handlers={rowHandlers(p.id)} loanOwner={p.loan ? clubById(clubs, p.loan!.ownerTeamId) : undefined}/>)
           )}
         </PlayerList>
       </>}

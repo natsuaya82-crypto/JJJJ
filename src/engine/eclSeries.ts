@@ -9,11 +9,12 @@
 //
 // 出場枠を「1部の上位2」に変えるときも、ここ1箇所を直せば両方に効く。
 import { ECL_COURSES } from '../data/eclCourses'
-import { rankedStandings } from '../utils/league'
+import { rankedStandings, TOP_DIVISION } from '../utils/league'
 import { ovr } from '../utils/playerUtils'
 import type { Player, Race, WorldClub } from '../types'
 import { clubById, clubsInLeague } from '../utils/world'
-import { FOREIGN_LEAGUE_DEFS } from '../data/leagues'
+import { leaguesWhere } from '../data/leagues'
+import { JPEL_LEAGUE_NAME } from '../utils/clubs'
 
 /** ECLシリーズに出るチーム1つぶん（国内チームでも海外クラブでも同じ形にそろえる） */
 export type EclSeriesParticipant = {
@@ -36,39 +37,26 @@ const ECL_WEATHERS = ['sunny', 'cloudy', 'rainy', 'windy'] as const
 type ClubLike = { id: string; name: string; shortName: string; colors: { primary: string; secondary: string } }
 
 /**
- * 出場チームを決める。JPELの上位2 ＋ 海外各リーグの上位2。
+ * 出場チームを決める。**ピラミッドの頂点のリーグ（日本1部と海外9）それぞれの上位2。**
  *
- * 海外リーグは、再編直後などで順位表がまだ無い年がある。そのときは開催しないのではなく、
- * クラブの戦力（上位10人のOVR合計）の上位2で代替する。
+ * 順位表がまだ無い年（再編直後・旧セーブ）は、開催しないのではなく、
+ * クラブの戦力（上位10人のOVR合計）の上位2で代替する。★どのリーグも同じ決まり
+ *（以前は日本1部だけ「順位表が無ければ出ない」、海外だけ戦力で代替、と分かれていた）
  */
 export function buildEclParticipants(args: {
-  /**
-   * JPEL**1部**の順位表（この年ぶん、または前年ぶん。呼び出し側がどちらを渡すか決める）。
-   * 出場枠は1部の上位2クラブ。部をまたいだ順位表を渡さないこと
-   * （部ごとにレース数が違うので、混ぜた順位に意味が無い）
-   */
-  standings: readonly { teamId: string; totalPoints: number }[]
-  /** 世界のクラブ（海外各リーグの顔ぶれもここから引く） */
+  /** 世界のクラブ（各リーグの顔ぶれもここから引く） */
   clubs: readonly WorldClub[]
   playerTeamId: string
-  /** その年のリーグ（海外リーグの順位表をここから引く） */
+  /**
+   * その年のリーグ（順位表をここから引く）。**全リーグ同じ年のものを渡すこと**
+   *（呼び出し側が「走り終えた年」か「前年」かを決める。リーグごとに年を混ぜない）
+   */
   seasonLeagues: Readonly<Record<string, { standings: readonly { teamId: string; totalPoints: number }[] }>>
   /** 戦力での代替に使う。順位表がある年は読まれない */
   players: readonly Player[]
 }): EclSeriesParticipant[] {
-  const { standings, clubs, playerTeamId, seasonLeagues, players } = args
+  const { clubs, playerTeamId, seasonLeagues, players } = args
   const parts: EclSeriesParticipant[] = []
-
-  for (const s of rankedStandings(standings).slice(0, ECL_SLOTS_PER_LEAGUE)) {
-    const t = clubById(clubs, s.teamId)
-    if (t) {
-      parts.push({
-        id: t.id, name: t.name, shortName: t.shortName,
-        isForeign: false, isPlayerTeam: t.id === playerTeamId,
-        leagueName: 'JPEL', colors: t.colors,
-      })
-    }
-  }
 
   // クラブの戦力＝在籍選手のOVR上位10人の合計
   const ovrsByClub = new Map<string, number[]>()
@@ -81,7 +69,8 @@ export function buildEclParticipants(args: {
   const clubStrength = (club: ClubLike) =>
     [...(ovrsByClub.get(club.id) ?? [])].sort((a, b) => b - a).slice(0, 10).reduce((s, v) => s + v, 0)
 
-  for (const league of FOREIGN_LEAGUE_DEFS) {
+  // 頂点のリーグ＝部の無いリーグと、日本の最上位の部（utils/league の titleTier と同じ段の数え方）
+  for (const league of leaguesWhere(l => (l.division ?? TOP_DIVISION) === TOP_DIVISION)) {
     const st = rankedStandings(seasonLeagues[league.id]?.standings ?? []).slice(0, ECL_SLOTS_PER_LEAGUE)
     const members = clubsInLeague(clubs, league.id)
     const picked: ClubLike[] = st.length >= ECL_SLOTS_PER_LEAGUE
@@ -91,8 +80,8 @@ export function buildEclParticipants(args: {
       parts.push({
         id: club.id, name: club.name, shortName: club.shortName,
         // 自チームかどうかは id だけで見る（W6。どのリーグから出ても同じ）
-        isForeign: true, isPlayerTeam: club.id === playerTeamId,
-        leagueName: league.name, colors: club.colors,
+        isForeign: league.division == null, isPlayerTeam: club.id === playerTeamId,
+        leagueName: league.division != null ? JPEL_LEAGUE_NAME : league.name, colors: club.colors,
       })
     }
   }

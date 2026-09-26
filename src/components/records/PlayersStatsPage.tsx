@@ -1,3 +1,4 @@
+import { findClub } from '../../utils/clubs'
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../ui/PageHeader'
@@ -19,7 +20,7 @@ const CAT_COLOR: Record<Category, string> = { jpel: CARD.gold, ecl: C.green, res
 // 区間記録：歴代優勝と同じ構成。カテゴリ（JPEL/リザーブ）→ 大会一覧 → 区間を横に並べて切り替え
 export default function PlayersStatsPage() {
   const navigate = useNavigate()
-  const { players, openPlayerSheet, removedPlayers } = useGameStore()
+  const { players, openPlayerSheet, removedPlayers, clubs, playerTeamId } = useGameStore()
   const clubIndex = useClubIndex()
   // 区間記録はセーブに貯めず、保存してあるレース結果から数え直す（utils/segmentRecords.ts）
   const mainRecords = useSegmentRecords()
@@ -35,6 +36,9 @@ export default function PlayersStatsPage() {
   })
 
   const [cat, setCat] = useState<Category | null>(null)
+  // jpel ＝「自分のリーグ」。呼び名は自チームのリーグ（日本の部なら JPEL）
+  const myLeagueName = findClub(clubs, playerTeamId)?.leagueName ?? CAT_LABEL.jpel
+  const catLabel = (c: Category) => (c === 'jpel' ? myLeagueName : CAT_LABEL[c])
   const [selectedRace, setSelectedRace] = useState<string | null>(null)
   const [segIdx, setSegIdx] = useState<number | null>(null)
 
@@ -74,7 +78,7 @@ export default function PlayersStatsPage() {
       <div style={{ position: 'sticky', top: 0, zIndex: 10, background: C.bg }}>
         <PageHeader eyebrow="RECORDS" title="区間記録" onBack={goBack} />
         <div style={{ fontSize: F.label, color: C.textDim, padding: '4px 16px 10px' }}>
-          {selectedRace ?? (cat != null ? `${CAT_LABEL[cat]} — 大会を選択` : 'カテゴリを選択')}
+          {selectedRace ?? (cat != null ? `${catLabel(cat)} — 大会を選択` : 'カテゴリを選択')}
         </div>
       </div>
 
@@ -86,7 +90,7 @@ export default function PlayersStatsPage() {
               justifyContent: 'flex-start', gap: 12, textAlign: 'left',
               padding: '14px 16px', color: C.text, fontFamily: SAIRA,
             }} onClick={() => setCat(c)}>
-              <span style={{ fontSize: F.title, fontWeight: 900, color: CAT_COLOR[c], flex: 1 }}>{CAT_LABEL[c]}</span>
+              <span style={{ fontSize: F.title, fontWeight: 900, color: CAT_COLOR[c], flex: 1 }}>{catLabel(c)}</span>
               <span style={{ color: C.textGhost, fontSize: F.titleLg }}>›</span>
             </GlassButton>
           ))}

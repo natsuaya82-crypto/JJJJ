@@ -1,3 +1,5 @@
+import { findClub } from '../../utils/clubs'
+import { seasonMemberships } from '../../utils/careerStats'
 import { useState, useRef, useMemo } from 'react'
 import { useStickyTab } from '../../lib/useStickyTab'
 import PageHeader from '../ui/PageHeader'
@@ -16,10 +18,10 @@ import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import { TeamLogoSVG } from '../icons/Icons'
-import { DIVISION_LABEL, seasonLeagueStandings, rankOfTeam, divisionInSeason, type SeasonStandingsLike } from '../../utils/league'
+import { leagueLabelOf, seasonLeagueStandings, rankOfTeam, titleKeyLeague, type SeasonStandingsLike } from '../../utils/league'
 import { clubStandingRow } from '../../utils/clubStanding'
 import Panel from '../ui/Panel'
-import { clubById, myClub, myLeagueRaces } from '../../utils/world'
+import { clubById, myClub, myLeagueId, myLeagueRaces } from '../../utils/world'
 
 
 // 記録室の各ページ共通のヘッダー付き外枠（ハブと同じ見た目・横タブは廃止）
@@ -230,8 +232,8 @@ function FranchiseTab({ clubs, pastSeasons, currentSeason, playerTeamId, players
               1部優勝と3部優勝を足すと、どちらの記録なのか分からなくなる */}
           <div style={{ display: 'flex', gap: 10, alignItems: 'baseline' }}>
             {titleRows(myHistory.titles).map(r => (
-              <div key={r.division} style={{ display: 'flex', gap: 3, alignItems: 'baseline' }}>
-                <span style={{ fontSize: F.caption, color: C.textDim }}>{DIVISION_LABEL[r.division]}</span>
+              <div key={String(r.key)} style={{ display: 'flex', gap: 3, alignItems: 'baseline' }}>
+                <span style={{ fontSize: F.caption, color: C.textDim }}>{r.label}</span>
                 <span style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: '900', color: C.gold, textShadow: `0 0 8px ${alpha(C.gold, 0.5)}` }}>{r.count}</span>
                 <span style={{ fontSize: F.caption, color: C.textDim }}>回</span>
               </div>
@@ -268,10 +270,9 @@ function FranchiseTab({ clubs, pastSeasons, currentSeason, playerTeamId, players
               const wins = myRow?.raceResults?.filter(r => r.rank === 1).length ?? 0
               const isCurrent = season.year === currentSeason.year
               const rankCol = myStanding === 1 ? C.gold : myStanding <= 3 ? C.green : myStanding <= 5 ? C.textSub : C.textDim
-              // 年間表彰（MVP・新人王）。**部ごとに選ぶ**ので、その年に自分がいた部のぶんを引く
-              // （3部の選手と1部の選手を同じ土俵で並べても意味が無い・utils/awards.ts）
-              const myDiv = divisionInSeason(season, playerTeamId)
-              const award = seasonAwards.find(a => a.year === season.year && (a.division ?? myDiv) === myDiv)
+              // 年間表彰（MVP・新人王）。**リーグごとに選ぶ**ので、その年に自分がいたリーグのぶんを引く（utils/awards.ts）
+              const myLeague = myLeagueId(season, playerTeamId)
+              const award = seasonAwards.find(a => a.year === season.year && a.leagueId === myLeague)
               const mvpName = liveName(players, award?.mvpId, award?.mvpName) || undefined
               const rookieName = liveName(players, award?.rookieId, award?.rookieName) || undefined
 
@@ -365,19 +366,12 @@ function FranchiseTab({ clubs, pastSeasons, currentSeason, playerTeamId, players
       const cur = last.get(playerId)
       if (!cur || year >= cur.year) last.set(playerId, { year, teamId })
     }
-    // その年に自チームが走ったリーグの駅伝（＋旧リザーブ）から拾う
+    // その年の在籍は utils/careerStats の seasonMemberships 1本（12リーグのレース＋0戦の在籍）
     for (const season of [...pastSeasons, currentSeason]) {
-      for (const race of [...myLeagueRaces(season, playerTeamId), ...(season.secondTeamRaces ?? [])]) {
-        if (!race.results) continue
-        for (const sr of race.results.segmentResults) {
-          for (const r of sr.runners) put(season.year, r.playerId, r.teamId)
-        }
-      }
-      // 出走ゼロの年も在籍として数える（在籍履歴が0戦の行を出しているのと同じ）
-      for (const z of season.zeroAppearances ?? []) put(season.year, z.playerId, z.teamId)
+      for (const [pid, t] of seasonMemberships(season)) put(season.year, pid, t)
     }
     return last
-  }, [pastSeasons, currentSeason, playerTeamId])
+  }, [pastSeasons, currentSeason])
 
   const myLegends = useMemo(() => players
     .filter(p => p.status === 'retired')
@@ -447,7 +441,8 @@ function PlayersTab({ players, clubs, currentSeason, pastSeasons, playerTeamId, 
   const clubIndex = useClubIndex()
   // 国内（JPEL）の記録として数えてよい選手かの判定は domesticPlayers.ts に集約。
   // 引退すると teamId が空になるので、引退時の所属（retiredTeamId）を見て海外クラブ勢を外す
-  const isDomestic = useMemo(() => makeIsDomestic(clubs), [clubs])
+  const myLeague = myLeagueId(currentSeason, playerTeamId)
+  const isDomestic = useMemo(() => makeIsDomestic(clubs, myLeague), [clubs, myLeague])
 
   // キャリア記録は引退含む国内選手のみ
   const careerPlayers = players.filter(p =>
@@ -532,7 +527,7 @@ function PlayersTab({ players, clubs, currentSeason, pastSeasons, playerTeamId, 
 
   const careerSegPanel = (
       <CardPanel>
-        <SectionLabel>通算JPEL区間賞ランキング</SectionLabel>
+        <SectionLabel>通算{findClub(clubs, playerTeamId)?.leagueName ?? 'JPEL'}区間賞ランキング</SectionLabel>
         {topSegWins.length === 0
           ? <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.textGhost }}>記録なし</div>
           : topSegWins.map((p, i) => <RankRow key={p.id} p={p} i={i} value={jpelSegWinMap[p.id] ?? 0} unit="回" />)
@@ -628,7 +623,7 @@ function GmCareerTab({ gmRep, pastSeasons, currentSeason, playerTeamId, clubs, p
                 <span style={{ fontWeight: 800, color: C.text }}>{clubById(clubs, c.teamId)?.shortName ?? '—'}</span>
                 <span style={{ marginLeft: 6 }}>{c.wins.length}回</span>
                 <span style={{ marginLeft: 6, color: C.textGhost, fontFamily: SAIRA }}>
-                  {c.wins.map(w => `${DIVISION_LABEL[w.division]}${w.year}`).join(' / ')}
+                  {c.wins.map(w => `${leagueLabelOf(titleKeyLeague(w.key))}${w.year}`).join(' / ')}
                 </span>
               </div>
             ))}

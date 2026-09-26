@@ -1,5 +1,7 @@
 import type { SeasonStanding, Division, LeagueId } from '../types'
-import { DIVISIONS, TOP_DIVISION, divisionInSeason, seasonLeagueStandings, rankOfTeam, standingsByDivision } from './league'
+import { divisionOfLeague, leagueLabelOf, normTitleKey, rankOfTeam, seasonLeagueStandings, standingsByLeague, titleKeyLeague, titleKeyOf, titleTier, TOP_DIVISION, type TitleKey } from './league'
+import { leagueIdOfClub } from './world'
+import { WORLD_LEAGUES } from '../data/leagues'
 import { makeTeamIdAt } from './gmTenure'
 import type { GmTenure } from '../types'
 
@@ -11,9 +13,9 @@ import type { GmTenure } from '../types'
 //   同じ情報を二重に持たない方がセーブが軽く、集計のズレも起きない。
 //
 // ■順位の決め方
-//   順位表は部ごとに分けて持っているので、部の中で合計ポイントの多い順に並べて
-//   上から1位・2位…とする。取り出しは utils/league.ts の standingsByDivision 1本。
-//   「1部で優勝」と「3部で優勝」はどちらもその部の優勝として1回に数える。
+//   順位表はリーグごとに分けて持っているので、リーグの中で合計ポイントの多い順に並べて
+//   上から1位・2位…とする。取り出しは utils/league.ts の standingsByLeague 1本（12リーグ全部）。
+//   「1部で優勝」と「3部で優勝」と海外リーグの優勝は、それぞれのリーグの優勝として1回に数える。
 //
 // ■連続上位
 //   3位以内なら1つ増やし、外れたら0に戻す。いちばん長かった数が bestStreak。
@@ -28,7 +30,7 @@ export type TeamHistory = {
    *   昇格したクラブが「いちばん成績が良かったクラブ」として全体最後の指名になっていました
    *   （オーナー・2026-08-20）。
    */
-  seasonResults: { year: number; rank: number; points: number; division: Division }[]
+  seasonResults: { year: number; rank: number; points: number; leagueId: LeagueId; division?: Division }[]
   /**
    * 優勝（1位）した回数の**合計**。
    * ★**画面に「優勝◯回」とだけ出さないこと**（オーナー・2026-08-12「部ごとです」）。
@@ -42,8 +44,8 @@ export type TeamHistory = {
    *     内訳（`titleRows`）を出すのは幅のある記録室・チーム詳細・歴代優勝・記録のハブ。
    */
   championships: number
-  /** **部ごとの優勝回数。**画面はこちらを出す（1部★2 2部★1 のように） */
-  titles: Partial<Record<Division, number>>
+  /** **リーグごとの優勝回数**（キーは `TitleKey`＝日本の部は部の番号・ほかはリーグID）。画面はこちらを出す */
+  titles: Partial<Record<TitleKey, number>>
   /** 今つながっている「3位以内」の連続数 */
   currentStreak: number
   /** これまででいちばん長かった「3位以内」の連続数 */
@@ -73,14 +75,16 @@ export function buildTeamHistories(seasons: SeasonStandingsLike[]): TeamHistoryM
   // 連続記録を数えるので、古い年から順に見る
   const ordered = [...seasons].filter(Boolean).sort((a, b) => a.year - b.year)
   for (const s of ordered) {
-    for (const { division, rows: sorted } of standingsByDivision(s)) {
+    for (const { leagueId, rows: sorted } of standingsByLeague(s)) {
+      const division = divisionOfLeague(leagueId)
+      const key = titleKeyOf(leagueId)
       sorted.forEach((st, i) => {
         const rank = i + 1
         let h = out[st.teamId]
         if (!h) { h = { seasonResults: [], championships: 0, titles: {}, currentStreak: 0, bestStreak: 0 }; out[st.teamId] = h }
-        h.seasonResults.push({ year: s.year, rank, points: st.totalPoints, division })
-        // ★優勝は**その年いた部**に積む。合計だけだと部が混ざる
-        if (rank === 1) { h.championships += 1; h.titles[division] = (h.titles[division] ?? 0) + 1 }
+        h.seasonResults.push({ year: s.year, rank, points: st.totalPoints, leagueId, ...(division != null ? { division } : {}) })
+        // ★優勝は**その年いたリーグ**に積む。合計だけだとリーグが混ざる
+        if (rank === 1) { h.championships += 1; h.titles[key] = (h.titles[key] ?? 0) + 1 }
         h.currentStreak = rank <= 3 ? h.currentStreak + 1 : 0
         if (h.currentStreak > h.bestStreak) h.bestStreak = h.currentStreak
       })
@@ -129,25 +133,26 @@ export function gmCareerTitles(
   tenures: GmTenure[] | undefined,
   playerTeamId: string,
 ): {
-  byClub: { teamId: string; wins: { year: number; division: Division }[] }[]
-  /** **部ごとの合計。**画面はこちらを出す（合計だけだと3部優勝と1部優勝が混ざる） */
-  titles: Partial<Record<Division, number>>
+  byClub: { teamId: string; wins: { year: number; key: TitleKey }[] }[]
+  /** **リーグごとの合計。**画面はこちらを出す（合計だけだと3部優勝と1部優勝が混ざる） */
+  titles: Partial<Record<TitleKey, number>>
   total: number
 } {
   const at = makeTeamIdAt(tenures, playerTeamId)
-  const map = new Map<string, { year: number; division: Division }[]>()
-  const titles: Partial<Record<Division, number>> = {}
+  const map = new Map<string, { year: number; key: TitleKey }[]>()
+  const titles: Partial<Record<TitleKey, number>> = {}
   for (const s of pastSeasons ?? []) {
     const tid = at(s.year)
-    // その年の**自分の部**の1位が自分か。全52チームで並べると部ごとのレース数の差でずれる
-    const div = divisionInSeason(s, tid)
-    if (div == null) continue
+    // その年の**自分のリーグ**の1位が自分か（日本の部も海外リーグも同じ）
+    const leagueId = leagueIdOfClub(s, tid)
+    if (leagueId == null) continue
     if (rankOfTeam(seasonLeagueStandings(s, tid), tid) !== 1) continue
+    const key = titleKeyOf(leagueId)
     const cur = map.get(tid) ?? []
-    cur.push({ year: s.year, division: div })
+    cur.push({ year: s.year, key })
     map.set(tid, cur)
-    // ★**部ごとに積む**（オーナー・2026-08-12「全部部ごとに決まってるやろ」）
-    titles[div] = (titles[div] ?? 0) + 1
+    // ★**リーグごとに積む**（オーナー・2026-08-12「全部部ごとに決まってるやろ」）
+    titles[key] = (titles[key] ?? 0) + 1
   }
   const byClub = [...map.entries()].map(([teamId, wins]) => ({ teamId, wins: wins.sort((a, b) => b.year - a.year) }))
   byClub.sort((a, b) => (b.wins[0]?.year ?? 0) - (a.wins[0]?.year ?? 0))
@@ -163,30 +168,45 @@ export function gmCareerTitles(
  * 並べ替えを画面で書かないこと（同じ並びを何通りも書くと必ず食い違う）。
  */
 export function compareTitles(a: TeamHistory['titles'], b: TeamHistory['titles']): number {
-  for (const d of DIVISIONS) {
-    const diff = (b[d] ?? 0) - (a[d] ?? 0)
+  // 頂点（日本1部＋部の無いリーグ）→ 2部 → 3部 の順に比べる
+  const byTier = (t: TeamHistory['titles'], tier: Division) =>
+    titleRows(t).filter(r => r.tier === tier).reduce((n, r) => n + r.count, 0)
+  for (const tier of [TOP_DIVISION, 2, 3] as Division[]) {
+    const diff = byTier(b, tier) - byTier(a, tier)
     if (diff !== 0) return diff
   }
   return 0
 }
 
-/** 部ごとの優勝を「上の部から」並べて返す（画面はこの順で出す） */
-export function titleRows(titles: TeamHistory['titles']): { division: Division; count: number }[] {
-  return DIVISIONS.map(d => ({ division: d, count: titles[d] ?? 0 })).filter(r => r.count > 0)
+/** 優勝の1行（どこで・何回・段・呼び名） */
+export type TitleRow = { key: TitleKey; count: number; tier: Division; label: string }
+
+const LEAGUE_ORDER = new Map(WORLD_LEAGUES.map((l, i) => [l.id, i]))
+
+/**
+ * リーグごとの優勝を並べて返す（画面はこの順で出す）。並びは12リーグの並び（日本1部・2部・3部 → 海外）。
+ * 呼び名は `leagueLabelOf`（日本の部は「1部」、ほかはリーグ名）
+ */
+export function titleRows(titles: TeamHistory['titles'] | undefined): TitleRow[] {
+  return Object.entries(titles ?? {})
+    .map(([k, count]) => ({ key: normTitleKey(k), count: count ?? 0 }))
+    .filter(r => r.count > 0)
+    .map(r => ({ ...r, tier: titleTier(r.key), label: leagueLabelOf(titleKeyLeague(r.key)) }))
+    .sort((a, b) => (LEAGUE_ORDER.get(titleKeyLeague(a.key)) ?? 99) - (LEAGUE_ORDER.get(titleKeyLeague(b.key)) ?? 99))
 }
 
 /**
- * **「◯回」と1つの数で出すときの優勝回数＝1部の優勝だけ。**
+ * **「◯回」と1つの数で出すときの優勝回数＝頂点のリーグの優勝だけ**（日本1部と、部の無いリーグ＝海外）。
  *
  * ★オーナー判断（2026-08-14）「3部の優勝と1部の優勝が並ぶ意味がわからない。
  *   1部だけでいいって判断」。**全部の部を足さないこと**——3部優勝2回と
  *   1部優勝2回が同じ「2回」になるのが、そもそも部ごとに分けた理由だった。
- *   足すのをやめて、下の部を数えないことで解決している。
+ *   足すのをやめて、下の部を数えないことで解決している。海外リーグは下に部が無いので頂点。
  *
- * ★使うのは**ホームとフレンドから見えるところだけ**（ホームのJPEL優勝・
+ * ★使うのは**ホームとフレンドから見えるところだけ**（ホームの優勝・
  *   フレンド詳細・GMカード）。記録室・チーム詳細・歴代優勝・記録のハブは
- *   部ごとのまま（`titleRows`）＝自分の歴史としては3部優勝も残す。
+ *   リーグごとのまま（`titleRows`）＝自分の歴史としては3部優勝も残す。
  */
 export function topTitleCount(titles: TeamHistory['titles'] | undefined): number {
-  return titles?.[TOP_DIVISION] ?? 0
+  return titleRows(titles).filter(r => r.tier === TOP_DIVISION).reduce((n, r) => n + r.count, 0)
 }

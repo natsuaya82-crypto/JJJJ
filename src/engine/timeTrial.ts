@@ -14,7 +14,7 @@
 //   走者の並び順も、順位表をなめる順も変えないこと。
 import { CARD_UNIT_EXP } from '../data/cardShop'
 import { simulateIndividualTime } from './individualRace'
-import { clubMap, isJpelLeague, mapClubs } from '../utils/world'
+import { clubMap, mapClubs } from '../utils/world'
 import { entersTimeTrial } from '../data/races'
 import { leaguesWhere } from '../data/leagues'
 import type { CardRarity, CardStatKey, IndividualEvent, Player, TrainingCard, WorldClub } from '../types'
@@ -141,9 +141,8 @@ export function updateTeamEventRecords(
     arr.push({ playerId: r.playerId, timeSec: r.timeSec })
     byTeam.set(r.teamId, arr)
   }
-  // チーム歴代記録を持つのは日本のリーグのクラブ（いまの振る舞い）
+  // チーム歴代記録はどのリーグのクラブも持つ（232クラブ全部）
   return mapClubs(clubs, (t): WorldClub => {
-    if (!isJpelLeague(t.leagueId)) return t
     const ups = byTeam.get(t.id)
     if (!ups || ups.length === 0) return t
     const byPlayer = new Map((t.eventRecords?.[key] ?? []).map(e => [e.playerId, e]))

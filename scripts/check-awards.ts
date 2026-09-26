@@ -17,8 +17,10 @@
  *   ・MVPは6戦以上のまま
  *   ・**部ごとに別々に選ぶ**（1部MVP・2部MVP・3部MVP）
  */
-import { computeSeasonAwards } from '../src/utils/awards'
-import type { Division, Player, Race, SeasonAward } from '../src/types'
+import { computeSeasonAwards, racesByLeague } from '../src/utils/awards'
+import { WORLD_LEAGUES } from '../src/data/leagues'
+import { DEV_PROSPECT_ID_PREFIX } from '../src/data/rosterRules'
+import type { Player, Race, SeasonAward } from '../src/types'
 
 const problems: string[] = []
 const check = (name: string, ok: boolean, detail = '') => {
@@ -65,7 +67,7 @@ console.log('\n① 新人王は3戦以上（オーナー判断・2026-08-12）')
     { id: 'r2', races: 2, rank: 1 },   // 平均1.0 だが2戦
     { id: 'r3', races: 3, rank: 5 },   // 平均5.0 だが3戦
   ])
-  const a = computeSeasonAwards(races, players, YEAR, 1)
+  const a = computeSeasonAwards(races, players, YEAR, 'jpel-1')
   check('2戦の新人は選ばれない（成績が上でも）', a.rookieId !== 'r2', `${a.rookieId}`)
   check('3戦の新人が選ばれる', a.rookieId === 'r3', `${a.rookieId}`)
 }
@@ -74,29 +76,38 @@ console.log('\n① 新人王は3戦以上（オーナー判断・2026-08-12）')
   // （新人が1人も居ない世界だと、この枝を通らずに素通りする）
   const players = [rookie('r1'), rookie('r2')]
   const races = racesFor([{ id: 'r1', races: 2, rank: 1 }, { id: 'r2', races: 1, rank: 1 }])
-  const a = computeSeasonAwards(races, players, YEAR, 1)
+  const a = computeSeasonAwards(races, players, YEAR, 'jpel-1')
   check('全員2戦以下なら新人王は該当なし', a.rookieId === undefined, `${a.rookieId}`)
-  check('該当なしでも年の行は作られる（落とさない）', a.year === YEAR && a.division === 1)
+  check('該当なしでも年の行は作られる（落とさない）', a.year === YEAR && a.leagueId === 'jpel-1')
 }
 {
   // 新人ではない選手（前年以前のドラフト）は、何戦走っても新人王にならない
   const players = [vet('v1'), rookie('r1')]
   const races = racesFor([{ id: 'v1', races: 10, rank: 1 }, { id: 'r1', races: 3, rank: 8 }])
-  const a = computeSeasonAwards(races, players, YEAR, 1)
+  const a = computeSeasonAwards(races, players, YEAR, 'jpel-1')
   check('その年のドラフト以外は新人王にならない', a.rookieId === 'r1', `${a.rookieId}`)
 }
 {
-  // ★同じ年に入ったが**指名されていない**選手（draftRound が null）。
-  //   育成契約（signDevProspect）は draftYear=その年 / draftRound=null で入るので、
-  //   `draftYear === year` だけで数えると新人王の候補に混ざる。
-  //   この枝を通す世界を作っていなかったので、判定から draftRound を外しても緑のままだった
+  // ★育成選手（signDevProspect）は draftYear=その年 / draftRound=null で入る。印は ID の頭（DEV_PROSPECT_ID_PREFIX）。
+  //   この枝を通す世界を作っていなかったので、判定から外しても緑のままだった
   //   （逆向きに壊して初めて分かった。CLAUDE.md「壊しても落ちない網」）。
-  const dev = ({ id: 'd1', name: 'd1', teamId: 'a', status: 'active', age: 18,
+  const dev = ({ id: `${DEV_PROSPECT_ID_PREFIX}${YEAR}_0`, name: 'd1', teamId: 'a', status: 'active', age: 18,
     draftYear: YEAR, draftRound: null, draftPick: null }) as unknown as Player
   const players = [dev, rookie('r1')]
-  const races = racesFor([{ id: 'd1', races: 8, rank: 1 }, { id: 'r1', races: 3, rank: 9 }])
-  const a = computeSeasonAwards(races, players, YEAR, 1)
-  check('育成契約（指名されていない）は新人王にならない', a.rookieId === 'r1', `${a.rookieId}`)
+  const races = racesFor([{ id: dev.id, races: 8, rank: 1 }, { id: 'r1', races: 3, rank: 9 }])
+  const a = computeSeasonAwards(races, players, YEAR, 'jpel-1')
+  check('育成選手は新人王にならない', a.rookieId === 'r1', `${a.rookieId}`)
+}
+{
+  // ★ドラフトの無いリーグ（2部・3部の若手の補充・海外の補充・開幕の床）で入った選手も新人王の候補
+  //   （以前は「ドラフト指名選手」だけで、ドラフトは日本1部にしか無いので2部・3部・海外には候補が居なかった）
+  const youth = ({ id: 'yth-2030-x-0', name: 'y', teamId: 'a', status: 'active', age: 19,
+    draftYear: YEAR, draftRound: null, draftPick: null }) as unknown as Player
+  const players = [youth, vet('v1')]
+  const races = racesFor([{ id: 'y', races: 0, rank: 1 }, { id: youth.id, races: 5, rank: 3 }, { id: 'v1', races: 8, rank: 1 }])
+  const a = computeSeasonAwards(races, players, YEAR, 'asia_league')
+  check('その年に入った指名なしの選手（補充）も新人王になる', a.rookieId === youth.id, `${a.rookieId}`)
+  check('海外リーグの表彰にはそのリーグIDが入る', a.leagueId === 'asia_league', `${a.leagueId}`)
 }
 
 // ───────────────────────────────────────────────────────────────
@@ -109,7 +120,7 @@ console.log('\n② MVPは6戦以上のまま')
     { id: 'v5', races: 5, rank: 1 },   // 平均1.0 だが5戦
     { id: 'v6', races: 6, rank: 9 },   // 平均9.0 だが6戦
   ])
-  const a = computeSeasonAwards(races, players, YEAR, 1)
+  const a = computeSeasonAwards(races, players, YEAR, 'jpel-1')
   check('5戦のMVP候補は選ばれない（成績が上でも）', a.mvpId !== 'v5', `${a.mvpId}`)
   check('6戦なら選ばれる', a.mvpId === 'v6', `${a.mvpId}`)
 }
@@ -118,35 +129,38 @@ console.log('\n② MVPは6戦以上のまま')
   // ここが「6と3が同じ線になっていないこと」の釘
   const players = [rookie('r3')]
   const races = racesFor([{ id: 'r3', races: 3, rank: 1 }])
-  const a = computeSeasonAwards(races, players, YEAR, 1)
+  const a = computeSeasonAwards(races, players, YEAR, 'jpel-1')
   check('3戦だけの年：新人王は出る', a.rookieId === 'r3', `${a.rookieId}`)
   check('3戦だけの年：MVPは出ない（6戦の線は別）', a.mvpId === undefined, `${a.mvpId}`)
 }
 
 // ───────────────────────────────────────────────────────────────
-// ③ 部ごとに別々に選ぶ（分け方を壊していないこと）
+// ③ リーグごとに別々に選ぶ（分け方を壊していないこと）
 // ───────────────────────────────────────────────────────────────
-console.log('\n③ 部ごとに別々に選ぶ')
+console.log('\n③ リーグごとに別々に選ぶ')
 {
-  // 同じ選手集合でも、渡す division が違えば別の表彰になる。
-  // 1部・2部・3部それぞれで、その部のレースだけを渡す形（racesByDivision がやること）
+  // 同じ選手集合でも、渡すリーグが違えば別の表彰になる。
+  // リーグそれぞれで、そのリーグのレースだけを渡す形（racesByLeague がやること）
   const awards: SeasonAward[] = []
-  for (const [d, ids] of [[1, ['r1a', 'v1a']], [2, ['r2a', 'v2a']], [3, ['r3a', 'v3a']]] as [Division, string[]][]) {
+  for (const [lg, ids] of [['jpel-1', ['r1a', 'v1a']], ['jpel-2', ['r2a', 'v2a']], ['asia_league', ['r3a', 'v3a']]] as [string, string[]][]) {
     const players = [rookie(ids[0]), vet(ids[1])]
     const races = racesFor([{ id: ids[0], races: 6, rank: 2 }, { id: ids[1], races: 6, rank: 1 }])
-    awards.push(computeSeasonAwards(races, players, YEAR, d))
+    awards.push(computeSeasonAwards(races, players, YEAR, lg as never))
   }
-  check('3つの部それぞれで表彰が出る', awards.length === 3 && awards.every(a => a.mvpId && a.rookieId))
-  check('部ごとに受賞者が違う', new Set(awards.map(a => a.mvpId)).size === 3,
+  check('3つのリーグそれぞれで表彰が出る', awards.length === 3 && awards.every(a => a.mvpId && a.rookieId))
+  check('リーグごとに受賞者が違う', new Set(awards.map(a => a.mvpId)).size === 3,
     awards.map(a => a.mvpId).join(' / '))
-  check('部の番号がそのまま入る', awards.map(a => a.division).join(',') === '1,2,3',
-    awards.map(a => a.division).join(','))
+  check('リーグIDがそのまま入る', awards.map(a => a.leagueId).join(',') === 'jpel-1,jpel-2,asia_league',
+    awards.map(a => a.leagueId).join(','))
+  // 12リーグ全部が分け方に入っている（日本の部だけを見ていない）
+  const lgs = racesByLeague({ year: YEAR, leagues: Object.fromEntries(WORLD_LEAGUES.map(l => [l.id, { races: racesFor([{ id: 'x', races: 1, rank: 1 }]) }])) as never })
+  check('分け方は12リーグ全部（racesByLeague）', lgs.length === 12, `${lgs.length}`)
 }
 {
-  // 部を渡さない旧データの経路は、これまでどおり division を持たない
+  // リーグを渡さない旧データの経路は、これまでどおり leagueId を持たない
   const players = [rookie('r1')]
   const a = computeSeasonAwards(racesFor([{ id: 'r1', races: 6, rank: 1 }]), players, YEAR)
-  check('部を渡さなければ division は入らない（旧データの経路）', a.division === undefined)
+  check('リーグを渡さなければ leagueId は入らない（旧データの経路）', a.leagueId === undefined)
 }
 
 console.log('')

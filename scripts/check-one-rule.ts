@@ -373,6 +373,43 @@ console.log('\n[21] 「世界へ挑戦」の見出しは clubTier の isWorldCha
   check('OVR で「世界へ挑戦」を決めていない', !/big && ovr\(p\) >= MAJOR_NEWS_OVR/.test(code))
 }
 
+console.log('\n[22] 日本のリーグだけに絞っていた処理が戻っていない（オーナー・2026-09-26「日本だけになってるやつは全部バグ」）')
+{
+  // 戻し方：engine/timeTrial の mapClubs の頭に `if (!isJpelLeague(t.leagueId)) return t` を戻す
+  // ★ここに並べたファイルは、日本のリーグか海外かで処理を分けていたのを 2026-09-26 に1本にしたもの。
+  //   部の仕組み（昇降格・部の人数）や、オーナーが決めた見出し（「世界へ挑戦」）は対象外
+  const stripped = (f: string) => fileCode(f).replace(/\/\*[\s\S]*?\*\//g, '').split('\n').filter(l => !l.trim().startsWith('//')).join('\n')
+  const JAPAN_ONLY = /\bisJpelLeague\(|\bjpelClubs\(|\bjpelClubById\(|\bjpelClubIdSet\(|\bdivisionOf\(|\bracesByDivision\(|\bstandingsByDivision\(/
+  const FIXED = [
+    'src/engine/timeTrial.ts',          // 記録会のチーム歴代記録
+    'src/engine/savePruning.ts',        // セーブの掃除
+    'src/utils/awards.ts',              // 年度表彰（リーグごと）
+    'src/engine/seasonFinaleNews.ts',   // 表彰・引退表明の見出し
+    'src/engine/raceNews.ts',           // レースの見出し・フロントの評価
+    'src/engine/raceRecords.ts',        // 区間新記録の見出し
+    'src/engine/dynastyMilestones.ts',  // 監督の節目
+    'src/engine/seasonArchivePrep.ts',  // 保存の形
+    'src/engine/leagueDay.ts',          // 裏のリーグ（集計を分けて積まない）
+    'src/engine/eclSeries.ts',          // ECLの出場クラブ
+    'src/engine/cpuMarket.ts',          // 打診・レンタル（「海外」は国をまたぐか）
+    'src/engine/cpuTransfers.ts',       // 移籍の見出しのクラブ名
+    'src/utils/newsItems.ts',           // クラブの呼び名
+    'src/utils/movePlayer.ts',          // 退団のお知らせのクラブ名
+    'src/utils/teamHistory.ts',         // 優勝回数（12リーグ）
+    'src/utils/careerStats.ts',         // 在籍・通算成績
+    'src/utils/playRate.ts',            // 出場率
+    'src/utils/domesticPlayers.ts',     // 記録室の対象
+    'src/store/marketOps.ts',           // 売ったときのクラブ名
+    'src/engine/draftOrder.ts',         // ドラフト順（段の数え方）
+  ]
+  const back = FIXED.filter(f => JAPAN_ONLY.test(stripped(f)))
+  check('日本の部だけを見る書き方が戻っていない', back.length === 0, back.join(' / '))
+  check('「海外」は国をまたぐか（utils/clubs の isAbroad）で決める', /export function isAbroad\(/.test(code)
+    && (code.match(/(?<!function )isAbroad\(/g) ?? []).length >= 3)
+  check('出場実績（perfOf）に海外だけの物差しが戻っていない', !/foreignPerfProfile|foreignRacesDone/.test(code))
+  check('裏のリーグで国内・海外の集計を分けて積んでいない', !/awayAppearances: awayApps|foreignAppearances: foreignApps/.test(code))
+}
+
 console.log('')
 if (failed > 0) { console.log(`✗ 同じ問いに物差しが2本あります（${failed}件）`); process.exit(1) }
 console.log('✓ 引退・年齢込みの強さ・在籍人数・在籍上限・下限の救済・通信の文言・主力か・走れているかは、どれも1本')

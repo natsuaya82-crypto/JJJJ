@@ -1,3 +1,4 @@
+import { findClub } from '../../utils/clubs'
 import MenuButton from '../ui/MenuButton'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
@@ -5,14 +6,14 @@ import { teamHistoryOf, titleRows } from '../../utils/teamHistory'
 import { makeTeamIdAt } from '../../utils/gmTenure'
 import { C, alpha, DIV_STAR, SAIRA, FONT, F } from '../../styles/tokens'
 import PageHeader from '../ui/PageHeader'
-import { DIVISION_LABEL, rankOfTeam, seasonLeagueStandings } from '../../utils/league'
+import { rankOfTeam, seasonLeagueStandings } from '../../utils/league'
 import { panelStyle } from '../ui/Panel'
 import { myLeagueRaces } from '../../utils/world'
 
 
 export default function RecordsHub() {
   const navigate = useNavigate()
-  const { currentSeason, pastSeasons, playerTeamId, gmTenures} = useGameStore()
+  const { currentSeason, pastSeasons, playerTeamId, gmTenures, clubs } = useGameStore()
 
   // 監督は別のチームへ移れる。過去の順位は「その年に指揮していたチーム」で引く。
   // 今のチームで引くと、移った瞬間に自分の優勝が消えて移籍先の過去が自分の成績になる（utils/gmTenure.ts）
@@ -24,6 +25,8 @@ export default function RecordsHub() {
   //   GMのがついてきてる」）。
   // ★**部ごと**（オーナー・2026-08-12）。合計だと3部優勝と1部優勝が混ざる
   const clubTitles = teamHistoryOf(pastSeasons, playerTeamId)
+  // 見出しの字は自チームのリーグの呼び名（日本の部は JPEL）
+  const myLeagueName = findClub(clubs, playerTeamId)?.leagueName ?? 'JPEL'
   const completedRaces = myLeagueRaces(currentSeason, playerTeamId).filter(r => r.results).length
   // 自分のリーグの中での順位。**通し順位（1〜52）は出さない**（格を決める内部の数・utils/clubStanding）
   const myStanding = rankOfTeam(seasonLeagueStandings(currentSeason, playerTeamId), playerTeamId)
@@ -47,7 +50,7 @@ export default function RecordsHub() {
     {
       key: '/records/individual',
       label: '個人ランキング', en: 'RANKING',
-      desc: '今季・通算JPEL区間賞・MVP',
+      desc: `今季・通算${myLeagueName}区間賞・MVP`,
       countLabel: '選手ランキング',
       badge: 0,
       color: C.green,
@@ -134,10 +137,10 @@ export default function RecordsHub() {
         right={<div style={{ display: 'flex', gap: '8px' }}>
           {/* ★**部ごとの札**にする。合計の★だけだと3部優勝も1部優勝も同じ見た目になる */}
           {titleRows(clubTitles.titles).map(r => (
-            <div key={r.division} style={{ padding: '4px 10px', background: alpha(DIV_STAR[r.division], 0.12), border: `1px solid ${alpha(DIV_STAR[r.division], 0.28)}`, display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ fontSize: F.tiny, color: C.textDim }}>{DIVISION_LABEL[r.division]}</span>
-              <span style={{ fontFamily: SAIRA, fontSize: F.body, color: DIV_STAR[r.division] }}>★</span>
-              <span style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: '800', color: DIV_STAR[r.division], textShadow: `0 0 6px ${alpha(DIV_STAR[r.division], 0.5)}` }}>{r.count}</span>
+            <div key={String(r.key)} style={{ padding: '4px 10px', background: alpha(DIV_STAR[r.tier], 0.12), border: `1px solid ${alpha(DIV_STAR[r.tier], 0.28)}`, display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ fontSize: F.tiny, color: C.textDim }}>{r.label}</span>
+              <span style={{ fontFamily: SAIRA, fontSize: F.body, color: DIV_STAR[r.tier] }}>★</span>
+              <span style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: '800', color: DIV_STAR[r.tier], textShadow: `0 0 6px ${alpha(DIV_STAR[r.tier], 0.5)}` }}>{r.count}</span>
             </div>
           ))}
           <div style={{ padding: '4px 10px', background: myStanding <= 3 ? alpha(C.green, 0.12) : C.surface2, border: `1px solid ${myStanding <= 3 ? alpha(C.green, 0.28) : C.border}`, display: 'flex', alignItems: 'center', gap: '5px' }}>

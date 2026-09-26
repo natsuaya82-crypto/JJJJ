@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { Player, Team, CardStatKey } from '../../types'
+import type { Player, CardStatKey } from '../../types'
 import { ovr, ratingColor, SPEC_COLOR, formColor, isStatMaxed } from '../../utils/playerUtils'
 import { safeRatings } from '../../engine/raceEngine'
 import { getPlayerBadges } from '../../utils/badges'
@@ -39,7 +39,7 @@ function StatNum({ label, value, maxed }: { label: string; value: number; maxed:
 export default function PlayerRow({ player, handlers, loanOwner, selected, extra, hideStatusBadges }: {
   player: Player
   handlers: RowHandlers
-  loanOwner?: Team
+  loanOwner?: { id: string; shortName: string; colors: { primary: string; secondary: string } }
   selected?: boolean
   extra?: ReactNode   // 名前行の末尾に差し込む追加バッジ（区間ピッカーの「最適」等）
   hideStatusBadges?: boolean  // 疲労・調子を出さない（殿堂入りの一覧など、いまの状態が関係ない画面用）

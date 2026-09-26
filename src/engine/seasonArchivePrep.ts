@@ -1,17 +1,13 @@
 // 今季の記録を「保存する形」に整える。endSeason から切り出した（挙動不変）。
 //
-//   海外の出場記録（0戦ぶんも埋める） ／ 海外リーグ順位表（1戦ごとの結果を落とす）
-//   ／ 国内で1度も走らなかった選手の所属
+//   12リーグの順位表（どのリーグも同じ形のまま）／ 1度も走らなかった在籍選手の所属
 //
 // ■触るときの注意
 //   - **出場0の選手も記録する。** 選手詳細の在籍履歴は出場記録から行を作るので、
-//     埋めないと「その年どこに居たか」が丸ごと消える。国内・海外どちらも同じ
-//   - 過去シーズンの海外リーグ順位表は**合計ポイントしか読まれない**（チーム詳細の
-//     歴代成績・リーグ優勝回数）。1戦ごとの結果は今季ぶんだけ必要なので保存時に落とす
-//     （1シーズンあたり約120KB）
+//     埋めないと「その年どこに居たか」が丸ごと消える。**どのリーグのクラブも同じ**
+//   - ★日本のリーグか海外かで保存の形を分けないこと（オーナー・2026-09-26「セーブも日本とか関係ない」）
 import type { GameState, Player, Season, WorldClub } from '../types'
-import { clubIdSet, clubsWhere, isJpelLeague, jpelClubIdSet, myLeagueRaces } from '../utils/world'
-import { divisionOfLeague } from '../utils/league'
+import { clubIdSet } from '../utils/world'
 
 export function prepareSeasonArchive(args: {
   currentSeason: GameState['currentSeason']
@@ -19,39 +15,24 @@ export function prepareSeasonArchive(args: {
   before: Player[]
   /** 今季のクラブ（更新前） */
   clubs: WorldClub[]
-  playerTeamId: string
 }) {
-  const { currentSeason, before, clubs, playerTeamId } = args
+  const { currentSeason, before, clubs } = args
 
-  // 海外クラブ在籍で今季出場ゼロの選手にも0戦のエントリを埋めて保存する。
-  // 在籍履歴（選手詳細）は出場記録から行を作るため、これが無いと出なかった年の所属が消える
+  // 旧い海外の出場記録（走行記録を残す前の年のもの）。新しい年はもう積まないので、あればそのまま渡すだけ
   const archivedForeignApps = { ...(currentSeason.foreignAppearances ?? {}) }
-  {
-    // 海外の出場記録（foreignAppearances）に積むのは、日本のリーグでないクラブの選手（置き場所が違うだけ）
-    const foreignClubIds = clubIdSet(clubsWhere(clubs, c => !isJpelLeague(c.leagueId)))
-    for (const p of before) {
-      if (!foreignClubIds.has(p.teamId)) continue
-      if (!archivedForeignApps[p.id]) archivedForeignApps[p.id] = { clubId: p.teamId, races: 0, wins: 0 }
-    }
-  }
-  // 過去シーズンの海外リーグ順位表は「合計ポイント」しか読まれない（チーム詳細の歴代成績・
-  // リーグ優勝回数）。1戦ごとの結果は今季ぶんだけ（直近フォーム・消化数）なので保存時に落とす。
-  // セーブ容量の節約：1シーズンあたり約120KB
-  const archivedLeagues: Season['leagues'] = Object.fromEntries(
-    Object.entries(currentSeason.leagues ?? {}).map(([lid, lg]) => [lid, divisionOfLeague(lid) != null ? lg : {
-      races: lg.races,
-      standings: lg.standings.map(s2 => ({ teamId: s2.teamId, totalPoints: s2.totalPoints, raceResults: [] })),
-    }]),
-  )
-  // 国内も同様：今季1度も出走しなかった在籍選手の所属を記録して保存（在籍履歴の空白防止）
+  // 順位表は**どのリーグも同じ形のまま**残す（以前は海外リーグだけ1戦ごとの結果を落としていて、
+  // 海外クラブを指揮した年は記録室の勝利数などが0になっていた）
+  const archivedLeagues: Season['leagues'] = { ...(currentSeason.leagues ?? {}) }
+  // 今季1度も出走しなかった在籍選手の所属を記録して保存（在籍履歴の空白防止）。
+  // ★**どのリーグのクラブも同じ**（走った選手は12リーグの走行記録から分かる＝utils/careerStats の seasonMemberships）
   const appearedIds = new Set<string>()
-  for (const race of [...myLeagueRaces(currentSeason, playerTeamId), ...(currentSeason.secondTeamRaces ?? [])]) {
+  for (const race of [...Object.values(currentSeason.leagues ?? {}).flatMap(l => l.races), ...(currentSeason.secondTeamRaces ?? [])]) {
     if (!race.results) continue
     for (const sr of race.results.segmentResults) for (const r of sr.runners) appearedIds.add(r.playerId)
   }
-  const domesticTeamIds = jpelClubIdSet(clubs)
+  const clubIds = clubIdSet(clubs)
   const zeroAppearances = before
-    .filter(p => p.status === 'active' && domesticTeamIds.has(p.teamId) && !appearedIds.has(p.id))
+    .filter(p => p.status !== 'retired' && clubIds.has(p.teamId) && !appearedIds.has(p.id))
     .map(p => ({ playerId: p.id, teamId: p.teamId }))
 
   return { archivedForeignApps, archivedLeagues, zeroAppearances }

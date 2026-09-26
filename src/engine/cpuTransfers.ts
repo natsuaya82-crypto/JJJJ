@@ -17,7 +17,7 @@ import type { Player, Season, WorldClub } from '../types'
 import type { ClubTier } from '../utils/clubTier'
 import { CPU_SELL_FLOOR, ROSTER_MAX } from '../data/rosterRules'
 import { MAJOR_NEWS_OVR, tierOfPlayerClub } from '../utils/clubTier'
-import { clubById, isJpelLeague } from '../utils/world'
+import { clubById } from '../utils/world'
 import { bigClub } from '../utils/clubs'
 import { type NewsItem, clubLabel, transferHeadline } from '../utils/newsItems'
 import { ovr } from '../utils/playerUtils'
@@ -47,11 +47,6 @@ export function settleCpuTransfers(params: {
     type CpuTx = { playerId: string; fromTeamId: string; toTeamId: string; playerName: string; playerOvr: number; fromShort: string; toShort: string; fee: number }
   // ★**クラブは国内52＋海外180を1つの索引で引く**（オーナー・2026-09-16「1は海外国内は一緒」）。
   //   売り手・買い手・ニュースのクラブ名が全部ここを通る。
-  // ニュースの呼び名に渡す海外クラブ（日本のリーグは clubLabel が部つきで出す）
-  const foreignLabelOf = (id: string) => {
-    const c = clubById(clubs, id)
-    return c && !isJpelLeague(c.leagueId) ? { id: c.id, shortName: c.shortName } : undefined
-  }
   const cpuTxList: CpuTx[] = []
   const cpuTxListingIds = new Set<string>()
   {
@@ -115,9 +110,9 @@ export function settleCpuTransfers(params: {
     // ニュースだけで追えるようにする
     headline: transferHeadline({
       playerName: tx.playerName, playerOvr: tx.playerOvr, fee: tx.fee,
-      // クラブ名は国内・海外どちらも引く（`clubLabel` の第3引数に海外クラブを渡す）
-      fromLabel: clubLabel(tx.fromTeamId, clubs, foreignLabelOf(tx.fromTeamId)),
-      toLabel: clubLabel(tx.toTeamId, clubs, foreignLabelOf(tx.toTeamId)) }),
+      // クラブ名はどのリーグのクラブも `clubLabel` 1本（リーグの呼び名つき）
+      fromLabel: clubLabel(tx.fromTeamId, clubs),
+      toLabel: clubLabel(tx.toTeamId, clubs) }),
     category: 'trade' as const,
     relatedIds: [tx.playerId],
     // 大ニュースはOVR85以上か格1のクラブが絡んだとき（utils/clubTier 1本）

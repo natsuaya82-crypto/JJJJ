@@ -70,6 +70,8 @@ console.log('[1] FAを獲る判断は1本（pickCpuFreeAgents）')
   const isWorld = (c: string) => {
     const a = clubsArg(c)
     if (a === 'state.clubs' || a === 'clubs') return true
+    // 市場・トレード・レンタルのあとの世界（オフのFA補強はこれを渡す）。1件も落とさない並び
+    if (a === 'clubsForFa') return /const clubsForFa = clubsAfterCpuTransfer\b/.test(store)
     return !!a && new RegExp(`const ${a} = mapClubs\\(`).test(store)
   }
   check('どの呼び出しも国内クラブと海外クラブをまとめて渡している',

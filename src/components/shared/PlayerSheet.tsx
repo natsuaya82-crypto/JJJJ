@@ -333,7 +333,6 @@ export default function PlayerSheet() {
 
   // 在籍履歴（移籍情報）集計：年 × teamId × 大会(1軍/リザーブ/ECL/海外) ごとに 出場数・区間賞数・平均区間順位。
   // 表示は年×チームの親行に集約し、タップで大会別の内訳を開く（組み立ては utils/careerStats へ移設）
-  const isForeignClub = clubIndex.byId(player.teamId)?.isDomestic === false
   const historyMap = buildPlayerHistory({
     playerId: player.id,
     playerTeamId: player.teamId,
@@ -341,7 +340,7 @@ export default function PlayerSheet() {
     ranRows,
     pastSeasons,
     currentSeason,
-    isForeignClub,
+    isForeignTeam: tid => clubIndex.byId(tid)?.isDomestic === false,
   })
   // 年×チームの親行へ集約（内訳は 1軍→リザーブ→ECL→海外 の順）
   type HistParent = { year: number; teamId: string; races: number; wins: number; rankSum: number; rankedRaces: number; comps: HistoryRow[] }

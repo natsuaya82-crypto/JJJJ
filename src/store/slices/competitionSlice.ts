@@ -10,9 +10,9 @@ import { decideLoanRequests } from '../../engine/loanRequests'
 import { tradeValueCtxOf } from '../marketOps'
 import { rosterCapOf } from '../../data/rosterRules'
 import { type LoanResponse, type EclStanding, type ExpiredNegotiation, type GameState, type Player, type TransferRecord } from '../../types'
-import { clubsWhere, isJpelLeague, withMyClub, myLeagueRaces, myLeagueId } from '../../utils/world'
+import { withMyClub, myLeagueRaces, myLeagueId } from '../../utils/world'
 import { findClub } from '../../utils/clubs'
-import { TOP_DIVISION, divisionStandings, rankedStandings, pointSeriesStandings } from '../../utils/league'
+import { rankedStandings, pointSeriesStandings } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
 import { eclRaceHeadline, eclSeasonEndHeadline, segmentRecordHeadline, type NewsItem } from '../../utils/newsItems'
 import { keyPlayerStatus } from '../../utils/transferDecision'
@@ -364,14 +364,12 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
       if (cs.eclSeries) return state
       if (seasonDone) return state // 未来の日付が残っていないので今年はもう開催できない
       if ((state.pastSeasons?.length ?? 0) === 0) return state // 初年度は開催なし（仕様）
-      // 海外のクラブが1つも居ない世界では開催しない
-      if (clubsWhere(state.clubs, c => !isJpelLeague(c.leagueId)).length === 0) return state
+      // 出場クラブは前年の順位表（全リーグ同じ年）。4クラブ未満なら開催しない
       const last = state.pastSeasons[state.pastSeasons.length - 1]
       const parts = buildEclParticipants({
-        standings: last ? divisionStandings(last, TOP_DIVISION) : [],
         clubs: state.clubs,
         playerTeamId: state.playerTeamId,
-        seasonLeagues: cs.leagues,
+        seasonLeagues: last?.leagues ?? {},
         players: state.players })
       if (parts.length < 4) return state
       // 日付基準のフィルタ：最後に消化したレースより未来の開催回だけを残す（過ぎた回は開催されなかった扱い）

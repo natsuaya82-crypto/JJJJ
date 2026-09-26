@@ -104,6 +104,27 @@ export function foreignSeasonApps(s: CareerSeasonLike | undefined): Record<strin
   return out
 }
 
+/**
+ * **その年、誰がどのクラブにいたか**（選手ID → クラブIDの組）。在籍・移籍の履歴はこれ1本。
+ * 材料は「その年に走ったリーグのレース（12リーグ全部＋旧リザーブ）」と「0戦だった在籍（zeroAppearances）」と、
+ * 走行記録を残す前の年だけ旧い海外の出場記録（foreignAppearances / foreignAppsC）。
+ * ★日本のリーグか海外かで置き場所を分けないこと（以前は国内＝自分のリーグのレース＋zeroAppearances、
+ *   海外＝foreignAppearances と2通りで、呼ぶ側が両方を手で足していた）
+ */
+export function seasonMemberships(
+  s: CareerSeasonLike & { secondTeamRaces?: Race[] } | undefined,
+): [playerId: string, teamId: string][] {
+  if (!s) return []
+  const out: [string, string][] = []
+  const races = [...Object.values(s.leagues ?? {}).flatMap(l => l.races ?? []), ...(s.secondTeamRaces ?? [])]
+  for (const race of races) {
+    for (const sr of race.results?.segmentResults ?? []) for (const r of sr.runners ?? []) if (r.teamId) out.push([r.playerId, r.teamId])
+  }
+  for (const [pid, a] of Object.entries(foreignAppsOf(s))) if (a.clubId) out.push([pid, a.clubId])
+  for (const z of s.zeroAppearances ?? []) if (z.teamId) out.push([z.playerId, z.teamId])
+  return out
+}
+
 export type HistComp = 'main' | 'second' | 'ecl' | 'foreign'
 export type HistoryRow = { year: number; teamId: string; comp: HistComp; races: number; wins: number; rankSum: number; rankedRaces: number }
 
@@ -115,9 +136,10 @@ export function buildPlayerHistory(params: {
   ranRows: RanRace[]
   pastSeasons: CareerSeasonLike[]
   currentSeason: CareerSeasonLike
-  isForeignClub: boolean
+  /** そのクラブの行を「所属リーグ」の見出しで出すか（日本の部でないクラブ）。見出しの字を選ぶだけ */
+  isForeignTeam: (teamId: string) => boolean
 }): Map<string, HistoryRow> {
-  const { playerId, playerTeamId, isRetired, ranRows, pastSeasons, currentSeason, isForeignClub } = params
+  const { playerId, playerTeamId, isRetired, ranRows, pastSeasons, currentSeason, isForeignTeam } = params
   // 在籍履歴（移籍情報）集計：年 × teamId × 大会(1軍/リザーブ/ECL/海外) ごとに 出場数・区間賞数・平均区間順位。
   // 表示は年×チームの親行に集約し、タップで大会別の内訳を開く
   const historyMap = new Map<string, HistoryRow>()
@@ -164,12 +186,13 @@ export function buildPlayerHistory(params: {
   }
   for (const ps of pastSeasons) addForeignHistory(ps.year, foreignSeasonApps(ps))
   addForeignHistory(currentSeason.year, foreignSeasonApps(currentSeason))
-  // 出走ゼロだった年の国内所属（シーズン終了時に保存）からも行を埋める（0戦でも在籍は表示する）
+  // 出走ゼロだった年の所属（シーズン終了時に保存・どのリーグのクラブも）からも行を埋める（0戦でも在籍は表示する）
   for (const ps of pastSeasons) {
     const z = (ps.zeroAppearances ?? []).find(e => e.playerId === playerId)
     if (z) {
-      const key = `${ps.year}|${z.teamId}|main`
-      if (!historyMap.has(key)) historyMap.set(key, { year: ps.year, teamId: z.teamId, comp: 'main', races: 0, wins: 0, rankSum: 0, rankedRaces: 0 })
+      const comp: HistComp = isForeignTeam(z.teamId) ? 'foreign' : 'main'
+      const key = `${ps.year}|${z.teamId}|${comp}`
+      if (!historyMap.has(key)) historyMap.set(key, { year: ps.year, teamId: z.teamId, comp, races: 0, wins: 0, rankSum: 0, rankedRaces: 0 })
     }
   }
   // 現行シーズンは未出場でも「今年・現チーム」を必ず1行出す（0レースで空にしない）。
@@ -180,7 +203,7 @@ export function buildPlayerHistory(params: {
       // 海外クラブ所属なら 'foreign'（＝所属リーグ表示）、国内なら 'main'（JPEL）。
       // 以前ここが 'second'（リザーブ）だったため、1レースも走っていない選手の在籍履歴に
       // **廃止済みの「JPELリザーブリーグ」** が出ていた（リザーブは migrate v30 で廃止）。
-      const ph: HistComp = isForeignClub ? 'foreign' : 'main'
+      const ph: HistComp = isForeignTeam(playerTeamId) ? 'foreign' : 'main'
       historyMap.set(`${currentSeason.year}|${playerTeamId}|${ph}`, { year: currentSeason.year, teamId: playerTeamId, comp: ph, races: 0, wins: 0, rankSum: 0, rankedRaces: 0 })
     }
   }

@@ -15,8 +15,9 @@
 // 必ず divisionOf() を通すこと。
 
 import type { Division, LeagueId, LeagueSeason, Race, SeasonStanding, Team, WorldClub } from '../types'
-import { clubsWhere, divisionLeagueId, divisionOfLeague, jpelClubs, jpelClubById, leagueIdOfClub, mapClubs } from './world'
+import { clubById, clubsInLeague, clubsWhere, divisionLeagueId, divisionOfLeague, jpelClubs, leagueIdOfClub, mapClubs } from './world'
 import { holdsDraftPicks, leagueRules } from '../data/leagueRules'
+import { leagueById, WORLD_LEAGUES } from '../data/leagues'
 
 /** 上から順。表示の並びもこの順 */
 export const DIVISIONS: readonly Division[] = [1, 2, 3]
@@ -31,6 +32,16 @@ export const DIVISION_SIZE: Record<Division, number> = { 1: 20, 2: 16, 3: 16 }
 export const DIVISION_RACES: Record<Division, number> = { 1: 10, 2: 8, 3: 7 }
 
 export const DIVISION_LABEL: Record<Division, string> = { 1: '1部', 2: '2部', 3: '3部' }
+
+/**
+ * **リーグの呼び名**（日本の部は「1部」、ほかはリーグ名）。見出し・表彰・クラブの呼び名に添える字は
+ * どのリーグでもここ1本。部（`divisionOf`）で引かないこと——部に居ないクラブは1部と読まれる
+ */
+export function leagueLabelOf(leagueId: LeagueId | string | null | undefined): string {
+  const d = divisionOfLeague(leagueId as LeagueId)
+  if (d != null) return DIVISION_LABEL[d]
+  return leagueById(leagueId as LeagueId)?.name ?? ''
+}
 
 /**
  * 昇格・降格の枠。各部の上位n が昇格、下位n が降格。
@@ -297,6 +308,57 @@ export function seasonLeagueStandings<T extends RankableRow & { teamId: string }
   return id == null ? [] : rankedStandings(season.leagues?.[id]?.standings)
 }
 
+/**
+ * 2つのリーグが**昇降格でつながっているか**（同じピラミッド）。日本の1部〜3部はつながっていて、
+ * 部の無いリーグ（海外9）はそれ1本。つながりはリーグの決まり（`promotion`）から読む
+ */
+export function samePyramid(a: LeagueId | string | null | undefined, b: LeagueId | string | null | undefined): boolean {
+  if (a == null || b == null) return false
+  if (a === b) return true
+  return leagueRules(a as LeagueId).promotion && leagueRules(b as LeagueId).promotion
+}
+
+/** その年に順位表のある全リーグ（得点順）。並びは12リーグの並び。**優勝回数・成績を数え直すときはここ** */
+export function standingsByLeague<T extends RankableRow & { teamId: string }>(
+  season: SeasonStandingsLike<T>,
+): { leagueId: LeagueId; rows: T[] }[] {
+  const have = season.leagues ?? {}
+  return WORLD_LEAGUES.filter(l => have[l.id]?.standings?.length)
+    .map(l => ({ leagueId: l.id, rows: rankedStandings(have[l.id]?.standings) }))
+}
+
+// ── 優勝回数のキー ────────────────────────────────────────────
+//
+// 優勝回数は「どこで優勝したか」ごとに積む。日本の部は**部の番号（1/2/3）**のまま
+// （セーブの外＝フレンドのプロフィールに `titles: {1: 2}` の形で載っていて、古いアプリがそれを読む）、
+// 部の無いリーグ（海外9）はリーグIDで積む。★日本の部だけを数えないこと（以前は海外リーグの優勝が
+// どこにも積まれず、海外クラブを指揮して優勝しても記録室・GMキャリアに何も残らなかった）
+
+/** 優勝回数を積むキー（日本の部＝部の番号、ほか＝リーグID） */
+export type TitleKey = Division | LeagueId
+
+export function titleKeyOf(leagueId: LeagueId): TitleKey {
+  return divisionOfLeague(leagueId) ?? leagueId
+}
+
+/** JSON を通ると部の番号が "1" になるので戻す */
+export function normTitleKey(k: string | number): TitleKey {
+  return typeof k === 'number' ? k as Division : /^\d+$/.test(k) ? Number(k) as Division : k as LeagueId
+}
+
+/** そのキーのリーグ */
+export function titleKeyLeague(key: TitleKey): LeagueId {
+  return typeof key === 'number' ? divisionLeagueId(key) : key
+}
+
+/**
+ * **段**（1＝ピラミッドの頂点）。日本の部は部の番号、部の無いリーグ（海外）は頂点＝1。
+ * 「数字1つで出す優勝」（`topTitleCount`）と★の色はこれで決める
+ */
+export function titleTier(key: TitleKey): Division {
+  return typeof key === 'number' ? key : TOP_DIVISION
+}
+
 /** 部ごとの順位表をまとめて（得点順）。全チームぶんの成績を数え直すときに使う */
 export function standingsByDivision<T extends RankableRow & { teamId: string }>(
   season: SeasonStandingsLike<T>,
@@ -448,14 +510,16 @@ export function divisionStandingsFromRaces(
 }
 
 /**
- * 順位表をチームの部に合わせる。**順位表を触る入口はここ1本。**
+ * 順位表をクラブの所属リーグに合わせる。**順位表を触る入口はここ1本。**
  *
- * 1. 国内の行を「いまの Team.division」の部のリーグへ並べ直す
- * 2. 自分の部だけ、走り終わったレースの結果から点を数え直す
+ * 1. 日本の部の行を「いまの所属」の部のリーグへ並べ直す（部をまたいで動くのは日本の部だけ）
+ * 2. 部の無いリーグ（海外）の行も、いま所属しているクラブの行にそろえる（無い行は0点で足す）
+ * 3. **自分のリーグ**を、走り終わったレースの結果から数え直す（日本の部でも海外でも同じ）
  *
  * 起動時（persist の merge）とチーム選択（startSetup）の両方から呼ぶ。
  * 何度呼んでも同じ結果になるので、壊れたセーブは開き直すだけで直る。
- * 日程と海外リーグには触らない。
+ * 日程には触らない（海外リーグの日程と、まだ無いリーグは engine/leagueDay の withCopiedSchedules）。
+ * ★以前は日本の部だけを見ていて、海外クラブを指揮していると自分のリーグが数え直されなかった
  */
 export function syncSeasonLeagues(params: {
   leagues: Record<LeagueId, LeagueSeason> | undefined
@@ -467,15 +531,23 @@ export function syncSeasonLeagues(params: {
   const fixed = reconcileStandingsDivisions<SeasonStanding>(divisionStandingsRecord<SeasonStanding>({ leagues }), clubs, teamId => ({
     teamId, leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [],
   }))
-  // ★自チームが見つからないときに `divisionOf(undefined)` の既定値（1部）へ落ちないこと。
-  //   落ちると1部だけ数え直し、自分の部の点はいつまでも0のまま＝直したつもりで直らない。
-  //   数え直すのは日本の部の順位表なので、自チームは日本のリーグのクラブとして引く
-  const me = jpelClubById(clubs, playerTeamId)
-  if (me) {
-    const myDiv = divisionOf(me)
-    fixed[myDiv] = divisionStandingsFromRaces(fixed[myDiv], leagues[divisionLeagueId(myDiv)]?.races ?? []) as SeasonStanding[]
+  const out = withDivisionStandings(leagues, fixed)
+  for (const [id, lg] of Object.entries(out)) {
+    if (divisionOfLeague(id as LeagueId) != null) continue
+    const members = clubsInLeague(clubs, id as LeagueId)
+    if (members.length === 0) continue
+    const rows = new Map(lg.standings.map(r => [r.teamId, r]))
+    const next = members.map(c => rows.get(c.id) ?? { teamId: c.id, totalPoints: 0, raceResults: [] } as SeasonStanding)
+    if (next.length !== lg.standings.length || next.some((r, i) => r !== lg.standings[i])) out[id as LeagueId] = { ...lg, standings: next }
   }
-  return withDivisionStandings(leagues, fixed)
+  // ★自チームが見つからないときに既定の部（1部）へ落ちないこと。落ちると別のリーグを数え直し、
+  //   自分のリーグの点はいつまでも0のまま＝直したつもりで直らない
+  const myLeague = clubById(clubs, playerTeamId)?.leagueId as LeagueId | undefined
+  const mine = myLeague != null ? out[myLeague] : undefined
+  if (myLeague != null && mine) {
+    out[myLeague] = { ...mine, standings: divisionStandingsFromRaces(mine.standings as StandingRow[], mine.races) as SeasonStanding[] }
+  }
+  return out
 }
 
 /**
@@ -556,5 +628,21 @@ export function draftRoundOf(pickIndex: number, pickOrderLength: number): { roun
   }
 }
 
-/** 自分の部のチーム数。「リーグの規模」を日本の52クラブの数で見ないための入口。gameStore から移設 */
-export const myDivSize = (st: { clubs: readonly WorldClub[]; playerTeamId: string }) => DIVISION_SIZE[divisionOf(jpelClubById(st.clubs, st.playerTeamId))]
+/**
+ * 自分のリーグのクラブ数（日本の部も海外リーグも同じ）。「リーグの規模」を日本の52クラブの数で見ないための入口。
+ * ★以前は `divisionOf(自チーム)` の部の大きさで、海外クラブを指揮していると日本1部の20が出ていた
+ */
+export const myLeagueSize = (st: { clubs: readonly WorldClub[]; playerTeamId: string }): number => {
+  const leagueId = clubById(st.clubs, st.playerTeamId)?.leagueId as LeagueId | undefined
+  const n = leagueId ? clubsInLeague(st.clubs, leagueId).length : 0
+  return n > 0 ? n : DIVISION_SIZE[1]
+}
+
+/**
+ * リーグ内順位 → **ピラミッドの通し順位**（上に部がいくつあるか）。日本の部は `domesticThroughRank`、
+ * 部の無いリーグ（海外9）は上に部が無いのでリーグ内順位そのもの。カード報酬の順位の読み方はこれ1本
+ */
+export function leagueThroughRank(leagueId: LeagueId | string | null | undefined, rankInLeague: number): number {
+  const d = divisionOfLeague(leagueId as LeagueId)
+  return d != null ? domesticThroughRank(d, rankInLeague) : Math.max(1, rankInLeague)
+}

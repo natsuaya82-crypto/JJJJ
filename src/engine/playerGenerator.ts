@@ -8,6 +8,7 @@ import { SPEC_STRONG_STATS, faMarketSalary, STAT_CAP } from '../utils/playerUtil
 import { strHash } from '../utils/hash'
 import { SPECIALTIES } from '../utils/squadNeeds'
 import { buildNationalityBag } from '../data/nationTalent'
+import { clubCountryOf } from '../data/leagues'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は持たない
 import { clubMembersByClub } from '../utils/rosterSync'
 import { leagueRules } from '../data/leagueRules'
@@ -570,6 +571,38 @@ export function hashedGmName(clubId: string, country: string): string {
 // JPEL用の外国人名を生成する。usedNames と重複したらリトライする
 export function generateJpelForeignName(usedNames: Set<string>): { name: string; origin: string; nat: Nationality } {
   const pool = JPEL_FOREIGN_POOLS[rng(0, JPEL_FOREIGN_POOLS.length - 1)]
+  let picked = pickForeignName(pool)
+  let attempts = 0
+  while (usedNames.has(picked.name) && attempts < 60) {
+    picked = pickForeignName(pool)
+    attempts++
+  }
+  usedNames.add(picked.name)
+  return picked
+}
+
+/**
+ * **そのクラブの国の選手の名前・国籍・出身**（開幕の床・若手の補充で入る選手）。どのリーグのクラブも同じ形で、
+ * 日本のクラブなら日本の名前、ケニアのクラブならケニアの名前（オーナー・2026-09-26
+ * 「海外はその海外の国の選手が入る方が良くない？」「日本と海外関係ないでしょ？」）。
+ * 名前の表に無い国は `_default` の表から引く（国籍はその表の国になる）
+ */
+function homeIdentity(country: Nationality, usedNames: Set<string>): { name: string; origin: string; nat: Nationality } {
+  if (country === 'JPN') {
+    const origin = Math.random() < 0.6
+      ? UNIVERSITIES[rng(0, UNIVERSITIES.length - 1)]
+      : HIGHSCHOOLS[rng(0, HIGHSCHOOLS.length - 1)]
+    let name: string
+    let attempts = 0
+    do {
+      name = `${FAMILY_NAMES[rng(0, FAMILY_NAMES.length - 1)]} ${GIVEN_NAMES_MALE[rng(0, GIVEN_NAMES_MALE.length - 1)]}`
+      attempts++
+    } while (usedNames.has(name) && attempts < 60)
+    usedNames.add(name)
+    return { name, origin, nat: 'JPN' }
+  }
+  const pools = FOREIGN_LEAGUE_POOLS[country] ?? FOREIGN_LEAGUE_POOLS._default
+  const pool = pools[rng(0, pools.length - 1)]
   let picked = pickForeignName(pool)
   let attempts = 0
   while (usedNames.has(picked.name) && attempts < 60) {
@@ -1280,7 +1313,11 @@ function makeNewPlayersFor(
 ): Player[] {
   if (n <= 0) return []
   const made = generateCpuRosters([{ id: team.id, tier: tierOf(team) }], year).cpuPlayers.slice(0, n)
+  // 名前・国籍はそのクラブの国（homeIdentity）。どのリーグのクラブも同じ
+  const country = clubCountryOf(team) ?? 'JPN'
+  const usedNames = new Set<string>()
   return made.map((p, i) => {
+    const who = homeIdentity(country, usedNames)
     // 年齢は若手の帯（19〜22）。伸びしろを持たせるのは補充も開幕の床も同じ
     const age = 19 + (i % 4)
     const { ratings, potential } = buildRatingsForRank({
@@ -1289,6 +1326,8 @@ function makeNewPlayersFor(
     })
     const fresh: Player = {
       ...p,
+      name: who.name, origin: who.origin, nationality: who.nat,
+      ...(who.nat !== 'JPN' ? { foreignCategory: nationalityToForeignCategory(who.nat) } : {}),
       id: `${prefix}-${year}-${team.id}-${i}`,
       age, yearsPro: 0, draftYear: year, joinedYear: year,
       ratings, potential,
@@ -1542,8 +1581,10 @@ export function generateForeignLeaguePlayers(
           name: nameEntry.name,
           nameKana: '',
           age,
-          yearsPro: age - 22,
-          draftYear: year - (age - 22),
+          // ★22歳以下は0年目（`age - 22` のままだと負の年数になり、入った年＝draftYear が未来になって
+          //   新人王の候補に一度も入らなかった）
+          yearsPro: Math.max(0, age - 22),
+          draftYear: year - Math.max(0, age - 22),
           draftRound: null,
           draftPick: null,
           ratings,

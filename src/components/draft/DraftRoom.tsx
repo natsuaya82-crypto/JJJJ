@@ -15,11 +15,11 @@ import { TeamLogoSVG } from '../icons/Icons'
 import NumberDial from '../ui/NumberDial'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { audio } from '../../utils/audio'
-import { draftRoundOf, DRAFT_ROUNDS } from '../../utils/league'
+import { draftPickHolders, draftRoundOf, DRAFT_ROUNDS } from '../../utils/league'
 import { SpecChip } from '../player/PlayerChips'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
-import { clubById, jpelClubs, myClub } from '../../utils/world'
+import { clubById, myClub } from '../../utils/world'
 
 
 type SortKey = 'ovr' | 'potential' | 'age'
@@ -63,7 +63,8 @@ const SELECT_STYLE: React.CSSProperties = {
 
 export default function DraftRoom() {
   const { draftState, playerTeamId, clubs, players, cpuPick, playerPick, advanceDraft, currentSeason } = useGameStore()
-  const jpel = jpelClubs(clubs)
+  // ドラフトに関わるクラブ＝指名権を持てるクラブ（リーグの決まり `draftPicks`・utils/league の draftPickHolders）
+  const jpel = draftPickHolders(clubs)
   const longPress = usePlayerLongPress()
   const navigate = useNavigate()
   const adH = useAdHeight()

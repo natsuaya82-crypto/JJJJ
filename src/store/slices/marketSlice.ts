@@ -14,9 +14,9 @@ import { ROSTER_MAX, canReleaseFromRoster, canSignContract, teamRosterSize } fro
 import { type AcquisitionOffer, type ContractRequest, type ExpiredNegKind, type IncomingOffer, type Player, type TradeNegotiation, type TransferListing } from '../../types'
 import { MAJOR_NEWS_OVR, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
 import { tierLines, playerTierOf as playerTierFromLines } from '../../utils/playerTier'
-import { clubById, clubMap, isJpelLeague, jpelClubById, myClub, otherClubs, withMyClub, myLeagueRaces, leagueIdOfClub } from '../../utils/world'
+import { clubById, clubMap, myClub, otherClubs, withMyClub, myLeagueRaces, leagueIdOfClub } from '../../utils/world'
 import { payBetween } from '../../utils/clubMoney'
-import { bigClub, findClub } from '../../utils/clubs'
+import { bigClub, clubCountryOf, findClub, homeCountryOf, isAbroad } from '../../utils/clubs'
 import { withMorale } from '../../utils/condition'
 import { canOfferRenewal, canReNegotiate, contractTalkCtx, liveContractOf } from '../../utils/contractTalk'
 import { domesticThroughRankOfTeam, rankOfTeam, rankedStandings, seasonLeagueStandings, leagueStandingRows } from '../../utils/league'
@@ -284,8 +284,10 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
   destinationOf: (clubId, player) => {
     const state = get()
     const club = clubById(state.clubs, clubId)
-    // 日本のリーグのクラブか（見出しと「憧れの地域」の突き合わせだけに使う・いまの振る舞い）
-    const domestic = !!club && isJpelLeague(club.leagueId)
+    // 国をまたぐか（「憧れの地域」の突き合わせに使う）。基準はその選手のいまのクラブの国で、
+    // 日本を基準にしない（utils/clubs の isAbroad 1本）。選手が渡されないときは自チームの国
+    const home = player ? homeCountryOf(player, state.clubs) : clubCountryOf(myClub(state))
+    const domestic = !isAbroad(home, club)
     const tier = club ? tierOf(club) : tierOfClubId(clubId)
     const inEcl = (state.currentSeason.eclSeries?.participants ?? []).some(pt => pt.id === clubId)
     // 順位はそのクラブのリーグの順位表から引く（国内の部も海外も同じ。utils/world の leagueIdOfClub）
@@ -296,7 +298,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       const i = rows.findIndex(r => r.teamId === clubId)
       if (i >= 0) { leagueRank = i + 1; leagueSize = rows.length }
     }
-    // 地域（「憧れの地域」の突き合わせに使う）は海外クラブだけ持つ
+    // 地域（「憧れの地域」の突き合わせに使う）は国をまたぐときだけ見る
     const region: import('../../types').OverseasRegion | undefined = domestic ? undefined
       : regionOfLeague(club?.leagueId)
     return buildDestination(clubId, tier, state.players, { inEcl, leagueRank, leagueSize, isForeign: !domestic, region, player })
@@ -398,7 +400,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       return 'refused_by_player'
     }
     // 国内へ売るときだけ相手が日本のリーグに居ることを確かめる（いまの振る舞い）
-    if (!offer.fromForeign && !jpelClubById(state.clubs, offer.fromTeamId)) { dropOffer(); return 'invalid' }
+    if (!clubById(state.clubs, offer.fromTeamId)) { dropOffer(); return 'invalid' }
     // 成立後の後始末は finalizeSale 1本（国内・海外の違いもこの中）
     set(st => finalizeSale(st, offer, offer.offeredPrice))
     return 'sold'
@@ -1098,7 +1100,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
         until: state.currentSeason.year + yrs,
         years: yrs,
         myTeamId: state.playerTeamId,
-        toName: jpelClubById(state.clubs, toTeamId)?.shortName ?? '他クラブ' })
+        toName: clubById(state.clubs, toTeamId)?.shortName ?? '他クラブ' })
       if (!moved.ok) return state
       return {
         players: moved.players,

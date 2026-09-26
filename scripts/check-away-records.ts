@@ -1,6 +1,6 @@
 /**
  * ほかのリーグ（国内の他の部・海外）を**日付の順に**走らせたとき、
- *   ・走行記録から数え直した通算成績が、走らせながらためた集計と一致する
+ *   ・走行記録から数え直した通算成績が、選手に足した通算と一致する（旧い集計は積まない）
  *   ・自チームのリーグは1本も走らせない（本編で走るので二重になる）
  *   ・どのリーグの記録にも、そのリーグの順位表に載っているクラブしか混ざらない
  *   ・その日までの開催が全部走り、その日より後は1本も走らない
@@ -107,30 +107,23 @@ console.log('[3] 順位表は走行記録から数え直したものと同じ')
   check('全クラブの勝ち点が走行記録と一致', bad === 0, `${bad}クラブ`)
 }
 
-console.log('[4] 走行記録から数え直した通算成績 ＝ 走らせながらためた集計')
+console.log('[4] 通算成績は走行記録から数え直す（日本の部と海外で置き場所を分けた集計は積まない）')
 {
   const fromRecords = buildCareerCounts([out.season])
-  const agg = new Map<string, { races: number; wins: number }>()
-  for (const [pid, a] of Object.entries(out.season.awayAppearances ?? {})) agg.set(pid, { races: a.races, wins: a.wins })
-  for (const [pid, a] of Object.entries(out.season.foreignAppearances ?? {})) {
-    const cur = agg.get(pid) ?? { races: 0, wins: 0 }
-    agg.set(pid, { races: cur.races + a.races, wins: cur.wins + a.wins })
-  }
-  const ids = new Set([...agg.keys(), ...fromRecords.keys()])
-  const diffs: string[] = []
-  for (const id of ids) {
-    const a = agg.get(id) ?? { races: 0, wins: 0 }
-    const b = fromRecords.get(id) ?? { totalRaces: 0, segmentWins: 0 }
-    if (a.races !== b.totalRaces || a.wins !== b.segmentWins) diffs.push(`${id}: 集計 ${a.races}/${a.wins} ／ 記録 ${b.totalRaces}/${b.segmentWins}`)
-  }
-  console.log(`      走った選手 ${ids.size}人`)
+  // ★以前は国内の部＝awayAppearances、海外＝foreignAppearances に別々に積んでいた。
+  //   走行記録が12リーグ全部に残るので、もう積まない（オーナー・2026-09-26「日本とか関係ない」）
+  check('国内の部の集計（awayAppearances）を積んでいない', Object.keys(out.season.awayAppearances ?? {}).length === 0)
+  check('海外の集計（foreignAppearances）を積んでいない', Object.keys(out.season.foreignAppearances ?? {}).length === 0)
+  console.log(`      走った選手 ${fromRecords.size}人`)
   // ★空振り除け。走った選手が0人だと食い違いも0件になって緑になる
-  check('空振りしていない（走った選手がいる）', ids.size > 0)
-  check('出走・区間賞が1人も食い違わない', diffs.length === 0, diffs.slice(0, 3).join(' ／ '))
-  // 通算成績（選手に持たせている数）も同じだけ増えている
+  check('空振りしていない（走った選手がいる）', fromRecords.size > 0)
+  // 通算成績（選手に持たせている数）も走行記録と同じだけ増えている（日本の部の選手も海外の選手も）
   const before = new Map(players.map(p => [p.id, p.career.totalRaces]))
+  const beforeWins = new Map(players.map(p => [p.id, p.career.segmentWins]))
   const grew = out.players.filter(p => (p.career.totalRaces - (before.get(p.id) ?? 0)) !== (fromRecords.get(p.id)?.totalRaces ?? 0)).length
+  const grewWins = out.players.filter(p => (p.career.segmentWins - (beforeWins.get(p.id) ?? 0)) !== (fromRecords.get(p.id)?.segmentWins ?? 0)).length
   check('選手の通算出走も走行記録と同じだけ増えている', grew === 0, `${grew}人`)
+  check('選手の通算区間賞も走行記録と同じだけ増えている', grewWins === 0, `${grewWins}人`)
 }
 
 console.log('[5] 日付の順に走る（同じリーグの2戦目は1戦目のあと）')

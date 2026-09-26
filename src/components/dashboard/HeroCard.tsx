@@ -27,8 +27,8 @@ export default function HeroCard({ team, seasonYear, rank, totalRaces, completed
   const titles = useTeamHistory(team.id).titles
   // ★**1部の優勝だけ**を数える（オーナー判断・2026-08-14）。utils/teamHistory の1本
   const jpelTitles = topTitleCount(titles)
-  // 優勝回数は日本の部の順位表から数えている（utils/teamHistory）。部のリーグにいないクラブには数が無い
-  const countsTitles = divisionOfLeague(team.leagueId) != null
+  // 優勝回数は12リーグの順位表から数えている（utils/teamHistory）。見出しの字だけリーグで選ぶ
+  const titleLabel = divisionOfLeague(team.leagueId) != null ? 'JPEL優勝' : 'リーグ優勝'
   const moraleColor = avgMorale >= 75 ? C.green : avgMorale >= 50 ? C.gold : C.red
 
   return (
@@ -96,7 +96,7 @@ export default function HeroCard({ team, seasonYear, rank, totalRaces, completed
         borderTop: `1px solid ${alpha(C.border3, 0.6)}`, borderBottom: `1px solid ${alpha(C.border3, 0.6)}`,
       }}>
         {[
-          ...(countsTitles ? [{ label: 'JPEL優勝', value: `${jpelTitles}`, color: C.text }] : []),
+          { label: titleLabel, value: `${jpelTitles}`, color: C.text },
           { label: 'GM評判', value: `${gmRep}`, color: gmRep >= 70 ? C.green : gmRep >= 40 ? C.text : C.red },
           { label: '士気', value: `${avgMorale}`, color: moraleColor },
         ].map((item, i) => (

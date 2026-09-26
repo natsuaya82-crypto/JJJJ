@@ -4,7 +4,7 @@ import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { compareTitles, teamHistoriesOf, titleRows } from '../../utils/teamHistory'
 import { useClubIndex } from '../../lib/useClubIndex'
-import { clubRoutePath } from '../../utils/clubs'
+import { clubRoutePath, findClub } from '../../utils/clubs'
 import { makeTeamIdAt } from '../../utils/gmTenure'
 import type { Race } from '../../types'
 import { EVENT_LABEL, formatRaceTime } from '../../utils/eventTime'
@@ -15,10 +15,10 @@ import { NAT_LABEL } from '../../data/nationalities'
 import type { Nationality } from '../../types'
 import PlayerFace from '../player/PlayerFace'
 import { C, alpha, DIV_STAR, glassStyle, SAIRA, F } from '../../styles/tokens'
-import { DIVISION_LABEL, pointSeriesStandings, rankedStandings, seasonLeagueStandings } from '../../utils/league'
+import { pointSeriesStandings, rankedStandings, samePyramid, seasonLeagueStandings } from '../../utils/league'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
-import { jpelClubs, myLeagueRaces } from '../../utils/world'
+import { clubById, clubsWhere, myLeagueRaces } from '../../utils/world'
 
 
 type Category = 'jpel' | 'ecl' | 'waqual' | 'wamain' | 'reserve' | 'tt'
@@ -26,6 +26,7 @@ const OVERALL = '__overall__'   // 総合優勝を表す特別なraceName
 type RaceRef = { year: number; race: Race }
 type DistKey = 'd5000' | 'd10000' | 'half' | 'marathon'
 
+// jpel ＝「自分のリーグ」の大会。呼び名は自チームのリーグ（日本の部なら JPEL、海外ならそのリーグ名）
 const CAT_LABEL: Record<Category, string> = { jpel: 'JPEL', ecl: 'ECL', waqual: 'アジア予選', wamain: '世界選手権', reserve: 'リザーブ駅伝', tt: '記録会' }
 // 各大会の確立カラーに合わせる（JPEL=金 / ECL=赤 / アジア予選=ピンク / 世界選手権=紫 / リザーブ=青 / 記録会=緑）
 const CAT_COLOR: Record<Category, string> = { jpel: C.gold, ecl: C.red, waqual: C.pink, wamain: C.purple, reserve: C.blue, tt: C.green }
@@ -51,6 +52,8 @@ function rowStyle(hl = false, wide = false): React.CSSProperties {
 export default function ChampionsHistoryPage() {
   const navigate = useNavigate()
   const { clubs, players, currentSeason, pastSeasons, playerTeamId, gmTenures, openPlayerSheet, eventSeasonTops, worldRecords, japanRecords, removedPlayers } = useGameStore()
+  const myLeagueName = findClub(clubs, playerTeamId)?.leagueName ?? CAT_LABEL.jpel
+  const catLabel = (c: Category) => (c === 'jpel' ? myLeagueName : CAT_LABEL[c])
   // 監督は別のチームへ移れる。過去の年の「自チーム」印は、その年に指揮していたチームで付ける。
   // 今のチームで付けると、自分で獲った優勝から印が消え、移籍先が前に獲った優勝に印が付く（utils/gmTenure.ts）
   const teamIdAt = makeTeamIdAt(gmTenures, playerTeamId)
@@ -229,12 +232,12 @@ export default function ChampionsHistoryPage() {
                 : waEvent === 'ekiden' ? (year != null ? `${year}年 駅伝 — レースを選択` : '駅伝 — 年度を選択')
                 : waEvent != null ? (year != null ? `${year}年 結果` : '年度を選択')
                 : '世界選手権 — 種目を選択')
-              : raceName === OVERALL ? (year != null ? `${year}年 ${cat ? CAT_LABEL[cat] : ''} 総合順位` : `${cat ? CAT_LABEL[cat] : ''} 総合優勝`)
+              : raceName === OVERALL ? (year != null ? `${year}年 ${cat ? catLabel(cat) : ''} 総合順位` : `${cat ? catLabel(cat) : ''} 総合優勝`)
               : cat === 'tt'
               ? (ttDist != null ? `${EVENT_LABEL[ttDist]} — 年度を選択` : '記録会 — 種目を選択')
               : year != null ? `${year}年 ${raceName} — 順位表`
               : raceName != null ? `${raceName} — 年度を選択`
-              : cat != null ? `${CAT_LABEL[cat]} — 大会を選択`
+              : cat != null ? `${catLabel(cat)} — 大会を選択`
               : 'カテゴリを選択'}
           </div>
         )}
@@ -246,15 +249,16 @@ export default function ChampionsHistoryPage() {
         const histories = teamHistoriesOf(pastSeasons)
         // ★**部ごとに分ける**（オーナー・2026-08-12「部ごとです」）。合計で並べると
         //   「3部で4回優勝」が「1部で1回優勝」より上に来る。並べ方は compareTitles 1本
-        // JPEL の優勝は日本のリーグのクラブ
-        const champRanking = jpelClubs(clubs)
+        // 自分のリーグとつながっているリーグ（日本なら1部〜3部、海外ならそのリーグ）のクラブ（utils/league の samePyramid）
+        const myLeague = clubById(clubs, playerTeamId)?.leagueId
+        const champRanking = clubsWhere(clubs, c => samePyramid(c.leagueId, myLeague))
           .map(t => ({ team: t, titles: histories[t.id]?.titles ?? {} }))
           .filter(c => titleRows(c.titles).length > 0)
           .sort((a, b) => compareTitles(a.titles, b.titles))
         if (champRanking.length === 0) return null
         return (
           <div style={{ padding: '0 16px 12px' }}>
-            <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.gold, letterSpacing: 3, fontWeight: 900, marginBottom: 8 }}>JPEL 歴代優勝回数</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.gold, letterSpacing: 3, fontWeight: 900, marginBottom: 8 }}>{myLeagueName} 歴代優勝回数</div>
             <div style={panelStyle(C.gold)}>
               {champRanking.map(({ team, titles }, i, arr) => {
                 const isMe = team.id === playerTeamId
@@ -270,10 +274,10 @@ export default function ChampionsHistoryPage() {
                     {/* ★**部ごとに出す**。1部★2 2部★1 のように、どの部での優勝かが分かる形 */}
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       {titleRows(titles).map(r => (
-                        <div key={r.division} style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
-                          <span style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>{DIVISION_LABEL[r.division]}</span>
-                          <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, color: DIV_STAR[r.division], textShadow: `0 0 5px ${alpha(DIV_STAR[r.division], 0.4)}` }}>★</span>
-                          <span style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900, color: DIV_STAR[r.division] }}>{r.count}</span>
+                        <div key={String(r.key)} style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+                          <span style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>{r.label}</span>
+                          <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, color: DIV_STAR[r.tier], textShadow: `0 0 5px ${alpha(DIV_STAR[r.tier], 0.4)}` }}>★</span>
+                          <span style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900, color: DIV_STAR[r.tier] }}>{r.count}</span>
                         </div>
                       ))}
                     </div>
@@ -294,7 +298,7 @@ export default function ChampionsHistoryPage() {
               justifyContent: 'flex-start', gap: 12, textAlign: 'left',
               padding: '14px 16px', color: C.text, fontFamily: SAIRA,
             }} onClick={() => setCat(c)}>
-              <span style={{ fontSize: F.title, fontWeight: 900, color: CAT_COLOR[c], flex: 1 }}>{CAT_LABEL[c]}</span>
+              <span style={{ fontSize: F.title, fontWeight: 900, color: CAT_COLOR[c], flex: 1 }}>{catLabel(c)}</span>
               <span style={{ color: C.textGhost, fontSize: F.titleLg }}>›</span>
             </GlassButton>
           ))}
@@ -304,7 +308,7 @@ export default function ChampionsHistoryPage() {
       {/* 総合優勝: 年度別の年間王者一覧（年度タップでその年の総合順位表へ） */}
       {cat != null && cat !== 'tt' && cat !== 'waqual' && cat !== 'wamain' && raceName === OVERALL && year == null && (
         <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: GOLD, paddingLeft: 2, marginBottom: 2 }}>{CAT_LABEL[cat]} 総合優勝</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: GOLD, paddingLeft: 2, marginBottom: 2 }}>{catLabel(cat)} 総合優勝</div>
           {overallChampYears(cat).length === 0 ? (
             <div style={{ textAlign: 'center', color: C.textDim, fontSize: F.bodyLg, padding: '30px 0' }}>まだ記録がありません</div>
           ) : overallChampYears(cat).map(({ year: y, champ }) => (
@@ -328,7 +332,7 @@ export default function ChampionsHistoryPage() {
         const rows = ps ? overallStandingsFor(cat, ps) : []
         return (
           <div style={{ padding: '0 14px' }}>
-            <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: GOLD, paddingLeft: 2, marginBottom: 8 }}>{year}年 {CAT_LABEL[cat]} 総合順位</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: GOLD, paddingLeft: 2, marginBottom: 8 }}>{year}年 {catLabel(cat)} 総合順位</div>
             <div style={{overflow: 'hidden', border: `1px solid ${C.border}` }}>
               {rows.map((r, i, arr) => (
                 <button key={r.teamId} onClick={() => goToTeam(r.teamId)} style={{

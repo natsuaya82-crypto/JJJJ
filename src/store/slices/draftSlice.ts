@@ -5,7 +5,7 @@ import { playRateOf, prevSeasonOf } from '../../utils/playRate'
 import { tradeValueCtxOf } from '../marketOps'
 import { draftPickValue } from '../../data/economy'
 import { SEASON_2027_RACES, generateIndividualEvents } from '../../data/races'
-import { ROSTER_MAX, rosterCapOf, teamRosterSize } from '../../data/rosterRules'
+import { DEV_PROSPECT_ID_PREFIX, ROSTER_MAX, rosterCapOf, teamRosterSize } from '../../data/rosterRules'
 import { pickCpuFreeAgents } from '../../engine/cpuMarket'
 import { CPU_TICK_TRANSFERS, runCpuLoans, runCpuReleases, runCpuTrades } from '../../engine/cpuOffseason'
 import { runTransferMarket } from '../../engine/transferMarket'
@@ -299,7 +299,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
         // 15%は外国人。国籍だけ「外国」ではなく、実際の国籍・出身国・現地名を持たせる
         const foreign = Math.random() < 0.15 ? generateJpelForeignName(usedForeignNames) : null
         return {
-          id: `dev_${state.currentSeason.year}_${i}`,
+          id: `${DEV_PROSPECT_ID_PREFIX}${state.currentSeason.year}_${i}`,
           name: foreign ? foreign.name : NAMES[i % NAMES.length],
           age: 18 + Math.floor(Math.random() * 4),
           origin: foreign ? foreign.origin : CITIES[Math.floor(Math.random() * CITIES.length)],
@@ -654,10 +654,9 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     // ★国内クラブと海外クラブをまとめて渡す。以前は海外だけ endSeason の中に別実装があり、
     //   「在籍20人を割ったクラブの救済」しか見ていなかった（必要かどうかを見ていない）。
     //   海外クラブのロスター上限も国内と同じ ROSTER_MAX
-    // ★海外クラブは**市場を回す前の姿**（資金）で渡している（いまの振る舞い）。
-    //   国内は市場・トレード・レンタルのあとの姿
-    const clubsForFa = mapClubs(clubsAfterCpuTransfer, c =>
-      isJpelLeague(c.leagueId) ? c : (clubById(state.clubs, c.id) ?? c))
+    // ★どのリーグのクラブも**市場・トレード・レンタルのあとの姿**（資金）で渡す。
+    //   以前は海外クラブだけ市場を回す前の資金を見ていた
+    const clubsForFa = clubsAfterCpuTransfer
     const cpuSignings = pickCpuFreeAgents({
       players: playersAfterCpuTransfer,
       clubs: clubsForFa,

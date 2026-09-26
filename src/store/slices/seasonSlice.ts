@@ -8,7 +8,7 @@ import { ACHIEVEMENT_JEWELS, checkSeasonAchievements, podiumJewels, selectSeason
 import { buildEclParticipants, buildEclRaces } from '../../engine/eclSeries'
 import { growPlayer } from '../../engine/growth'
 import { generateDraftPool, generateForeignLeaguePlayers, refreshForeignLeagues, refreshDomesticYouth, fillRostersForSeason } from '../../engine/playerGenerator'
-import { type Division, type GmOffer, type Player, SPECIALTY_LABELS, type SeasonAward, type TransferRecord } from '../../types'
+import { type GmOffer, type Player, SPECIALTY_LABELS, type SeasonAward, type TransferRecord } from '../../types'
 import { archiveSeason } from '../../utils/archiveSeason'
 import { computeSeasonAwards } from '../../utils/awards'
 import { processContractExpiry } from '../../engine/contractExpiry'
@@ -27,13 +27,13 @@ import { settleBonusClauses } from '../../engine/bonusPayout'
 import { computeSeasonBudgets } from '../../engine/seasonBudget'
 import { tierBudget } from '../../utils/clubTier'
 import { appraiseGmInvite, gmInviteFeeFor } from '../../utils/gmInvite'
-import { clubById, clubIdSet, clubMap, clubsWhere, divisionLeagueId, isJpelLeague, jpelClubs, mapClubs, myClub, myLeagueRaces, otherClubs, withAddedClubs, withMyClub } from '../../utils/world'
+import { clubById, clubIdSet, clubMap, clubsWhere, isJpelLeague, jpelClubs, mapClubs, myClub, myLeagueId, myLeagueRaces, otherClubs, withAddedClubs, withMyClub } from '../../utils/world'
 import { MORALE_DEFAULT, setMorale } from '../../utils/condition'
 import { ALL_DOMESTIC_TEAMS, backfillDomesticClubs } from '../../utils/domesticClubs'
 import { buildOffer, canResignAsGm, makeGmOffer, resignOffers } from '../../utils/gmOffer'
 import { managedTeamIds, startTenure } from '../../utils/gmTenure'
-import { DIVISIONS, TOP_DIVISION, divisionOf, divisionStandings, draftPickHolders, myDivSize, newSeasonStandings, rankOfTeam, seasonLeagueStandings, divisionLeagues } from '../../utils/league'
-import { divisionChampionHeadline, divisionsFoundedHeadline, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline } from '../../utils/newsItems'
+import { standingsByLeague, titleKeyOf, titleTier, TOP_DIVISION, draftPickHolders, myLeagueSize, newSeasonStandings, rankOfTeam, seasonLeagueStandings, divisionLeagues } from '../../utils/league'
+import { leagueChampionHeadline, divisionsFoundedHeadline, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline } from '../../utils/newsItems'
 import { comparePlayers } from '../../utils/playerSort'
 import { faMarketSalary, newContractYears, ovr, packForeignApps, perfOf } from '../../utils/playerUtils'
 import { movePlayer } from '../../utils/movePlayer'
@@ -159,7 +159,7 @@ function applyGmMove(state: GameStore, offer: GmOffer, inviteId?: string): Parti
       // 52を渡すと「52チーム中◯位」の目標になり、16チームの部では達成不能になる
       objectives: selectSeasonObjectives(
         state.rivalTeamId === offer.teamId ? false : !!state.rivalTeamId,
-        offer.divisionSize ?? myDivSize(state),
+        offer.divisionSize ?? myLeagueSize(state),
         offer.prevRank,
       ),
       // ★日程は差し替えない。自チームの日程は「自チームが順位表に載っているリーグ」から引く
@@ -186,7 +186,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
     // これで endSeason 側で引き継いだ視察済みプールがドラフトに使われ、シーズン中の視察は常に新しい代になる。
     const freshScoutPool = generateDraftPool(state.currentSeason.year + 1, new Set(players.map(pl => pl.name)))
     if ((state.currentSeason.objectives ?? []).length === 0) {
-      const firstObjectives = selectSeasonObjectives(!!state.rivalTeamId, myDivSize(state))
+      const firstObjectives = selectSeasonObjectives(!!state.rivalTeamId, myLeagueSize(state))
       return { players, currentSeason: { ...state.currentSeason, phase: 'regular', objectives: firstObjectives, scoutProspects: freshScoutPool } }
     }
     return { players, currentSeason: { ...state.currentSeason, phase: 'regular', scoutProspects: freshScoutPool } }
@@ -196,7 +196,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
   initObjectivesIfEmpty: () => set(state => {
     const objs = state.currentSeason.objectives
     if (objs.length === 0) {
-      return { currentSeason: { ...state.currentSeason, objectives: selectSeasonObjectives(!!state.rivalTeamId, myDivSize(state)) } }
+      return { currentSeason: { ...state.currentSeason, objectives: selectSeasonObjectives(!!state.rivalTeamId, myLeagueSize(state)) } }
     }
     const hasJewels = objs.some(o => (o.rewardJewels ?? 0) > 0)
     if (!hasJewels) {
@@ -386,6 +386,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
 
       // Morale streak system: apply morale bonus/penalty to player team based on season finish
       const myFinalRank = rankOfTeam(seasonLeagueStandings(state.currentSeason, state.playerTeamId), state.playerTeamId)
+      const myLeagueNow = myLeagueId(state.currentSeason, state.playerTeamId)
       const myDivRows = seasonLeagueStandings(state.currentSeason, state.playerTeamId)
 
       // 来季の格と昇降格は engine/promotion 1本
@@ -430,15 +431,11 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const nextSchedules = drawSeasonSchedules(newYear)
       const myNextDivision = nextDivisionOf(myClub(state) ?? { id: state.playerTeamId })
       const newRaces = nextSchedules[myNextDivision] ?? generateSeasonRaces(newYear)
-      // 王者は「部ごと」。52チームを得点で並べた先頭ではない（部ごとにレース数が違う）。
-      // 表に出すのは1部の王者だが、2部・3部の優勝も同じ形でニュースに出す
-      const championOfDiv = (d: Division) => {
-        const top = divisionStandings(state.currentSeason, d)[0]
-        return clubById(state.clubs, top?.teamId)
-      }
-      const divisionChampionNews = DIVISIONS.map(d => {
-        const c = championOfDiv(d)
-        return c ? { date: `${state.currentSeason.year}-10-25`, headline: divisionChampionHeadline(state.currentSeason.year, d, c.name), category: 'race' as const, relatedIds: [] } : null
+      // 王者は「リーグごと」（12リーグ。日本の部も海外も同じ形でニュースに出す）。
+      // 52チームを得点で並べた先頭ではない（部ごとにレース数が違う）
+      const divisionChampionNews = standingsByLeague(state.currentSeason).map(({ leagueId, rows }) => {
+        const c = clubById(state.clubs, rows[0]?.teamId)
+        return c ? { date: `${state.currentSeason.year}-10-25`, headline: leagueChampionHeadline(state.currentSeason.year, leagueId, c.name), category: 'race' as const, relatedIds: [] } : null
       }).filter((x): x is NonNullable<typeof x> => !!x)
       // 翌季のプレシーズンで指名される新人はその年(newYear)に加入するので draftYear=newYear にする。
       // （+1 にすると加入年より1年多い年度で記録され、歴代ドラフトが1年ズレる）
@@ -493,7 +490,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // 目標の達成判定・来季の目標・GM評判は engine/seasonObjectives 1本
       const objs = settleSeasonObjectives({
         currentSeason: state.currentSeason, playerTeamId: state.playerTeamId, finalRank,
-        playerBudgetAtSeasonEnd, hasRival: !!state.rivalTeamId, divSize: myDivSize(state), gmRep: state.gmRep })
+        playerBudgetAtSeasonEnd, hasRival: !!state.rivalTeamId, divSize: myLeagueSize(state), gmRep: state.gmRep })
       const newlyCompletedObjs = objs.newlyCompletedObjs
       const objBonus = objs.objBonus
       const objBudgetBonus = objs.objBudgetBonus
@@ -509,7 +506,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const playerTeamRosterIds = squadIdsOf(playersAfterRetire, state.playerTeamId)
 
       // League MVP・新人王（選出ルールは utils/awards.ts に一元化。画面表示側と同じ実装を使う）
-      const newSeasonAward: SeasonAward = computeSeasonAwards(myLeagueRaces(state.currentSeason, state.playerTeamId), grownPlayers, state.currentSeason.year, divisionOf(myClub(state)))
+      const newSeasonAward: SeasonAward = computeSeasonAwards(myLeagueRaces(state.currentSeason, state.playerTeamId), grownPlayers, state.currentSeason.year, myLeagueId(state.currentSeason, state.playerTeamId))
 
       // 記録会のシーズン別トップ10は engine/eventSeasonTops 1本（全結果は保存時に捨てるため）
       const newEventTops = collectEventSeasonTops({ currentSeason: state.currentSeason, players: state.players })
@@ -637,8 +634,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
 
       // 今季の記録を保存する形に整える（出場0の選手も埋める）のは engine/seasonArchivePrep 1本
       const arcPrep = prepareSeasonArchive({
-        currentSeason: state.currentSeason, before: state.players, clubs: state.clubs,
-        playerTeamId: state.playerTeamId })
+        currentSeason: state.currentSeason, before: state.players, clubs: state.clubs })
       const archivedForeignApps = arcPrep.archivedForeignApps
       const zeroAppearances = arcPrep.zeroAppearances
 
@@ -708,12 +704,12 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         // 退団（FA流出・移籍）と海外移籍（クラブ間・日本↔海外）を移籍履歴に記録（移籍ページの日付・移籍金表示用）
         transferHistory: [...(state.transferHistory ?? []), ...departureRecords].slice(-800),
         jewels: state.jewels + objJewels + seasonAchievementJewels + rankJewels,
-        // 優勝トロフィー：**JPEL 1部優勝で1個**（ECL優勝ぶんは competitionSlice が足す）。
-        // ★1部だけ。2部・3部の優勝では出ない（オーナー・2026-08-20「1部優勝で1個でしょ」）
-        //   部を `divisionOf` で読まないこと——部のリーグに居ないクラブ（海外）も1部と読むので、
-        //   海外リーグの優勝でも出てしまう。見るのは所属リーグそのもの
+        // 優勝トロフィー：**頂点のリーグの優勝で1個**（日本1部と、部の無い海外リーグ。ECL優勝ぶんは competitionSlice が足す）。
+        // ★2部・3部の優勝では出ない（オーナー・2026-08-20「1部優勝で1個でしょ」）。
+        //   段は utils/league の titleTier 1本（海外リーグは下に部が無いので頂点。オーナー・2026-09-26
+        //   「日本だけになってるやつは全部バグ」）
         trophies: (state.trophies ?? 0)
-          + (myClub(state)?.leagueId === divisionLeagueId(TOP_DIVISION) && myFinalRank === 1 ? 1 : 0),
+          + (myLeagueNow != null && titleTier(titleKeyOf(myLeagueNow)) === TOP_DIVISION && myFinalRank === 1 ? 1 : 0),
         // 最終戦ぶんがまだ未表示なので上書きせず足す
         jewelGains: [...(state.jewelGains ?? []), ...seasonJewelGains].slice(-20),
         gmRep: newGmRep,
@@ -771,8 +767,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
           // 初年度は前年成績が無いためこの経路でしか生成されない＝1年目は開催なし
           eclSeries: (() => {
             const parts = buildEclParticipants({
-              // ECLの枠は1部の上位2クラブ
-              standings: divisionStandings(state.currentSeason, TOP_DIVISION),
+              // ECLの枠は頂点のリーグ（日本1部・海外9）それぞれの上位2クラブ（走り終えた今季の順位表）
               clubs: refreshedClubs,
               playerTeamId: state.playerTeamId,
               seasonLeagues: state.currentSeason.leagues,

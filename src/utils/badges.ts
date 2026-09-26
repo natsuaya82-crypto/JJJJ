@@ -3,7 +3,7 @@
 // 記録はすべて「現在の保持者」基準：他選手に抜かれたらパッチも自然に外れる。
 import type { Player, GameState, SegmentRecord, SeasonAward, EclHistoryEntry, EventDistKey, Nationality } from '../types'
 import { EVENT_DISTANCES, EVENT_LABEL } from './eventTime'
-import { DIVISION_LABEL } from './league'
+import { leagueLabelOf } from './league'
 
 export type PlayerBadge = {
   key: string      // 一意キー（Player.displayBadge に保存する値）
@@ -24,7 +24,7 @@ export type PlayerBadge = {
 //   1人の選手が同じ年に2つの部でMVPになることは無い（在籍は1つ）ので、
 //   選手ごとに見れば年だけで一意のまま。
 function awardDivLabel(a: SeasonAward): string {
-  return a.division != null ? ` ${DIVISION_LABEL[a.division]}` : ''
+  return a.leagueId != null ? ` ${leagueLabelOf(a.leagueId)}` : ''
 }
 
 // 距離の呼び名も並びも `utils/eventTime` 1本（ここに表を持たない）

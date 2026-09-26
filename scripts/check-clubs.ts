@@ -138,7 +138,7 @@ console.log('\n[8] 同じIDが二度出たら国内を優先（並びは国内�
 
 console.log('\n[9] 記録室の国内判定（今までの動きが変わっていないこと）')
 {
-  const isDom = makeIsDomestic(clubs)
+  const isDom = makeIsDomestic(clubs, 'jpel-1')
   const P = (extra: Partial<Player>) => ({ id: 'p', name: 'p', teamId: '', status: 'active', ...extra }) as unknown as Player
 
   check('国内チームの現役は国内', isDom(P({ teamId: 't1' })))

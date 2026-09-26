@@ -1,15 +1,20 @@
 // 年度表彰（MVP・新人王）の選出ルール（単一の実装を endSeason と画面表示の両方で使う）。
-// - **部ごとに選ぶ**（1部MVP・2部MVP・3部MVP）。走る相手も走る本数も部ごとに違うので、
-//   3部の選手と1部の選手を同じ土俵で並べても意味が無い
+// - **リーグごとに選ぶ**（12リーグ。日本の1部・2部・3部も海外9も同じ形）。走る相手も
+//   走る本数もリーグごとに違うので、混ぜて並べても意味が無い（オーナー・2026-09-26
+//   「mvpはそれぞれのリーグごとに作ろう」）
 // - 対象は1軍駅伝のみ
 // - 資格: 6レース以上出場
 // - 選出: 平均区間順位が最良 → タイブレークは 区間賞数 → 出走数
-// - 新人王: その年のドラフト指名選手のみ。6戦該当ゼロなら3戦以上に緩和、それでもゼロなら該当なし
+// - 新人王: **その年に世界に入った選手**（`draftYear === 年`＝ドラフト・若手の補充・海外の補充・開幕の床）。
+//   ただし育成選手（`signDevProspect`・IDの頭が DEV_PROSPECT_ID_PREFIX）は外す。3戦以上。該当ゼロなら該当なし。★以前は「ドラフト指名選手」だけで、ドラフトは日本1部にしか無いので
+//   2部・3部と海外9リーグには新人王の候補がそもそも居なかった
 //
 // 表彰はセーブに貯めず、保存してあるレース結果から毎回選び直す（下の seasonAwardsOf）。
 // 選び方は上のルールのまま変えていないので、これまでの受賞者がそのまま出る。
-import type { Division, LeagueId, Nationality, Player, Race, SeasonAward } from '../types'
-import { DIVISIONS, leagueRaces, divisionLeagueId } from './league'
+import type { LeagueId, Nationality, Player, Race, SeasonAward } from '../types'
+import { leagueRaces } from './league'
+import { WORLD_LEAGUES } from '../data/leagues'
+import { DEV_PROSPECT_ID_PREFIX } from '../data/rosterRules'
 
 type Stat = { races: number; rankSum: number; segWins: number }
 /** 選手ID → その年の出走数・区間順位の合計・区間賞数 */
@@ -38,7 +43,7 @@ function awardsFromStats(
   players: Player[],
   year: number,
   nameOf: (id: string) => string | undefined,
-  division?: Division,
+  leagueId?: LeagueId,
 ): SeasonAward {
   const pickBest = (candidates: string[], minRaces: number) => {
     const rows = candidates
@@ -49,7 +54,7 @@ function awardsFromStats(
     return rows[0] ?? null
   }
   const mvpPick = pickBest([...stats.keys()], 6)
-  const rookieIds = players.filter(p => p.draftYear === year && p.draftRound != null).map(p => p.id)
+  const rookieIds = players.filter(p => p.draftYear === year && !p.id.startsWith(DEV_PROSPECT_ID_PREFIX)).map(p => p.id)
   // 新人王は**3戦以上**（MVPの6戦とは別の線。上の 6 は触らないこと）。
   //
   // ★以前は `pickBest(rookieIds, 6) ?? pickBest(rookieIds, 3)` と、6戦の網を先に当てて
@@ -63,26 +68,27 @@ function awardsFromStats(
   const rookieName = rookiePick ? nameOf(rookiePick.id) : undefined
   return {
     year,
-    ...(division != null ? { division } : {}),
+    ...(leagueId != null ? { leagueId } : {}),
     ...(mvpPick && mvpName ? { mvpId: mvpPick.id, mvpName, mvpAvgRank: Math.round(mvpPick.avg * 10) / 10 } : {}),
     ...(rookiePick && rookieName ? { rookieId: rookiePick.id, rookieName, rookieAvgRank: Math.round(rookiePick.avg * 10) / 10 } : {}),
   }
 }
 
-export function computeSeasonAwards(races: Race[], players: Player[], year: number, division?: Division): SeasonAward {
+export function computeSeasonAwards(races: Race[], players: Player[], year: number, leagueId?: LeagueId): SeasonAward {
   const byId = new Map(players.map(p => [p.id, p]))
-  return awardsFromStats(seasonStats(races), players, year, id => byId.get(id)?.name, division)
+  return awardsFromStats(seasonStats(races), players, year, id => byId.get(id)?.name, leagueId)
 }
 
 /**
- * その年のレースを部ごとに分ける。**表彰を部ごとに選ぶための唯一の入口。**
- * 部ごとの日程と結果は、その部のリーグ（`Season.leagues`）に入っている。
+ * その年のレースをリーグごとに分ける。**表彰をリーグごとに選ぶための唯一の入口。**
+ * 並びは12リーグの並び（日本1部・2部・3部 → 海外9）。
  */
-export function racesByDivision(s: SeasonRacesLike): { division?: Division; races: Race[] }[] {
-  return DIVISIONS
-    .map(d => ({ division: d as Division, races: leagueRaces(s, divisionLeagueId(d)) }))
+export function racesByLeague(s: SeasonRacesLike): { leagueId: LeagueId; races: Race[] }[] {
+  return WORLD_LEAGUES
+    .map(l => ({ leagueId: l.id, races: leagueRaces(s, l.id) }))
     .filter(b => b.races.length > 0)
 }
+const LEAGUE_ORDER = new Map(WORLD_LEAGUES.map((l, i) => [l.id, i]))
 
 // ── 歴代の表彰（保存してあるレース結果から作り直す） ──────────────────
 //
@@ -99,19 +105,19 @@ export function racesByDivision(s: SeasonRacesLike): { division?: Division; race
 /** 過去シーズンから必要な物だけを受ける */
 export type SeasonRacesLike = {
   year: number
-  /** リーグごとの日程（結果つき）。表彰は国内の部のぶんだけ見る */
+  /** リーグごとの日程（結果つき）。表彰は12リーグ全部で選ぶ */
   leagues?: Readonly<Record<LeagueId, { races: Race[] }>>
 }
 
-type StatsByYear = { year: number; division?: Division; stats: SeasonStats }[]
+type StatsByYear = { year: number; leagueId: LeagueId; stats: SeasonStats }[]
 
 let statsCache: { deps: unknown; value: StatsByYear } | null = null
 function statsByYear(pastSeasons: SeasonRacesLike[]): StatsByYear {
   if (statsCache && statsCache.deps === pastSeasons) return statsCache.value
   const value = pastSeasons
     .filter(Boolean)
-    .flatMap(s => racesByDivision(s).map(b => ({ year: s.year, division: b.division, stats: seasonStats(b.races) })))
-    .sort((a, b) => a.year - b.year || (a.division ?? 9) - (b.division ?? 9))
+    .flatMap(s => racesByLeague(s).map(b => ({ year: s.year, leagueId: b.leagueId, stats: seasonStats(b.races) })))
+    .sort((a, b) => a.year - b.year || (LEAGUE_ORDER.get(a.leagueId) ?? 99) - (LEAGUE_ORDER.get(b.leagueId) ?? 99))
   statsCache = { deps: pastSeasons, value }
   return value
 }
@@ -133,7 +139,7 @@ export function seasonAwardsOf(
   if (hit && hit.deps.length === deps.length && hit.deps.every((d, i) => d === deps[i])) return hit.value
   const byId = new Map(players.map(p => [p.id, p]))
   const nameOf = (id: string) => byId.get(id)?.name ?? removedPlayers?.[id]?.[0]
-  const value = byYear.map(({ year, division, stats }) => awardsFromStats(stats, players, year, nameOf, division))
+  const value = byYear.map(({ year, leagueId, stats }) => awardsFromStats(stats, players, year, nameOf, leagueId))
   // 中身が前と同じなら前の配列をそのまま返す（画面の作り直しを防ぐ）
   const stable = hit && JSON.stringify(hit.value) === JSON.stringify(value) ? hit.value : value
   awardsCache = { deps, value: stable }

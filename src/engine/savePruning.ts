@@ -19,8 +19,7 @@ import { eclHistoryOf } from '../utils/eclHistory'
 import { movePlayer } from '../utils/movePlayer'
 import { segmentRecordsOf } from '../utils/segmentRecords'
 import type { GameState, Nationality, Player } from '../types'
-import { jpelClubs } from '../utils/world'
-import { DIVISIONS, divisionLeagueId, leagueRaces } from '../utils/league'
+import { mapClubs } from '../utils/world'
 
 export type PruneResult = {
   players: Player[]
@@ -70,7 +69,7 @@ export function pruneSaveData(args: {
   //    残すのは画面のどこかで名前が出る可能性がある選手だけ：
   //      ・一度でも自チームに所属した
   //      ・区間賞を取ったことがある（通算区間賞ランキング）
-  //      ・区間記録／記録会の歴代記録（世界記録・日本記録・種目別トップ10・チーム歴代記録）の保持者
+  //      ・区間記録／記録会の歴代記録（世界記録・日本記録・種目別トップ10・指揮したクラブのチーム歴代記録）の保持者
   //      ・駅伝代表に選ばれたことがある（全出場国の代表20人ぶんが worldRepresentatives に入る）
   //      ・MVP・新人王・ECL優勝メンバー・ECL MVP
   //      ・ドラフト指名歴がある（歴代ドラフトの一覧が歯抜けになる）
@@ -87,9 +86,6 @@ export function pruneSaveData(args: {
     for (const co of rec.coHolders ?? []) protectedIds.add(co.playerId)
   }
   for (const g of st.eventSeasonTops ?? []) for (const t of g.top) protectedIds.add(t.playerId)
-  for (const t of jpelClubs(st.clubs)) {
-    for (const list of Object.values(t.eventRecords ?? {})) for (const r of list ?? []) protectedIds.add(r.playerId)
-  }
   // 年度MVP・新人王はセーブに持たず、過去シーズンのレース結果から選び直す（utils/awards.ts）
   for (const a of seasonAwardsOf(st.pastSeasons, st.players, st.removedPlayers)) {
     if (a.mvpId) protectedIds.add(a.mvpId)
@@ -122,7 +118,8 @@ export function pruneSaveData(args: {
   // ここを今のチームだけにすると、移籍した瞬間に前のチームのOBが消える
   const myTeamIdsEver = new Set<string>([st.playerTeamId, ...(st.gmTenures ?? []).map(t => t.teamId)])
   for (const season of [...st.pastSeasons, st.currentSeason]) {
-    for (const race of [...DIVISIONS.flatMap(d => leagueRaces(season, divisionLeagueId(d))), ...(season.secondTeamRaces ?? [])]) {
+    // 走ったレースは12リーグ全部から拾う（海外クラブを指揮した年もある）
+    for (const race of [...Object.values(season.leagues ?? {}).flatMap(l => l.races ?? []), ...(season.secondTeamRaces ?? [])]) {
       if (!race.results) continue
       for (const sr of race.results.segmentResults) {
         for (const r of sr.runners) if (myTeamIdsEver.has(r.teamId)) protectedIds.add(r.playerId)
@@ -130,6 +127,13 @@ export function pruneSaveData(args: {
     }
     for (const z of season.zeroAppearances ?? []) if (myTeamIdsEver.has(z.teamId)) protectedIds.add(z.playerId)
   }
+  // チーム歴代記録（記録会）はどのリーグのクラブも持つ（232クラブ全部）。名前と国籍は記録に焼き込んで
+  // あるので、表示のために選手を残す必要は無い。**残すのは指揮したクラブの記録の保持者だけ**
+  // （選手詳細を開けるように）。全クラブぶんを守ると、世界の選手のほとんどが一生消えなくなる
+  mapClubs(st.clubs, t => {
+    if (!myTeamIdsEver.has(t.id)) return
+    for (const list of Object.values(t.eventRecords ?? {})) for (const r of list ?? []) protectedIds.add(r.playerId)
+  })
   const isWorthKeeping = (p: Player) =>
     p.wasPlayerTeam === true
     || p.isMyPlayer === true

@@ -5,8 +5,8 @@
 //
 // ★乱数は引数で受ける（既定は Math.random）。呼ぶ順は切り出し前と同じ:
 //   ① 3本の見出しが共有する pick を1回、② 首脳陣の評価が出るときだけもう1回。
-import type { Division, Race, RaceResults, Player, Season, WorldClub } from '../types'
-import { DIVISION_SIZE, rankOfTeam, seasonLeagueStandings } from '../utils/league'
+import type { LeagueId, Race, RaceResults, Player, Season, WorldClub } from '../types'
+import { rankOfTeam, seasonLeagueStandings } from '../utils/league'
 import { type NewsItem, boardEvalHeadline, myFinishHeadline, raceWinnerHeadline, rivalHeadline, segmentWinHeadline } from '../utils/newsItems'
 import { clubById, myLeagueRaces } from '../utils/world'
 
@@ -16,12 +16,15 @@ export function buildRaceNews(params: {
   clubs: WorldClub[]
   players: Player[]
   playerTeamId: string
-  myDivision: Division
+  /** 自チームのリーグ（見出しに添える呼び名） */
+  myLeagueId: LeagueId | undefined
+  /** 自チームのリーグのクラブ数（フロントの評価の線） */
+  leagueSize: number
   currentSeason: Season
   rivalTeamId: string | null
   rng?: () => number
 }): NewsItem[] {
-  const { race, results, clubs, players, playerTeamId, myDivision, currentSeason, rivalTeamId, rng = Math.random } = params
+  const { race, results, clubs, players, playerTeamId, myLeagueId, leagueSize, currentSeason, rivalTeamId, rng = Math.random } = params
 
   const winnerTeam = clubById(clubs, results.teamRankings[0]?.teamId)
   const playerResult = results.teamRankings.find(r => r.teamId === playerTeamId)
@@ -40,14 +43,14 @@ export function buildRaceNews(params: {
     {
       date: race.date,
       headline: raceWinnerHeadline({
-        division: myDivision, raceName: race.name,
+        leagueId: myLeagueId, raceName: race.name,
         winnerName: winnerTeam?.name ?? '',
         points: results.teamRankings[0]?.positionPoints, pick: rng01 }),
       category: 'race' as const,
       relatedIds: [race.id] },
     ...(playerRank > 0 ? [{
       date: race.date,
-      headline: myFinishHeadline({ division: myDivision, raceName: race.name, rank: playerRank, rankSuffix, pick: rng01 }),
+      headline: myFinishHeadline({ leagueId: myLeagueId, raceName: race.name, rank: playerRank, rankSuffix, pick: rng01 }),
       category: 'race' as const,
       relatedIds: [race.id] }] : []),
     ...(mySegWinPlayer ? [{
@@ -64,9 +67,9 @@ export function buildRaceNews(params: {
     if (raceIndex >= 3 && raceIndex % 3 === 0) {
       const sortedStandingsNow = seasonLeagueStandings(currentSeason, playerTeamId)
       const myCurrentRank = rankOfTeam(sortedStandingsNow, playerTeamId)
-      // 「うちは弱い」の基準は**自分の部の中で**見る。52で割ると3部(16)は
+      // 「うちは弱い」の基準は**自分のリーグの中で**見る。52で割ると3部(16)は
       // 最下位でも18位以内に入ってしまい、誰も不満を言わなくなる
-      const expectedRank = Math.ceil(DIVISION_SIZE[myDivision] / 3)
+      const expectedRank = Math.ceil(leagueSize / 3)
       const remainingRaces = totalRaces - raceIndex
       const satisfied = myCurrentRank <= expectedRank
       if (satisfied || myCurrentRank > expectedRank + 4) {

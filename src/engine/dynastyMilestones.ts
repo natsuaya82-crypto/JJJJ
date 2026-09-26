@@ -9,9 +9,8 @@
 //   - 節目の条件も文面も `utils/newsItems` の `dynastyHeadlines` 1本。ここに書かないこと
 import { dynastyHeadlines, type NewsItem } from '../utils/newsItems'
 import { gmCareerTotals, gmSeasonRanks } from '../utils/gmTenure'
-import { divisionOf } from '../utils/league'
+import { myLeagueSize } from '../utils/league'
 import type { GameState, Player, WorldClub } from '../types'
-import { myClub } from '../utils/world'
 
 export type DynastyResult = {
   /** 監督の通算優勝回数 */
@@ -53,7 +52,7 @@ export function computeDynastyMilestones(args: {
 
   const news: NewsItem[] = dynastyHeadlines({
     finalRank, championships: totalChamps, seasons: totalSeasons, currentStreak: curStreak,
-    division: divisionOf(myClub({ clubs, playerTeamId })),
+    leagueSize: myLeagueSize({ clubs, playerTeamId }),
     segWinsAfter, segWinsBefore }).map(headline => ({ date: `${currentSeason.year}-10-26`, headline, category: 'race' as const, relatedIds: [] }))
 
   return { totalChamps, totalSeasons, curStreak, news }
