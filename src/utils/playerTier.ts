@@ -1,5 +1,5 @@
 import type { ClubTier } from './clubTier'
-import { effectiveOvr } from './foreignClubProfile'
+import { effectiveOvr } from './playerUtils'
 import type { Player } from '../types'
 
 // ============================================================================

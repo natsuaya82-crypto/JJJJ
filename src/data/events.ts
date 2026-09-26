@@ -63,11 +63,6 @@ export function activeEvents(today: string): GameEvent[] {
   return EVENTS.filter(e => e.from <= today && today <= e.to)
 }
 
-/** そのイベントが開催中か */
-export function isEventActive(id: string, today: string): boolean {
-  return activeEvents(today).some(e => e.id === id)
-}
-
 /**
  * いまの合成の大成功確率。**画面はこれを呼ぶ（0.05 と書かない）。**
  * 広告視聴・GMパスの確約はイベントとは別で、呼ぶ側が確定させる。

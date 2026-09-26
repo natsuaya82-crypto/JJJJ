@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useRef, useEffect } from 'react'
 import { clubSalaryTotal } from '../../utils/clubMoney'
 import { useStickyTab } from '../../lib/useStickyTab'
 import { comparePlayers } from '../../utils/playerSort'
@@ -229,8 +229,6 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
   if (eclTitles > 0) titles.push({ label: 'ECL優勝', count: eclTitles, color: C.green })
 
   // TEAM INFO（本拠地行 + 創設年/優勝回数/最高順位）
-  // 海外クラブも国内チームと同じ作りにする。本拠地・創設年・監督名はクラブIDから
-  // 毎回同じ値を出す（utils/foreignClubProfile.ts）
   // 本拠地・創設年・監督名は国内も海外も同じ入口（utils/clubs）。
   // 保存されていればその値、無ければクラブIDから決め打ち
   const anyClub = (isForeign ? club! : domesticTeam!) as { id: string; shortName: string; city?: string; founded?: number; gmName?: string; country?: string }

@@ -18,7 +18,7 @@ import { saveSlotSuffix } from './saveSlot'
 // 端末に紐づくもの（課金の権利など）はスロットをまたいで共通。セーブの中に置かない
 import { deviceAdsRemoved, setDeviceAdsRemoved, deviceTwitterIntroSeen, setDeviceTwitterIntroSeen } from './deviceFlags'
 import { setSaveHealth } from './saveHealth'
-import type { GameState, Player, Team, WorldClub, RaceResults, IncomingOffer, TeamRole, FacilityKey, CardRarity, CardStatKey, TrainingCard, Ratings, Race, Nationality, Specialty } from '../types'
+import type { GameState, Player, Team, WorldClub, RaceResults, IncomingOffer, FacilityKey, CardRarity, CardStatKey, TrainingCard, Ratings, Race, Nationality, Specialty } from '../types'
 import type { ISim } from '../engine/interactiveRace'
 import { clubsWhere, mapClubs } from '../utils/world'
 import { leagueRules } from '../data/leagueRules'

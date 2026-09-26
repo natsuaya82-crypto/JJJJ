@@ -647,9 +647,8 @@ export type GrowthEntry = {
  * リーグのID。**日程・結果・順位表はこれで引く**（`Season.leagues`）。
  *
  * 国内は部ごとに1本（`jpel-1` / `jpel-2` / `jpel-3`・作るのは `utils/league` の
- * `divisionLeagueId`）。海外は `ForeignLeague.id` そのもの。
- * `utils/clubs` の `JPEL_LEAGUE_ID`（'jpel'）は**クラブの所属先**（国内の52クラブ全部が 'jpel'）で、
- * シーズンの入れ物のキーではない。部ごとに日程も順位表も違うので、入れ物は部の数だけ要る。
+ * `divisionLeagueId`）。海外は `data/leagues` のリーグIDそのもの。クラブの所属も同じID
+ *（`club.leagueId`）で、部ごとに日程も順位表も違うので、入れ物は部の数だけ要る。
  */
 export type LeagueId = string
 

@@ -16,7 +16,6 @@ import { ovr } from '../utils/playerUtils'
 
 import { runBackgroundRace } from './backgroundRace'
 import { worldRace, worldRaceName } from '../utils/worldCourses'
-import { RUNNING_SLOTS } from '../data/rosterRules'
 // コースの呼び名は地域ごと（中身は同じ）。アメリカ予選が「大阪カップ」にならないようにする
 import { COURSE_REGION_BY_CONT } from '../data/courseNames'
 
@@ -511,43 +510,6 @@ export type WAMeetResult = {
   individuals: WAIndividualResult[]
   ekiden: WAEkidenPlacing[]
   totals: WANationTotal[]
-}
-
-// 個人種目：参加標準を突破した各国の選手を集め、当日タイムで順位。
-function runIndividual(players: Player[], nats: Nationality[], ev: WAEvent, year: number): WAIndividualResult {
-  const entries: { nat: Nationality; p: Player; t: number }[] = []
-  for (const nat of nats) {
-    for (const e of individualEntrants(players, nat, ev, year)) {
-      entries.push({ nat, p: e.player, t: raceTime(e.timeSec) })
-    }
-  }
-  entries.sort((a, b) => a.t - b.t)
-  const placings: EventPlacing[] = entries.map((e, i) => ({ nat: e.nat, playerId: e.p.id, playerName: e.p.name, timeSec: e.t, rank: i + 1 }))
-  return { event: ev, placings }
-}
-
-// 駅伝：各国の駅伝代表（AI選抜20 or 手動）から上位7人の総合力で国別タイムスコア。個人種目スターは除外。
-function runEkiden(players: Player[], nats: Nationality[], year: number, manual?: Partial<Record<Nationality, string[]>>): WAEkidenPlacing[] {
-  const byId = new Map(players.map(p => [p.id, p]))
-  const rows: WAEkidenPlacing[] = []
-  for (const nat of nats) {
-    const manualIds = manual?.[nat]
-    let squad: Player[]
-    if (manualIds && manualIds.length > 0) {
-      squad = manualIds.map(id => byId.get(id)).filter((p): p is Player => !!p && p.status !== 'retired')
-    } else {
-      const cands = ekidenCandidates(players, nat, year)
-      const stars = individualStarIds(players, nat, year)
-      squad = autoSelectEkiden(cands, stars, 20)
-    }
-    const legs = squad.slice(0, RUNNING_SLOTS)   // 走れる人数は data/rosterRules 1本
-    // 7人の距離スコア合計に当日ブレ。高いほど速い→順位は降順。
-    const score = legs.reduce((s, p) => s + distanceScore(p, year) * (1 + (rnd() * 0.08 - 0.04)), 0)
-    rows.push({ nat, timeScore: score, rank: 0, runnerIds: legs.map(p => p.id) })
-  }
-  rows.sort((a, b) => b.timeScore - a.timeScore)
-  rows.forEach((r, i) => { r.rank = i + 1 })
-  return rows
 }
 
 // メダル・入賞から得点を積む

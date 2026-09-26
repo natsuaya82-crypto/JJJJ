@@ -1,5 +1,5 @@
 import type { SeasonStanding, Division, LeagueId } from '../types'
-import { DIVISIONS, TOP_DIVISION, divisionInSeason, rankedStandings, seasonLeagueStandings, rankOfTeam, standingsByDivision } from './league'
+import { DIVISIONS, TOP_DIVISION, divisionInSeason, seasonLeagueStandings, rankOfTeam, standingsByDivision } from './league'
 import { makeTeamIdAt } from './gmTenure'
 import type { GmTenure } from '../types'
 

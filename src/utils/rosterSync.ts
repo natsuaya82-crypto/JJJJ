@@ -68,13 +68,6 @@ export function clubIndexOf(players: readonly Player[]): Map<string, Player[]> {
   return index
 }
 
-// そのクラブに所属する選手ID。海外クラブの名簿(旧 playerIds)の代わりに使う
-export function clubMemberIds(players: Player[], clubId: string): string[] {
-  const ids: string[] = []
-  for (const p of players) if (belongsToClub(p, clubId)) ids.push(p.id)
-  return ids
-}
-
 // クラブID → 所属選手IDの一覧。海外は180クラブあるので、まとめて1回で作る
 export function clubMembersByClub(players: Player[]): Map<string, string[]> {
   const byClub = new Map<string, string[]>()

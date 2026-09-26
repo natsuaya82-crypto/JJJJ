@@ -92,16 +92,9 @@ export function leagueStandingRows(
   return leagueId == null ? [] : season?.leagues?.[leagueId]?.standings ?? []
 }
 
-/** そのシーズンの全リーグの日程を1本に（国内3部＋海外）。区間記録・通算を数える側が使う */
-export function allLeagueRaces(
-  season: { leagues?: Readonly<Record<LeagueId, Pick<LeagueSeason, 'races'>>> } | null | undefined,
-): Race[] {
-  return Object.values(season?.leagues ?? {}).flatMap(l => l.races ?? [])
-}
-
 /**
  * 部ごとの日程と順位表から、国内3部ぶんのリーグを作る。**作る場所はここ1本。**
- * 海外リーグは `engine/leagueDay` の `withForeignLeagues` が足す。
+ * 海外リーグは `engine/leagueDay` の `withForeignSchedules` が足す。
  */
 export function divisionLeagues(
   schedules: Partial<Record<Division, Race[]>>,

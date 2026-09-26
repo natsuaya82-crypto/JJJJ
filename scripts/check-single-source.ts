@@ -120,8 +120,8 @@ const RULES: Rule[] = [
   {
     name: '年齢調整OVRの写し',
     pattern: /age\s*-\s*3[0-9]\)?\s*\*\s*3/,
-    allow: ['src/utils/foreignClubProfile.ts'],
-    fix: 'foreignClubProfile.ts の effectiveOvr を使う',
+    allow: ['src/utils/playerUtils.ts'],
+    fix: 'utils/playerUtils.ts の effectiveOvr を使う',
   },
   {
     name: 'ロスター上限の数え直し',

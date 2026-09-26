@@ -7,11 +7,10 @@
 //   以前はここだけ非売しか見ておらず、海外挑戦を承認した選手にも打診が来ていた。
 // ★乱数は引数で受ける（既定は Math.random）。呼ぶ順は切り出し前と同じで、
 //   「既に打診があるなら抽選もしない」短絡もそのまま。
-import { effectiveOvr } from '../utils/foreignClubProfile'
 import type { AITradeOffer, Player, Season, WorldClub } from '../types'
 import { AI_OFFER_GAIN_MAX, AI_OFFER_GAIN_MIN, priceOf } from '../utils/tradeValue'
 import { canBePoached, eligibilityCtx } from '../utils/transferEligibility'
-import { ovr } from '../utils/playerUtils'
+import { effectiveOvr, ovr } from '../utils/playerUtils'
 import { cpuSpecialtyNeeds } from './cpuMarket'
 import { clubById, clubIds, myLeagueRaces, otherClubs } from '../utils/world'
 

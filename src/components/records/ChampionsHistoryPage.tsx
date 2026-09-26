@@ -6,7 +6,7 @@ import { compareTitles, teamHistoriesOf, titleRows } from '../../utils/teamHisto
 import { useClubIndex } from '../../lib/useClubIndex'
 import { clubRoutePath } from '../../utils/clubs'
 import { makeTeamIdAt } from '../../utils/gmTenure'
-import type { Division, Race } from '../../types'
+import type { Race } from '../../types'
 import { EVENT_LABEL, formatRaceTime } from '../../utils/eventTime'
 import { playerLabel } from '../../utils/playerUtils'
 import { TeamLogoSVG } from '../icons/Icons'

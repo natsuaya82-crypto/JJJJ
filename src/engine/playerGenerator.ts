@@ -975,17 +975,6 @@ export function generateDraftPool(year: number, avoidNames?: Set<string>): Playe
   return players
 }
 
-// 年俸から選手ランクを決める（calculateRookieSalaryの帯の中間を境界にする）
-export function rankForSalary(s: number): Rank {
-  if (s >= 36_000_000) return 'SSS'
-  if (s >= 28_000_000) return 'SS'
-  if (s >= 20_000_000) return 'S'
-  if (s >= 14_000_000) return 'A'
-  if (s >= 10_000_000) return 'B'
-  if (s >= 7_000_000) return 'C'
-  return 'D'
-}
-
 export function generateCpuRosters(
   rosterClubs: readonly { id: string; initialRank?: number; tier?: ClubTier }[],
   year: number,

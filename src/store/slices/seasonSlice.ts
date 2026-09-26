@@ -17,7 +17,6 @@ import { computeDynastyMilestones } from '../../engine/dynastyMilestones'
 import { collectEventSeasonTops } from '../../engine/eventSeasonTops'
 import { settleSeasonObjectives } from '../../engine/seasonObjectives'
 import { collectDepartures } from '../../engine/departureNotices'
-import { processForeignSeason } from '../../engine/foreignSeason'
 import { prepareSeasonArchive } from '../../engine/seasonArchivePrep'
 import { pruneSaveData } from '../../engine/savePruning'
 import { issueDraftPicks } from '../../engine/draftPicks'
@@ -609,34 +608,28 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         if (j > 0) seasonJewelGains.push({ label: `実績「${a.name}」`, amount: j })
       }
 
-      // 海外リーグの年度処理（優勝+1・格の更新・来季予算・海外内の移籍・日本↔海外の移籍）は
-      // engine/foreignSeason 1本。**国内と扱いを分けないこと**という決まりもそちら側
-      const fSeason = processForeignSeason({
-        players: playersWithLoanHistory,
-        leagues: state.currentSeason.leagues,
-        // 国内2・3部の若手も、海外の新加入とまったく同じ口から世界へ入れる
-        // （入れ方を2本に増やさない）
-        // ★入れ口は1本（CLAUDE.md「2本目の入口を作らないこと」）。自チームの救済ぶんもここへ混ぜる
-        // ★自チームの下限の救済はここではなく `startRegularSeason`（開幕の直前）。
-        //   ここで足すと、契約満了と引退を当てる**前**の人数を見ることになり、
-        //   いちばん普通の経路（満了で割る）でちょうど発火しない
-        newForeignPlayers: [...foreignRefresh.newPlayers, ...domesticYouth],
-        removedForeignPlayerIds, clubs: clubsWithCleanedPicks,
-        playerTeamId: state.playerTeamId, newYear })
-      // ★移籍はここでは起きません（`engine/transferMarket.ts` の1本を `beginSeasonDraft` で回す）。
-      //   ここは格と来季予算を更新し終えた世界を受け取るだけ
-      const market = fSeason
+      // 来季の世界の選手。旧セーブの大再編で退場する選手を外し、新しく入る選手を足す。
+      // ★入れ口は1本（CLAUDE.md「選手が世界に入ってくる口」）。海外の補充も2部・3部の若手も
+      //   ここで一緒に足す（入れ方を2本に増やさない）。
+      // ★下限の救済はここではなく `startRegularSeason`（開幕の直前）。ここで足すと、
+      //   契約満了と引退を当てる**前**の人数を見ることになり、いちばん普通の経路（満了で割る）で
+      //   ちょうど発火しない
+      // ★移籍はここでは起きません（`engine/transferMarket.ts` の1本を `beginSeasonDraft` で回す）
+      const nextWorldPlayers = [
+        ...(removedForeignPlayerIds.size > 0 ? playersWithLoanHistory.filter(p => !removedForeignPlayerIds.has(p.id)) : playersWithLoanHistory),
+        ...foreignRefresh.newPlayers, ...domesticYouth,
+      ]
 
       // セーブの肥大化対策（在籍上限の整理・引退選手の軽量化・出番の無い選手の削除）は
       // engine/savePruning 1本。**実績のある選手は絶対に消さない**という決まりもそちら側
       const pruned = pruneSaveData({
-        players: market.players, state, newYear })
+        players: nextWorldPlayers, state, newYear })
       const cleanedPlayers = pruned.players
       const removedPlayers = pruned.removedPlayers
 
       // 退団のお知らせ（黙って消えるのを防ぐ）は engine/departureNotices 1本
       const dep = collectDepartures({
-        before: state.players, cleanedPlayers, clubs: market.clubs,
+        before: state.players, cleanedPlayers, clubs: clubsWithCleanedPicks,
         playerTeamId: state.playerTeamId, year: state.currentSeason.year, newYear })
       const departureNotices = dep.notices
       const departureRecords = dep.records
@@ -661,7 +654,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       //   選んだクラブの元の部（1部・2部）へ引き戻される。**いまの自チームだけでは足りない**——
       //   監督が移った瞬間に前のクラブが元の部へ戻り、1年で部を2つ飛ぶ「昇格」になる
       const backfilled = backfillDomesticClubs({
-        clubs: market.clubs, players: cleanedPlayers, year: newYear,
+        clubs: clubsWithCleanedPicks, players: cleanedPlayers, year: newYear,
         pinnedTeamIds: managedTeamIds(state.gmTenures, state.playerTeamId) })
       const syncedClubs = backfilled.clubs
       const playersWithBackfill = backfilled.players
@@ -782,7 +775,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
               clubs: refreshedClubs,
               playerTeamId: state.playerTeamId,
               seasonLeagues: state.currentSeason.leagues,
-              players: market.players })
+              players: nextWorldPlayers })
             if (parts.length < 4) return undefined
             return {
               participants: parts,

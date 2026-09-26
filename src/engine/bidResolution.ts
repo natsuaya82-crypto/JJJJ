@@ -11,7 +11,7 @@
 import type { ClubTier } from '../utils/clubTier'
 import type { ArchivedSeason, ExpiredNegKind, ExpiredNegotiation, Player, Season, TransferBid, TransferListing, WorldClub } from '../types'
 import { playRateOf, prevSeasonOf } from '../utils/playRate'
-import { resolveBid, type BidContext } from '../utils/transferBid'
+import { resolveBid } from '../utils/transferBid'
 import { rivalClubsFor } from '../utils/transferRivals'
 import type { Destination } from '../utils/transferDecision'
 

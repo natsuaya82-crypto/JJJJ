@@ -6,13 +6,13 @@ import { tierOf, type ClubTier, type TieredTeam } from './clubTier'
 // ■なぜ作ったのか（実際にあった3通り）
 //   自チーム   … Team.facilities（自分で建てる。保存され、効果もある）
 //   国内CPU   … utils/domesticClubs の initialFacilityLevel（初期順位で1〜4の決め打ち）
-//   海外クラブ … utils/foreignClubProfile の foreignClubFacilities
+//   海外クラブ … foreignClubFacilities（いまは消した）
 //                **クラブIDのハッシュから作った飾り**。保存も成長もせず、何にも効いていない。
 //                画面には Lv4/Lv3 と出るのに、中身は無かった。
 //   同じ「そのクラブの施設はどれくらいか」に答えが3つあり、しかも2つは嘘だった。
 //
 // ■いまの決まり
-//   自チーム以外（国内CPU・海外）の施設レベルは**格から決まる**。
+//   自チーム以外の施設レベルは**格から決まる**。
 //   格1が最上（Lv5）、格20が最下（Lv1）。予算も成長上限もスポンサーも格から降りてくるので、
 //   施設だけ別の物差しにする理由がない。自チームだけは自分で建てる（そこが遊びなので）。
 //

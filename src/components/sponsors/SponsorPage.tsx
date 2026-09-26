@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { SPONSOR_SLOTS } from '../../data/sponsors'
 import { useStickyTab } from '../../lib/useStickyTab'
 import PageHeader from '../ui/PageHeader'

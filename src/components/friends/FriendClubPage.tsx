@@ -13,7 +13,7 @@ import { CLUB_LOGOS, CLUB_LOGO_DEFAULT, clubLogoSrc } from '../../data/clubLogos
 import { formatCode, offlineDetail, listFriends, listSent, sendRequest, SEND_RESULT_TEXT, relativeTime } from '../../lib/friendsApi'
 import {
   CLUB_MAX, JOIN_TYPE_LABEL, searchClubs, myClub, myClubRequests, createClub, joinClub,
-  cancelClubRequest, clubPreview, listClubRequests, approveClubRequest, rejectClubRequest,
+  cancelClubRequest, listClubRequests, approveClubRequest, rejectClubRequest,
   leaveClub, kickClubMember, updateClub, setClubRole, CLUB_ADMIN_MAX,
   CLUB_PHRASES, CLUB_REACTIONS, clubReactions, reactClubPost, CLUB_REQ_CAP, CLUB_REQ_STATS, clubFeed, postClubRequest,
   CLUB_TEXT_MAX, postClubText, postClubRoom,

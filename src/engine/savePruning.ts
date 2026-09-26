@@ -14,7 +14,6 @@
 //   - **人数上限は `ROSTER_MAX` 1本。** 30 と書かないこと
 //   - 引退そのものは `movePlayer` に任せる。ここでやるのはデータ削りだけ
 //   - 乱数を引かない
-import { ROSTER_MAX } from '../data/rosterRules'
 import { seasonAwardsOf } from '../utils/awards'
 import { eclHistoryOf } from '../utils/eclHistory'
 import { movePlayer } from '../utils/movePlayer'

@@ -14,7 +14,7 @@
 //     （借り物・引退の話・海外承認・退団予定・更新ロック・フリー接触中をまとめて見る）
 //   - 要求額は「市場価値 × 性格」。**旧仕様の『現年俸×1.2の自動昇給』は廃止のまま。**
 //     走っていない選手は減額しか要求できない
-//   - 移籍希望はここでは作らない（レース進行時の `generateTransferWishes`）
+//   - 移籍希望はここでは作らない（レース進行時の `engine/playerWishes` の `generatePlayerWishes`）
 import { roundSalary } from '../data/economy'
 import { canRequestRenewal, contractTalkCtx, hasContractTalk } from '../utils/contractTalk'
 import { strHash } from '../utils/hash'
