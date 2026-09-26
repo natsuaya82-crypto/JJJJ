@@ -352,7 +352,8 @@ console.log('\n[20] 「その選手はいくらか」の材料も1本（今季�
   check('`perfOf` が自分の部の日程で数えていない',
     !/export function perfOf\([\s\S]{0,400}seasonPerfProfile\([^)]*currentSeason\.races/.test(code))
   const perfCallers = (code.match(/(?<!function )perfOf\(/g) ?? []).length
-  check('`perfOf` を呼ぶのは7か所', perfCallers === 7, `${perfCallers}か所`)
+  // 呼び出しの数（2026-09-26 に呼ばれていなかった signForeignPlayer を消して 7 → 6）
+  check('`perfOf` を呼ぶのは6か所', perfCallers === 6, `${perfCallers}か所`)
 }
 
 console.log('')
