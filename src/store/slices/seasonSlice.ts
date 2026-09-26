@@ -11,7 +11,7 @@ import { generateDraftPool, generateForeignLeaguePlayers, refreshForeignLeagues,
 import { type GmOffer, type Player, SPECIALTY_LABELS, type SeasonAward, type TransferRecord } from '../../types'
 import { archiveSeason } from '../../utils/archiveSeason'
 import { computeSeasonAwards } from '../../utils/awards'
-import { processContractExpiry } from '../../engine/contractExpiry'
+import { processContractExpiry, settleZeroContracts } from '../../engine/contractExpiry'
 import { applySeasonCareerRecords } from '../../engine/careerRecords'
 import { computeDynastyMilestones } from '../../engine/dynastyMilestones'
 import { collectEventSeasonTops } from '../../engine/eventSeasonTops'
@@ -137,7 +137,8 @@ function applyGmMove(state: GameStore, offer: GmOffer, inviteId?: string): Parti
   return {
     playerTeamId: offer.teamId,
     clubs,
-    players,
+    // 連れて来た選手の契約が残り0年なら1年足す（endSeason と同じ settleZeroContracts 1本）
+    players: settleZeroContracts(players, offer.teamId, offer.year),
     gmOffers: [],
     // 予約は使い切る（残すと毎年ここへ来る）
     pendingGmMove: null,
@@ -692,7 +693,8 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       })
 
       const next: Partial<GameStore> = {
-        players: playersWithBackfill,
+        // 残り0年のまま居残る選手を片付ける（engine/contractExpiry の settleZeroContracts 1本）
+        players: settleZeroContracts(playersWithBackfill, state.playerTeamId, newYear),
         removedPlayers,
         clubs: syncedClubs,
         // 1件でも複数でも同じ入れ物（退任したときは3件まで一度に届く）

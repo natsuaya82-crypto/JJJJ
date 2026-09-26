@@ -74,12 +74,11 @@ export function buildMessages(
   }
 
   if (!contractReq) {
-    if (months < 12) {
-      // 満了済み（yearsLeft=0）だと months が負になる。「残り-1ヶ月」と出るバグの修正
+    // ★残り0年のまま居る選手は居ない（engine/contractExpiry の settleZeroContracts が1年足す。
+    //   オーナー・2026-09-26）ので、満了済みを催促する文は持たない
+    if (months > 0 && months < 12) {
       // 残り月数はレースごとに変わる。kind を付けて「同じ催促」として扱い、増やさず書き換える
-      msgs.push({ from: 'player', kind: 'contract_remind', text: months <= 0
-        ? `契約が切れたままになっています。今後どうなるのか気になっています。`
-        : `来シーズンの契約についてなのですが、まだ何も連絡がなくて。残り${months}ヶ月が気になっています。` })
+      msgs.push({ from: 'player', kind: 'contract_remind', text: `来シーズンの契約についてなのですが、まだ何も連絡がなくて。残り${months}ヶ月が気になっています。` })
     }
     return msgs
   }

@@ -9,6 +9,8 @@
 //   - **レンタル中の選手は契約満了の対象にしない。** 満了は返却後に保有元で改めて処理する。
 //     ここで拾うと「残り1年の選手を2年レンタル」したときに1年目の終わりで FA 化し、
 //     借り手からも保有元からも消える（2年契約が1年で消える）
+//     ★それでも残り0年のまま居残る選手は、来季の頭に `settleZeroContracts`（下）が片付ける
+//     （自チーム＝1年足す／それ以外＝レンタルでもFA。オーナー・2026-09-26）
 //   - **国内も海外も同じに扱う**（2026-09-15）。★以前は「対象は国内クラブ所属だけ」でした。
 //     理由は「海外の名簿は海外リーグ側が持っているので、ここで FA にするとクラブには
 //     残ったまま teamId だけ空になる」でしたが、**その前提はもうありません**——
@@ -82,4 +84,32 @@ export function processContractExpiry(args: {
   for (const p of loanReturns) runFA(p.id, p.loan!.ownerTeamId)
 
   return { expiredIds, players, undecidedIds }
+}
+
+/**
+ * **契約が残り0年のままクラブに居る選手を片付ける**（オーナー・2026-09-26
+ * 「0年でチャット出るくらいなら勝手に一年足してくれ。それ以外は問答無用で消してくれ」）。
+ *
+ * 満了（上の `processContractExpiry`）をくぐって残り0年のまま在籍する道が2つある。
+ *   ・監督について来た選手（`applyGmMove`。満了でFAになったあとに連れて行く）
+ *   ・レンタル中に契約が切れた選手（レンタル中は満了の対象外）
+ * どちらもここ1本で片付ける。
+ *   ・自チームに居る（チャットに出る）選手 … 残り1年を足す
+ *   ・それ以外 … レンタルでも問答無用でFA
+ */
+/** 自チームの残り0年の選手に足す年数（オーナー「勝手に一年足してくれ」） */
+const EXTEND_ZERO_YEARS = 1
+
+export function settleZeroContracts(players: Player[], playerTeamId: string, year: number): Player[] {
+  let out = players
+  for (const p of players) {
+    if (p.contract.yearsLeft > 0 || !p.teamId || p.status === 'retired') continue
+    if (p.teamId === playerTeamId) {
+      out = out.map(q => q.id === p.id ? { ...q, contract: { ...q.contract, yearsLeft: q.contract.yearsLeft + EXTEND_ZERO_YEARS, faEligibleYear: year + EXTEND_ZERO_YEARS } } : q)
+      continue
+    }
+    const m = movePlayer({ players: out, clubs: [] }, p.id, '', { year })
+    if (m.ok) out = m.players
+  }
+  return out
 }
