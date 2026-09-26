@@ -7,8 +7,8 @@ import type { LeagueId } from '../types'
 //
 // ■この表を data/leagues から分けている理由
 //   data/leagues は海外180クラブの初期データ（data/foreignLeagues）を読み込むので、
-//   `utils/league` がそちらを import すると、レート戦の Edge Function（`src/lib/ratedTick.ts`
-//   を1枚にまとめたもの）にクラブのデータが丸ごと乗る（実測 65KB → 110KB）。
+//   `utils/league` がそちらを import すると、引いた先にクラブのデータが丸ごと乗る
+//   （当時のレート戦の Edge Function で実測 65KB → 110KB。ランクマッチは 2026-09-26 に削除）。
 // ============================================================================
 
 /** そのリーグの決まり */

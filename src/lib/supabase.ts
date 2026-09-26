@@ -38,7 +38,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
  * 画面（フレンド・走友会・申請・オンライン対戦・設定のブロック一覧）も、
  * 例外の名前（`FriendsOffline` / `RoomsOffline`）も、全部ここから引く。
  * 置き場所を通信の土台に置いてあるのは、オンラインの窓口
- * （`friendsApi` / `roomsApi` / `clubsApi` / `moderationApi` / `ratedApi`）が
+ * （`friendsApi` / `roomsApi` / `clubsApi` / `moderationApi`）が
  * どれもこのファイルを通っているため。
  *
  * ★以前は同じ字が **11ファイル・30か所**に手書きされていた。1行しか出さない所と

@@ -69,7 +69,8 @@ console.log('\n[2] 相手の logoId を作る口が全部 remoteLogoId を通る
   //   走友会そのもののロゴはさらに別（normalizeClubLogoId）。
   const OK_CALL = /remoteLogoId\(|defaultLogoIdFor\(|normalizeClubLogoId\(/
   const users = files.filter(f => f.path !== 'src/data/logoPresets.ts' && /remoteLogoId\(/.test(f.src))
-  check('remoteLogoId を通しているファイルが5つある', users.length === 5,
+  // 4つ（2026-09-26 にランクマッチの ratedApi を消して 5 → 4）
+  check('remoteLogoId を通しているファイルが4つある', users.length === 4,
     `${users.length}: ${users.map(f => f.path.split('/').pop()).join(', ')}`)
   for (const f of users) {
     const made = f.src.split('\n').filter(l =>
@@ -98,7 +99,6 @@ console.log('\n[4] 相手を出す画面は logoId を渡している')
   // サーバーから読んだ相手（`userId` を持つ行）を出す画面の一覧。
   // ここに足したら、その画面の TeamLogoSVG も logoId を渡すことになる。
   const REMOTE_SCREENS = [
-    'src/components/rated/RatedStandingsPage.tsx',
     'src/components/friends/FriendListPage.tsx',
     'src/components/friends/FriendDetailPage.tsx',
     'src/components/online/RoomLobbyPage.tsx',

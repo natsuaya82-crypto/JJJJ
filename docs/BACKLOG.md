@@ -1230,19 +1230,22 @@ CLAUDE.md の「まだ無いもの」に書いてある **自チームの2チー
 | 「世界へ挑戦」の見出しの条件が2つ。自チームが売ったとき＝行き先がビッグクラブ（`isBigClub`）だけ／裏の移籍市場＝ビッグクラブ**かつ** OVR85以上（`MAJOR_NEWS_OVR`） | `utils/newsItems.ts`（`store/marketOps.ts` から）・`engine/transferMarket.ts` | どちらに揃えるか |
 | 主力か（`keyPlayerStatus`）は「序列1本」のはずが、契約残り1年以下・士気45未満でも `open`（主力でない）になる。しかも名簿の数え方が違う（`keyPlayerStatus` は怪我人込み／トレードの `surplusIn` は `active` だけ）ので、怪我人がいると同じ選手が14番手の線の両側に割れる | `utils/transferDecision.ts`・`utils/tradeValue.ts` | 契約・士気の条件を残すか／名簿の数え方をどちらにするか |
 | 開幕の「押せるか」を store が見ていない（画面だけが `canStartSeason` を見る） | `store/slices/seasonSlice.ts` の `startRegularSeason` | store にも同じ関門を置くか |
-| ランクマッチの「1日」だけ0時区切り（`jstTodayISO`）。ログインボーナス・イベント・お知らせポップは朝10時区切り（`jstGameDayISO`） | `components/rated/RatedPage.tsx` とサーバーの `rated_open_round` | 揃えるか（揃えるならサーバーも） |
+| ランクマッチの「1日」だけ0時区切り（`jstTodayISO`）。ログインボーナス・イベント・お知らせポップは朝10時区切り（`jstGameDayISO`） | ランクマッチの画面（削除した）とサーバーの `rated_open_round` | 揃えるか（揃えるならサーバーも） |
 | 育成選手の契約（`signDevProspect`）が `yearsLeft: 2` の固定で、`movePlayer` に契約を渡さないので移籍ロックの印が付かない | `store/slices/draftSlice.ts` | 「選手の生成」扱いで固定のままでよいか／`newContractYears` とロックに揃えるか |
 | 走友会の人数の上限が TS（`CLUB_MAX` = 30）と SQL（`club_member_cap`）の2か所にあり、突き合わせる点検が無い | `lib/clubsApi.ts`・`supabase/all.sql` | `check-rated-server` と同じ形で見張るか |
 | 自チームへ「貸してほしい」（borrow_in）と言ってくるCPUクラブは、出す側の下限（`CPU_SELL_FLOOR`）を見ていない（成立には自チームの承諾が要る） | `engine/cpuMarket.ts` の `generateLoanOffers` | 下限を当てるか |
 
 - **結末（オーナー・2026-09-26）**
-  - 「世界へ挑戦」の見出し … オーナー「日本から海外」。**条件の中身を確かめ中**（未着手）
+  - 「世界へ挑戦」の見出し … `済`。**日本のリーグのクラブから海外クラブへ、行き先が格4以上**（「日本から海外」「格が4以上で出す」）。自チームが売ったときも裏の市場も `isWorldChallenge` 1本。OVR の条件は外した
   - 主力か … `済`。契約残り1年以下・士気45未満の条件は**残す**。序列は**怪我人を数えない**（`active` だけ）に揃えた
   - 開幕の関門を store にも置くか … **置かない**（「開幕できないまま進められない、は無くしたい。だから20人補充を入れた」）
-  - 「1日」の区切り … `済`。**朝10時に揃えた**。ランクマッチの1日は 10:00〜翌9:59（アプリ・`all.sql`・`rated-tick`）
+  - 「1日」の区切り … `済`。**朝10時に揃えた**。そのあと同じ日にランクマッチそのものを削除（「ランクマッチは消してください」）
   - 育成選手の契約 … `済`。**他の加入と同じ**（`newContractYears`＋移籍ロック）。あわせて、CPUが指名した新人にも移籍ロックが付いていなかったのを直した
   - 走友会の上限 … `済`。30を超えない（入る口2つとも走友会の行を押さえてから数える）＋ TS と SQL の突き合わせを `check-rated-server` に足した
   - borrow_in の下限 … `済`。`CPU_SELL_FLOOR` を当てた（名簿が減る5本目の経路）
+  - 使われていない関数 … `済`（「使われてないのは消してください」）。`leaguesOfRegion` を削除
+  - ランクマッチ … `済`（「ランクマッチは消してください」）。画面・段位の紋章・Edge Function・毎日の起動・点検を削除。
+    サーバーの関数とポリシーは all.sql の drop で落とす。表（`rated_*`）はデータを消さない決まりで残す
 - 同じ日に**直したもの**（決まりどおりにした）: トレードの値段が自分のリーグの日程で出場を数えていた（→ `perfOf`）／
   CPUの移籍市場が開幕直後に出場0で値引きしていた（→ `perfOf`）／市場価値順の並びと CPU 間トレードの並びが
   出場を見ない別の額だった／レンタルだけ「出番が無い」の線が 0.35 だった（→ `playingStatus`）／

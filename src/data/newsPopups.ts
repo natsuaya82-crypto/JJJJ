@@ -24,8 +24,6 @@ export type NewsPopup = {
   title: string
   /** 見出しの上に大きく出す文字（日付など）。無くてよい */
   lead?: string
-  /** 絵。`ranks` は段位の紋章を横に並べる（`components/rated/rankArt` の7枚） */
-  art?: 'ranks'
   /**
    * **箱の横いっぱいに敷くキービジュアル**（`src/assets` の画像を import して渡す）。
    * 渡すと見出しは絵の上に重なります。★文字を焼き込んだ絵を入れないこと

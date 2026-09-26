@@ -81,8 +81,6 @@ console.log('\n[2-b] 一覧に載っていないタブが増えていないか�
   const NOT_A_TAB: Record<string, string> = {
     'src/components/race/ResultsPhase.tsx:view':
       'レース結果の中のドリルダウン。詳細ページへ出ていかないので戻る話が起きない',
-    'src/components/rated/RatedResultPage.tsx:view':
-      '見る→走る→結果、の一本道。切り替えではない',
     'src/components/online/FinishPanel.tsx:tab':
       'オンライン対戦の結果パネル。その対戦の中だけで、開き直すと最初から',
   }

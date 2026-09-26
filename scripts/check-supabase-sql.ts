@@ -122,7 +122,7 @@ console.log('\n④ 数字の直書きが無い')
   // ★サーバーは**範囲外を収める**こと——受けてしまうと画面は
   //   `CLUB_REACTIONS[idx] ?? '?'` なので「?」だけの札が残り、付け替えも取り消しもできない。
   // ★SQL は TS を import できないので、数はここで突き合わせる
-  //   （`HOF_ENTRY_MIN` と `rated_join` とまったく同じ形）。
+  //   （`MIN_TEAMS` と `start_room` とまったく同じ形。`check-server-caps` を参照）。
   const api = readFileSync('src/lib/clubsApi.ts', 'utf8')
   const arr = /export const CLUB_REACTIONS = \[([^\]]*)\]/.exec(api)
   const emojiCount = arr ? arr[1].split(',').filter(s => s.trim()).length : 0

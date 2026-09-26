@@ -156,7 +156,7 @@ const RULES: Rule[] = [
     name: '4大リーグのIDの直書き（廃止済み）',
     pattern: /ELITE_LEAGUE_IDS|isEliteLeague|ELITE_LEAGUES_BY_REGION|'africa_east'\s*,\s*'africa_ns'/,
     allow: [],
-    fix: '世界最高峰は clubTier の isBigClub（格2以上）、格上かは isStepUp、憧れの行き先は transferDecision の leaguesOfRegion',
+    fix: '世界最高峰は clubTier の isBigClub（格2以上）、格上かは isStepUp、憧れの行き先は transferDecision の regionOfLeague',
   },
   {
     // 「憧れの地域 ↔ リーグ」の対応は1つの表から両方向を引く。
@@ -165,7 +165,7 @@ const RULES: Rule[] = [
     name: '憧れの地域とリーグの対応表の写し',
     pattern: /'(north_america|south_america|central_america)'\s*(,|\])/,
     allow: ['src/utils/transferDecision.ts', 'src/data/foreignLeagues.ts'],
-    fix: 'transferDecision.ts の regionOfLeague / leaguesOfRegion を使う（表は REGION_BY_LEAGUE 1本）',
+    fix: 'transferDecision.ts の regionOfLeague を使う（表は REGION_BY_LEAGUE 1本）',
   },
   {
     // 地域の呼び名が3か所にあり、america だけ「北米」と「北米・南米」に割れていた
@@ -585,7 +585,7 @@ RULES.push({
 })
 
 RULES.push({
-  // 日本時間の「今日」。`RatedPage` と `data/newsPopups` に**1文字も違わない同じ実装**が
+  // 日本時間の「今日」。当時の `RatedPage` と `data/newsPopups` に**1文字も違わない同じ実装**が
   // 2つあった（2026-08-18 の監査）。日付の物差しはサーバーと揃える必要があるので、
   // ずれると「開催前なのに開いている」が片方だけ起きる。
   name: '日本時間の「今日」を手で作っている',
@@ -593,16 +593,6 @@ RULES.push({
   allow: ['src/utils/jstDate.ts'],
   neverAppears: '夜0時区切りの jstTodayISO（＋9時間）は 2026-09-26 に廃止。今日は朝10時区切りの jstGameDayISO 1本',
   fix: 'utils/jstDate.ts の jstGameDayISO() を使う',
-})
-RULES.push({
-  // ランクマッチの時刻（結果が出る 10:00 ／ 締め切り 翌9:59。以前は 23:59）。`lib/ratedApi` 1本。
-  // `RatedPage` が `const OPEN_HHMM = '10:00'` と2本目を持っていた（同じファイルが
-  // ratedApi から他の定数を import しているのに、ここだけ手書きだった）。
-  // 時刻を動かすときは GitHub Actions の cron（UTC 01:00）も一緒に動かすこと。
-  name: 'ランクマッチの時刻を手書きしている',
-  pattern: /['"](?:10:00|23:59|9:59|09:59)['"]/,
-  allow: ['src/lib/ratedApi.ts'],
-  fix: 'lib/ratedApi.ts の RESULT_HHMM / SUBMIT_DEADLINE_HHMM を使う',
 })
 RULES.push({
   // 契約年数を結び直す式。`newContractYears`（1〜5年・若いほど長い）1本。

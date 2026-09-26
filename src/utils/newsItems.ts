@@ -190,14 +190,14 @@ export function segmentPrizeHeadline(a: { raceName: string; prize: number; myRan
 
 /**
  * 海外へ送り出した。行き先の格で3段階に書き分ける。
- *   big    … ビッグクラブ（格2以上）へ＝世界最高峰
- *   stepUp … 自クラブより格上へ＝ステップアップ
+ *   worldChallenge … 日本から格4以上の海外クラブへ＝世界へ挑戦
+ *   stepUp         … 自クラブより格上へ＝ステップアップ
  *   どちらでもない … ただの海外移籍
- * ★どのクラブが big / stepUp かは utils/clubTier の `isBigClub` / `isStepUp` 1本。
+ * ★どれに当たるかは utils/clubTier の `isWorldChallenge` / `isStepUp` 1本。
  *   ここで格の数字を判定しないこと（見出しは文面だけを持つ）。
  */
-export function overseasMoveHeadline(a: { playerName: string; playerOvr: number; clubName: string; fee: number; big: boolean; stepUp: boolean }): string {
-  if (a.big) return `【世界へ挑戦】${a.playerName}（OVR${a.playerOvr}）が世界最高峰・${a.clubName}へ移籍！自クラブ育ちの選手が世界の舞台へ（移籍金${fmtYen(a.fee)}）`
+export function overseasMoveHeadline(a: { playerName: string; playerOvr: number; clubName: string; fee: number; worldChallenge: boolean; stepUp: boolean }): string {
+  if (a.worldChallenge) return `【世界へ挑戦】${a.playerName}（OVR${a.playerOvr}）が世界最高峰・${a.clubName}へ移籍！自クラブ育ちの選手が世界の舞台へ（移籍金${fmtYen(a.fee)}）`
   if (a.stepUp) return `【ステップアップ】${a.playerName}（OVR${a.playerOvr}）が格上の${a.clubName}へ移籍。より高いレベルへ挑む（移籍金${fmtYen(a.fee)}）`
   return `${a.playerName}が海外クラブ${a.clubName}へ移籍（移籍金${fmtYen(a.fee)}）`
 }

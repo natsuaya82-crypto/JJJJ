@@ -37,8 +37,6 @@ import { useStickyTab } from '../../lib/useStickyTab'
 import { useClubFeedUnread, markClubFeedRead } from '../../lib/useClubFeedUnread'
 import CountBadge from '../ui/CountBadge'
 import { OFFLINE_TEXT } from '../../lib/supabase'
-import { useRatedRanks } from '../../lib/useRatedRanks'
-import { RankBadge } from '../rated/ratedUi'
 import { C, alpha, SAIRA, contentHeight, F } from '../../styles/tokens'
 
 
@@ -457,14 +455,8 @@ type FriendState = 'unknown' | 'me' | 'friend' | 'sent' | 'none'
 /** 走友会のタブ。URLに覚えさせるので、取りうる値をここに1本で置く（`useStickyTab`） */
 const CLUB_TABS = ['members', 'board', 'cards'] as const
 
-export function MemberRow({ m, rating, canKick, isMe, friendState, onKick, onMenu, onOpen, onAddFriend, readOnly }: {
+export function MemberRow({ m, canKick, isMe, friendState, onKick, onMenu, onOpen, onAddFriend, readOnly }: {
   m: ClubMember
-  /**
-   * この人の段位。**引くのは呼ぶ側で、一覧ぶんまとめて1回**（`useRatedRanks`）。
-   * ここで `useRatedRank(m.id)` を呼ぶと、行の数だけ通信が飛ぶ
-   * （20人の名簿で20回。`lib/useRatedRanks` の見出しに書いてあるとおり）。
-   */
-  rating: number | undefined
   canKick: boolean; isMe: boolean; friendState: FriendState
   onKick: () => void; onMenu: () => void; onOpen: () => void; onAddFriend: () => void
   /**
@@ -495,8 +487,6 @@ export function MemberRow({ m, rating, canKick, isMe, friendState, onKick, onMen
             <span style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: m.blocked ? C.textDim : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {m.blocked ? 'ブロック中の利用者' : m.teamName}
             </span>
-            {/* ブロック中は名前ごと伏せているので紋章も出さない */}
-            {!m.blocked && <RankBadge rating={rating} size={17} />}
             {m.role === 'owner' && <Pill color={C.gold}>会長</Pill>}
             {m.role === 'admin' && <Pill color={C.cyan}>副会長</Pill>}
           </div>
@@ -779,8 +769,6 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
     if (tab !== 'board' || allPosts.length === 0) return
     markClubFeedRead(allPosts.reduce((mx, p) => (p.createdAt > mx ? p.createdAt : mx), ''))
   }, [tab, allPosts])
-  // 書き込みの名前の横に出す段位。**まとめて1回**（投稿1件ずつ引かない）
-  const postRanks = useRatedRanks(posts.map(p => p.userId))
 
   // カードのお願いだけを抜いたもの（カードタブで使う）
   const reqPosts = posts.filter(p => p.kind === 'req')
@@ -952,7 +940,6 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {p.teamName}<span style={{ marginLeft: 5 }}>GM {p.gmName}</span> ・ {relativeTime(p.createdAt)}
               </span>
-              <RankBadge rating={postRanks.get(p.userId)} size={14} />
             </div>
             {p.kind === 'msg' ? (
               /* ★本文は必ず maskText を通す。保存は書かれたまま、伏せるのは表示のときだけ。
@@ -1248,9 +1235,6 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
   const navigate = useNavigate()
   // 加入申請は会長と副会長が見る
   const reqs = useFriendsQuery(() => (canEdit ? listClubRequests() : Promise.resolve([])), [canEdit], 'clubReqIn')
-  const applicantRanks = useRatedRanks((reqs.data ?? []).map(a => a.id))
-  // ★段位は**一覧ぶんまとめて1回**（`MemberRow` の中で1行ずつ引かないこと）
-  const memberRanks = useRatedRanks(members.map(m => m.id))
   // 走友会のメンバーがフレンドかどうかを出し分けるため。置き場所はフレンド画面と同じ入れ物
   const friendsQ = useFriendsQuery(listFriends, [], 'friends')
   const sentQ = useFriendsQuery(listSent, [], 'sent')
@@ -1440,7 +1424,6 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
                       <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {a.teamName}
                       </div>
-                      <RankBadge rating={applicantRanks.get(a.id)} size={17} />
                     </div>
                     {/* ★入会条件は平均OVRなので、ここは平均OVRのまま（見て判断する数字を消さない） */}
                     <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 2 }}>GM {a.gmName} ・ 平均OVR {a.avgOvr}</div>
@@ -1462,7 +1445,6 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
                 <MemberRow
                   key={m.id}
                   m={m}
-                  rating={memberRanks.get(m.id)}
                   canKick={canEdit && m.role !== 'owner' && !(myRole === 'admin' && m.role === 'admin')}
                   isMe={m.id === meId}
                   friendState={friendStateOf(m)}

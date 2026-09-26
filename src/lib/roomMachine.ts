@@ -32,8 +32,8 @@ import type { Player } from '../types'
  *
  * ★**この数は2か所にある。** ここ（ホストの「はじめる」が押せるか）と、
  *   `supabase/all.sql` の `start_room`（サーバーが受けるか）。
- *   SQL は TS を import できないので、`scripts/check-rated-server.ts` が突き合わせる
- *   （`HOF_ENTRY_MIN` と `rated_join` とまったく同じ形）。
+ *   SQL は TS を import できないので、`scripts/check-server-caps.ts` が突き合わせる
+ *   （走友会の人数の上限 `CLUB_MAX` と `club_member_cap` とまったく同じ形）。
  * ★以前サーバーは `v_count < 1` ＝**ホスト1人でも 'started' を返して**いて、
  *   止めていたのは画面だけだった。CPU はホストの端末だけが足すもので、
  *   サーバーは1人も知らないので、サーバー側の線も人の数で見る。

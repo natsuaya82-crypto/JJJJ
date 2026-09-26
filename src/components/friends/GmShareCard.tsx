@@ -2,8 +2,6 @@ import type { WorldClub } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useTeamHistory } from '../../lib/useTeamHistory'
 import { topTitleCount } from '../../utils/teamHistory'
-import { useMyRatedRank } from '../../lib/useRatedRanks'
-import { RankBadge } from '../rated/ratedUi'
 import { C, SAIRA, CARD, F } from '../../styles/tokens'
 import { clubGmName } from '../../utils/clubs'
 
@@ -16,7 +14,6 @@ export default function GmShareCard({ team, code }: { team?: WorldClub; code: st
   const secondary = team?.colors.secondary ?? GOLD
   // 通算成績はセーブに持たず、過去シーズンの順位表から数え直す（utils/teamHistory.ts）
   const history = useTeamHistory(team?.id)
-  const myRank = useMyRatedRank()
   // ★**1部の優勝だけ**（オーナー判断・2026-08-14）。utils/teamHistory の1本
   const champs = `${topTitleCount(history.titles)}`
   const seasons = history.seasonResults.length
@@ -45,8 +42,6 @@ export default function GmShareCard({ team, code }: { team?: WorldClub; code: st
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
             <div style={{ fontSize: F.subLg, fontWeight: 700, color: '#C9C6D0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team?.name ?? '自チーム'}</div>
-            {/* 相手に見せる画像なので段位も入れる。ランクマッチ未参加なら何も出ない */}
-            <RankBadge rating={myRank} size={24} />
           </div>
           <div style={{ fontSize: 34, fontWeight: 900, lineHeight: 1.05, marginTop: 2 }}>GM {team ? clubGmName(team) : '—'}</div>
           <div style={{ display: 'flex', gap: 14, alignItems: 'baseline', marginTop: 8 }}>

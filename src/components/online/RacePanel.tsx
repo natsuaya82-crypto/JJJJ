@@ -16,8 +16,6 @@ import { TeamLogoSVG } from '../icons/Icons'
 import { courseToRace, type MatchCourse } from '../../data/matchCourses'
 import { asPlayer, asTeam, type MatchRacePayload } from '../../lib/matchSim'
 import { serverNow } from '../../lib/serverTime'
-import { useRatedRanks } from '../../lib/useRatedRanks'
-import { RankBadge } from '../rated/ratedUi'
 import { C, alpha, rankColor, SAIRA, F } from '../../styles/tokens'
 
 
@@ -30,7 +28,7 @@ const RACE_WAIT_SEC = 30
 
 export default function RacePanel({
   payload, course, raceNo, totalRaces, meId, myPlayers, seriesPts, waiting, onNext,
-  segGo = -1, onSegDone, solo = false,
+  segGo = -1, onSegDone,
 }: {
   payload: MatchRacePayload
   course: MatchCourse
@@ -48,11 +46,6 @@ export default function RacePanel({
   segGo?: number
   /** 区間結果を見終わったことをホストへ伝える */
   onSegDone?: (segmentIndex: number) => void
-  /**
-   * 待ち合わせる相手がいない再生（レート戦の結果・履歴）。
-   * 結果はもう決まっているので、区間の待ち合わせをしない。
-   */
-  solo?: boolean
 }) {
   const race = useMemo(() => courseToRace(course, raceNo), [course, raceNo])
 
@@ -139,9 +132,6 @@ export default function RacePanel({
   // ── 表示用のチーム・選手 ──
   const entries: Team[] = useMemo(() => payload.teams.map(asTeam), [payload])
   const teamMap = useMemo(() => new Map(entries.map(t => [t.id, t])), [entries])
-  // ★相手の名前が出るところには段位の紋章を出す（オーナー・2026-08-18「全部です」）。
-  //   引くのは `useRatedRanks` 1本で**出場ぶんまとめて**（`FinishPanel` と同じ形）
-  const ranks = useRatedRanks(useMemo(() => [...teamMap.keys()], [teamMap]))
   // 自分のチームだけは手元の選手をそのまま使う（顔・長押しが本編と同じになる）
   const srcById = useMemo(() => new Map(payload.runners.map(r => [r.id, r])), [payload])
   const displayId = (pid: string) => {
@@ -220,7 +210,6 @@ export default function RacePanel({
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: F.body, fontWeight: isMe ? 800 : 500, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t?.name ?? s.teamId}</span>
-                    <RankBadge rating={ranks.get(s.teamId)} size={15} />
                     {payload.forfeits.includes(s.teamId) && <span style={{ fontSize: F.tiny, color: C.red }}>不戦</span>}
                   </div>
                   <div style={{ fontSize: F.tiny, color: C.gold }}>
@@ -315,7 +304,6 @@ export default function RacePanel({
           advanceDisabled={!!segWait}
           onAdvance={() => {
             if (isLast) { setStage('final'); return }
-            if (solo) { goNextSeg(); return }
             if (segWait) return
             onSegDone?.(segData.segmentIndex)
             setSegLeft(SEG_WAIT_SEC)
@@ -343,7 +331,6 @@ export default function RacePanel({
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: F.body, fontWeight: isMe ? 800 : 500, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t?.name ?? teamId}</span>
-                    <RankBadge rating={ranks.get(teamId)} size={15} />
                   </div>
                 </div>
                 <div style={{ fontFamily: SAIRA, textAlign: 'right', flexShrink: 0 }}>

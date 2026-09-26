@@ -307,8 +307,14 @@ create table if not exists public.blocks (
 );
 create index if not exists blocks_blocked_idx on public.blocks (blocked_id);
 
--- ── レート戦 ───────────────────────────────────────────
+-- ── レート戦（ランクマッチ）─────────────────────────────
 --
+--  ★**ランクマッチは 2026-09-26 に削除しました**（オーナー「ランクマッチは消してください」）。
+--    関数・ポリシーはこのファイルから消し、下の「3. 関数」の先頭の drop function と
+--    「2.」の drop policy で**サーバーからも落とします**。
+--  ★表は残します（このファイルはデータを消さない決まり＝drop table を書かない）。
+--    RLS は入ったまま・ポリシー無し・権限は取り上げたままなので、端末からは読めも書けもしない。
+--  （以下は当時の説明）
 --  1か月の大会。10:00 に前日の結果とレートを出して、その日のコースを出す。
 --  23:59 が提出の締め切り。
 --
@@ -320,139 +326,6 @@ create index if not exists blocks_blocked_idx on public.blocks (blocked_id);
 --
 --  表の書き込み口はどれも security definer の関数だけ。**insert / update の
 --  ポリシーを足さないこと**（足した瞬間に端末から直接書けるようになる）。
-
--- 大会そのもの。1行＝1回の大会
-create table if not exists public.rated_events (
-  id         uuid        primary key default gen_random_uuid(),
-  starts_on  date        not null,
-  total_days integer     not null default 30,
-  created_at timestamptz not null default now(),
-  constraint rated_events_start_unique unique (starts_on),
-  constraint rated_events_days check (total_days between 1 and 90)
-);
--- 大会の名前（画面のイベント一覧に出る）
-alter table public.rated_events add column if not exists name text not null default 'ランクマッチ';
-
--- ★**レートは人に1本。大会をまたいで続く**（オーナー判断・2026-08-14
---   「ランクマッチでレートは継続されるんだから」）。
---   段位はフレンド一覧・ロビー・走友会など**どこからでも**名前の横に出るので、
---   「その人のいまのレート」が1つの表から引けないと成立しない。
---   大会ごとに持つと「その人が最後に出た大会」を探しに行くことになり、
---   今回の大会に出ていない人には何も出せなくなる。
-create table if not exists public.rated_players (
-  user_id    uuid        primary key references auth.users(id) on delete cascade,
-  -- ★はじめて参加する人のレート。**1000から**（オーナー判断・2026-08-19
-  --   「全員スタート1000からにしない？」「1000が実質0みたいな感じのイメージ」）。
-  --   0スタートだと下限0で止まるので**初日に負けても減らない**＝勝った人だけ得をしていた。
-  --   下限は0のまま（開始より下へ落ちる）。値は engine/rating の RATING_START と同じ。
-  rating     integer     not null default 1000,
-  updated_at timestamptz not null default now()
-);
-create index if not exists rated_players_rating_idx on public.rated_players (rating desc, user_id);
-
--- 参加者。**この大会での成績**（レートはここではない。上の rated_players が唯一の生きた値）
-create table if not exists public.rated_entries (
-  event_id   uuid        not null references public.rated_events(id) on delete cascade,
-  user_id    uuid        not null references auth.users(id) on delete cascade,
-  -- ★**この大会に入ったときのレート**と**いちばん新しいレート**の記録。
-  --   「第一回はここからここまで上がった」を残すためのもので、**判定には使わない**。
-  --   生きた値は rated_players.rating 1本（2か所に生きた数字を置かない）。
-  rating     integer     not null default 1000, -- この大会の最新レート（記録）
-  played     integer     not null default 0,   -- 走った日数
-  wins       integer     not null default 0,   -- グループ1位の回数
-  joined_at  timestamptz not null default now(),
-  primary key (event_id, user_id)
-);
-alter table public.rated_entries add column if not exists start_rating integer not null default 0;
--- 既定値だけ入れ替える（既にある列は default を変えても中身は動かない）
-alter table public.rated_players  alter column rating       set default 1000;
-alter table public.rated_entries  alter column rating       set default 1000;
-alter table public.rated_entries  alter column start_rating set default 1000;
--- ★**まだ一度も大会に入っていない人だけ**を開始レートへ揃える。
---   条件を付けないと、流すたびに「負けて0まで落ちた人」が1000へ戻ってしまう。
-update public.rated_players p set rating = 1000
- where p.rating = 0
-   and not exists (select 1 from public.rated_entries e where e.user_id = p.user_id);
-create index if not exists rated_entries_rating_idx on public.rated_entries (event_id, rating desc, user_id);
-
--- 1日ぶん。コースは日付から作れる（`engine/ratedCourse`）ので持たない。
--- seg_count だけ持つのは、**提出の区間数をSQLだけで検算する**ため
--- （持たないと「区間が何本か」を端末の言い値で確かめることになる）
-create table if not exists public.rated_rounds (
-  id         uuid        primary key default gen_random_uuid(),
-  event_id   uuid        not null references public.rated_events(id) on delete cascade,
-  day        integer     not null,
-  date_iso   date        not null,
-  seg_count  integer     not null,
-  -- 'open' 提出受付中 / 'closed' 走り終わった / 'void' 10人に満たず流会
-  status     text        not null default 'open',
-  closed_at  timestamptz,
-  created_at timestamptz not null default now(),
-  constraint rated_rounds_unique unique (event_id, date_iso),
-  constraint rated_rounds_status check (status in ('open', 'closed', 'void'))
-);
-create index if not exists rated_rounds_date_idx on public.rated_rounds (date_iso desc);
-
--- 提出。**端末が書ける唯一の表**（それも rated_submit 経由だけ）
-create table if not exists public.rated_lineups (
-  round_id     uuid        not null references public.rated_rounds(id) on delete cascade,
-  user_id      uuid        not null references auth.users(id) on delete cascade,
-  lineup       jsonb       not null default '{}'::jsonb,   -- {"1":"選手ID", "2":...}
-  submitted_at timestamptz not null default now(),
-  primary key (round_id, user_id)
-);
-
--- 結果（1人1行）。順位表はここだけ読めば出るので軽い
--- **その日の組**。受付が開いた 10:00 に決めて、ここへ入れる。
--- ★当日ずっと「自分の部屋」を見せるので、走らせるときに割り直さないこと
---   （10:00 以降に参加した人がいると割り方が変わり、見せていた顔ぶれと食い違う）。
---   番号を持っていない人はその日走らない＝翌日の 10:00 で組に入る。
-create table if not exists public.rated_round_groups (
-  round_id uuid    not null references public.rated_rounds(id) on delete cascade,
-  user_id  uuid    not null references auth.users(id) on delete cascade,
-  group_no integer not null,
-  primary key (round_id, user_id)
-);
-create index if not exists rated_round_groups_g_idx on public.rated_round_groups (round_id, group_no);
-
-create table if not exists public.rated_results (
-  round_id     uuid    not null references public.rated_rounds(id) on delete cascade,
-  user_id      uuid    not null references auth.users(id) on delete cascade,
-  group_no     integer not null,
-  place        integer not null,
-  time_sec     integer not null,
-  delta        integer not null,
-  rating_after integer not null,
-  forfeit      boolean not null default false,
-  primary key (round_id, user_id)
-);
--- 順位表の矢印。**その日が終わった時点の大会全体の順位**と、**前日からの上下**。
--- ★画面で数え直さないこと。並べ方は rated_standings と揃っている必要があり、
---   片方だけ変わると矢印が嘘になる（計算は lib/ratedTick の runRatedRound 1本）。
-alter table public.rated_results add column if not exists overall integer not null default 0;
-alter table public.rated_results add column if not exists move    integer not null default 0;
-create index if not exists rated_results_group_idx on public.rated_results (round_id, group_no, place);
-
--- レース結果まるごと（再生用）。1グループ1行。
--- ★`rated_results` と分けてある。20人ぶんで約17KBあるので、順位表を出すたびに
---   これを引くと重い（順位表は3万行を並べても数十KBで済ませたい）
-create table if not exists public.rated_races (
-  round_id   uuid        not null references public.rated_rounds(id) on delete cascade,
-  group_no   integer     not null,
-  race       jsonb       not null,   -- MatchRacePayload そのもの
-  created_at timestamptz not null default now(),
-  primary key (round_id, group_no)
-);
-
--- ★大会の日程（オーナー判断・9/1 から2週間）。
---   **名前で見て、無いときだけ作る。** 日付で見てはいけない——あとから日程をずらすと
---   元の日付が空くので、次に流したときに同じ大会がもう1つできてしまう
---   （実際にローカルで再現した。2件が3件になった）。
---   **日程を変えるときはここではなく、入っている行を直すこと。**
-insert into public.rated_events (starts_on, total_days, name)
-select date '2026-09-01', 14, '第一回ベータ版ランクマッチ'
-where not exists (
-  select 1 from public.rated_events where name = '第一回ベータ版ランクマッチ');
 
 -- ── RLS を入れる（何回やっても同じ） ────────────────────
 alter table public.profiles        enable row level security;
@@ -1760,7 +1633,7 @@ begin
   --   'started' が返り**、止めていたのは画面だけだった＝作り替えた端末なら1人で始められる。
   --   CPU はホストの端末だけが足すもので、サーバーは1人も知らない。
   --   この数は TS の `src/lib/roomMachine.ts` の `MIN_TEAMS` と同じ線で、
-  --   SQL は TS を import できないので `scripts/check-rated-server.ts` が突き合わせる。
+  --   SQL は TS を import できないので `scripts/check-server-caps.ts` が突き合わせる。
   select count(*) into v_count from public.room_members
    where room_id = p_room and left_at is null;
   if v_count < 2 then return 'empty'; end if;
@@ -2014,336 +1887,6 @@ begin
   delete from public.profiles        where user_id  = me;
 end $$;
 
--- ── レート戦 ───────────────────────────────────────────
---
---  ★端末が書けるのは `rated_submit` だけ。順位もタイムもレートも Edge Function が書く。
---  ★**時刻の判定はここ1本**（`rated_open_round`）。端末の時計を見て止めるだけだと、
---    時計を変えれば通ってしまう。
-
--- 日本時間の「今日」（**朝10時区切り**。アプリの jstGameDayISO・rated-tick と同じ）。
--- **日付の変換をあちこちに書かないこと**
--- ★2026-09-26 に夜0時区切りから変えた（オーナー「10時」）。1日は 10:00〜翌9:59
-create function public.rated_today_jst() returns date
-language sql stable as $$
-  select (timezone('Asia/Tokyo', now()) - interval '10 hours')::date
-$$;
-
-/*
- * **いま提出を受け付けている日**。無ければ0行。
- *
- * 締め切り（翌9:59）はこの1本が決めている。「今日」は朝10時区切り（rated_today_jst）で、
- * 今日ぶんの round は 10:00 の Edge Function が作るので、
- *   10:00〜翌9:59 … その日ぶんが open →  通る
- *   10:00〜Edge Function が動くまで … 前日ぶん（date_iso が昨日）→ 通らない
- * となって、日付が変わった時点で自然に締まる。
- */
-create function public.rated_open_round()
-returns table (id uuid, event_id uuid, day integer, date_iso date, seg_count integer)
-language sql stable as $$
-  select r.id, r.event_id, r.day, r.date_iso, r.seg_count
-  from public.rated_rounds r
-  where r.status = 'open' and r.date_iso = public.rated_today_jst()
-  limit 1
-$$;
-
--- 殿堂入りの人数をサーバー側で数える。
--- ★**参加に要る人数は `rated_join` の中の数が正**（TS の `HOF_ENTRY_MIN` と突き合わせるのは
---   `check-rated-server` の①）。ここのコメントは 30 のまま残っていましたが、
---   門は 2026-08-21 に 30 → **15** へ下げてあります。次に触る人が「サーバーは30なのか」と
---   読んで戻さないように直しました。
--- ★**必ず数を返すこと**（null を返さない）。まだ1度もロスターを上げていない人は
---   `rosters` に行が無いので null になり、`null < 15` は真でも偽でもない＝
---   `rated_join` の関門を**素通りしていた**（殿堂入り0人で参加できた）。
-create function public.rated_hof_count(u uuid) returns integer
-language sql stable security definer set search_path = public as $$
-  select coalesce((select jsonb_array_length(hof) from public.rosters where user_id = u), 0)
-$$;
-
-/* 参加する。殿堂入りが15人そろっていること（`utils/hofRoster` の HOF_ENTRY_MIN と同じ線。
-   登録の上限 HOF_MAX(30) とは別の数） */
-/*
- * **いま関わっている大会**（＝まだ終わっていない大会。**開催前も含む**）。
- *
- * ★`rated_join` / `rated_me` / `rated_standings` は**同じ大会を見ること**。
- *   以前は3つとも `today between starts_on and 終了日` を手書きしていたので、
- *   **開催前は「大会が無い」扱い**になり、参加の申し込みも参加者一覧も出せなかった
- *   （オーナー・2026-08-19「参加するボタン欲しくね。そしたら参加者一覧出る」
- *   「9/1にロスター提出するんだよ？」）。
- * ★**走らせるほう（`rated_open_round`）はこれを使わないこと。** あちらは
- *   「今日の受付が開いているか」を見る別の問いで、開催前に開いてはいけない。
- */
-/*
- * **同じ大会に出ているか。** ランクマッチの一覧（参加者・順位表・あなたの部屋）から
- * 長押しで相手のチームを見るのに要る（オーナー・2026-08-19「参加者一覧や順位表など全部」）。
- *
- * ★これが無いと、いま他人のロスターを読めるのは**フレンド・同じ走友会・同じ対戦部屋**の
- *   3つだけなので、長押しを付けても中身が取れない（空のページが開く）。
- * ★大会単位で見る（同じ組だけにしない）。走ったあとの結果画面では相手の走者が
- *   全部見えるので、参加者一覧だけ隠しても意味がない。
- */
-create function public.shares_rated_event_with(p_user uuid) returns boolean
-language sql stable security definer set search_path = public as $$
-  select exists (
-    select 1 from public.rated_entries me
-      join public.rated_entries other on other.event_id = me.event_id
-     where me.user_id = auth.uid() and other.user_id = p_user)
-$$;
-
-create function public.rated_current_event() returns uuid
-language sql stable security definer set search_path = public as $$
-  select id from public.rated_events
-   where public.rated_today_jst() <= (starts_on + total_days - 1)
-   order by starts_on limit 1;
-$$;
-
-create function public.rated_join() returns text
-language plpgsql security definer set search_path = public as $$
-declare ev uuid; me uuid := auth.uid();
-begin
-  if me is null then return 'auth'; end if;
-  if public.rated_hof_count(me) < 15 then return 'hof'; end if;
-  ev := public.rated_current_event();
-  if ev is null then return 'closed'; end if;
-  -- ★レートは人に1本で、**大会をまたいで続く**。はじめて参加する人だけ0から。
-  insert into public.rated_players (user_id) values (me) on conflict (user_id) do nothing;
-  -- 途中参加はその時点のレートで入る（グループはレート順なので自然な組に入る）
-  insert into public.rated_entries (event_id, user_id, rating, start_rating)
-  select ev, me, p.rating, p.rating from public.rated_players p where p.user_id = me
-  on conflict (event_id, user_id) do nothing;
-  return 'ok';
-end $$;
-
-/* その日のコースと締め切りまでの残り。コースそのものは端末が日付から作る */
-create function public.rated_today() returns jsonb
-language plpgsql stable security definer set search_path = public as $$
-declare r record; ev record;
-begin
-  select * into r from public.rated_open_round();
-  if r.id is null then
-    -- まだ 10:00 前（か、大会をやっていない）。次の大会の予定だけ返す
-    select * into ev from public.rated_events
-     where public.rated_today_jst() <= (starts_on + total_days - 1)
-     order by starts_on limit 1;
-    if ev.id is null then return jsonb_build_object('open', false); end if;
-    return jsonb_build_object(
-      'open', false, 'name', ev.name, 'startsOn', ev.starts_on, 'totalDays', ev.total_days);
-  end if;
-  select * into ev from public.rated_events where id = r.event_id;
-  return jsonb_build_object(
-    'open', true,
-    'name', ev.name,
-    'startsOn', ev.starts_on,
-    'roundId', r.id,
-    'day', r.day,
-    'totalDays', ev.total_days,
-    'dateISO', r.date_iso,
-    'segCount', r.seg_count,
-    -- 残り分。翌 9:59:59 まで（1日は朝10時区切り）
-    'minutesLeft', greatest(0, floor(extract(epoch from
-      ((r.date_iso + 1 + time '09:59:59') - timezone('Asia/Tokyo', now()))) / 60))::int
-  );
-end $$;
-
-/* 自分の状態。**段位名は返さない**（`engine/rating` の rankOf が唯一の決まり） */
-create function public.rated_me() returns jsonb
-language plpgsql stable security definer set search_path = public as $$
-declare me uuid := auth.uid(); ev uuid; e record; r record; n int; ov int;
-begin
-  if me is null then return jsonb_build_object('joined', false); end if;
-  ev := public.rated_current_event();
-  if ev is null then
-    return jsonb_build_object('joined', false, 'hof', public.rated_hof_count(me));
-  end if;
-  select count(*) into n from public.rated_entries where event_id = ev;
-  select * into e from public.rated_entries where event_id = ev and user_id = me;
-  if e.user_id is null then
-    return jsonb_build_object('joined', false, 'entrants', n, 'hof', public.rated_hof_count(me),
-                              'rating', coalesce((select rating from public.rated_players where user_id = me), 0));
-  end if;
-  -- ★レートは rated_players（人に1本）から読む。並べ方は rated_standings と同じ
-  select count(*) + 1 into ov
-    from public.rated_entries x join public.rated_players p on p.user_id = x.user_id
-   where x.event_id = ev
-     and (p.rating > (select rating from public.rated_players where user_id = me)
-       or (p.rating = (select rating from public.rated_players where user_id = me) and x.user_id < me));
-  select * into r from public.rated_open_round();
-  return jsonb_build_object(
-    'joined', true,
-    'rating', coalesce((select rating from public.rated_players where user_id = me), 0),
-    'startRating', e.start_rating, 'played', e.played, 'wins', e.wins,
-    'overall', ov, 'entrants', n, 'hof', public.rated_hof_count(me),
-    'lineup', coalesce((select lineup from public.rated_lineups
-                         where round_id = r.id and user_id = me), '{}'::jsonb));
-end $$;
-
-/*
- * **提出。渡すのは区間ごとの選手IDだけ**（タイムにも順位にも触れない）。
- *   'ok' 受け付けた / 'closed' 締め切り後 / 'bad' 中身が受け付けられない / 'join' 未参加
- *
- * ★'bad' は「区間数が合わない」「区間番号が範囲外」「中身が選手IDでない」
- *   「**同じ選手を2区間に置いている**」の全部。端末の言い値は1つも信用しない。
- */
-create function public.rated_submit(l jsonb) returns text
-language plpgsql security definer set search_path = public as $$
-declare me uuid := auth.uid(); r record; k text;
-begin
-  if me is null then return 'auth'; end if;
-  select * into r from public.rated_open_round();
-  if r.id is null then return 'closed'; end if;
-  if not exists (select 1 from public.rated_entries where event_id = r.event_id and user_id = me) then
-    return 'join';
-  end if;
-  -- 区間数ちょうど。区間番号は 1..seg_count（端末の言い値ではなく round の数で見る）
-  if jsonb_typeof(l) <> 'object' or (select count(*) from jsonb_object_keys(l)) <> r.seg_count then
-    return 'bad';
-  end if;
-  for k in select jsonb_object_keys(l) loop
-    if k !~ '^[0-9]+$' or k::int < 1 or k::int > r.seg_count then return 'bad'; end if;
-  end loop;
-  -- 中身は選手ID（空でない文字列）。数値や配列を混ぜられないようにする
-  if exists (select 1 from jsonb_each(l) as t(seg, pid)
-              where jsonb_typeof(t.pid) <> 'string' or (t.pid #>> '{}') = '') then
-    return 'bad';
-  end if;
-  -- ★**同じ選手を2区間に置けない。** 画面（`components/race/LineupPhase`）は
-  --   既に置いてある選手を選ぶと元の区間と入れ替えるので、人の手では重複しない。
-  --   ところが**ここが見ていなければ、作り替えた端末から1人を全区間に置ける**
-  --   （走らせる側の `src/lib/ratedTick.ts` は区間ごとに選手を引くだけで重複を見ない）。
-  --   殿堂入りの人数の下限（`HOF_ENTRY_MIN`）が区間数の上限を下回らないのも、
-  --   この「同じ選手を2区間に置けない」が前提。
-  if (select count(distinct t.pid) from jsonb_each(l) as t(seg, pid)) <> r.seg_count then
-    return 'bad';
-  end if;
-  insert into public.rated_lineups (round_id, user_id, lineup)
-  values (r.id, me, l)
-  on conflict (round_id, user_id) do update
-    set lineup = excluded.lineup, submitted_at = now();
-  return 'ok';
-end $$;
-
-/*
- * **名前の横に出す段位のレートを、まとめて引く。**
- *
- * ★段位の名前（ゴールド等）はここでは決めない。返すのはレートだけで、
- *   段位に直すのは `src/engine/rating.ts` の `rankOf` 1本（区切りを2か所に置かない）。
- * ★**ランクマッチに一度も出ていない人は行を返さない。** 呼ぶ側は「無ければ何も出さない」
- *   （オーナー判断・2026-08-14「何も出さない」）。
- * ★フレンド一覧のように何人も並ぶところがあるので、1人ずつ引かせない。
- */
-create function public.rated_ranks(ids uuid[])
-returns table (user_id uuid, rating integer)
-language sql stable security definer set search_path = public as $$
-  select p.user_id, p.rating from public.rated_players p where p.user_id = any(ids)
-$$;
-
-/* いちばん新しい走り終わった日の、自分がいたグループの結果 */
-create function public.rated_result() returns jsonb
-language plpgsql stable security definer set search_path = public as $$
-declare me uuid := auth.uid(); res record; rd record;
-begin
-  if me is null then return null; end if;
-  select rr.* into res from public.rated_results rr
-    join public.rated_rounds ro on ro.id = rr.round_id
-   where rr.user_id = me and ro.status = 'closed'
-   order by ro.date_iso desc limit 1;
-  if res.round_id is null then return null; end if;
-  select * into rd from public.rated_rounds where id = res.round_id;
-  return jsonb_build_object(
-    'dateISO', rd.date_iso,
-    'group', res.group_no,
-    'groups', (select max(group_no) from public.rated_results where round_id = rd.id),
-    'meUserId', me,
-    'race', (select race from public.rated_races where round_id = rd.id and group_no = res.group_no),
-    'delta', (select coalesce(jsonb_object_agg(user_id, delta), '{}'::jsonb)
-                from public.rated_results where round_id = rd.id and group_no = res.group_no));
-end $$;
-
-/*
- * 大会の順位表。**トップ100と自分だけ**（オーナー判断。参加者が増えても全員は配らない）。
- * 直近の走り終わった日の順位と増減を添える。
- */
-/*
- * **自分の部屋（その日の組）。** 受付が開いていて、自分が組に入っていれば返す。
- *   { groupNo, groups, members: [{userId, teamName, gmName, rating, primary, secondary, logoId}] }
- *   入っていなければ null（＝10:00 より後に参加した＝その日は走らない）。
- */
-create function public.rated_my_group() returns jsonb
-language plpgsql stable security definer set search_path = public as $$
-declare me uuid := auth.uid(); r record; g int; n int;
-begin
-  if me is null then return null; end if;
-  select * into r from public.rated_open_round();
-  if r.id is null then return null; end if;
-  select group_no into g from public.rated_round_groups where round_id = r.id and user_id = me;
-  if g is null then return null; end if;
-  select count(distinct group_no) into n from public.rated_round_groups where round_id = r.id;
-  return jsonb_build_object(
-    'groupNo', g, 'groups', n, 'meId', me,
-    'members', coalesce((
-      select jsonb_agg(jsonb_build_object(
-               'userId', m.user_id, 'rating', rp.rating,
-               'teamName', coalesce(p.team_name, ''), 'gmName', coalesce(p.gm_name, ''),
-               'primary', coalesce(p.color_primary, ''), 'secondary', coalesce(p.color_secondary, ''),
-               'logoId', coalesce(p.logo_id, ''))
-             order by rp.rating desc, m.user_id)
-        from public.rated_round_groups m
-        join public.rated_players rp on rp.user_id = m.user_id
-        left join public.profiles p on p.user_id = m.user_id
-       where m.round_id = r.id and m.group_no = g), '[]'::jsonb));
-end $$;
-
-create function public.rated_standings() returns jsonb
-language plpgsql stable security definer set search_path = public as $$
-declare me uuid := auth.uid(); ev uuid; last_round uuid; n int; my_rank_json jsonb;
-begin
-  ev := public.rated_current_event();
-  if ev is null then
-    return jsonb_build_object('top', '[]'::jsonb, 'me', null, 'meRank', 0, 'entrants', 0, 'started', false);
-  end if;
-  select count(*) into n from public.rated_entries where event_id = ev;
-  select ro.id into last_round from public.rated_rounds ro
-   where ro.event_id = ev and ro.status = 'closed' order by ro.date_iso desc limit 1;
-
-  -- ★一時表を作らないこと。この関数は stable なので、作ろうとすると
-  --   「not allowed in a non-volatile function」で落ちる（実際に落ちた。supabase/README.md）。
-  --   volatile にすれば通るが、そのぶん読むだけの関数が毎回書き込み扱いになる。
-  with rows as (
-    -- ★レートは rated_players（人に1本）。**並べ方は lib/ratedTick の runRatedRound と
-    --   同じ**（レートの高い順、同点は user_id 順）。片方だけ変えると矢印が嘘になる。
-    select e.user_id,
-           row_number() over (order by rp.rating desc, e.user_id)::int as pos,
-           rp.rating,
-           coalesce(rr.place, 0) as place, coalesce(rr.time_sec, 0) as time_sec,
-           coalesce(rr.delta, 0) as delta, coalesce(rr.move, 0) as move,
-           coalesce(p.team_name, '') as team_name, coalesce(p.gm_name, '') as gm_name,
-           coalesce(p.color_primary, '') as primary_c,
-           coalesce(p.color_secondary, '') as secondary_c,
-           coalesce(p.logo_id, '') as logo_id
-      from public.rated_entries e
-      join public.rated_players rp on rp.user_id = e.user_id
-      left join public.profiles p on p.user_id = e.user_id
-      left join public.rated_results rr on rr.user_id = e.user_id and rr.round_id = last_round
-     where e.event_id = ev
-  ), shaped as (
-    select pos, user_id, jsonb_build_object(
-             'userId', user_id, 'rating', rating, 'place', place,
-             'timeSec', time_sec, 'delta', delta, 'move', move,
-             'teamName', team_name, 'gmName', gm_name,
-             'primary', primary_c, 'secondary', secondary_c, 'logoId', logo_id) as row
-      from rows
-  )
-  select jsonb_build_object(
-    'entrants', n,
-    -- ★開催前でも参加者は返す（一覧を出すため）。**始まっているかどうかは画面で組み直さない**
-    'started', (select public.rated_today_jst() >= starts_on from public.rated_events where id = ev),
-    'meRank', coalesce((select pos from shaped where user_id = me), 0),
-    'me',     (select row from shaped where user_id = me),
-    -- トップ100と自分だけ（オーナー判断）。参加者が増えても全員ぶんを配らない
-    'top', coalesce((select jsonb_agg(row order by pos) from shaped where pos <= 100), '[]'::jsonb))
-  into my_rank_json;
-  return my_rank_json;
-end $$;
-
 -- ============================================================
 -- 4. 既定値・トリガー・ポリシーを付け直す
 -- ============================================================
@@ -2386,9 +1929,6 @@ create policy profiles_select_clubmate on public.profiles
 -- 同じ部屋にいる相手（フレンドでなくてもロビーに名前が出る・対戦できる）
 create policy profiles_select_room on public.profiles
   for select to authenticated using (public.shares_room_with(profiles.user_id));
--- 同じ大会に出ている相手（ランクマッチの一覧から長押しでチームを見る）
-create policy profiles_select_rated on public.profiles
-  for select to authenticated using (public.shares_rated_event_with(profiles.user_id));
 create policy profiles_insert_own on public.profiles
   for insert to authenticated with check (user_id = auth.uid());
 create policy profiles_update_own on public.profiles
@@ -2410,8 +1950,6 @@ create policy rosters_select_clubmate on public.rosters
   );
 create policy rosters_select_room on public.rosters
   for select to authenticated using (public.shares_room_with(rosters.user_id));
-create policy rosters_select_rated on public.rosters
-  for select to authenticated using (public.shares_rated_event_with(rosters.user_id));
 create policy rosters_insert_own on public.rosters
   for insert to authenticated with check (user_id = auth.uid());
 create policy rosters_update_own on public.rosters
@@ -2491,28 +2029,6 @@ create policy blocks_insert_mine on public.blocks
 create policy blocks_delete_mine on public.blocks
   for delete to authenticated using (user_id = auth.uid());
 
--- ── レート戦 ──────────────────────────────────────────
--- **select だけ。** insert / update のポリシーは1つも置かない
--- （置いた瞬間に端末から順位やレートを直に書けるようになる）。
--- 書き込みは security definer の関数（`rated_join` / `rated_submit`）と、
--- service key で動く Edge Function だけが通る。
-create policy rated_events_select on public.rated_events
-  for select to authenticated using (true);
-create policy rated_rounds_select on public.rated_rounds
-  for select to authenticated using (true);
-create policy rated_entries_select on public.rated_entries
-  for select to authenticated using (true);
-create policy rated_results_select on public.rated_results
-  for select to authenticated using (true);
-create policy rated_races_select on public.rated_races
-  for select to authenticated using (true);
--- 段位は名前の横にどこでも出るので、全員ぶん読める必要がある
-create policy rated_players_select on public.rated_players
-  for select to authenticated using (true);
--- 提出だけは自分のぶんしか見えない（締め切り前に相手の編成が見えたら勝負にならない）
-create policy rated_lineups_select_own on public.rated_lineups
-  for select to authenticated using (user_id = auth.uid());
-
 -- ============================================================
 -- 5. 権限
 --   RPC は authenticated（＝匿名サインイン済みの端末）だけが実行できる。
@@ -2522,26 +2038,11 @@ create policy rated_lineups_select_own on public.rated_lineups
 grant select, insert         on public.reports to authenticated;
 grant select, insert, delete on public.blocks  to authenticated;
 
--- ── レート戦：**読むだけ** ──────────────────────────────
---   書くのは security definer の関数（`rated_join` / `rated_submit`）と、
---   service key で動く Edge Function だけ。
---   ★RLS に insert / update のポリシーを置いていないので RLS でも止まりますが、
---     Supabase は public の表に既定で書き込み権限を配るので、**ここで明示的に取り上げます**
---     （「ポリシーを1つ足したら書けるようになった」を防ぐ2枚目の板）。
--- ★`rated_round_groups` もこの並びに入れること。ここだけ漏れていたので、
---   レート戦の表で唯一「明示的に書き込み権限を取り上げる」板が効いていませんでした
---   （いま読めるのは security definer の `rated_my_group` 経由だけなので動作は正常ですが、
---     select ポリシーを1本足した瞬間に端末から組割りを直接書けるようになります）。
---   なお `rated_round_groups_select` は**作っていないポリシー**なので、上の drop は
---   「昔あったものを確実に落とす」ためのものです（消さないこと）。
+-- ── レート戦（削除済み）：表だけ残っているので、端末からの権限を取り上げたままにする ──
 revoke all on public.rated_events, public.rated_entries, public.rated_rounds,
               public.rated_lineups, public.rated_results, public.rated_races,
               public.rated_players, public.rated_round_groups
   from anon, authenticated;
-grant select on public.rated_events, public.rated_entries, public.rated_rounds,
-                public.rated_lineups, public.rated_results, public.rated_races,
-                public.rated_players
-  to authenticated;
 
 do $$
 declare f text;
@@ -2593,15 +2094,7 @@ begin
     'send_report(uuid, uuid, text, text)',
     'block_user(uuid)',
     'unblock_user(uuid)',
-    'my_blocks()',
-    'rated_join()',
-    'rated_today()',
-    'rated_me()',
-    'rated_submit(jsonb)',
-    'rated_result()',
-    'rated_standings()',
-    'rated_my_group()',
-    'rated_ranks(uuid[])'
+    'my_blocks()'
   ] loop
     execute format('revoke all on function public.%s from public, anon', f);
     execute format('grant execute on function public.%s to authenticated', f);
@@ -2642,6 +2135,4 @@ select
   (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public')                                            as "関数の数",
   (select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
-    where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity) as "RLSが無い表",
-  coalesce((select name || '｜' || starts_on || '｜' || total_days || '日'
-    from public.rated_events order by starts_on limit 1), '(大会なし)')     as "ランクマッチ";
+    where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity) as "RLSが無い表";

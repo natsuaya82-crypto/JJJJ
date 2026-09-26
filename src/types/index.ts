@@ -1,7 +1,7 @@
 export type Specialty = 'ace' | 'mountain_up' | 'mountain_down' | 'undulating' | 'sprinter' | 'long' | 'allrounder' | 'kick' | 'grinder'
 export type GrowthCurve = 'early' | 'normal' | 'late_bloomer'
 // 海外挑戦の希望地域。リーグとの対応は utils/transferDecision の REGION_BY_LEAGUE 1本
-// （満たしたか＝regionOfLeague／声が掛かるか＝leaguesOfRegion。両方向とも同じ表から引く）
+// （満たしたか・声が掛かるかとも regionOfLeague 1本で同じ表から引く）
 export type OverseasRegion = 'africa' | 'europe' | 'america'
 
 export type Nationality =

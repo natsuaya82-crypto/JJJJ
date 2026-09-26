@@ -193,7 +193,7 @@ export default function TransferPage() {
             ? cpuJpel.map(t => ({ id: t.id, name: t.name })).sort((a, b) => a.name.localeCompare(b.name))
             : (FOREIGN_LEAGUE_DEFS.some(l => l.id === mktLeague) ? otherClubs(clubsInLeague(clubs, mktLeague), playerTeamId) : []).map(c => ({ id: c.id, name: c.name }))
 
-        // 枠で囲まない。下の細い線と文字だけで組む（レート戦・ロスターと同じ）
+        // 枠で囲まない。下の細い線と文字だけで組む（ロスターと同じ）
         const cell: React.CSSProperties = {
           padding: '4px 2px 7px', minWidth: 0,
           borderBottom: `1px solid ${alpha(C.border3, 0.6)}`,

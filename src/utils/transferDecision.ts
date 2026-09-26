@@ -344,10 +344,11 @@ const FREE_AGENT_TIER = 21
 export const MAX_OFFERS_PER_PLAYER = 5
 
 /**
- * リーグ → 憧れの地域。**この表が唯一の決まり。両方向ともここから引く。**
+ * リーグ → 憧れの地域。**この表が唯一の決まり。どちらの問いもここから引く。**
  *
  * ・満たしたか（`regionOfLeague`）… 移籍の同意で「憧れの地域か」を見る
- * ・声が掛かるか（`leaguesOfRegion`）… 海外挑戦に登録した選手へオファーが来る発生源
+ * ・声が掛かるか … 海外挑戦に登録した選手へオファーが来る発生源（`engine/cpuMarket` が
+ *   `regionOfLeague(club.leagueId) === 登録した地域` で引く。同じ `regionOfLeague` 1本）
  *
  * 以前はこの2つが別の表だった。満たす側はここ、声が掛かる側は clubs.ts の
  * `ELITE_LEAGUES_BY_REGION`。**欧州北東へ移った選手は「憧れのヨーロッパへ行けた」と
@@ -372,11 +373,6 @@ const REGION_BY_LEAGUE: Readonly<Record<string, OverseasRegion>> = {
 /** リーグID → 憧れの地域。該当しないリーグ（アジア・オセアニア・国内）は undefined */
 export function regionOfLeague(leagueId: string | undefined): OverseasRegion | undefined {
   return REGION_BY_LEAGUE[leagueId ?? '']
-}
-
-/** 憧れの地域 → そのリーグID一覧。海外挑戦のオファーがどこから来るか */
-export function leaguesOfRegion(region: OverseasRegion): string[] {
-  return Object.keys(REGION_BY_LEAGUE).filter(id => REGION_BY_LEAGUE[id] === region)
 }
 
 /** 行き先クラブの姿。呼び出し側は buildDestination で作る */

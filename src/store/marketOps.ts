@@ -10,7 +10,7 @@ import { saleAnswers, keepSaleAnswers } from '../utils/saleAnswer'
 import { counterCeiling } from '../data/economy'
 
 import { type GameState, type Player } from '../types'
-import { MAJOR_NEWS_OVR, isBigClub, isStepUp } from '../utils/clubTier'
+import { MAJOR_NEWS_OVR, isBigClub, isStepUp, isWorldChallenge } from '../utils/clubTier'
 import { clubById, isJpelLeague, jpelClubById, myClub, myLeagueRaces } from '../utils/world'
 import { bigClub, findClub } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
@@ -110,6 +110,8 @@ export function finalizeSale(
   const destClub = clubById(state.clubs, offer.fromTeamId)
   const me = myClub(state)
   const toBigClub = !!offer.fromForeign && isBigClub(destClub)
+  // 「世界へ挑戦」の見出しは clubTier の isWorldChallenge 1本（日本から海外・格4以上）
+  const toWorldChallenge = !!offer.fromForeign && isWorldChallenge(me, destClub)
   const toStepUp = !!offer.fromForeign && isStepUp(me, destClub)
   const toName = offer.fromForeign
     ? (destClub && !isJpelLeague(destClub.leagueId) ? destClub.shortName : '海外クラブ')
@@ -117,7 +119,7 @@ export function finalizeSale(
 
   const moved = sellMove(state, offer.playerId, offer.fromTeamId, fee, toName)
   const headline = offer.fromForeign
-    ? overseasMoveHeadline({ playerName: player.name, playerOvr: ovr(player), clubName: toName, fee, big: toBigClub, stepUp: toStepUp })
+    ? overseasMoveHeadline({ playerName: player.name, playerOvr: ovr(player), clubName: toName, fee, worldChallenge: toWorldChallenge, stepUp: toStepUp })
     : soldPlayerHeadline({ playerName: player.name, toLabel: clubLabel(offer.fromTeamId, state.clubs), fee })
 
   return {

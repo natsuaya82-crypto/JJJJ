@@ -18,8 +18,6 @@ import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox, invalidateFriendsCache
 // ★ベルの数字も一緒に動かす。ここで落とさないと、承認したのにベルが3分（COOL_MS）
 //   減らないまま残る（オーナー・2026-08-15「1ってついてなかったから気づかなかった」の裏返し）
 import { dropFriendRequest, loadFriendRequests } from '../../lib/useFriendRequests'
-import { useRatedRanks } from '../../lib/useRatedRanks'
-import { RankBadge } from '../rated/ratedUi'
 import { OFFLINE_TEXT } from '../../lib/supabase'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import ScreenPortal from '../ui/ScreenPortal'
@@ -37,16 +35,14 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 /**
  * ダイアログの中に出す相手のチームカード（誰に申請するのかを目で確認する用）。
- * 段位は呼ぶ側からもらう（引くのは一覧ぶんまとめて1回）。
  */
-function TargetCard({ r, rating }: { r: FriendRequest; rating: number | undefined }) {
+function TargetCard({ r }: { r: FriendRequest }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 12px',background: alpha(C.bg, 0.5), border: `1px solid ${C.border2}` }}>
       <TeamLogoSVG primary={r.primary} secondary={r.secondary} shortName={r.shortName} logoId={r.logoId} size={44} />
       <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.teamName}</div>
-          <RankBadge rating={rating} size={17} />
         </div>
         <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.gold, marginTop: 2 }}>GM {r.gmName}</div>
       </div>
@@ -54,19 +50,14 @@ function TargetCard({ r, rating }: { r: FriendRequest; rating: number | undefine
   )
 }
 
-/**
- * 申請の一覧に出す1行。
- * ★段位は**呼ぶ側が一覧ぶんまとめて引いて**渡す。ここで `useRatedRank(r.id)` を
- *   呼ぶと、行の数だけ通信が飛ぶ（`lib/useRatedRanks` の見出しのとおり）。
- */
-function RequestRow({ r, rating, dim, right }: { r: FriendRequest; rating: number | undefined; dim?: boolean; right: React.ReactNode }) {
+/** 申請の一覧に出す1行。 */
+function RequestRow({ r, dim, right }: { r: FriendRequest; dim?: boolean; right: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 12px',background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, border: `1px solid ${C.border2}`, opacity: dim ? 0.5 : 1 }}>
       <TeamLogoSVG primary={r.primary} secondary={r.secondary} shortName={r.shortName} logoId={r.logoId} size={44} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.teamName}</div>
-          <RankBadge rating={rating} size={17} />
         </div>
         <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.gold, marginTop: 2 }}>GM {r.gmName}</div>
       </div>
@@ -95,13 +86,6 @@ export default function FriendRequestsPage() {
   // 自前のポップアップ（端末標準の alert / confirm は使わない）
   const [notice, setNotice] = useState<{ title: string; message?: string; target?: FriendRequest } | null>(null)
   const [confirmSend, setConfirmSend] = useState<FriendRequest | null>(null)
-
-  // ★段位は**この画面ぶんまとめて1回**（行ごとに引くと申請の数だけ通信が飛ぶ）。
-  //   ダイアログに出る相手（コードで引いた人）は一覧に居ないことがあるので一緒に渡す
-  const ranks = useRatedRanks([
-    ...received.map(r => r.id), ...sent.map(r => r.id),
-    ...(confirmSend ? [confirmSend.id] : []), ...(notice?.target ? [notice.target.id] : []),
-  ])
 
   const offline = () => setNotice({ ...OFFLINE_TEXT })
 
@@ -209,7 +193,7 @@ export default function FriendRequestsPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {received.map(r => (
-              <RequestRow key={r.id} r={r} rating={ranks.get(r.id)} dim={busy === r.id} right={<>
+              <RequestRow key={r.id} r={r} dim={busy === r.id} right={<>
                 <button onClick={() => onAccept(r)} disabled={!!busy} style={{ padding: '7px 12px',background: `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})`, backdropFilter: 'blur(10px) saturate(118%)', WebkitBackdropFilter: 'blur(10px) saturate(118%)', border: `1px solid ${alpha(C.gold, 0.65)}`, color: C.gold, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22)', fontSize: F.body, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>承認</button>
                 <button onClick={() => onReject(r)} disabled={!!busy} style={{ padding: '7px 10px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: F.body, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>拒否</button>
               </>} />
@@ -224,7 +208,7 @@ export default function FriendRequestsPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {sent.map(r => (
-              <RequestRow key={r.id} r={r} rating={ranks.get(r.id)} dim={busy === r.id} right={<>
+              <RequestRow key={r.id} r={r} dim={busy === r.id} right={<>
                 <span style={{ fontSize: F.caption, color: C.textDim, fontWeight: 700 }}>承認待ち</span>
                 <button onClick={() => onCancel(r)} disabled={!!busy} style={{ padding: '6px 10px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: F.label, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>取消</button>
               </>} />
@@ -248,13 +232,13 @@ export default function FriendRequestsPage() {
           onConfirm={onSend}
           onCancel={() => setConfirmSend(null)}
         >
-          <TargetCard r={confirmSend} rating={ranks.get(confirmSend.id)} />
+          <TargetCard r={confirmSend} />
         </ConfirmDialog>
       )}
 
       {notice && (
         <NoticeDialog title={notice.title} message={notice.message} onClose={() => setNotice(null)}>
-          {notice.target && <TargetCard r={notice.target} rating={ranks.get(notice.target.id)} />}
+          {notice.target && <TargetCard r={notice.target} />}
         </NoticeDialog>
       )}
     </div>

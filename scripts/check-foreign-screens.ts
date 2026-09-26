@@ -57,12 +57,9 @@ const SKIP: Record<string, string> = {
 
 /**
  * Layout だけの画面と同じくらいしか出ないのが正しい道（**どちらの世界でも同じ**）。
- * 台の世界にはランクマッチの札が無いので、札を読む画面は何も出さない
+ * いまは無い（ランクマッチの札を読む画面が2つあったが、2026-09-26 にランクマッチごと削除）
  */
-const EMPTY_OK: Record<string, string> = {
-  '/online/rated/lineup': 'その日のランクマッチの札が無いと何も出さない',
-  '/online/rated/result': 'その日のランクマッチの結果が無いと何も出さない',
-}
+const EMPTY_OK: Record<string, string> = {}
 
 /** 自チームを見る画面（台の tag）。海外の世界で日本のリーグの字が出てはいけない */
 const MINE_TAGS = new Set(['home', 'mine', 'myLeague', 'myClub'])

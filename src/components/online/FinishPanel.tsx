@@ -10,23 +10,15 @@ import { courseById, courseToRace } from '../../data/matchCourses'
 import { asPlayer, asTeam, seriesStandings, type MatchRacePayload, type MatchTeamInfo } from '../../lib/matchSim'
 import { SegmentDetailCard, SegmentTabs } from '../race/SegmentDetailCard'
 import { useGameStore } from '../../store/gameStore'
-import { useRatedRanks } from '../../lib/useRatedRanks'
-import { RankBadge } from '../rated/ratedUi'
 import { C, alpha, rankColor, SAIRA, F } from '../../styles/tokens'
 
 
 export default function FinishPanel({
-  races, meId, onLeave, history = false, leaveLabel, courseOf = courseById,
+  races, meId, onLeave, history = false, leaveLabel,
 }: {
   races: MatchRacePayload[]
   meId: string
   onLeave: () => void
-  /**
-   * コースの引き方。既定は決まった一覧から引く（`courseById`）。
-   * **レート戦だけは日付から作るコース**なので一覧に無く、そこから渡してもらう。
-   * ★この画面を2つに増やさないための差し替え口。**中身は何も変えないこと**
-   */
-  courseOf?: (id: string) => import('../../data/matchCourses').MatchCourse | undefined
   /** 対戦履歴から開いたときは true。順位の発表演出を飛ばし、区間記録から見せる。
    *  履歴のためだけに似た画面を作らず、この画面をそのまま使い回すための切り替え */
   history?: boolean
@@ -39,11 +31,6 @@ export default function FinishPanel({
     for (const r of races) for (const t of r.teams) if (!m.has(t.id)) m.set(t.id, t)
     return m
   }, [races])
-
-  // 名前の横に出す段位。**他人の名前が出るところには全部付ける**（オーナー・2026-08-14
-  // 「フレンドから見えるところ全部だよ」）。ランクマッチ未参加なら何も出ない。
-  // `MatchTeamInfo.id` はユーザーIDなので、そのまま渡せる
-  const ranks = useRatedRanks(useMemo(() => [...teamMap.keys()], [teamMap]))
 
   // 下から何チームぶん発表したか。履歴から見るときは演出せず最初から全部出す
   const [shown, setShown] = useState(history ? standings.length : 0)
@@ -69,7 +56,7 @@ export default function FinishPanel({
   const rec = useMemo(() => {
     const payload = races[Math.min(recRace, races.length - 1)]
     if (!payload) return null
-    const course = courseOf(payload.courseId)
+    const course = courseById(payload.courseId)
     if (!course) return null
     const race = courseToRace(course, recRace + 1)
     const teamList: Team[] = payload.teams.map(asTeam)
@@ -101,7 +88,7 @@ export default function FinishPanel({
         {/* レース切り替え（R1 / R2 / R3） */}
         {races.length > 1 && (
           <SegmentTabs
-            labels={races.map((r, i) => `R${i + 1} ${courseOf(r.courseId)?.name ?? ''}`)}
+            labels={races.map((r, i) => `R${i + 1} ${courseById(r.courseId)?.name ?? ''}`)}
             value={Math.min(recRace, races.length - 1)}
             onChange={i => { setRecRace(i); setRecSeg(0) }}
           />
@@ -166,7 +153,6 @@ export default function FinishPanel({
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
               <div style={{ fontSize: F.head, fontWeight: 900, color: C.text }}>{t?.name ?? champion.teamId}</div>
-              <RankBadge rating={ranks.get(champion.teamId)} size={20} />
             </div>
             {t?.gmName && <div style={{ fontSize: F.label, color: C.textDim, marginTop: 2 }}>GM {t.gmName}</div>}
             <div style={{ fontSize: F.body, color: C.gold, marginTop: 4, fontFamily: SAIRA, fontWeight: 900 }}>
@@ -199,7 +185,6 @@ export default function FinishPanel({
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: F.bodyLg, fontWeight: isMe ? 900 : 600, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{t?.name ?? s.teamId}</span>
-                    <RankBadge rating={ranks.get(s.teamId)} size={15} />
                     {/* 全部落ちたら「不戦」、一部だけなら「不戦1」のように回数で出す。
                         1回落ちただけの人を丸ごと不戦扱いにしない */}
                     {s.forfeits > 0 && (

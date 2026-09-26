@@ -33,10 +33,10 @@ export function safeRatings(r: Player['ratings'] | undefined | null): Player['ra
  *   ここに2本目の式を書かないこと（`check-segment-weights` が落とします）。
  *
  * ★**重みの合計は必ず 1.00。** score は OVR と同じ目盛りでなければいけません。
- *   `scoreToTime` が引く `PACE_TABLE` の上端は `[99, 154]` で表の外はクランプするので、
+ *   `scoreToTime` が引く `PACE_TABLE` の上端は `[110, 143]` で表の外はクランプするので、
  *   目盛りがずれると**上位の能力差がそのまま消えます**。
  *   以前ここに2本目の式があり、足したぶんを引いていなかったので合計が 1.18 まで膨らみ、
- *   重みを持たない区間（ECL の70本・ランクマッチのコース）では
+ *   重みを持たない区間（ECL の70本・当時あったランクマッチのコース）では
  *   **OVR 89〜95 から上が同タイム**になっていました（2026-08-20 に実測）。
  */
 export function calcBaseAbility(

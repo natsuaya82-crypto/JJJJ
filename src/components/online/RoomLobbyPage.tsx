@@ -27,8 +27,6 @@ import type { StampPayload } from './stampKinds'
 import { buildRacePayload, seriesPointsBefore, seriesStandings, buildMatchDetail, type MatchRacePayload, type MatchTeamInfo } from '../../lib/matchSim'
 // 相手のロゴは remoteLogoId 1本（自分のセーブの中のチームは defaultLogoIdFor）
 import { defaultLogoIdFor, remoteLogoId } from '../../data/logoPresets'
-import { useRatedRanks } from '../../lib/useRatedRanks'
-import { RankBadge } from '../rated/ratedUi'
 import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
 import GlassButton from '../ui/GlassButton'
 import { jpelClubs } from '../../utils/world'
@@ -359,8 +357,6 @@ export default function RoomLobbyPage() {
   const seriesPts = useMemo(() => seriesPointsBefore(results, raceNo), [results, raceNo])
   const mine = members.find(m => m.userId === me)
   const active = members.filter(m => !m.left)
-  // 名前の横に出す段位。**まとめて1回**（20人ぶんを1人ずつ引かない）
-  const lobbyRanks = useRatedRanks(active.map(m => m.userId))
 
   const onLeave = async () => {
     setAskLeave(false)
@@ -699,8 +695,6 @@ export default function RoomLobbyPage() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: F.bodyLg, fontWeight: 900, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {p?.teamName ?? '読み込み中'}
-                    {/* 名前の横に段位。ランクマッチ未参加なら何も出ない */}
-                    <RankBadge rating={lobbyRanks.get(m.userId)} size={16} />
                     {isRoomHost && <span style={{ marginLeft: 6, padding: '1px 6px', background: alpha(C.gold, 0.16), border: `1px solid ${alpha(C.gold, 0.55)}`, color: C.gold, fontSize: F.tiny, fontWeight: 900 }}>ホスト</span>}
                   </div>
                   <div style={{ fontSize: F.caption, color: C.textDim }}>GM {p?.gmName ?? '—'}{!connected && '・接続待ち'}</div>

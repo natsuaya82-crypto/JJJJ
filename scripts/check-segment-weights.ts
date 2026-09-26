@@ -10,7 +10,7 @@
  *   **重みの合計が 1.00 でないと score の目盛りがずれ、上位の能力差が消える。**
  *
  *   実際に消えていた。本編の400区間は手で調整した重みを持ち合計は 1.000 だったが、
- *   重みを持たない区間（ECL の70本・ランクマッチのコース）は `calcBaseAbility` の
+ *   重みを持たない区間（ECL の70本・世界選手権）は `calcBaseAbility` の
  *   **2本目の枝**を通り、そちらは足したぶんを引いていないので合計が 1.18 まで膨らむ。
  *   ECL では OVR 89〜95 から上が同タイムだった（10km・登り2% で OVR 95 と 99 が 26分40秒）。
  *
@@ -27,7 +27,6 @@ import { terrainWeights } from '../src/data/segmentWeights'
 import { SEASON_2027_RACES, LEAGUE_COURSE_POOL, FINAL_COURSES, RESERVE_RACE_POOL } from '../src/data/races'
 import { ECL_COURSES } from '../src/data/eclCourses'
 import { MATCH_COURSES } from '../src/data/matchCourses'
-import { ratedCourse } from '../src/engine/ratedCourse'
 import { worldRace, worldRacePlans } from '../src/utils/worldCourses'
 
 let failed = 0
@@ -41,7 +40,6 @@ const SETS: [string, Seg[]][] = [
   ['本編 JPEL', [...SEASON_2027_RACES, ...LEAGUE_COURSE_POOL, ...FINAL_COURSES, ...RESERVE_RACE_POOL].flatMap(r => r.segments as unknown as Seg[])],
   ['ECL', (ECL_COURSES as { segments: Seg[] }[]).flatMap(c => c.segments)],
   ['オンライン対戦', (MATCH_COURSES as unknown as { segments: Seg[] }[]).flatMap(c => c.segments)],
-  ['ランクマッチ', (ratedCourse('2026-09-01').segments as unknown as Seg[])],
   ['世界選手権', worldRacePlans(2030).flatMap((p, i) =>
     worldRace(p, { id: `w${i}`, name: 'w', date: '2030-01-01' }).segments as unknown as Seg[])],
 ]
@@ -49,7 +47,7 @@ const SETS: [string, Seg[]][] = [
 // ── ①② 目盛りが 1.00 か（重みを持つ区間も、地形から作る区間も） ──
 //   ★**「重みを持っているか」ではなく「目盛りが合っているか」を見ること。**
 //     重みをデータに焼くとセーブに乗る（実測で1シーズン8KB増えた）ので、
-//     地形から決まる区間（ECL・ランクマッチ・世界選手権）は**持たないのが正しい**。
+//     地形から決まる区間（ECL・世界選手権）は**持たないのが正しい**。
 //     持たない区間は `calcBaseAbility` が `terrainWeights` から作る——**その1本だけ**。
 for (const [name, segs] of SETS) {
   const sums = segs.map(s => Object.values(

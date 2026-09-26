@@ -34,11 +34,6 @@ import MorePage from './components/more/MorePage'
 import HofTeamPage from './components/online/HofTeamPage'
 import AnnouncementsPage, { AnnouncementDetailPage } from './components/more/AnnouncementsPage'
 import EventsPage from './components/online/EventsPage'
-import RatedPage from './components/rated/RatedPage'
-import RatedLineupPage from './components/rated/RatedLineupPage'
-import RatedResultPage from './components/rated/RatedResultPage'
-import RatedStandingsPage from './components/rated/RatedStandingsPage'
-import RatedGroupPage from './components/rated/RatedGroupPage'
 import Dashboard from './components/dashboard/Dashboard'
 import TeamManagement from './components/team/TeamManagement'
 import Onboarding from './components/onboarding/Onboarding'
@@ -65,7 +60,6 @@ import FriendRequestsPage from './components/friends/FriendRequestsPage'
 import FriendClubPage from './components/friends/FriendClubPage'
 import ClubViewPage from './components/friends/ClubViewPage'
 import ClubBrowsePage from './components/friends/ClubBrowsePage'
-import { RatedHelpPage } from './components/rated/ratedRules'
 import OnlinePage from './components/online/OnlinePage'
 import MatchEntryPage from './components/online/MatchEntryPage'
 import RoomLobbyPage from './components/online/RoomLobbyPage'
@@ -395,14 +389,7 @@ export function AppRoutes({ onBackToTitle }: { resetGame: () => void; onBackToTi
           {onlineAvailable() && <Route path="/online/history" element={<MatchHistoryPage />} />}
           {/* 殿堂入りチームはオフラインでも使う（登録・固定は端末内で完結する） */}
           <Route path="/online/hof" element={<HofTeamPage />} />
-          {/* イベント → 一覧 → ランクマッチ。
-              一覧を挟むのは、ランクマッチ以外のイベントもやるため */}
           <Route path="/online/events" element={<EventsPage />} />
-          <Route path="/online/rated" element={<RatedPage />} />
-          <Route path="/online/rated/lineup" element={<RatedLineupPage />} />
-          <Route path="/online/rated/result" element={<RatedResultPage />} />
-          <Route path="/online/rated/standings" element={<RatedStandingsPage />} />
-          <Route path="/online/rated/group" element={<RatedGroupPage />} />
           {onlineAvailable() && <Route path="/online/history/:matchId" element={<MatchReplayPage />} />}
           {onlineAvailable() && <Route path="/friends" element={<FriendsPage />} />}
           {onlineAvailable() && <Route path="/friends/list" element={<FriendListPage />} />}
@@ -414,8 +401,6 @@ export function AppRoutes({ onBackToTitle }: { resetGame: () => void; onBackToTi
           {/* 入っていない走友会を見るページ（一覧から長押しで来る） */}
           {onlineAvailable() && <Route path="/friends/clubs" element={<ClubBrowsePage />} />}
           {onlineAvailable() && <Route path="/friends/club/:code" element={<ClubViewPage />} />}
-          {/* ランクマッチの遊びかた。下から出すのをやめて普通のページにした */}
-          <Route path="/rated/help" element={<RatedHelpPage />} />
           {onlineAvailable() && <Route path="/friends/team/:id" element={<FriendDetailPage />} />}
           <Route path="/records" element={<RecordsHub />} />
           <Route path="/records/franchise" element={<FranchiseRecordsPage />} />

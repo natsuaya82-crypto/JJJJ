@@ -21,8 +21,6 @@ import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
 import ScreenCover from '../ui/ScreenCover'
 import { OFFLINE_TEXT } from '../../lib/supabase'
-import { useRatedRanks } from '../../lib/useRatedRanks'
-import { RankBadge } from '../rated/ratedUi'
 import { clubById, myClub } from '../../utils/world'
 import { clubCity, clubGmName } from '../../utils/clubs'
 
@@ -125,10 +123,6 @@ function BlockedScreen({ onClose }: { onClose: () => void }) {
   const [failed, setFailed] = useState(false)
   const [busy, setBusy] = useState('')
   const [round, setRound] = useState(0)
-  // ★ここに並ぶのは**他の人**（ブロックした相手のチーム名とGM名）なので、
-  //   名前の横には段位の紋章を出す（オーナー・2026-08-18「全部です」）。
-  //   引くのは一覧ぶんまとめて1回（`lib/useRatedRanks`）
-  const ranks = useRatedRanks((rows ?? []).map(u => u.id))
 
   useEffect(() => {
     let alive = true
@@ -171,7 +165,6 @@ function BlockedScreen({ onClose }: { onClose: () => void }) {
                   <div style={{ fontSize: F.sub, fontWeight: 900, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {u.teamName}
                   </div>
-                  <RankBadge rating={ranks.get(u.id)} size={17} />
                 </div>
                 <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 2 }}>GM {u.gmName}</div>
               </div>

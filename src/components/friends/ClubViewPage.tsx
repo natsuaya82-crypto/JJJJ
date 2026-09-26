@@ -15,7 +15,6 @@ import PageHeader from '../ui/PageHeader'
 import { clubPreview, findClubByCode, type ClubMember } from '../../lib/clubsApi'
 import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox } from './friendsUi'
 import { MemberRow, SectionLabel, ClubHeaderCard } from './FriendClubPage'
-import { useRatedRanks } from '../../lib/useRatedRanks'
 import { FONT } from '../../styles/tokens'
 
 export default function ClubViewPage() {
@@ -29,8 +28,6 @@ export default function ClubViewPage() {
   const members = useFriendsQuery(
     () => (club ? clubPreview(club.id) : Promise.resolve([] as ClubMember[])),
     [club?.id], club ? `clubPeek:${club.id}` : undefined)
-  // ★段位は**一覧ぶんまとめて1回**（行ごとに引くと人数ぶん通信が飛ぶ）
-  const ranks = useRatedRanks((members.data ?? []).map(m => m.id))
 
   return (
     <div style={{ fontFamily: FONT, paddingBottom: 80, minHeight: '100%' }}>
@@ -52,7 +49,6 @@ export default function ClubViewPage() {
                <MemberRow
                  key={m.id}
                  m={m}
-                 rating={ranks.get(m.id)}
                  // ★**見るだけ**（オーナー・2026-08-15「通報ボタンと長押しはいらんやろ」）。
                  //   入っていない走友会なので、外すことも自分の行もフレンド申請もない
                  //   （コードはサーバーが返していない）。

@@ -339,13 +339,12 @@ console.log('\n[20] 「その選手はいくらか」の材料も1本（今季�
   //   請求する `transferFeeFor` は出場を見るので、**表示・受諾ライン・請求額が別の数**
   //   でした（画面9か所・入札の受諾ライン・出品の希望額・逆提示の上限が引数なし）。
   check('`marketValueOf` が居る', /export function marketValueOf\(/.test(code))
-  // ★**並べ替えだけは素の値でよい**（同じ一覧の中の順番を決めるだけで、
-  //   額として画面に出ないし、誰かに請求もしない）。漏れと区別できるように名指しで書く。
-  const SORT_ONLY = ["case 'value': return", 'sort((a, b) => calcTransferValue']
+  // ★並べ替えも例外にしない（2026-09-26）。市場価値順が画面に出る額と別の額で並んでいたので、
+  //   `comparePlayers` は `marketValueOf` を受け取り、CPU間トレードの並びは `priceOf` を使う。
   const bare = code.split('\n')
     .map(l => l.trim())
     .filter(l => /calcTransferValue\([A-Za-z_$][\w$]*\)/.test(l))
-    .filter(l => !l.includes('marketValueOf') && !SORT_ONLY.some(k => l.includes(k)))
+    .filter(l => !l.includes('marketValueOf'))
   check('額を出すところで `calcTransferValue` を引数なしで呼んでいない',
     bare.length === 0, bare.join(' / ').slice(0, 200))
 
@@ -361,6 +360,17 @@ console.log('\n[20] 「その選手はいくらか」の材料も1本（今季�
   // 呼び出しの数（2026-09-26 に呼ばれていなかった signForeignPlayer を消して 7 → 6。
   //   同じ日に、直に seasonPerfProfile を呼んでいた CPU の移籍市場とトレードの値段を寄せて 6 → 8）
   check('`perfOf` を呼ぶのは8か所', perfCallers === 8, `${perfCallers}か所`)
+}
+
+console.log('\n[21] 「世界へ挑戦」の見出しは clubTier の isWorldChallenge 1本')
+{
+  // 戻し方：engine/transferMarket の見出しの条件を `!to.domestic && big && ovr(p) >= MAJOR_NEWS_OVR` に戻す
+  // ★自チームが売ったとき（store/marketOps）と裏の移籍市場（engine/transferMarket）の2か所で、
+  //   以前は線が違った（格2以上 ／ 格2以上かつOVR85以上）。オーナー・2026-09-26「格が4以上で出す」
+  check('isWorldChallenge が居る', /export function isWorldChallenge\(/.test(code))
+  const calls = (code.match(/(?<!function )isWorldChallenge\(/g) ?? []).length
+  check('見出しを決める2か所とも isWorldChallenge を通る', calls === 2, `${calls}か所`)
+  check('OVR で「世界へ挑戦」を決めていない', !/big && ovr\(p\) >= MAJOR_NEWS_OVR/.test(code))
 }
 
 console.log('')

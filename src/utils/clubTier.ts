@@ -22,6 +22,7 @@
 import type { Division, Team, Rank } from '../types'
 import { CLUB_TIER_BY_ID } from '../data/clubTiers'
 import { DIVISIONS, DIVISION_SIZE } from './league'
+import { isJpelLeague } from './world'
 
 /** 1が世界の頂点、20が最下層。20段階 */
 export type ClubTier =
@@ -353,9 +354,9 @@ export function tierOf(team: TieredTeam | undefined): ClubTier {
 /**
  * 「世界レベルの選手」の線。**ここ1本で決める。**
  *   ・移籍が大ニュースになるか
- *   ・海外の最上位クラブが放っておかないか
- *   ・日本から海外へ渡ったのが「世界へ挑戦」の見出しになるか
- * 以前はこの3つが 85 / 85 / 76 と別々の数字で、さらに引き抜きの「スター」だけ 82 だった。
+ * 以前は「海外の最上位クラブが放っておかないか」「世界へ挑戦の見出しになるか」にも使っていて、
+ * 85 / 85 / 76 と別々の数字で、さらに引き抜きの「スター」だけ 82 だった。
+ * 前者は廃止、後者は `isWorldChallenge`（行き先の格で決める・選手の強さは見ない）に移した。
  * 移籍金いくら以上、という基準は使わない（クラブの規模で額が変わるので、
  * 同じ1億でも格1では小さく格20では巨額になり、意味が揃わない）。
  */
@@ -394,6 +395,27 @@ export function isBigClub(club: TieredTeam | undefined): boolean {
  */
 export function isStepUp(from: TieredTeam | undefined, to: TieredTeam | undefined): boolean {
   return tierOf(to) < tierOf(from)
+}
+
+/**
+ * 「世界へ挑戦」の見出しの線＝格4以上（格1〜4）。
+ * ★ビッグクラブ（`BIG_CLUB_TIER`＝格2以上）とは別の数。あちらは大ニュースと実績に使う。
+ */
+export const WORLD_CHALLENGE_TIER: ClubTier = 4
+
+/**
+ * **「世界へ挑戦」か。見出しの判定はここ1本**（自チームが売ったとき・裏の移籍市場の両方）。
+ * 日本のリーグのクラブから、日本のリーグでないクラブへ、格4以上のクラブに移るとき
+ * （オーナー・2026-09-26「日本から海外」「格が4以上で出す」）。選手の強さ（OVR）は見ない。
+ * 以前は自チームが売ったとき＝行き先が格2以上、裏の市場＝格2以上かつ OVR85以上、と2通りだった。
+ * ★国内か海外かを見るのは**見出しの文字を選ぶためだけ**（W3 の例外）。
+ */
+export function isWorldChallenge(
+  from: (TieredTeam & { leagueId?: string }) | undefined,
+  to: (TieredTeam & { leagueId?: string }) | undefined,
+): boolean {
+  if (!from || !to) return false
+  return isJpelLeague(from.leagueId as never) && !isJpelLeague(to.leagueId as never) && tierOf(to) <= WORLD_CHALLENGE_TIER
 }
 
 export function tierOfClubId(clubId: string): ClubTier {

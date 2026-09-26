@@ -15,8 +15,6 @@ import { getFriend, getFriendShare, removeFriend, listFriends, listSent, sendReq
 import { clubsOfUsers, type UserClub } from '../../lib/clubsApi'
 import { clubLogoSrc } from '../../data/clubLogos'
 import { topTitleCount } from '../../utils/teamHistory'
-import { useRatedRank } from '../../lib/useRatedRanks'
-import { RankBadge } from '../rated/ratedUi'
 import type { Specialty } from '../../types'
 import { useFriendsQuery, LoadingBox, ErrorBox, EmptyBox, invalidateFriendsCache } from './friendsUi'
 import { usePreviewStore } from '../../store/previewStore'
@@ -115,19 +113,6 @@ export default function FriendDetailPage() {
     if (Math.abs(el.scrollLeft - want) > 1) el.scrollLeft = want
   }, [list.data]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 名前の横の段位と、下に並べるレート。**未参加なら紋章は出ず、レートは「—」**
-  //
-  // ★★**フックは必ず早期リターンより上に書くこと。**
-  //   これは下（`champsText` の隣）にありました。読み込み中は `head.loading` の
-  //   return で抜けるのでフックは6個、読み込めたら7個目が走る——`useRatedRank` が
-  //   **レンダーごとに呼ばれたり呼ばれなかったり**する形です。React はフックを
-  //   呼ばれた順番で数えるので、数が変わった瞬間に落ちます
-  //   （Minified React error 310・「フレンドを見ようとすると何回もこうなる」
-  //     オーナー・2026-08-15）。**必ず落ちる**ので、この画面は開けませんでした。
-  //   `friend`（＝`head.data`）が undefined のときは `useRatedRank` が空で返すだけで、
-  //   上へ動かしても出るものは変わりません。
-  const rating = useRatedRank(head.data?.id)
-
   if (head.loading) {
     return (
       <div style={{ fontFamily: SAIRA, padding: '12px 16px', minHeight: '100%' }}>
@@ -222,18 +207,16 @@ export default function FriendDetailPage() {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
               <div style={{ fontSize: F.title, fontWeight: 900, color: C.text, lineHeight: 1.2 }}>{friend.teamName}</div>
-              <RankBadge rating={rating} size={22} />
             </div>
             <div style={{ fontSize: F.title, fontWeight: 900, color: C.gold, marginTop: 3 }}>GM {friend.gmName}</div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-          {[['平均OVR', `${avgOvr}`], ['レート', rating == null ? '—' : `${rating}`],
+          {[['平均OVR', `${avgOvr}`],
             ['最終ログイン', friend.lastLogin], ['通算優勝', champsText]].map(([k, v]) => (
             <div key={k} style={{ flex: 1, padding: '9px 8px',background: alpha(C.bg, 0.4), border: `1px solid ${C.border}`, textAlign: 'center' }}>
               <div style={{ fontSize: F.micro, color: C.textDim, marginBottom: 2 }}>{k}</div>
-              {/* ★4つ並ぶので値は F.bodyLg（13px）。15px だと「10時間前」が2行に折り返す
-                  （390px の実寸で確認。レートが4桁＋マイナスまで伸びたぶんも効いている） */}
+              {/* ★値は F.bodyLg（13px）。15px だと「10時間前」が2行に折り返す（390px の実寸で確認） */}
               <div style={{ fontSize: F.bodyLg, fontWeight: 900, color: C.text, fontFamily: SAIRA }}>{v}</div>
             </div>
           ))}

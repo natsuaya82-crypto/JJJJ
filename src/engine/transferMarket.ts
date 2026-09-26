@@ -52,7 +52,7 @@ import {
   acquisitionDesiredSalary, faMarketSalary, newContractYears, ovr, perfOf, playerConsentToMove,
   transferFeeFor,
 } from '../utils/playerUtils'
-import { DOMESTIC_BOTTOM_TIER, MAJOR_NEWS_OVR, isBigClub, isStepUp, tierBudget, tierOf, tierOfPlayerClub, tierStrength, type ClubTier } from '../utils/clubTier'
+import { DOMESTIC_BOTTOM_TIER, MAJOR_NEWS_OVR, isBigClub, isStepUp, isWorldChallenge, tierBudget, tierOf, tierOfPlayerClub, tierStrength, type ClubTier } from '../utils/clubTier'
 import { CPU_SELL_FLOOR } from '../data/rosterRules'
 import {
   clubLabel, crossBorderHeadline, overseasBreakthroughHeadline, seekPlayingTimeHeadline,
@@ -362,8 +362,9 @@ export function runTransferMarket(
         const crossBorder = from.domestic !== to.domestic
         const big = isBigClub(clubById(world.clubs, to.id))
         if (crossBorder) {
-          // 日本から世界最高峰へ渡った。列島が沸くやつ
-          if (!to.domestic && big && ovr(p) >= MAJOR_NEWS_OVR) {
+          // 日本から格4以上の海外クラブへ渡った＝世界へ挑戦（clubTier の isWorldChallenge 1本。
+          // 自チームが売ったときの見出しと同じ線。以前はここだけ OVR85 以上も要った）
+          if (isWorldChallenge(clubById(world.clubs, from.id), clubById(world.clubs, to.id))) {
             return {
               date, category: 'trade' as const, relatedIds, major: true,
               headline: overseasBreakthroughHeadline({ playerName: p.name, playerOvr: ovr(p), toName: to.name, fee }),

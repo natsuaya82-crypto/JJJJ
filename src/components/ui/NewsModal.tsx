@@ -2,28 +2,9 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import IntroModal from './IntroModal'
 import { C, SAIRA, F, alpha } from '../../styles/tokens'
-import { RANK_ART } from '../rated/rankArt'
 import logo from '../../assets/logo.png'
 import { TrophyIcon, RunnerIcon } from '../icons/StatIcons'
 import type { NewsPopup } from '../../data/newsPopups'
-
-/** 段位の紋章を横に並べる。**絵は `rated/rankArt` の7枚1組**（別に持たないこと） */
-function RankRow() {
-  return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 2 }}>
-      {Object.values(RANK_ART).map((a, i) => (
-        <img
-          key={i}
-          src={a.img}
-          alt=""
-          width={i === 3 ? 56 : 40}
-          height={i === 3 ? 56 : 40}
-          style={{ display: 'block', opacity: i === 3 ? 1 : 0.85 }}
-        />
-      ))}
-    </div>
-  )
-}
 
 /**
  * **月桂冠のロゴ。** 中の数字は呼ぶ側から。葉は円弧に沿って並べる。
@@ -45,14 +26,14 @@ export default function NewsModal(
   return (
     <IntroModal
       accent={C.cyan}
-      icon={news.art === 'ranks' ? <RankRow /> : (
+      icon={
         <div style={{ width: 56, height: 56, background: C.cyan, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
             <path d="M12 3l2.3 4.7 5.2.8-3.8 3.6.9 5.1-4.6-2.4-4.6 2.4.9-5.1L4.5 8.5l5.2-.8L12 3z"
               stroke={C.bg} strokeWidth="1.8" strokeLinejoin="round"/>
           </svg>
         </div>
-      )}
+      }
       hero={news.hero ? (
         <div>
           {/* ★絵は無加工でそのまま見せる。ロゴと見出しは**絵の下**
