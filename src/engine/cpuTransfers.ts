@@ -15,14 +15,14 @@
 import { clubIndexOf } from '../utils/rosterSync'
 import type { Player, Season, WorldClub } from '../types'
 import type { ClubTier } from '../utils/clubTier'
-import { ROSTER_MAX } from '../data/rosterRules'
+import { CPU_SELL_FLOOR, ROSTER_MAX } from '../data/rosterRules'
 import { MAJOR_NEWS_OVR, tierOfPlayerClub } from '../utils/clubTier'
 import { clubById, isJpelLeague } from '../utils/world'
 import { bigClub } from '../utils/clubs'
 import { type NewsItem, clubLabel, transferHeadline } from '../utils/newsItems'
 import { ovr } from '../utils/playerUtils'
 import { appraiseMove, type Destination } from '../utils/transferDecision'
-import { canBePoached } from '../utils/transferEligibility'
+import { canBePoached, ctxForTeam, eligibilityCtx } from '../utils/transferEligibility'
 import { playRateOf, prevSeasonOf, type PlayRateSeason } from '../utils/playRate'
 
 export type CpuTx = { playerId: string; fromTeamId: string; toTeamId: string; playerName: string; playerOvr: number; fromShort: string; toShort: string; fee: number }
@@ -35,15 +35,15 @@ export function settleCpuTransfers(params: {
   pastSeasons?: readonly ({ year: number } & PlayRateSeason)[]
   playerTeamId: string
   raceDate: string
-  /** 引退の話がついている選手（移籍の話は持ちかけない） */
-  retiringWishIds: Set<string>
   /** 行き先の情報を作る（store の destinationOf をそのまま渡す） */
   destinationOf: (clubId: string, player: Player) => Destination
   /** 選手の格（utils/playerTier）。store の playerTierOf をそのまま渡すこと */
   playerTierOf: (player: Player) => ClubTier
   rng?: () => number
 }): { txList: CpuTx[]; settledListingIds: Set<string>; news: NewsItem[] } {
-  const { players, clubs, currentSeason, pastSeasons, playerTeamId, raceDate, retiringWishIds, destinationOf, playerTierOf, rng = Math.random } = params
+  const { players, clubs, currentSeason, pastSeasons, playerTeamId, raceDate, destinationOf, playerTierOf, rng = Math.random } = params
+  // 移籍の可否の材料は eligibilityCtx 1本（引退希望・返事済みもここから）
+  const eligCtx = eligibilityCtx(currentSeason, playerTeamId)
     type CpuTx = { playerId: string; fromTeamId: string; toTeamId: string; playerName: string; playerOvr: number; fromShort: string; toShort: string; fee: number }
   // ★**クラブは国内52＋海外180を1つの索引で引く**（オーナー・2026-09-16「1は海外国内は一緒」）。
   //   売り手・買い手・ニュースのクラブ名が全部ここを通る。
@@ -82,10 +82,14 @@ export function settleCpuTransfers(params: {
       // 出品後に選手が移籍していた古い出品は成立させない（現所属と出品元が一致するときのみ）。
       // レンタル中・非売品・海外挑戦を承認済み・今季加入の除外は canBePoached が見る。
       // 同一レース内で同じ選手が二重に動くのと、買い手が現所属と同じ場合はここで弾く
-      if (!canBePoached(p, { teamId: listing.fromTeamId, currentYear: currentSeason.year, retiringIds: retiringWishIds }) || movedThisRace.has(p.id) || buyerTeamId === p.teamId) {
+      if (!canBePoached(p, ctxForTeam(eligCtx, listing.fromTeamId)) || movedThisRace.has(p.id) || buyerTeamId === p.teamId) {
         cpuTxListingIds.add(listing.id)  // 無効な出品は掃除する
         continue
       }
+      // ★**売り手の下限も見る**（`data/rosterRules` の `CPU_SELL_FLOOR` 1本）。名簿が減る4本目の経路で、
+      //   以前はここだけ下限を見ておらず、15人のクラブが出品した15人目が売れて14人になれた。
+      //   自チームの「移籍を認めた」出品はGMの判断なので対象外（自チームの線は ROSTER_MIN）
+      if (listing.fromTeamId !== playerTeamId && (rosterCount.get(listing.fromTeamId) ?? 0) <= CPU_SELL_FLOOR) continue
       // 買い手が満杯（30人以上）または予算不足なら今回は見送り（出品は残す）
       if ((rosterCount.get(buyerTeamId) ?? 0) >= ROSTER_MAX || (buyer.finance?.budget ?? 0) < listing.askingPrice) continue
       // 出品していても、行き先に納得しなければ本人は行かない（承諾・逆提示・買う側と同じゲート）。

@@ -239,7 +239,7 @@ check('契約更新の判定の土台が canStartContractTalk のまま', readFi
 // 「その決まりを通っているか」を見る判定**で、直訴の生成は engine/playerWishes へ移した。
 // 上の has(...) 群は「store にこれを手書きしていないか」を見る別の性格の判定なので
 // storeSource のままにしてある（engine を混ぜると主張が変わってしまう）
-check('移籍希望の生成（playerWishes）が canWishTransfer を通る', logicSource().includes('canWishTransfer(p, {'))
+check('移籍希望の生成（playerWishes）が canWishTransfer を通る（材料は eligibilityCtx）', logicSource().includes('canWishTransfer(p, eligCtx)'))
 
 console.log('\n[12] 退団予定（isLeavingClub）を1箇所で見ている')
 // 「移籍を認めたのに引き留めの条件が出る」の対策。

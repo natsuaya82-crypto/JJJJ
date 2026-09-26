@@ -21,7 +21,7 @@
  *   レース結果に依らない**序列**（走れる7人に入るか）を先に見るようにしました。
  */
 import { isTransferLocked } from '../src/utils/transferEligibility'
-import { generateLoanOffers, LOAN_BENCH_PLAY_RATE } from '../src/engine/cpuMarket'
+import { generateLoanOffers } from '../src/engine/cpuMarket'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { generateCpuRosters } from '../src/engine/playerGenerator'
@@ -115,7 +115,7 @@ console.log('\n[3] レンタルの相手は主力ではない（世界を作っ�
   for (let raceIndex = 0; raceIndex < 40; raceIndex++) {
     const { loanOffers } = generateLoanOffers({
       players, clubs: teams, playerTeamId: MY, raceIndex,
-      existingLoans: [], season, retiringIds: new Set<string>(), currentYear: YEAR,
+      existingLoans: [], season,
     })
     for (const o of loanOffers) {
       const p = players.find(x => x.id === o.playerId)!
@@ -130,7 +130,10 @@ console.log('\n[3] レンタルの相手は主力ではない（世界を作っ�
   // ★ここが本体。序列を見ずに出場率だけで判定すると、シーズン頭は全員0なので主力が並ぶ
   check('貸出の打診が来ている（判定が空振りしていない）', lendOut > 0, `${lendOut}件`)
   check('主力（走れる7人）に貸出の打診が来ない', starters === 0, `${starters}件`)
-  check(`借りる/貸すの線は1本（${LOAN_BENCH_PLAY_RATE}）`, LOAN_BENCH_PLAY_RATE > 0 && LOAN_BENCH_PLAY_RATE < 1)
+  // 「試合に出ていない」は playingStatus 1本（APPEARANCE_FLOOR）。レンタルだけの線を戻さないこと
+  const cm = readFileSync('src/engine/cpuMarket.ts', 'utf8').split('\n').filter(l => !l.trim().startsWith('//')).join('\n')
+  check('借りる/貸すの線は playingStatus 1本', !/LOAN_BENCH_PLAY_RATE|fraction\s*<\s*0?\.\d/.test(cm)
+    && (cm.match(/notPlaying\(p\.id/g) ?? []).length === 2)
 }
 
 console.log('')

@@ -1350,7 +1350,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
 
     // ロスター上限チェック。以前は無かったため、2対1のトレードを重ねると31人・32人…と
     // 上限を超えて増え、解雇下限やレンタル枠と噛み合って詰む状態になっていた。
-    const myRosterNow = state.players.filter(p => p.teamId === state.playerTeamId && p.status !== 'retired').length
+    const myRosterNow = teamRosterSize(state.players, state.playerTeamId)
     if (myRosterNow - offered.length + requested.length > ROSTER_MAX) return { ok: false, reason: `そちらの選手枠が上限（${ROSTER_MAX}人）を超えてしまう。誰かを放出してから来てくれ。` }
 
     // 移籍金を払う場合は予算チェック（予算が無条件にマイナスへ落ちるのを防ぐ）

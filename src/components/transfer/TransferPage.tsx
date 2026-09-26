@@ -340,7 +340,7 @@ export default function TransferPage() {
             if (f.age === '27-30') return p.age >= 27 && p.age <= 30
             return p.age >= 31
           })
-          .sort(comparePlayers(mktSortKey, mktSortDir))
+          .sort(comparePlayers(mktSortKey, mktSortDir, marketValueOf))
 
 
         return (

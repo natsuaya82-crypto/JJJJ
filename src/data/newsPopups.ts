@@ -71,7 +71,7 @@ export const NEWS_POPUPS: NewsPopup[] = [
  * まだ出していない・期限内のお知らせを1件返す（無ければ null）。
  * **選ぶ判定はここ1本**（画面で配列を絞り込まないこと）。
  *
- * ★`today` は呼ぶ側から渡します（`utils/jstDate` の `jstTodayISO()`）。
+ * ★`today` は呼ぶ側から渡します（`utils/jstDate` の `jstGameDayISO()`＝朝10時区切り。イベントと同じ）。
  *   ここは `data/` なので `utils/` を import できません（`check-layers` のルール4。
  *   定数・型の側から計算を引っぱると、向きが逆さまの依存が1本ずつ増えていく）。
  */

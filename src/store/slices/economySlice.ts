@@ -1,7 +1,7 @@
 // economy ドメインのアクション（gameStore から分割）。
 
 import type { GameStore, SetGame } from '../gameStore'
-import { SPONSOR_SLOTS } from '../../data/sponsors'
+import { SPONSOR_SLOTS, activeSponsorsOf } from '../../data/sponsors'
 import { facilitiesOf, facilityUpgradeCost } from '../../utils/facilities'
 import { myClub, withMyClub } from '../../utils/world'
 
@@ -53,7 +53,7 @@ export const createEconomySlice = (set: SetGame, get: () => GameStore): Slice =>
       const myTeam = myClub(state)
       if (!myTeam) return state
       const currentTeamSponsors = myTeam.sponsors ?? []
-      if (currentTeamSponsors.length >= SPONSOR_SLOTS) return state
+      if (activeSponsorsOf(currentTeamSponsors, state.sponsors).length >= SPONSOR_SLOTS) return state
       const newSponsor = {
         id: `sp_${offerId}`,
         name: offer.name,

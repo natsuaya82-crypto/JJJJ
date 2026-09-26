@@ -330,7 +330,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const cpuSettle = settleCpuTransfers({
         players: finalPlayers, clubs: state.clubs,
         currentSeason: state.currentSeason, pastSeasons: state.pastSeasons, playerTeamId, raceDate: race.date,
-        retiringWishIds, destinationOf: (clubId, p) => get().destinationOf(clubId, p),
+        destinationOf: (clubId, p) => get().destinationOf(clubId, p),
         playerTierOf: (p) => get().playerTierOf(p) })
       const cpuTxList = cpuSettle.txList
       const cpuTxListingIds = cpuSettle.settledListingIds
@@ -365,7 +365,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
       // 相手からのレンタル打診（チャットで対応）
       const keptLoanOffers = (state.currentSeason.incomingLoanOffers ?? []).filter(o => o.expiresAtRace > nextClock && finalPlayers.some(p => p.id === o.playerId))
-      const flOffers = generateLoanOffers({ players: finalPlayers, clubs: clubsWithPrize, playerTeamId, raceIndex: nextClock, existingLoans: keptLoanOffers, season: seasonWithRace, retiringIds: retiringWishIds, currentYear: state.currentSeason.year })
+      const flOffers = generateLoanOffers({ players: finalPlayers, clubs: clubsWithPrize, playerTeamId, raceIndex: nextClock, existingLoans: keptLoanOffers, season: seasonWithRace })
       const mergedLoanOffers = [...keptLoanOffers, ...flOffers.loanOffers]
 
       // 入札の応答は engine/bidResolution 1本（判定は utils/transferBid の resolveBid）
@@ -461,7 +461,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const wishes = generatePlayerWishes({
         players: playersAfterLoan, currentSeason: state.currentSeason,
         myStandings, playerTeamId,
-        races: updatedRaces, raceIndex, retiringWishIds,
+        races: updatedRaces, raceIndex,
         worldRepresentatives: state.worldRepresentatives })
       const newTransferReqs = wishes.transferRequests
       const newOvReqs = wishes.overseasRequests

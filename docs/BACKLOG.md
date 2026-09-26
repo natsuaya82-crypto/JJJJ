@@ -1205,7 +1205,7 @@ CLAUDE.md の「まだ無いもの」に書いてある **自チームの2チー
 
 | 何が違うか | どこ |
 |---|---|
-| シーズン中に「貸してほしい」（borrow_in）と言ってくるのは日本のリーグのクラブだけ（「借りたい」は231クラブ） | `engine/cpuMarket.ts` の `generateTransferActivity`（`otherClubs(jpelClubs(…))`） |
+| シーズン中に「貸してほしい」（borrow_in）と言ってくるのは日本のリーグのクラブだけ（「借りたい」は231クラブ） | `engine/cpuMarket.ts` の `generateLoanOffers`（`otherClubs(jpelClubs(…))`） |
 | 記録会のチーム歴代記録を持つのは日本のリーグのクラブだけ（海外クラブの監督になると自チームの記録が付かない） | `engine/timeTrial.ts`（`isJpelLeague`）・`engine/savePruning.ts` |
 | 「海外」は常に「日本のリーグでないクラブ」。海外挑戦の登録・`fromForeign`・憧れの地域の加点（`destinationOf` の `domestic`）・売ったときの見出しが、自チームが海外クラブでも日本基準のまま | `engine/cpuMarket.ts`・`store/slices/marketSlice.ts`・`store/marketOps.ts`・`utils/transferDecision.ts` |
 | オフのFA補強で、海外クラブだけ市場を回す**前**の資金を見る（日本のリーグのクラブは回したあと） | `store/slices/draftSlice.ts` の `clubsForFa` |
@@ -1218,6 +1218,30 @@ CLAUDE.md の「まだ無いもの」に書いてある **自チームの2チー
 | 海外クラブの名前を引かず「他クラブ」／空になる表示：レンタルの見出し・退団のお知らせ（呼ぶ側が名前を渡さないとき）・レンタル元の札 | `utils/newsItems.ts` の `clubLabel`・`utils/movePlayer.ts`・`components/team/TeamManagement.tsx`・`store/slices/marketSlice.ts`（レンタルに出す） |
 | クラブ詳細の「優勝回数」：海外クラブはタイトルの先頭の数（リーグ優勝が無くECL優勝があるとECLの数が出る） | `components/teams/TeamDetailPage.tsx` の `infoChampions` |
 
+
+### A-新4. 決まりと食い違ったまま残っているところ（2026-09-26 の棚卸し）
+
+- 何が起きるか … CLAUDE.md の「唯一の決まり」を全部コードと突き合わせたときに見つかったもののうち、
+  **どちらが正しいかをこちらで決められない**もの。2026-09-26 に直したもの（下の「済」）とは別。
+- 見つけ方 … CLAUDE.md の表を1行ずつ、名前・数・呼び出しの数をコードで数えた
+
+| 何が食い違っているか | どこ | 決めること |
+|---|---|---|
+| 「世界へ挑戦」の見出しの条件が2つ。自チームが売ったとき＝行き先がビッグクラブ（`isBigClub`）だけ／裏の移籍市場＝ビッグクラブ**かつ** OVR85以上（`MAJOR_NEWS_OVR`） | `utils/newsItems.ts`（`store/marketOps.ts` から）・`engine/transferMarket.ts` | どちらに揃えるか |
+| 主力か（`keyPlayerStatus`）は「序列1本」のはずが、契約残り1年以下・士気45未満でも `open`（主力でない）になる。しかも名簿の数え方が違う（`keyPlayerStatus` は怪我人込み／トレードの `surplusIn` は `active` だけ）ので、怪我人がいると同じ選手が14番手の線の両側に割れる | `utils/transferDecision.ts`・`utils/tradeValue.ts` | 契約・士気の条件を残すか／名簿の数え方をどちらにするか |
+| 開幕の「押せるか」を store が見ていない（画面だけが `canStartSeason` を見る） | `store/slices/seasonSlice.ts` の `startRegularSeason` | store にも同じ関門を置くか |
+| ランクマッチの「1日」だけ0時区切り（`jstTodayISO`）。ログインボーナス・イベント・お知らせポップは朝10時区切り（`jstGameDayISO`） | `components/rated/RatedPage.tsx` とサーバーの `rated_open_round` | 揃えるか（揃えるならサーバーも） |
+| 育成選手の契約（`signDevProspect`）が `yearsLeft: 2` の固定で、`movePlayer` に契約を渡さないので移籍ロックの印が付かない | `store/slices/draftSlice.ts` | 「選手の生成」扱いで固定のままでよいか／`newContractYears` とロックに揃えるか |
+| 走友会の人数の上限が TS（`CLUB_MAX` = 30）と SQL（`club_member_cap`）の2か所にあり、突き合わせる点検が無い | `lib/clubsApi.ts`・`supabase/all.sql` | `check-rated-server` と同じ形で見張るか |
+| 自チームへ「貸してほしい」（borrow_in）と言ってくるCPUクラブは、出す側の下限（`CPU_SELL_FLOOR`）を見ていない（成立には自チームの承諾が要る） | `engine/cpuMarket.ts` の `generateLoanOffers` | 下限を当てるか |
+
+- 同じ日に**直したもの**（決まりどおりにした）: トレードの値段が自分のリーグの日程で出場を数えていた（→ `perfOf`）／
+  CPUの移籍市場が開幕直後に出場0で値引きしていた（→ `perfOf`）／市場価値順の並びと CPU 間トレードの並びが
+  出場を見ない別の額だった／レンタルだけ「出番が無い」の線が 0.35 だった（→ `playingStatus`）／
+  シーズン中の出品の成立が売り手の下限を見ていなかった（→ `CPU_SELL_FLOOR`・4本目の経路）／
+  オフのFA加入の移籍履歴が `years: 2` の手書きだった／スポンサーの枠の数え方が画面と store で違った／
+  最終戦で怪我をしていた選手だけ引退表明のニュースが出なかった／指名権の売買がお金を手で動かし、札をキーの字で消していた（→ `payBetween`・同一性）／
+  施設の値段と在籍人数の数え直し・移籍の可否の材料の手書き（3か所）
 
 ## B. 止めたままの点検
 

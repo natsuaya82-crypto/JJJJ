@@ -18,6 +18,7 @@ import { findClub } from '../../utils/clubs'
 import { draftPickHolders, draftRoundOf, joinsDraft } from '../../utils/league'
 import { holdsDraftPicks } from '../../data/leagueRules'
 import { movePlayer } from '../../utils/movePlayer'
+import { payBetween } from '../../utils/clubMoney'
 import { cpuSignedHeadline, draftPickSoldHeadline, initialNews, type NewsItem } from '../../utils/newsItems'
 import { faMarketSalary, ovr, playerConsentToMove, newContractYears } from '../../utils/playerUtils'
 import { SPECIALTIES } from '../../utils/squadNeeds'
@@ -435,8 +436,9 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
           ...p,
           teamRole: teamRole ?? p.teamRole,
           // rookieDeal: ドラフト初回契約は相場の半分まで下げられるが、次の更新では相場基準の要求になる
-          // ドラフトの初回契約も「加入したときの契約」＝その間は動かせない（レンタルは通る）
-          contract: { ...p.contract, annualSalary: salary, yearsLeft: years, contractType, rookieDeal: true, signedOnJoin: true } } : p),
+          // ドラフトの初回契約も「加入したときの契約」＝その間は動かせない（レンタルは通る）。
+          // 印（signedOnJoin）は指名のときに movePlayer が付けている。ここで書き足さないこと（印を付けるのは movePlayer 1本）
+          contract: { ...p.contract, annualSalary: salary, yearsLeft: years, contractType, rookieDeal: true } } : p),
         // 名簿はここで並べ替えない。所属から組み直す決まりに任せる（指名の時点で入っている）
       }
     })
@@ -456,19 +458,14 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     if (buyTeam.finance.budget < price) return false  // 買い手が払えない額では成立しない
     const date = myLeagueRaces(state.currentSeason, state.playerTeamId)[state.currentSeason.currentRaceIndex]?.date ?? `${state.currentSeason.year}-06-01`
     set(s => ({
-      clubs: mapClubs(s.clubs, (c): WorldClub => {
+      // 指名権は同一性で動かす（同じキーの札が2枚あっても、見つけた1枚だけ）。お金は payBetween 1本
+      clubs: payBetween(mapClubs(s.clubs, (c): WorldClub => {
         if (!holdsDraftPicks(c)) return c
         const t = c as Team
-        if (t.id === s.playerTeamId) return {
-          ...t,
-          finance: { ...t.finance, budget: t.finance.budget + price },
-          draftPicks: t.draftPicks.filter(p => `${p.year}-R${p.round}-${p.pickNumber}` !== pickKey) }
-        if (t.id === targetTeamId) return {
-          ...t,
-          finance: { ...t.finance, budget: t.finance.budget - price },
-          draftPicks: [...t.draftPicks, pick] }
+        if (t.id === s.playerTeamId) return { ...t, draftPicks: t.draftPicks.filter(p => p !== pick) }
+        if (t.id === targetTeamId) return { ...t, draftPicks: [...t.draftPicks, pick] }
         return t
-      }),
+      }), targetTeamId, s.playerTeamId, price),
       currentSeason: {
         ...s.currentSeason,
         transferIncome: (s.currentSeason.transferIncome ?? 0) + price,
@@ -735,7 +732,12 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       transferHistory: [
         ...(state.transferHistory ?? []).filter(r => r.year >= newYear - 10),
         ...offseasonTxRecords,
-        ...cpuSignings.map((s, i) => ({ year: newYear, date: offDate(i), playerId: s.playerId, fromTeamId: '', toTeamId: s.clubId, fee: 0, kind: 'free' as const, years: 2 })),
+        // 年数は実際に結んだ契約から（utils/movePlayer の years と同じ決まり。手書きの 2 は嘘になる）
+        ...cpuSignings.flatMap((s, i) => {
+          const signed = playersWithCpuSigns.find(x => x.id === s.playerId)
+          if (!signed || signed.teamId !== s.clubId) return []
+          return [{ year: newYear, date: offDate(i), playerId: s.playerId, fromTeamId: '', toTeamId: s.clubId, fee: 0, kind: 'free' as const, years: signed.contract.yearsLeft }]
+        }),
       ].slice(-800),
       currentSeason: {
         ...state.currentSeason,

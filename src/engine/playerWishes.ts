@@ -18,7 +18,7 @@ import { rankOfTeam } from '../utils/league'
 import { faMarketSalary, ovr, seasonPerfProfile } from '../utils/playerUtils'
 import { seasonAppearances } from '../utils/playRate'
 import { openWishIds } from '../utils/talkSync'
-import { canWishTransfer } from '../utils/transferEligibility'
+import { canWishTransfer, eligibilityCtx } from '../utils/transferEligibility'
 import { APPEARANCE_FLOOR, dreamRegionOf } from '../utils/transferDecision'
 import { MORALE_DEFAULT } from '../utils/condition'
 
@@ -30,13 +30,13 @@ export function generatePlayerWishes(params: {
   playerTeamId: string
   races: Race[]
   raceIndex: number
-  /** 引退の話がついている選手（移籍の直訴はさせない） */
-  retiringWishIds: Set<string>
   worldRepresentatives: { playerId: string; year: number }[] | undefined
   rng?: () => number
 }) {
-  const { currentSeason, myStandings, playerTeamId, races, raceIndex, retiringWishIds, worldRepresentatives, rng = Math.random } = params
+  const { currentSeason, myStandings, playerTeamId, races, raceIndex, worldRepresentatives, rng = Math.random } = params
   const players = params.players
+  // 移籍の可否の材料は eligibilityCtx 1本（引退希望もここから）
+  const eligCtx = eligibilityCtx(currentSeason, playerTeamId)
   // ── 移籍希望：契約残り2年切った(≤1)選手から毎レース最大1人。理由は出場機会/強豪志向/待遇不満。 ──
   // 直訴（引退したい・移籍したい・海外に行きたい）の札は1人につき1つだけ。
   // 3つを別々に抽選していたので、同じ選手が「移籍したい」と「海外に行きたい」を
@@ -54,7 +54,7 @@ export function generatePlayerWishes(params: {
     // （借り物は保有権が無く「移籍を認める」と他人の選手を消してしまう。
     //   引退を見ていなかったので、引退を承認した選手が数レース後に移籍を直訴してきていた）
     // 既に対応済み（移籍を認めた transferListed / 残ってほしいで説得済み）の選手は同シーズン中に再抽選しない
-    .filter(p => canWishTransfer(p, { teamId: playerTeamId, currentYear: currentSeason.year, retiringIds: retiringWishIds })
+    .filter(p => canWishTransfer(p, eligCtx)
       && p.status === 'active' && p.contract.yearsLeft <= 1 && !openWish.has(p.id)
       && !p.transferListed && p.transferRequestDismissedYear !== currentSeason.year)
     .map(p => {

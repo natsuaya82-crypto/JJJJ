@@ -6,7 +6,7 @@ import { JewelIcon } from '../icons/Icons'
 import { panelStyle } from '../ui/Panel'
 import GlassButton from '../ui/GlassButton'
 import {
-  facilitiesOf, FACILITY_MAX_LEVEL, FACILITY_UPGRADE_COSTS,
+  facilitiesOf, FACILITY_MAX_LEVEL, facilityUpgradeCost,
   facilityMedFatigueMultiplier, facilityScoutPoints, facilityScoutNegoBonus, facilityTacticsStatBonus,
 } from '../../utils/facilities'
 import { facilityExpMultiplier } from '../../engine/growth'
@@ -95,8 +95,7 @@ const FACILITY_META: {
   },
 ]
 
-// 値段も上限も `utils/facilities` 1本（store の `upgradeFacility` と同じところから出す）
-const UPGRADE_COSTS = FACILITY_UPGRADE_COSTS
+// 値段も上限も `utils/facilities` の `facilityUpgradeCost` 1本（store の `upgradeFacility` と同じ関数）
 const MAX_LV = FACILITY_MAX_LEVEL
 
 export default function FacilitiesPage() {
@@ -126,7 +125,7 @@ export default function FacilitiesPage() {
       <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {FACILITY_META.map(f => {
           const currentLv = myFac[f.key]
-          const nextCost = currentLv < MAX_LV ? UPGRADE_COSTS[currentLv] : null
+          const nextCost = facilityUpgradeCost(currentLv)
           const canUpgrade = nextCost !== null && jewels >= nextCost
 
           return (

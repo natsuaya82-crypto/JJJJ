@@ -134,9 +134,9 @@ console.log('\n② 共通の土台に「ほぼ同じだが違う色」が混ざ�
       // ★**色に名前を付けている塊も見ない**（`:root` を見ないのとまったく同じ理由）。
       //   `export const C` / `export const CARD` は色に名前を付ける場所で、
       //   明るい版・暗い版を並べるのが仕事。名前が付いていれば取り違えは起きない。
-      //   CARD は選手カードの2つ目の組（PlayerSheet / TeamDetailPage）で、その中の
+      //   CARD は選手カードの2つ目の組で、その中の
       //   `goldHi`(#F0D264) は C.gold に近いが、**別の組の金**なので取り違えではない。
-      //   ここを見ないぶんの守りは⑪（CARD の値を画面に書かせない）が持つ。
+      //   ここを見ないぶんの守りは⑭（CARD の値を画面に書かせない）が持つ。
       .replace(/export const (?:C|CARD) = \{[\s\S]*?\n\} as const/g, m => m.replace(/[^\n]/g, ' '))
     for (const m of src.matchAll(/#[0-9a-fA-F]{6}\b|rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/g)) {
       const c: RGB = m[0].startsWith('#') ? hexRgb(m[0]) : [+m[1], +m[2], +m[3]]

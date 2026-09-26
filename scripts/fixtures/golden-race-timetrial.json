@@ -2,8 +2,8 @@
  "adsRemoved": "fcbcf165908dd18a (5B)",
  "adsWatchedToday": "eb045d78d2731073 (9B)",
  "balancePatch": "6b86b273ff34fce1 (1B)",
- "clubs": "619889840518000b (301529B)",
- "currentSeason": "7a153c3a6067504f (1037633B)",
+ "clubs": "33fb6cf7cb923ee8 (301501B)",
+ "currentSeason": "cd8d020f27f58918 (1037636B)",
  "deficitRescue": "6b86b273ff34fce1 (1B)",
  "draftState": "74234e98afe7498f (4B)",
  "giftGivenVersions": "4f53cda18c2baa0c (2B)",
@@ -26,7 +26,7 @@
  "pendingGmMove": "74234e98afe7498f (4B)",
  "playerCreateGrants": "82678b87fb5a1381 (5B)",
  "playerTeamId": "6e7823b6e67138d4 (7B)",
- "players": "66d8bd75c71fa7d3 (4215654B)",
+ "players": "1c717e78eac65f5e (4215621B)",
  "raceDroppedCards": "4f53cda18c2baa0c (2B)",
  "raceLineup": "44136fa355b3678a (2B)",
  "raceStrategy": "61eb5aa337d3a2d3 (10B)",
@@ -39,11 +39,11 @@
  "starredProspects": "4f53cda18c2baa0c (2B)",
  "totalLoginDays": "eb045d78d2731073 (9B)",
  "trainingCards": "913e93c2a1b40b43 (4370B)",
- "transferHistory": "92654c8481754d88 (43702B)",
+ "transferHistory": "40a35bc43078b44d (43689B)",
  "twitterIntroSeen": "fcbcf165908dd18a (5B)",
  "version": "8e633b4f41f99d4c (7B)",
  "worldAthleticsResults": "4f53cda18c2baa0c (2B)",
  "worldRecords": "e1683ec60fafbd95 (176B)",
  "worldRepresentatives": "4f53cda18c2baa0c (2B)",
- "$all": "7dab417379c228f8 (5604059B)"
+ "$all": "c410937383503ff1 (5603988B)"
 }

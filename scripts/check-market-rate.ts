@@ -101,10 +101,14 @@ check(`1クラブあたり ${TARGET_PER_CLUB}人／年くらい`,
   Math.abs(perClub - TARGET_PER_CLUB) <= TOLERANCE,
   `${perClub.toFixed(1)}人。CPU_TICK_TRANSFERS(${CPU_TICK_TRANSFERS}) か日程の本数が変わった`)
 
-// ★塊が戻っていないこと。どの回も同じ件数のはず（差が2倍以内）
+// ★塊が戻っていないこと。**どの回も真ん中の回の2倍を超えない**（以前の塊は 413件 対 39件）。
+//   「最少の2倍」で見ていたころは、年の終わりに資金が尽きて件数が落ちる回（77→36）でも落ちた。
+//   それは塊ではない（2026-09-26。日程を引けない選手の値引きをやめて値段が正しくなったぶん、
+//   年の後半の回が細った）
 const mx = Math.max(...perRound), mn = Math.min(...perRound)
-check('どの回もだいたい同じ件数（年に一度の塊が戻っていない）', mx <= mn * 2 || mx <= 5,
-  `最少${mn}件 / 最多${mx}件`)
+const median = [...perRound].sort((a, b) => a - b)[Math.floor(perRound.length / 2)]
+check('どの回もだいたい同じ件数（年に一度の塊が戻っていない）', mx <= median * 2 || mx <= 5,
+  `最少${mn}件 / 真ん中${median}件 / 最多${mx}件`)
 
 // 1年回しても名簿が壊れない
 const sizes = jpelClubs(clubs).filter(t => t.id !== MY)

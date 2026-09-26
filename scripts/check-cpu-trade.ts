@@ -47,7 +47,7 @@ function player(id: string, teamId: string, o: number, specialty = 'long'): Play
 const team = (id: string): Team =>
   ({ id, name: id, shortName: id, leagueId: 'jpel-1', finance: { budget: 500_000_000 }, draftPicks: [] } as unknown as Team)
 
-const CTX: TradeValueCtx = { races: [], teamRaces: 0, currentSeason: { year: YEAR, races: [] }, pastSeasons: [] } as unknown as TradeValueCtx
+const CTX: TradeValueCtx = {}
 const teams = [team('my'), team('a'), team('b')]
 
 /**

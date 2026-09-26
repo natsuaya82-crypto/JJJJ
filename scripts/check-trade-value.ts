@@ -18,7 +18,7 @@ import {
   priceOf, tradeValues, tradeBalance, tradeNotLopsided,
 } from '../src/utils/tradeValue'
 import type { TradeValueCtx } from '../src/utils/tradeValue'
-import { calcTransferValue, ovr, peakAgeOf, seasonPerfProfile, transferFeeFor } from '../src/utils/playerUtils'
+import { calcTransferValue, ovr, peakAgeOf, transferFeeFor } from '../src/utils/playerUtils'
 import { POACH_PREMIUM } from '../src/data/economy'
 import type { Player } from '../src/types'
 import { readFileSync } from 'node:fs'
@@ -42,10 +42,8 @@ const P = (o: number, age: number, extra: Partial<Player> = {}) => ({
   ...extra,
 }) as unknown as Player
 
-const CTX: TradeValueCtx = {
-  races: [], teamRaces: 0,
-  currentSeason: { year: 2030, races: [] }, pastSeasons: [],
-} as unknown as TradeValueCtx
+// 出場の世界を渡さない＝出場で値引きしない（両側に同じだけ効くので比は変わらない）
+const CTX: TradeValueCtx = {}
 
 const 億 = (n: number) => (n / 100000000).toFixed(2)
 
@@ -167,7 +165,7 @@ console.log('\n[6] 物差しは2つ。額面（損得）と言い値（相手が
   //   以前ここには「主力1.5倍」「出場率×1.4」というトレード専用の式があり、
   //   同じ「引き剥がすのに要る額」がトレードだけ 1.07〜1.50倍 高かった
   const p = P(80, 26)
-  const perf = seasonPerfProfile(p.id, CTX.races, CTX.teamRaces)
+  const perf = undefined   // 出場の世界を渡していない＝値引きしない（priceOf も同じ）
   check('値段は現金の移籍とまったく同じ関数', priceOf(p, CTX) === transferFeeFor(p, false, perf),
     '出す側の名簿(players)を渡していないので主力扱い＝割増が掛かる')
   const surplusCtx = { ...CTX, players: [p, ...Array.from({ length: 20 }, (_, i) => P(90, 26)).map((x, i) => ({ ...x, id: `s${i}` }))] }

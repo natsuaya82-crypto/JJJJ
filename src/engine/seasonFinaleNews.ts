@@ -44,7 +44,9 @@ export function buildSeasonFinaleNews(params: {
     // ★**`p.teamId &&` を戻さないこと**（2026-09-15）。FA（`teamId` が空）を落とすと、
     //   契約満了で無所属になったベテランが**表明のニュース無しに翌開幕で消えます**。
     //   実際に引退させる `engine/retirement` は所属を見ないので、母集団を揃える
-    const retiring = players.filter(p => p.status === 'active' && isRetiringAge(p, 1))
+    // ★**怪我人も入れること**（`status === 'active'` で絞ると、最終戦で怪我をしていた選手だけ
+    //   表明のニュース無しに引退する）。引退しない人は「引退済み」だけ
+    const retiring = players.filter(p => p.status !== 'retired' && isRetiringAge(p, 1))
     const mineRet = retiring.filter(p => p.teamId === playerTeamId)
     const othersRet = retiring.filter(p => p.teamId !== playerTeamId && ovr(p) >= 72).sort(comparePlayers('ovr')).slice(0, 6)
     for (const p of [...mineRet, ...othersRet]) {

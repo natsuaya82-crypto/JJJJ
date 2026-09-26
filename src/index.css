@@ -50,13 +50,6 @@
   --orange:    #FF9800;
   --pink:      #EC407A;
 
-  /* Radius */
-  /* 角の丸み。**全部0**（tokens.ts の R と同じ。丸いのは顔・ロゴ・点だけ） */
-  --r-sm:  0;
-  --r-md:  0;
-  --r-lg:  0;
-  --r-xl:  0;
-
   /* Nav。★高さの実体は `styles/tokens.ts`（NAV_H / AD_H）。ここに2本目を置かないこと */
 
   /* Fonts */

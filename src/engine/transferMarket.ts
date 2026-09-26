@@ -40,7 +40,7 @@
 // ============================================================================
 import { comparePlayers } from '../utils/playerSort'
 import { playerTierOf, tierLines } from '../utils/playerTier'
-import { clubSeasonRaces, playRateOf, type PlayRateSeason } from '../utils/playRate'
+import { playRateOf, type PlayRateSeason } from '../utils/playRate'
 import { buildCareerCounts } from '../utils/careerStats'
 import { clubById, clubMap, isJpelLeague, mapClubs, myLeagueRaces, otherClubs } from '../utils/world'
 import { movePlayer } from '../utils/movePlayer'
@@ -49,7 +49,7 @@ import { needsPlayer } from '../utils/squadNeeds'
 import { isOwnedBy, isTransferLocked } from '../utils/transferEligibility'
 import { isSurplus, seeksPlayingTime, willRelease, type Destination } from '../utils/transferDecision'
 import {
-  acquisitionDesiredSalary, faMarketSalary, newContractYears, ovr, seasonPerfProfile, playerConsentToMove,
+  acquisitionDesiredSalary, faMarketSalary, newContractYears, ovr, perfOf, playerConsentToMove,
   transferFeeFor,
 } from '../utils/playerUtils'
 import { DOMESTIC_BOTTOM_TIER, MAJOR_NEWS_OVR, isBigClub, isStepUp, tierBudget, tierOf, tierOfPlayerClub, tierStrength, type ClubTier } from '../utils/clubTier'
@@ -282,11 +282,12 @@ export function runTransferMarket(
       //     フル出場の選手も同じ額でした（式にはあるのに誰も渡していなかった）。
       //     実測で OVR85 の移籍金が 1.85億〜3.72億 の幅を持つところ、全部 3.08億に潰れていた
       // ★**出場は「そのクラブが走っている日程」で数える**（utils/playRate 1本）。
-      //   `perfOf(ctx.season, ...)` は `season.races`＝**自分の部の日程しか見ない**ので、
-      //   他の部と海外の212クラブは全員「今季0戦」として値段が付いていました。
+      //   以前の perfOf は `season.races`＝**自分の部の日程しか見ない**形で、
+      //   他の部と海外の212クラブは全員「今季0戦」として値段が付いていました（いまの perfOf は直っている）。
+      // ★値段の材料は `perfOf` 1本（画面の marketValueOf と同じ。`PLAY_SAMPLE_RACES` 未満は値引きしない）。
+      //   ここで seasonPerfProfile を直に呼ぶと、開幕直後の市場だけ世界中が4割引になっていた
       const { fraction: tgtFrac, teamRaces: tgtRaces } = playRateFor(target)
-      const tgtPerf = seasonPerfProfile(target.id,
-        clubSeasonRaces(ctx.season, target.teamId, world.clubs), tgtRaces)
+      const tgtPerf = perfOf(target, { players: world.players, clubs: world.clubs, currentSeason: ctx.season })
       const fee = transferFeeFor(target, surplus, tgtPerf)
       const newSalary = surplus ? faMarketSalary(target, tgtPerf)
         : acquisitionDesiredSalary(target, 'scout', tgtFrac, tgtRaces, tgtPerf)

@@ -15,7 +15,7 @@
 //   `scripts/check-cpu-trade.ts` で成立側に網を張った。
 //   残り（解雇・レンタル）は golden が効いているので、切り出して差分ゼロを見れば足りる。
 import { isLoanedIn } from '../utils/rosterSync'
-import { tradeBalance, type TradeValueCtx } from '../utils/tradeValue'
+import { priceOf, tradeBalance, type TradeValueCtx } from '../utils/tradeValue'
 import { playRateOf, prevSeasonOf, type PlayRateSeason } from '../utils/playRate'
 import { appraiseMove, hasNoPlayingTime, type Destination } from '../utils/transferDecision'
 import { playerTierOf, tierLines } from '../utils/playerTier'
@@ -24,7 +24,7 @@ import { comparePlayers } from '../utils/playerSort'
 import { clubIndexOf } from '../utils/rosterSync'
 import { clubIds, clubMap, otherClubs } from '../utils/world'
 import { movePlayer } from '../utils/movePlayer'
-import { calcTransferValue, effectiveOvr, ovr, playerConsentToMove } from '../utils/playerUtils'
+import { effectiveOvr, ovr, playerConsentToMove } from '../utils/playerUtils'
 import { clubLabel, loanHeadline, type NewsItem } from '../utils/newsItems'
 import { needsPlayer } from '../utils/squadNeeds'
 import { DOMESTIC_BOTTOM_TIER, tierOf, tierOfPlayerClub, tierBudget } from '../utils/clubTier'
@@ -370,7 +370,8 @@ export function runCpuTrades(
     const buyerSurplus = buyerRanked
       // レンタルで借りている選手は保有権が無いのでトレードに出せない
       .filter((p, i) => isOwnedBy(p, buyerId) && !tradedIds.has(p.id) && !isTransferLocked(p, ctx.year) && hasNoPlayingTime(i + 1))
-      .sort((a, b) => calcTransferValue(b) - calcTransferValue(a))
+      // 値段は tradeValue の priceOf 1本（下の成立判定と同じ物差し）
+      .sort((a, b) => priceOf(b, ctx.tradeValueCtx) - priceOf(a, ctx.tradeValueCtx))
     if (buyerSurplus.length === 0) continue
     const offered = buyerSurplus[0]
 

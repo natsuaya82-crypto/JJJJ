@@ -35,11 +35,10 @@
 // 新しい条件を足すときは必ずこのファイルに足すこと。
 // 呼び出し側に 0.92 や 1.5 を直接書かないこと（scripts/check-trade-value.ts が検出する）。
 import type { Player } from '../types'
-import { ovr, seasonPerfProfile, transferFeeFor } from './playerUtils'
+import { ovr, perfOf, transferFeeFor, type PerfWorld } from './playerUtils'
 import { clubIndexOf } from './rosterSync'
 import { isSurplus } from './transferDecision'
 import { squadRankOf } from './squadNeeds'
-import type { SegRaceLike } from './playerUtils'
 
 /** 相手が「こちらが手放すものに見合わない」と断る下限 */
 export const TRADE_MIN_RATIO = 0.92
@@ -68,8 +67,13 @@ export const AI_OFFER_GAIN_MIN = 0.95
 export const AI_OFFER_GAIN_MAX = 1.30
 
 export type TradeValueCtx = {
-  races: readonly SegRaceLike[]
-  teamRaces: number
+  /**
+   * 今季の出場を数える世界（`playerUtils` の `perfOf` にそのまま渡す）。
+   * ★**自チームのリーグの日程で数えないこと**——トレードの相手は231クラブなので、
+   *   他の部・海外の選手が全員「1戦も走っていない」と読まれて4割引になる
+   *   （以前ここは `myLeagueRaces` を渡していた）。省略すると出場で値引きしない
+   */
+  world?: PerfWorld
   /**
    * 全選手。**出す側での序列**（＝余剰か）を数えるのに使う。
    * 省略すると「主力」として扱う（割増が掛かる側）。
@@ -79,7 +83,7 @@ export type TradeValueCtx = {
 
 /** 今季どれだけ走ったか。**値付けの入口はここ1本**（現金の移籍とまったく同じ材料） */
 function perfIn(p: Player, ctx: TradeValueCtx) {
-  return seasonPerfProfile(p.id, ctx.races, ctx.teamRaces)
+  return ctx.world ? perfOf(p, ctx.world) : undefined
 }
 
 /** その選手は、いまのクラブで余剰か（序列15番手以降か） */

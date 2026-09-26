@@ -61,7 +61,7 @@ console.log(`[1] 自チームを海外クラブ（${ME}・${before.size}人）�
 
   const excludeIds = new Set<string>()
   const traded = runCpuTrades({ players, clubs }, { playerTeamId: ME, year: YEAR, excludeIds,
-    tradeValueCtx: { races: [], teamRaces: 0, players } as never })
+    tradeValueCtx: { players } })
   check('トレード：自チームの選手が1人も動かない', [...before.keys()].every(id => mine(traded.players).get(id) === ME))
   check('  自チームが相手のトレードの記録も無い', traded.records.every(x => x.fromTeamId !== ME && x.toTeamId !== ME))
 

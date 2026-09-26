@@ -16,6 +16,7 @@ import { domesticThroughRankOfTeam, draftPickHolders } from '../utils/league'
 import { pickExistsAnywhere } from './draftOrder'
 import type { GameState, WorldClub } from '../types'
 import { mapClubs, myClub } from '../utils/world'
+import { payBetween } from '../utils/clubMoney'
 
 export type DraftPickResult = {
   clubs: WorldClub[]
@@ -66,12 +67,13 @@ export function issueDraftPicks(args: {
     const buyer = [...result].filter(t => t.id !== playerTeamId).sort((a, b) => b.finance.budget - a.finance.budget)[0]
     if (soldPick && buyer) {
       const price = draftPickValue(soldPick.round, soldPick.pickNumber)
-      const samePick = (pk: typeof soldPick) => pk.year === soldPick.year && pk.round === soldPick.round && pk.originallyOwnedBy === soldPick.originallyOwnedBy
+      // 指名権は同一性で動かす（engine/tradeExecution と同じ）。お金は payBetween 1本
       result = result.map(t => {
-        if (t.id === playerTeamId) return { ...t, finance: { ...t.finance, budget: t.finance.budget + price }, draftPicks: (t.draftPicks ?? []).filter(pk => !samePick(pk)) }
-        if (t.id === buyer.id) return { ...t, finance: { ...t.finance, budget: t.finance.budget - price }, draftPicks: [...(t.draftPicks ?? []), soldPick] }
+        if (t.id === playerTeamId) return { ...t, draftPicks: (t.draftPicks ?? []).filter(pk => pk !== soldPick) }
+        if (t.id === buyer.id) return { ...t, draftPicks: [...(t.draftPicks ?? []), soldPick] }
         return t
       })
+      result = payBetween(result, buyer.id, playerTeamId, price) as typeof result
       pickPenaltyNews.push({
         date: `${currentSeason.year}-10-31`,
         headline: deficitPickPenaltyHeadline({ streak: deficitStreak, year: newYear, round: soldPick.round, buyerShort: buyer.shortName, price }),

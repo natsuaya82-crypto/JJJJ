@@ -17,11 +17,10 @@ import { playRateOf } from '../utils/playRate'
 import { comparePlayers } from '../utils/playerSort'
 import { effectiveOvr, faMarketSalary, ovr } from '../utils/playerUtils'
 import { roundRobin } from '../utils/roundRobin'
-import { saleAnsweredIds } from '../utils/saleAnswer'
 import { needsPlayer, thinSpecialties, wouldMakeLineup } from '../utils/squadNeeds'
-import { MAX_OFFERS_PER_PLAYER, appraiseMove, hasNoPlayingTime, regionOfLeague } from '../utils/transferDecision'
+import { MAX_OFFERS_PER_PLAYER, appraiseMove, hasNoPlayingTime, playingStatus, regionOfLeague } from '../utils/transferDecision'
 import { playerTierOf, tierLines } from '../utils/playerTier'
-import { canBePoached, canClubApproachAgain, canGoOverseasDream, canLoanOut, canReceiveFreeContact, isOwnedBy } from '../utils/transferEligibility'
+import { canBePoached, canClubApproachAgain, canGoOverseasDream, canLoanOut, canReceiveFreeContact, eligibilityCtx, isOwnedBy } from '../utils/transferEligibility'
 import { clubById, clubIdSet, clubMap, clubsWhere, isJpelLeague, jpelClubs, mapClubs, myClub, otherClubs } from '../utils/world'
 
 export function cpuStrategy(lastRank: number, totalTeams: number, avgAge: number): 'contend' | 'rebuild' | 'balanced' {
@@ -224,13 +223,6 @@ export function cpuSpecialtyNeeds(teamId: string, players: Player[]): Specialty[
  *   いまは国内52＋海外180を `generateTransferActivity` の1つのループで回します。
  *   **ここに買い取りの枝を戻さないこと**（`scripts/check-offer-unified.ts` が見張ります）。
  */
-/**
- * **レンタルの「試合に出ていない」の線。** 出場率がこれ未満なら干されている扱い。
- * 借りる側（borrow_in）と貸す側（lend_out）で**同じ数字を使うこと**——
- * 片方だけ緩めると「主力にレンタルの話が来る」が戻ります。
- */
-export const LOAN_BENCH_PLAY_RATE = 0.35
-
 export function generateLoanOffers(params: {
   players: Player[]
   /** 世界のクラブ（国内52＋海外180） */
@@ -240,14 +232,12 @@ export function generateLoanOffers(params: {
   existingLoans: IncomingLoanOffer[]
   /** 今シーズン。出場率は「そのクラブが走っている日程」で数える（utils/playRate）。
    *  borrow_in の打診は出番のない選手から選ぶ */
-  season?: import('../utils/playRate').PlayRateSeason & import('../utils/saleAnswer').SaleAnswerSeason
-  retiringIds?: Set<string>   // 引退希望中の選手（打診の対象外）
-  currentYear?: number        // 今のシーズン年
+  season: import('../utils/playRate').PlayRateSeason & import('../utils/saleAnswer').SaleAnswerSeason & { year?: number; retirementRequests?: { playerId: string }[] }
 }): { loanOffers: IncomingLoanOffer[] } {
-  const { players, clubs, playerTeamId, raceIndex, existingLoans, season, retiringIds, currentYear } = params
+  const { players, clubs, playerTeamId, raceIndex, existingLoans, season } = params
   // 「誰に話を持ちかけていいか」の条件は utils/transferEligibility.ts に集約。
   // 「譲ります」と返事をして決着待ちの選手には、貸出の話も持ちかけない（utils/saleAnswer）
-  const eligCtx = { teamId: playerTeamId, currentYear, retiringIds, saleAnsweredIds: saleAnsweredIds(season) }
+  const eligCtx = eligibilityCtx(season, playerTeamId)
   const loanOffers: IncomingLoanOffer[] = []
 
   const myPlayers = players.filter(p => p.teamId === playerTeamId && p.status === 'active')
@@ -264,11 +254,15 @@ export function generateLoanOffers(params: {
   //     オーナー指摘（2026-08-14）「レンタルも、主力の90とかをレンタルしようとしてくるのなに？」。
   //     レース結果に依らない**序列**（走れる7人に入っているか）を先に見ます。
   const myRoster = [...myPlayers].sort(comparePlayers('ovr'))
-  const myPlayFrac = (p: Player) => playRateOf(p.id, playerTeamId, season ?? {}, clubs).fraction
+  // ★「試合に出ていない」は `playingStatus` 1本（線は APPEARANCE_FLOOR）。借りる側と貸す側で同じ。
+  //   以前はここだけ `LOAN_BENCH_PLAY_RATE`(0.35) という5本目の線を持っていた。
+  //   `'unknown'`（開幕直後）は出番なしの側へ寄せる＝序列（wouldMakeLineup）だけで絞る
+  const notPlaying = (pid: string, clubId: string) =>
+    playingStatus(playRateOf(pid, clubId, season, clubs)) !== 'playing'
   const myYoung = myPlayers.filter(p =>
     p.age <= 23 && canLoanOut(p, eligCtx)
     && !wouldMakeLineup(myRoster, p)              // 走れる7人に入っている＝主力。貸さない
-    && myPlayFrac(p) < LOAN_BENCH_PLAY_RATE)
+    && notPlaying(p.id, playerTeamId))
   const loanTargetIds = new Set(existingLoans.map(o => o.playerId))
   // 借りたい・貸したいと言ってくる相手。日本のリーグのCPUクラブ（貸したい側はこちらだけ・いまの振る舞い）
   const aiTeams = otherClubs(jpelClubs(clubs), playerTeamId)
@@ -300,8 +294,6 @@ export function generateLoanOffers(params: {
     // ★出場率は「そのクラブが走っている日程」で数える（utils/playRate の1本）。
     //   自分の部の日程で数えると、他の部のクラブの選手は全員0＝全員が「干されている」に
     //   なり、1部・2部の選手が丸ごとレンタルの出し手候補になっていた
-    const playFrac = (pid: string, clubId: string) =>
-      playRateOf(pid, clubId, season ?? {}, clubs).fraction
     // ★こちらも序列を先に見る（相手クラブの主力を借りられないように）。
     //   出場率だけだとシーズンの頭に相手の主力が候補へ入る
     const rosterOfClub = (cid: string) => [...(clubIndexOf(players).get(cid) ?? [])]
@@ -310,7 +302,7 @@ export function generateLoanOffers(params: {
       p.teamId !== playerTeamId && p.teamId !== '' && aiTeams.some(t => t.id === p.teamId)
       && p.status === 'active' && !p.loan && p.age <= 26 && ovr(p) < 76 && !loanTargetIds.has(p.id)
       && !wouldMakeLineup(rosterOfClub(p.teamId), p)
-      && playFrac(p.id, p.teamId) < LOAN_BENCH_PLAY_RATE)   // 干されている選手だけが貸しに出される
+      && notPlaying(p.id, p.teamId))   // 干されている選手だけが貸しに出される
     const fits = cands.filter(p => myNeedsLoan.includes(p.specialty))
     // 干され組の中では実力上位を提示（借りる価値のある選手にする）
     const cand = (fits.length > 0 ? fits : cands).sort(comparePlayers('ovr'))[0]

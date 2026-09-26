@@ -8,11 +8,11 @@
 // ★乱数は引数で受ける（既定は Math.random）。呼ぶ順は切り出し前と同じで、
 //   「既に打診があるなら抽選もしない」短絡もそのまま。
 import type { AITradeOffer, Player, Season, WorldClub } from '../types'
-import { AI_OFFER_GAIN_MAX, AI_OFFER_GAIN_MIN, priceOf } from '../utils/tradeValue'
+import { AI_OFFER_GAIN_MAX, AI_OFFER_GAIN_MIN, priceOf, type TradeValueCtx } from '../utils/tradeValue'
 import { canBePoached, eligibilityCtx } from '../utils/transferEligibility'
 import { effectiveOvr, ovr } from '../utils/playerUtils'
 import { cpuSpecialtyNeeds } from './cpuMarket'
-import { clubById, clubIds, myLeagueRaces, otherClubs } from '../utils/world'
+import { clubById, clubIds, otherClubs } from '../utils/world'
 
 /** 打診が1件も無いときだけ、25%の確率で1件つくる。作れなければ空 */
 export function generateAiTradeOffers(params: {
@@ -70,7 +70,7 @@ export function generateAiTradeOffers(params: {
       // ★**値段は `utils/tradeValue` の `priceOf` 1本**（成立を判断する側とまったく同じ）。
       //   以前ここだけ `calcTransferValue(p)` を**引数なしで**呼んでいて、判断する側は
       //   出場と割増（`transferFeeFor`）を見ていたので、**作る物差しと飲む物差しが別**でした。
-      const tvCtx = { races: myLeagueRaces(currentSeason, playerTeamId), teamRaces: currentSeason.currentRaceIndex, players }
+      const tvCtx: TradeValueCtx = { world: { currentSeason, clubs, players }, players }
       let best: { mine: Player; theirs: Player; fits: boolean } | null = null
       for (const mine of askPool) {
         const myVal = priceOf(mine, tvCtx)

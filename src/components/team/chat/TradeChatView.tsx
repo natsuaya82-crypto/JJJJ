@@ -5,7 +5,7 @@ import { useGameStore } from '../../../store/gameStore'
 import PlayerFace from '../../player/PlayerFace'
 import { ovr, ratingColor, SPEC_COLOR } from '../../../utils/playerUtils'
 // トレードの釣り合いの判断はストアと同じ1箇所（utils/tradeValue.ts）を通す
-import { tradeValues, tradeBalance, TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO } from '../../../utils/tradeValue'
+import { type TradeValueCtx, tradeValues, tradeBalance, TRADE_MIN_RATIO, TRADE_OK_RATIO, TRADE_HARD_NO_RATIO } from '../../../utils/tradeValue'
 import { keyPlayerStatus } from '../../../utils/transferDecision'
 import { canBePoached, canTradeAway, ctxForTeam, eligibilityCtx } from '../../../utils/transferEligibility'
 import type { Player, WorldClub } from '../../../types'
@@ -16,7 +16,7 @@ import { C, alpha, SAIRA, F } from '../../../styles/tokens'
 import { tradeConsentBonus, tradeRefuser } from '../../../engine/tradeConsent'
 import { fmtYen } from '../../../utils/money'
 import { SpecChip } from '../../player/PlayerChips'
-import { myClub, myLeagueRaces } from '../../../utils/world'
+import { myClub } from '../../../utils/world'
 
 // --- 他チーム（所属選手を表示し、選手を選ぶと契約オファー＝交渉を開始） ---
 
@@ -50,7 +50,7 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: WorldClub
   const tradeOutlook = (() => {
     // ★**store と同じ材料を渡すこと**（`players` を渡さないと全員が主力扱いになり、
     //   画面の見積もりだけが store の判定とズレます）
-    const tvCtx = { races: myLeagueRaces(currentSeason, playerTeamId), teamRaces: currentSeason.currentRaceIndex, players }
+    const tvCtx: TradeValueCtx = { world: { currentSeason, clubs, players }, players }
     const keyWorld = { players, clubs, currentSeason, pastSeasons }
     const getPlayers = [...getP].map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p)
     const givePlayers = [...give].map(id => players.find(p => p.id === id)).filter((p): p is Player => !!p)

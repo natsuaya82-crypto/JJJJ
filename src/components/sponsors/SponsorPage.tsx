@@ -1,4 +1,4 @@
-import { SPONSOR_SLOTS } from '../../data/sponsors'
+import { SPONSOR_SLOTS, activeSponsorsOf } from '../../data/sponsors'
 import { useStickyTab } from '../../lib/useStickyTab'
 import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
@@ -42,7 +42,7 @@ export default function SponsorPage() {
 
   const myTeam = myClub({ clubs, playerTeamId })
   const teamSponsorIds = myTeam?.sponsors ?? []
-  const activeSponsors = teamSponsorIds.map(id => sponsors.find(s => s.id === id)).filter(Boolean) as typeof sponsors
+  const activeSponsors = activeSponsorsOf(teamSponsorIds, sponsors)
 
   const offers = currentSeason.sponsorOffers ?? []
   const totalAnnualIncome = activeSponsors.reduce((s, sp) => s + sp.annualPayment, 0)
