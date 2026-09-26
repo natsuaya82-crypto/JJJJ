@@ -478,12 +478,9 @@ RULES.push({
 RULES.push({
   name: 'クラブの強さを国やリーグの表で判断している',
   pattern: /(ETH|KEN|UGA|TAN):\s*\d{2}|STRONG_COUNTRIES/,
-  allow: [
-    'src/data/nationalities.ts',
-    // 国ごとの「選手の数」（勢力図）。強さはここでは決めていない（そのファイルにも明記）。
-    // クラブの強さの話ではないので対象外
-    'src/data/nationTalent.ts',
-  ],
+  // ★どこにも書かないこと。国ごとの「選手の数」の手書きの表（以前の data/nationTalent の KEN: 300 …）も廃止。
+  //   国の違いは国の格（data/nationTiers）で「どの強さの席に座るか」だけに効く（utils/nationTier・2026-09-26）
+  allow: [],
   fix: '格（utils/clubTier）か、必要かどうか（utils/squadNeeds の needsPlayer / wouldMakeLineup）で判断する',
 })
 

@@ -44,7 +44,17 @@ export type LeagueRules = {
    * どれとも別に、開幕の直前の床（`fillRostersForSeason`）は232クラブ全部に効く
    */
   newcomers: Newcomers
+  /**
+   * **選手の国籍の配り方**（`engine/playerGenerator`）。外国籍の国はどちらも `utils/nationTier` の
+   * `drawNationalityForRank`（席の強さから国の格で引く）1本で、違うのは自国の人が座るかだけ。
+   *   'home'  … 自国中心。外国籍は1クラブ5〜6人（日本の部。オーナー・2026-09-26）
+   *   'world' … クラブの所在国と関係なく、全部の席を国の格で引く（海外9）
+   */
+  rosterNationality: RosterNationality
 }
+
+/** 選手の国籍の配り方 */
+export type RosterNationality = 'home' | 'world'
 
 /** 毎年の新しい選手の入口の種類 */
 export type Newcomers = 'draft' | 'youth' | 'refresh'
@@ -54,13 +64,13 @@ export type TimeTrialCircuit = 'japan' | 'overseas'
 
 /** 決まりを持つリーグ。**ここに無いリーグ（海外9）は全部 false**（記録会は海外の系統） */
 const RULES: Readonly<Record<LeagueId, LeagueRules>> = {
-  'jpel-1': { promotion: true, tierMoves: true, draft: true, draftPicks: true, timeTrials: 'japan', scheduleFrom: null, newcomers: 'draft' },
-  'jpel-2': { promotion: true, tierMoves: true, draft: false, draftPicks: true, timeTrials: 'japan', scheduleFrom: null, newcomers: 'youth' },
-  'jpel-3': { promotion: true, tierMoves: true, draft: false, draftPicks: true, timeTrials: 'japan', scheduleFrom: null, newcomers: 'youth' },
+  'jpel-1': { promotion: true, tierMoves: true, draft: true, draftPicks: true, timeTrials: 'japan', scheduleFrom: null, newcomers: 'draft', rosterNationality: 'home' },
+  'jpel-2': { promotion: true, tierMoves: true, draft: false, draftPicks: true, timeTrials: 'japan', scheduleFrom: null, newcomers: 'youth', rosterNationality: 'home' },
+  'jpel-3': { promotion: true, tierMoves: true, draft: false, draftPicks: true, timeTrials: 'japan', scheduleFrom: null, newcomers: 'youth', rosterNationality: 'home' },
 }
 const NO_RULES: LeagueRules = {
   promotion: false, tierMoves: false, draft: false, draftPicks: false, timeTrials: 'overseas',
-  scheduleFrom: 'jpel-1', newcomers: 'refresh',
+  scheduleFrom: 'jpel-1', newcomers: 'refresh', rosterNationality: 'world',
 }
 
 /** そのリーグの決まり。知らないリーグは何も無い */

@@ -7,7 +7,7 @@ import { tierOf, tierOfClubId, tierRankSlots, TIER_POTENTIAL_CAP, INITIAL_ROSTER
 import { SPEC_STRONG_STATS, faMarketSalary, STAT_CAP } from '../utils/playerUtils'
 import { strHash } from '../utils/hash'
 import { SPECIALTIES } from '../utils/squadNeeds'
-import { buildNationalityBag } from '../data/nationTalent'
+import { drawNationalityForRank, HOME_FOREIGN_RANGE, HOME_FOREIGN_SHARE } from '../utils/nationTier'
 import { clubCountryOf } from '../data/leagues'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は持たない
 import { clubMembersByClub } from '../utils/rosterSync'
@@ -601,7 +601,15 @@ function homeIdentity(country: Nationality, usedNames: Set<string>): { name: str
     usedNames.add(name)
     return { name, origin, nat: 'JPN' }
   }
-  const pools = FOREIGN_LEAGUE_POOLS[country] ?? FOREIGN_LEAGUE_POOLS._default
+  return nationalIdentity(country, usedNames)
+}
+
+/**
+ * その国籍の名前・出身。名前はその国の名前の表から引き、国籍は渡した国のまま
+ *（表の無い国は `_default` の表の名前になる）。重複したら引き直す
+ */
+function nationalIdentity(nat: Nationality, usedNames: Set<string>): { name: string; origin: string; nat: Nationality } {
+  const pools = FOREIGN_LEAGUE_POOLS[nat] ?? FOREIGN_LEAGUE_POOLS._default
   const pool = pools[rng(0, pools.length - 1)]
   let picked = pickForeignName(pool)
   let attempts = 0
@@ -610,7 +618,20 @@ function homeIdentity(country: Nationality, usedNames: Set<string>): { name: str
     attempts++
   }
   usedNames.add(picked.name)
-  return picked
+  return { ...picked, nat }
+}
+
+/**
+ * **あとから入る選手（開幕の床・若手の補充）の国籍。** 配り方はリーグの決まり（`rosterNationality`）1本：
+ *   'home'  … 自国中心（外国籍になる確率は初期ロスターと同じ `HOME_FOREIGN_SHARE`）
+ *   'world' … 席の強さ（ランク）から国籍を引く（`utils/nationTier` の `drawNationalityForRank`）
+ * 外国籍の国はどちらも `drawNationalityForRank` 1本
+ */
+function newcomerIdentity(team: WorldClub, rank: Rank, usedNames: Set<string>): { name: string; origin: string; nat: Nationality } {
+  const home = (clubCountryOf(team) ?? 'JPN') as Nationality
+  if (leagueRules(team.leagueId).rosterNationality === 'world') return nationalIdentity(drawNationalityForRank(rank, Math.random), usedNames)
+  if (Math.random() < HOME_FOREIGN_SHARE) return nationalIdentity(drawNationalityForRank(rank, Math.random, home), usedNames)
+  return homeIdentity(home, usedNames)
 }
 
 export function nationalityToForeignCategory(nat: Nationality): ForeignCategory {
@@ -1039,7 +1060,8 @@ export function generateCpuRosters(
     let nationality: Nationality
 
     if (isForeign) {
-      const fn = generateJpelForeignName(usedNames)
+      // 外国籍の国は席の強さから引く（utils/nationTier の drawNationalityForRank 1本）
+      const fn = nationalIdentity(drawNationalityForRank(rank, Math.random, 'JPN'), usedNames)
       name = fn.name; origin = fn.origin; nationality = fn.nat
     } else {
       origin = Math.random() < 0.6
@@ -1092,13 +1114,13 @@ export function generateCpuRosters(
     const slots = tierRankSlots(tier)
 
     const ids: string[] = []
-    let teamForeignCount = 0
+    // 外国籍は1クラブ5〜6人（HOME_FOREIGN_RANGE・オーナー・2026-09-26「日本は日本中心で外国籍5〜6人くらい」）。
+    // どの枠が外国籍になるかはランダム（強さの枠に偏らせない）
+    const foreignN = rng(HOME_FOREIGN_RANGE[0], HOME_FOREIGN_RANGE[1])
+    const order = slots.map((_, k) => k).sort(() => Math.random() - 0.5)
+    const foreignSlots = new Set(order.slice(0, foreignN))
     slots.forEach((rank, i) => {
-      // 外国人は2人まで（先頭2枠で抽選）
-      const canBeForeign = teamForeignCount < 2
-      const isForeign = canBeForeign && (i < 1 ? Math.random() < 0.55 : Math.random() < 0.08)
-      if (isForeign) teamForeignCount++
-      const p = makePlayer(rank, i, team.id, cap, isForeign)
+      const p = makePlayer(rank, i, team.id, cap, foreignSlots.has(i))
       cpuPlayers.push(p); ids.push(p.id)
     })
     teamRosters[team.id] = { main: ids }
@@ -1131,6 +1153,10 @@ export function generatePlayerInitialRoster(year: number, tier: ClubTier): {
   const dualIds: string[] = []
   const secondIds: string[] = []
 
+  // 自チームも日本のクラブと同じ配り方（日本人中心・外国籍は HOME_FOREIGN_RANGE 人。枠はランダム）
+  const foreignN = rng(HOME_FOREIGN_RANGE[0], HOME_FOREIGN_RANGE[1])
+  const foreignSlots = new Set(slots.map((_, k) => k).sort(() => Math.random() - 0.5).slice(0, foreignN))
+
   function makePRPlayer(rank: Rank, i: number): Player {
     idCounter++
     const specialty = specialties[rng(0, specialties.length - 1)]
@@ -1141,15 +1167,10 @@ export function generatePlayerInitialRoster(year: number, tier: ClubTier): {
     const id = `pr-${year}-${idCounter}`
     // 能力値の作り方は buildRatingsForRank の1本。上限もCPUと同じくそのクラブの格
     const { ratings, potential } = buildRatingsForRank({ id, rank, specialty, growthCurve, age, potentialCap })
-    const origin = Math.random() < 0.6
-      ? UNIVERSITIES[rng(0, UNIVERSITIES.length - 1)]
-      : HIGHSCHOOLS[rng(0, HIGHSCHOOLS.length - 1)]
-    let name: string, attempts = 0
-    do {
-      name = `${FAMILY_NAMES[rng(0, FAMILY_NAMES.length - 1)]} ${GIVEN_NAMES_MALE[rng(0, GIVEN_NAMES_MALE.length - 1)]}`
-      attempts++
-    } while (usedNames.has(name) && attempts < 60)
-    usedNames.add(name)
+    const who = foreignSlots.has(i)
+      ? nationalIdentity(drawNationalityForRank(rank, Math.random, 'JPN'), usedNames)
+      : homeIdentity('JPN', usedNames)
+    const { name, origin } = who
     return {
       id,
       name, nameKana: '', age, yearsPro,
@@ -1164,7 +1185,7 @@ export function generatePlayerInitialRoster(year: number, tier: ClubTier): {
         faEligibleYear: year + rng(2, 5),
         contractType: 'standard',
       },
-      nationality: 'JPN', origin,
+      nationality: who.nat, origin,
       status: 'active', fatigue: 0, morale: rng(70, 90), form: 0,
       career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
       traits: assignTraits(rank, specialty, age),
@@ -1313,11 +1334,10 @@ function makeNewPlayersFor(
 ): Player[] {
   if (n <= 0) return []
   const made = generateCpuRosters([{ id: team.id, tier: tierOf(team) }], year).cpuPlayers.slice(0, n)
-  // 名前・国籍はそのクラブの国（homeIdentity）。どのリーグのクラブも同じ
-  const country = clubCountryOf(team) ?? 'JPN'
+  // 名前・国籍はリーグの決まり（rosterNationality）どおり（newcomerIdentity 1本）
   const usedNames = new Set<string>()
   return made.map((p, i) => {
-    const who = homeIdentity(country, usedNames)
+    const who = newcomerIdentity(team, ranks[i % ranks.length], usedNames)
     // 年齢は若手の帯（19〜22）。伸びしろを持たせるのは補充も開幕の床も同じ
     const age = 19 + (i % 4)
     const { ratings, potential } = buildRatingsForRank({
@@ -1521,19 +1541,10 @@ export function generateForeignLeaguePlayers(
   // 「4大リーグへ進む」「3部の原石を奪い合う」を同じ物差しで比べられなかった。
   // いまは全232クラブが同じ格に乗っている。
 
-  // 国籍はクラブの所在国ではなく、data/nationTalent.ts の人数比で配る。
+  // 国籍はクラブの所在国ではなく、席の強さ（ランク）から引く（utils/nationTier の drawNationalityForRank 1本）。
   // クラブの所在国に固定すると、国の選手層＝その国のクラブ数になり、
   // ニュージーランド220人・エチオピア66人のような転倒が起きる（実測）。
-  // 袋から順に引くので、全体の人数比がそのまま各国の選手層になる。
-  // 強さは下の region（＝どのクラブにいるか）で決まるので、国籍では変えない。
-  const natBag = buildNationalityBag()
-  for (let i = natBag.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[natBag[i], natBag[j]] = [natBag[j], natBag[i]]
-  }
-  let natIdx = 0
-  const nextNationality = (fallback: Nationality): Nationality =>
-    natIdx < natBag.length ? natBag[natIdx++] : fallback
+  // 席の強さはクラブの格のまま＝クラブの強さは変わらず、国の格は「その席に誰が座るか」だけを決める。
 
   for (const club of targetClubs) {
     {
@@ -1550,7 +1561,7 @@ export function generateForeignLeaguePlayers(
         const specialty = specialties[rng(0, specialties.length - 1)]
         const growthCurve = growthCurves[rng(0, growthCurves.length - 1)]
         const age = rng(ageRange[0], ageRange[1])
-        const nat: Nationality = nextNationality(club.country)
+        const nat: Nationality = drawNationalityForRank(rank, Math.random)
         const foreignCat = nationalityToForeignCategory(nat)
 
         // 名前は所属クラブの国ではなく【国籍】から引く。
