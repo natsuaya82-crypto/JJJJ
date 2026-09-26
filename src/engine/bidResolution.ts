@@ -88,8 +88,8 @@ export function resolveTransferBids(params: {
   //   ・本人がそのクラブへ行く気になる（utils/transferDecision.ts の1本）
   // 需要で絞る前は「強い選手は全クラブが欲しがる」状態で、1人に43クラブが群がっていた。
   //
-  // 出せる額は「格の年間予算の TRANSFER_BUDGET_SHARE まで」。手元の資金がそれより
-  // 少なければそちらが上限になる。**誰が参加するかは需要、誰が勝つかは格**。
+  // 出せる額は手元の資金まで（data/economy の transferCapOf。年間予算の割合の蓋は撤廃済み）。
+  // **誰が参加するかは需要、誰が勝つかは格**（格は年間予算を通して資金の貯まり方に効く）。
   // 以前は市場価値×1.4の頭打ちで、全クラブが同額を出すので競売になっていなかった
   const rivalsFor = (target: Player) => {
     // 出場率は utils/playRate 1本（相手クラブが本人に断られるかを見るので、本人の今季が要る）

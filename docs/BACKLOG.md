@@ -1195,6 +1195,30 @@ CLAUDE.md の「まだ無いもの」に書いてある **自チームの2チー
   「ハーフマラソン」にし、`newsItems.distanceLabel` は `eventLabelOf` へ委譲（2本目の表を削除）
 
 
+### A-新3. 日本と海外で振る舞いが分かれたまま残っているところ（世界の一本化の棚卸し）
+
+- 何が起きるか … オーナーの決定（格・昇降格・ドラフト・日程・記録会の系統）の外で、
+  日本のリーグのクラブか海外クラブかで振る舞いが違うところ。どれも**いまの振る舞いのまま**
+  （一部はコードに「（いまの振る舞い）」と書いてある）。直すか・どちらに揃えるかはオーナー判断。
+- 見つけ方 … 2026-09-26、`jpelClubs` / `isJpelLeague` / `divisionOf` / 名前に foreign を含む分岐を
+  `src/` で全部洗ったときに実物で確認
+
+| 何が違うか | どこ |
+|---|---|
+| シーズン中に「貸してほしい」（borrow_in）と言ってくるのは日本のリーグのクラブだけ（「借りたい」は231クラブ） | `engine/cpuMarket.ts` の `generateTransferActivity`（`otherClubs(jpelClubs(…))`） |
+| 記録会のチーム歴代記録を持つのは日本のリーグのクラブだけ（海外クラブの監督になると自チームの記録が付かない） | `engine/timeTrial.ts`（`isJpelLeague`）・`engine/savePruning.ts` |
+| 「海外」は常に「日本のリーグでないクラブ」。海外挑戦の登録・`fromForeign`・憧れの地域の加点（`destinationOf` の `domestic`）・売ったときの見出しが、自チームが海外クラブでも日本基準のまま | `engine/cpuMarket.ts`・`store/slices/marketSlice.ts`・`store/marketOps.ts`・`utils/transferDecision.ts` |
+| オフのFA補強で、海外クラブだけ市場を回す**前**の資金を見る（日本のリーグのクラブは回したあと） | `store/slices/draftSlice.ts` の `clubsForFa` |
+| 今季の出場実績（`perfOf`）：海外リーグの選手は `foreignAppearances` の別の物差し（最低出場数の関門なし・分母は海外リーグの最大消化数） | `utils/playerUtils.ts` の `perfOf` |
+| 過去シーズンの順位表：海外リーグだけ1戦ごとの結果を落として保存 | `engine/seasonArchivePrep.ts` |
+| 開幕の床（20人）で海外クラブに入る選手も、日本の生成（日本の名前・国籍）を通る。新しいゲームの初期ロスターも日本と海外で生成が別 | `engine/playerGenerator.ts` の `makeNewPlayersFor`・`store/slices/draftSlice.ts` |
+| 海外クラブの監督のとき、部（`divisionOf`＝部に居ないクラブは1部）で決めているもの：レースと区間記録の見出しの［1部］・カード報酬の順位の読み方・年度表彰（海外リーグの MVP が「1部MVP」として数えられる）・監督の節目の見出し | `store/slices/raceSlice.ts`・`engine/raceNews.ts`・`engine/raceRecords.ts`・`store/slices/seasonSlice.ts`（`computeSeasonAwards`）・`engine/dynastyMilestones.ts` |
+| 起動時の順位表の自己修復が日本の部のリーグだけ | `utils/league.ts` の `syncSeasonLeagues` |
+| ECL：日本は1部の順位表の上位2だけ（順位表が無ければ出ない）、海外は順位表が無い年はクラブの戦力で代わりを出す | `engine/eclSeries.ts` |
+| 海外クラブの名前を引かず「他クラブ」／空になる表示：レンタルの見出し・退団のお知らせ（呼ぶ側が名前を渡さないとき）・レンタル元の札 | `utils/newsItems.ts` の `clubLabel`・`utils/movePlayer.ts`・`components/team/TeamManagement.tsx`・`store/slices/marketSlice.ts`（レンタルに出す） |
+| クラブ詳細の「優勝回数」：海外クラブはタイトルの先頭の数（リーグ優勝が無くECL優勝があるとECLの数が出る） | `components/teams/TeamDetailPage.tsx` の `infoChampions` |
+
+
 ## B. 止めたままの点検
 
 ### B-1. `transfer-bid` … `済`（2026-08-11・0件）

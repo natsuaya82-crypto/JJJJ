@@ -24,7 +24,7 @@ import { ROSTER_MAX } from '../data/rosterRules'
 //   絞る前は「強い選手は全クラブが欲しがる」状態で、1人に43クラブが群がっていた。
 //
 // ■いくら出せるか
-//   そのクラブの年間予算の TRANSFER_BUDGET_SHARE まで。手元の資金がそれより少なければそちら。
+//   手元の資金まで（data/economy の transferCapOf。年間予算の割合の蓋は撤廃済み）。
 //   **誰が参加するかは需要、誰が勝つかは規模。**
 
 export type RivalClub = { clubId: string; name: string; willing: number }
