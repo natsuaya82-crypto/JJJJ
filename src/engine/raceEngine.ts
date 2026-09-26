@@ -1,6 +1,6 @@
 import type { Player, Specialty, RaceResults, Race, Team, Segment, WorldClub } from '../types'
 import type { TraitId } from '../utils/traitUtils'
-import { positionPointsFor, segmentAwardPoints, divisionOf, divisionLeagueId } from '../utils/league'
+import { positionPointsFor, segmentAwardPoints } from '../utils/league'
 import { MORALE_DEFAULT } from '../utils/condition'
 import { terrainWeights } from '../data/segmentWeights'
 import { lerpAnchors } from '../utils/anchors'
@@ -332,7 +332,9 @@ function resolveSegmentEvents(ratings: Player['ratings'], isLastSeg: boolean): n
 /**
  * そのレースに出るCPUチームの区間割り当てをまとめて組む。
  *
- * ★「誰が走るか」はここ1本。**自分と同じ部のチームだけ**が出走する。
+ * ★「誰が走るか」はここ1本。**自チームと同じリーグのクラブだけ**が出走する（日本の部も海外リーグも同じ）。
+ *   リーグは自チームの `leagueId` から引く。部（`divisionOf`）で引くと、海外クラブの監督でも
+ *   日本1部が相手になり、そのリーグのほかのクラブが1戦も走らなかった。
  *   以前は gameStore.runRace（スキップ進行）と RacePage（中継つき）の2箇所で
  *   lineups を手書きしていて、RacePage 側だけ部で絞っていなかった。
  *   その結果、中継で走ると52チーム全員が参加し、3部のチームが1部の相手に混ざって
@@ -344,9 +346,8 @@ export function buildCpuLineups(
   race: Race,
   playerTeamId: string,
 ): Record<string, Record<number, string>> {
-  const myDivision = divisionOf(myClub({ clubs, playerTeamId }))
   const out: Record<string, Record<number, string>> = {}
-  for (const team of clubsInLeague(clubs, divisionLeagueId(myDivision))) {
+  for (const team of clubsInLeague(clubs, myClub({ clubs, playerTeamId })?.leagueId ?? '')) {
     if (team.id === playerTeamId) continue
     out[team.id] = bgLineup(players.filter(p => p.teamId === team.id && p.status === 'active'), race)
   }

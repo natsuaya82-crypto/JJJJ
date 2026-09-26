@@ -164,6 +164,11 @@ runSeason()
   const row = g().currentSeason.leagues[destLeague]?.standings.find(r => r.teamId === g().playerTeamId)
   check('海外リーグの順位表に自チームが載り、全戦ぶん数えられている', row?.raceResults.length === ran.length,
     `${row?.raceResults.length}/${ran.length}`)
+  // ★相手も同じリーグのクラブが全戦を走っていること。出走を部（divisionOf）で組んでいたころは
+  //   海外クラブの監督でも日本1部が相手になり、リーグのほかの19クラブは1戦も走っていなかった
+  const rows = g().currentSeason.leagues[destLeague]?.standings ?? []
+  check('海外リーグのほかのクラブも全戦を走っている', rows.length > 1 && rows.every(r => r.raceResults.length === ran.length),
+    rows.map(r => r.raceResults.length).join(','))
 }
 
 console.log('')
