@@ -69,6 +69,17 @@ console.log('\n[1b] 印を付けるのは movePlayer 1本。更新で消す')
   check('CPUの契約更新でも消える', /signedOnJoin: false/.test(season))
   // ★契約が切れた選手（無所属）を止めると、誰にも獲られなくなる
   check('契約が切れたら印も消える', /signedOnJoin: false/.test(src('src/engine/growth.ts')))
+  // ★**加入の入口は movePlayer に契約を渡すこと**（渡さないと印が付かない）。
+  //   ドラフトの指名（自チーム・CPU）と育成選手の契約。2026-09-26 に、自チームの指名で
+  //   印を付けていたのが setDraftContract の書き足しだけだったと分かり（CPUの指名は付かない）、寄せた。
+  //   戻し方：draftSlice の指名の movePlayer から `contract: {}` を消す
+  const draft = src('src/store/slices/draftSlice.ts')
+  const joinCalls = [...draft.matchAll(/movePlayer\([^;]*?\)\s*\n/g)].map(m => m[0])
+    .filter(c => /playerTeamId|, teamId,|newPlayer\.id/.test(c) && !/'',/.test(c))
+  check('ドラフトの指名と育成選手の加入が movePlayer に契約を渡す',
+    joinCalls.length >= 3 && joinCalls.every(c => /contract:/.test(c)),
+    joinCalls.filter(c => !/contract:/.test(c)).map(c => c.trim().slice(0, 80)).join(' / ') || `${joinCalls.length}本`)
+  check('setDraftContract で印を書き足していない', !/signedOnJoin: true/.test(draft))
   // ★経緯の説明文にも当たるので、**export が残っていないか**だけを見る
   check('古い定数（TRANSFER_LOCK_YEARS）を export していない',
     !/export const TRANSFER_LOCK_YEARS/.test(readFileSync('src/utils/transferEligibility.ts', 'utf8')))

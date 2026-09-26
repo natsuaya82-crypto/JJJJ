@@ -55,7 +55,8 @@ export function buildContractRequests(args: {
   const retiringIds = new Set([...existRet, ...newRet.map(r => r.playerId)])
   // 判定は contractTalk の1本だけ（借り物・引退の話・海外承認・退団予定・更新ロック・
   // フリー接触中）。今この場で引退を言い出した分も retiringIds に含めて外す
-  const gcrCtx = { ...contractTalkCtx(currentSeason, playerTeamId), retiringIds }
+  const baseCtx = contractTalkCtx(currentSeason, playerTeamId)
+  const gcrCtx = { ...baseCtx, retiringIds, elig: { ...baseCtx.elig, retiringIds } }
   // 「今季すでに交渉した選手」には再生成しない（開き直しでround 1に戻るのを防ぐ）。
   // 期限切れの札はもう残らないので、ここに引っかかるのは本当に応対した話だけ
   const myPlayers = players.filter(p => canRequestRenewal(p, gcrCtx)

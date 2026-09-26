@@ -205,13 +205,17 @@ export const ROOKIE_GUARD_RACES = 3
  *   **呼ぶ側で名簿を絞ったり、レース数を数え直したりしないこと。**
  */
 export function keyPlayerStatus(p: Player, w: PlayRateWorld): 'locked' | 'key' | 'open' {
-  // 満了間近・不満は守らない（普通に動く）
+  // 満了間近・不満は守らない（普通に動く）。★序列の線とは別に残す（オーナー・2026-09-26「契約の条件は残して欲しい」）
   if (p.contract.yearsLeft <= 1 || (p.morale ?? MORALE_DEFAULT) < 45) return 'open'
   const { teamRaces } = playRateOf(p.id, p.teamId, w.currentSeason, w.clubs,
     prevSeasonOf(w.pastSeasons, w.currentSeason.year))
   // ドラフト当年の新人は、名簿の中の位置がまだ姿になっていないあいだだけ絶対に取れない
   if ((p.draftYear ?? w.currentSeason.year) >= w.currentSeason.year && teamRaces <= ROOKIE_GUARD_RACES) return 'locked'
-  const roster = clubIndexOf(w.players).get(p.teamId) ?? []
+  // ★序列は**走れる人（`active`）だけ**で数える（怪我人は数えない・オーナー・2026-09-26）。
+  //   トレードの値段（`tradeValue` の surplusIn）・移籍市場（`engine/transferMarket`）・
+  //   監督について行く（`gmInvite`）と同じ名簿。以前ここだけ怪我人込みで、怪我人のいるクラブでは
+  //   同じ選手が14番手の線の両側に割れていた
+  const roster = (clubIndexOf(w.players).get(p.teamId) ?? []).filter(x => x.status === 'active')
   return isSurplus({ squadRank: squadRankOf(roster, p) }) ? 'open' : 'key'
 }
 

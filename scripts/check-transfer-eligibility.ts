@@ -234,7 +234,7 @@ check('  入口2つは関門を手書きし直していない',
   && !actionBody(store, 'counterIncomingOffer').includes('canAcceptOfferFor'))
 // 契約更新の判定は utils/contractTalk.ts に寄せてある（canRequestRenewal の中で canStartContractTalk を通る）
 check('契約要求の生成（buildContractRequests）が canRequestRenewal を通る', contractRequestsBody.includes('canRequestRenewal'))
-check('契約更新の判定の土台が canStartContractTalk のまま', readFileSync(join('src', 'utils', 'contractTalk.ts'), 'utf-8').includes('canStartContractTalk(p, {'))
+check('契約更新の判定の土台が canStartContractTalk のまま（材料は eligibilityCtx）', readFileSync(join('src', 'utils', 'contractTalk.ts'), 'utf-8').includes('canStartContractTalk(p, ctx.elig)'))
 // ここだけ logicSource（store＋engine）で見る。**「どこに書いてあるか」ではなく
 // 「その決まりを通っているか」を見る判定**で、直訴の生成は engine/playerWishes へ移した。
 // 上の has(...) 群は「store にこれを手書きしていないか」を見る別の性格の判定なので

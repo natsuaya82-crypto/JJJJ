@@ -62,6 +62,7 @@ import { wouldMakeLineup } from '../src/utils/squadNeeds'
 import { TIER_FALL_LIMIT, playerTierOf, tierLines } from '../src/utils/playerTier'
 import { appraiseMove, buildDestination, regionOfLeague } from '../src/utils/transferDecision'
 import type { ForeignClub, IncomingOffer, Player, Team, TransferListing, WorldClub } from '../src/types'
+import { eligibilityCtx } from '../src/utils/transferEligibility'
 
 let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
@@ -126,7 +127,7 @@ for (let run = 0; run < RUNS; run++) {
   let liveL: TransferListing[] = []
   for (let i = 0; i < races.length; i++) {
     const r = generateTransferActivity(
-      players, clubs, MY, i, liveL, live, [], new Set(), YEAR, races.length,
+      players, clubs, MY, i, liveL, live, [], eligibilityCtx({ year: YEAR }, MY), races.length,
       // この点検の世界はレース結果を持たないので「まだ分からない」を返す＝序列で見る
       () => ({ fraction: 0, teamRaces: 0 }), destOf(players), mv)
     rounds.push({ fresh: r.incomingOffers.filter(o => !live.some(l => l.id === o.id)), raceIndex: i, run })
@@ -164,7 +165,7 @@ console.log('[1.5] **1年に来る件数**（上限だけ見ても「多すぎ�
     let got = 0
     for (let i = 0; i < sch.length; i++) {
       const r = generateTransferActivity(
-        players0, clubs, MY, i, [], live, [], new Set(), YEAR, sch.length,
+        players0, clubs, MY, i, [], live, [], eligibilityCtx({ year: YEAR }, MY), sch.length,
         () => ({ fraction: 0, teamRaces: 0 }), destOf(players0), mv)
       got += r.incomingOffers
         .filter(o => !live.some(l => l.id === o.id) && o.offeredPrice > 0 && !o.id.startsWith('inc-lst-')).length

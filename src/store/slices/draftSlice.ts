@@ -101,8 +101,10 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     const newPicks = [...picks, { pickNumber: currentPick + 1, teamId: playerTeamId, playerId, playerName: player.name }]
     const newPool = pool.filter(p => p.id !== playerId)
 
-    // ドラフトも入手経路が違うだけで「クラブに入る」は同じなので movePlayer を通す
-    const moved = movePlayer(state, playerId, playerTeamId, { year: state.currentSeason.year, history: false })
+    // ドラフトも入手経路が違うだけで「クラブに入る」は同じなので movePlayer を通す。
+    // ★契約（新人契約はドラフト候補を作るときに決まっている）を渡すこと。渡さないと movePlayer が
+    //   「加入したときの契約」の印（signedOnJoin）を付けず、移籍ロックが効かない
+    const moved = movePlayer(state, playerId, playerTeamId, { year: state.currentSeason.year, history: false, contract: {} })
     if (!moved.ok) return
     const clubs = moved.clubs
     const players = moved.players.map(p => p.id === playerId
@@ -157,8 +159,9 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
 
     const newPicks = [...picks, { pickNumber: currentPick + 1, teamId, playerId: picked.id, playerName: picked.name }]
     const newPool = pool.filter(p => p.id !== picked.id)
-    // 自チームの指名と同じ入口を通す（加入年・名簿の入れ方が指名する側で変わらないように）
-    const moved = movePlayer(state, picked.id, teamId, { year: state.currentSeason.year, history: false })
+    // 自チームの指名と同じ入口を通す（加入年・名簿・移籍ロックの印が指名する側で変わらないように）。
+    // ★以前はここだけ契約を渡しておらず、CPUが指名した新人には移籍ロックが付かなかった（2026-09-26）
+    const moved = movePlayer(state, picked.id, teamId, { year: state.currentSeason.year, history: false, contract: {} })
     // ★**指名の順番だけは必ず進めること。** ここは何もせず抜けていたので、
     //   `movePlayer` が失敗すると `DraftRoom` のタイマーが同じ指名を呼び続けて
     //   **会場が止まります**（22行上の「見送り」の枝はちゃんと進めているのに、
@@ -361,8 +364,10 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
         // 所属はこのあと movePlayer で入れる（名簿と支度金の後始末をまとめて任せるため）
         teamId: '',
         joinedYear: state.currentSeason.year,
+        // 契約は movePlayer に渡す（年数は newContractYears 1本＝若いほど長い。加入の契約なので移籍ロックも付く）。
+        // 以前は `yearsLeft: 2` の固定で、movePlayer に契約を渡さないのでロックも付かなかった（オーナー・2026-09-26「2」）
         contract: {
-          yearsLeft: 2,
+          yearsLeft: 0,
           annualSalary: 15000000,
           faEligibleYear: state.currentSeason.year + 2,
           contractType: 'development' },
@@ -380,7 +385,8 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       const moved = movePlayer(
         { players: [...state.players, newPlayer], clubs: state.clubs },
         newPlayer.id, state.playerTeamId,
-        { year: state.currentSeason.year, fee: prospect.signingFee, history: false },
+        { year: state.currentSeason.year, fee: prospect.signingFee, history: false,
+          contract: { yearsLeft: newContractYears(newPlayer, state.currentSeason.year) } },
       )
       if (!moved.ok) return state
       return {
@@ -437,7 +443,8 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
           teamRole: teamRole ?? p.teamRole,
           // rookieDeal: ドラフト初回契約は相場の半分まで下げられるが、次の更新では相場基準の要求になる
           // ドラフトの初回契約も「加入したときの契約」＝その間は動かせない（レンタルは通る）。
-          // 印（signedOnJoin）は指名のときに movePlayer が付けている。ここで書き足さないこと（印を付けるのは movePlayer 1本）
+          // 印（signedOnJoin）は指名のときに movePlayer が付けている（契約を渡しているので）。
+          // ここで書き足さないこと（印を付けるのは movePlayer 1本）
           contract: { ...p.contract, annualSalary: salary, yearsLeft: years, contractType, rookieDeal: true } } : p),
         // 名簿はここで並べ替えない。所属から組み直す決まりに任せる（指名の時点で入っている）
       }

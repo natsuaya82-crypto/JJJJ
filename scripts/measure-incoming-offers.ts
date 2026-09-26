@@ -22,6 +22,7 @@ import { tierBudget, tierOf } from '../src/utils/clubTier'
 import { buildDestination, regionOfLeague } from '../src/utils/transferDecision'
 import { marketValueOf } from '../src/utils/playerUtils'
 import type { ForeignClub, IncomingOffer, Player, Team, WorldClub } from '../src/types'
+import { eligibilityCtx } from '../src/utils/transferEligibility'
 
 const MY = 'tokyo'
 const YEAR = 2030
@@ -64,7 +65,7 @@ function runOneYear(players: Player[]) {
   const newPerRace: number[] = []
   for (let i = 0; i < races.length; i++) {
     const r = generateTransferActivity(
-      players, clubs, MY, i, [], live, [], new Set(), YEAR, races.length,
+      players, clubs, MY, i, [], live, [], eligibilityCtx({ year: YEAR }, MY), races.length,
       () => ({ fraction: 0, teamRaces: 0 }), destOf(players), mv)
     const fresh = r.incomingOffers.filter(o => !live.some(l => l.id === o.id))
     arrived.push(...fresh)

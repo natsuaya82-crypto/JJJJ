@@ -22,8 +22,9 @@ import { HOF_ENTRY_MIN } from '../utils/hofRoster'
 import { remoteLogoId } from '../data/logoPresets'
 import type { HofPlayer, Race } from '../types'
 
-/** 提出の締め切り（日本時間）。**端末の時計で判定しないこと**——本判定はサーバー側 */
-export const SUBMIT_DEADLINE_HHMM = '23:59'
+/** 提出の締め切り（日本時間・翌朝）。**端末の時計で判定しないこと**——本判定はサーバー側。
+ *  1日は 10:00〜翌9:59（ログインボーナスと同じ区切り。オーナー・2026-09-26「10時」） */
+export const SUBMIT_DEADLINE_HHMM = '9:59'
 /** 結果と次のコースが出る時刻（日本時間） */
 export const RESULT_HHMM = '10:00'
 

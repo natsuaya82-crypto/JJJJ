@@ -973,7 +973,9 @@ declare me uuid := auth.uid(); c public.clubs%rowtype; my_ovr integer;
 begin
   if me is null then return 'not_found'; end if;
   if exists (select 1 from public.club_members where user_id = me) then return 'already'; end if;
-  select * into c from public.clubs where id = p_club;
+  -- ★`for update` で走友会の行を押さえてから数える（同時に2人が29人の走友会へ入ると、
+  --   2人とも「まだ29人」を見て31人になる。押さえれば後の人は前の人の加入を待ってから数える）
+  select * into c from public.clubs where id = p_club for update;
   if not found then return 'not_found'; end if;
   if c.members >= public.club_member_cap() then return 'full'; end if;
 
@@ -1036,7 +1038,8 @@ as $$
 declare c public.clubs%rowtype;
 begin
   if not public.can_edit_club() then return 'not_found'; end if;
-  select * into c from public.clubs where id = public.my_club_id();
+  -- 走友会の行を押さえてから数える（join_club と同じ。同時の加入で上限を超えないように）
+  select * into c from public.clubs where id = public.my_club_id() for update;
   if not found then return 'not_found'; end if;
   if not exists (select 1 from public.club_requests where club_id = c.id and user_id = p_user) then
     return 'not_found';
@@ -2017,19 +2020,21 @@ end $$;
 --  ★**時刻の判定はここ1本**（`rated_open_round`）。端末の時計を見て止めるだけだと、
 --    時計を変えれば通ってしまう。
 
--- 日本時間の「今日」。**日付の変換をあちこちに書かないこと**
+-- 日本時間の「今日」（**朝10時区切り**。アプリの jstGameDayISO・rated-tick と同じ）。
+-- **日付の変換をあちこちに書かないこと**
+-- ★2026-09-26 に夜0時区切りから変えた（オーナー「10時」）。1日は 10:00〜翌9:59
 create function public.rated_today_jst() returns date
 language sql stable as $$
-  select (timezone('Asia/Tokyo', now()))::date
+  select (timezone('Asia/Tokyo', now()) - interval '10 hours')::date
 $$;
 
 /*
  * **いま提出を受け付けている日**。無ければ0行。
  *
- * 締め切り（23:59）はこの1本が決めている。今日ぶんの round は 10:00 の
- * Edge Function が作るので、
- *   10:00〜23:59 … 今日ぶんが open →  通る
- *   00:00〜09:59 … 残っているのは前日ぶん（date_iso が昨日）→ 通らない
+ * 締め切り（翌9:59）はこの1本が決めている。「今日」は朝10時区切り（rated_today_jst）で、
+ * 今日ぶんの round は 10:00 の Edge Function が作るので、
+ *   10:00〜翌9:59 … その日ぶんが open →  通る
+ *   10:00〜Edge Function が動くまで … 前日ぶん（date_iso が昨日）→ 通らない
  * となって、日付が変わった時点で自然に締まる。
  */
 create function public.rated_open_round()
@@ -2133,9 +2138,9 @@ begin
     'totalDays', ev.total_days,
     'dateISO', r.date_iso,
     'segCount', r.seg_count,
-    -- 残り分。23:59:59 まで
+    -- 残り分。翌 9:59:59 まで（1日は朝10時区切り）
     'minutesLeft', greatest(0, floor(extract(epoch from
-      ((r.date_iso + time '23:59:59') - timezone('Asia/Tokyo', now()))) / 60))::int
+      ((r.date_iso + 1 + time '09:59:59') - timezone('Asia/Tokyo', now()))) / 60))::int
   );
 end $$;
 

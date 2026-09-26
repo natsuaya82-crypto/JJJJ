@@ -5,7 +5,7 @@
 import { isDeclining } from './ageCurve'
 import { clubSalaryTotal } from '../utils/clubMoney'
 import { roundFee, transferCapOf } from '../data/economy'
-import { ROSTER_MAX, ROSTER_MIN } from '../data/rosterRules'
+import { CPU_SELL_FLOOR, ROSTER_MAX, ROSTER_MIN, teamRosterSize } from '../data/rosterRules'
 import { type ForeignClub, type IncomingLoanOffer, type IncomingOffer, type Player, type Specialty, type TransferListing, type WorldClub } from '../types'
 import type { Destination } from '../utils/transferDecision'
 import { clubSeasonRank } from '../utils/clubStanding'
@@ -20,7 +20,7 @@ import { roundRobin } from '../utils/roundRobin'
 import { needsPlayer, thinSpecialties, wouldMakeLineup } from '../utils/squadNeeds'
 import { MAX_OFFERS_PER_PLAYER, appraiseMove, hasNoPlayingTime, playingStatus, regionOfLeague } from '../utils/transferDecision'
 import { playerTierOf, tierLines } from '../utils/playerTier'
-import { canBePoached, canClubApproachAgain, canGoOverseasDream, canLoanOut, canReceiveFreeContact, eligibilityCtx, isOwnedBy } from '../utils/transferEligibility'
+import { canBePoached, canClubApproachAgain, canGoOverseasDream, canLoanOut, canReceiveFreeContact, eligibilityCtx, isOwnedBy, type EligibilityCtx } from '../utils/transferEligibility'
 import { clubById, clubIdSet, clubMap, clubsWhere, isJpelLeague, jpelClubs, mapClubs, myClub, otherClubs } from '../utils/world'
 
 export function cpuStrategy(lastRank: number, totalTeams: number, avgAge: number): 'contend' | 'rebuild' | 'balanced' {
@@ -302,6 +302,9 @@ export function generateLoanOffers(params: {
       p.teamId !== playerTeamId && p.teamId !== '' && aiTeams.some(t => t.id === p.teamId)
       && p.status === 'active' && !p.loan && p.age <= 26 && ovr(p) < 76 && !loanTargetIds.has(p.id)
       && !wouldMakeLineup(rosterOfClub(p.teamId), p)
+      // ★貸す側の下限（`data/rosterRules` の `CPU_SELL_FLOOR` 1本）。貸すと出した側の在籍が1人減るので、
+      //   CPU同士のレンタル（runCpuLoans）と同じ線を当てる（オーナー・2026-09-26「下限あてなさい」）
+      && teamRosterSize(players, p.teamId) > CPU_SELL_FLOOR
       && notPlaying(p.id, p.teamId))   // 干されている選手だけが貸しに出される
     const fits = cands.filter(p => myNeedsLoan.includes(p.specialty))
     // 干され組の中では実力上位を提示（借りる価値のある選手にする）
@@ -323,8 +326,9 @@ export function generateTransferActivity(
   existingListings: TransferListing[],
   existingIncoming: IncomingOffer[],
   transferRequests: { playerId: string; reason: string }[] = [],
-  retiringIds: Set<string> = new Set(),  // 引退希望中の選手（オファー・接触の対象外にする）
-  currentYear = 0,                       // 今のシーズン年。加入1年目の選手をオファー対象から外すのに使う
+  // 移籍の可否の材料（`utils/transferEligibility` の `eligibilityCtx` 1本から作って渡す。
+  // 以前は引退希望と年を別々の引数で受け取り、ここで `{ teamId, currentYear, retiringIds }` を手書きしていた）
+  eligCtx: EligibilityCtx,
   totalRaces = 0,                        // 今季のレース数。契約残りの月数を出すのに使う（フリー接触の解禁時期）
   // 出場率の材料（utils/playRate の playRateOf を包んで渡すこと）。**既定値は置きません**
   // ——置くと「渡し忘れても動く」＝関門が黙って序列だけになるので、渡し忘れが起きます
@@ -386,7 +390,7 @@ export function generateTransferActivity(
         const c = [...group].filter(p => spare(p) && p.contract.yearsLeft > 0).sort((a, b) => ovr(a) - ovr(b))[0]
         if (c) {
           // ★**年齢の値引き（28歳超で0.85倍）は外しました。** `calcTransferValue` の中の
-          //   `transferFeeAgeMultiplier`（〜22歳×5／23〜27×4／28〜31×3／32〜×2）が
+          //   `transferFeeAgeMultiplier`（21歳×5 → 34歳×2 の折れ線）が
           //   既に年齢を効かせているので、**同じことを2回引いて**いました
           const price = roundFee(marketValue(c))
           newListings.push({ id: `lst-${raceIndex}-${c.id}`, playerId: c.id, fromTeamId: team.id, askingPrice: price, listedAtRace: raceIndex, expiresAtRace: raceIndex + 6, competingTeams: aiTeams.filter(t => t.id !== team.id && Math.random() < 0.5).slice(0, 3).map(t => t.id) })
@@ -455,7 +459,7 @@ export function generateTransferActivity(
   // ───────────────────────────────────────────────────────────────────────────
 
   // 「誰に話を持ちかけていいか」の条件は utils/transferEligibility.ts に集約
-  const eligCtx = { teamId: playerTeamId, currentYear, retiringIds }
+  const currentYear = eligCtx.currentYear ?? 0
   const playerTeamPlayers = players.filter(p => canBePoached(p, eligCtx))
   // 海外挑戦に登録した選手。isTalkFree では止まるので専用の入口を通る（canGoOverseasDream）
   const dreamers = players.filter(p => canGoOverseasDream(p, eligCtx))

@@ -46,7 +46,7 @@ export const RATED_ENABLED = false
 // ★次の回をやるときは、この日付を次の開催日の**後ろ**へ動かすか、'' にして止める。
 export const RATED_PREP_FROM = '2026-09-01'
 
-/** その日、ランクマッチは「準備中」か（`utils/jstDate` の jstTodayISO() を渡す） */
+/** その日、ランクマッチは「準備中」か（`utils/jstDate` の jstGameDayISO() を渡す） */
 export function ratedPreparing(today: string): boolean {
   return !!RATED_PREP_FROM && today >= RATED_PREP_FROM
 }

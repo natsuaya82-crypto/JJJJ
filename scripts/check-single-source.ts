@@ -591,15 +591,16 @@ RULES.push({
   name: '日本時間の「今日」を手で作っている',
   pattern: /9 \* 3600_?000|32400000/,
   allow: ['src/utils/jstDate.ts'],
-  fix: 'utils/jstDate.ts の jstTodayISO() を使う',
+  neverAppears: '夜0時区切りの jstTodayISO（＋9時間）は 2026-09-26 に廃止。今日は朝10時区切りの jstGameDayISO 1本',
+  fix: 'utils/jstDate.ts の jstGameDayISO() を使う',
 })
 RULES.push({
-  // ランクマッチの時刻（結果が出る 10:00 ／ 締め切り 23:59）。`lib/ratedApi` 1本。
+  // ランクマッチの時刻（結果が出る 10:00 ／ 締め切り 翌9:59。以前は 23:59）。`lib/ratedApi` 1本。
   // `RatedPage` が `const OPEN_HHMM = '10:00'` と2本目を持っていた（同じファイルが
   // ratedApi から他の定数を import しているのに、ここだけ手書きだった）。
   // 時刻を動かすときは GitHub Actions の cron（UTC 01:00）も一緒に動かすこと。
   name: 'ランクマッチの時刻を手書きしている',
-  pattern: /['"](?:10:00|23:59)['"]/,
+  pattern: /['"](?:10:00|23:59|9:59|09:59)['"]/,
   allow: ['src/lib/ratedApi.ts'],
   fix: 'lib/ratedApi.ts の RESULT_HHMM / SUBMIT_DEADLINE_HHMM を使う',
 })

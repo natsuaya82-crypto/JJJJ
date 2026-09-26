@@ -26,7 +26,7 @@
 // （scripts/check-contract-talk.ts が検出する）。
 import { roundSalary } from '../data/economy'
 import type { ContractRequest, IncomingOffer, Player } from '../types'
-import { canStartContractTalk } from './transferEligibility'
+import { canStartContractTalk, eligibilityCtx, type EligibilityCtx } from './transferEligibility'
 import { saleAnsweredIds, type SaleAnswerSeason } from './saleAnswer'
 
 /** 交渉は最大3ラウンド。ここを見ずに round を進めない */
@@ -95,6 +95,8 @@ export type ContractTalkCtx = {
   /** 売却の返事をして、行き先が決まるのを待っている選手ID（utils/saleAnswer） */
   saleAnsweredIds: Set<string>
   contractRequests: ContractRequest[]
+  /** 移籍の可否に渡す材料（`utils/transferEligibility` の `eligibilityCtx` 1本から作る。手書きしないこと） */
+  elig: EligibilityCtx
 }
 
 type SeasonLike = {
@@ -113,6 +115,7 @@ export function contractTalkCtx(season: SeasonLike, teamId: string): ContractTal
     freeContactIds: freeContactIdsOf(season.incomingOffers),
     saleAnsweredIds: saleAnsweredIds(season),
     contractRequests: season.contractRequests ?? [],
+    elig: eligibilityCtx(season, teamId),
   }
 }
 
@@ -138,7 +141,7 @@ export function isSaleAnswerPending(p: Player, ctx: ContractTalkCtx): boolean {
 }
 
 export function canOfferRenewal(p: Player, ctx: ContractTalkCtx): boolean {
-  if (!canStartContractTalk(p, { teamId: ctx.teamId, currentYear: ctx.year, retiringIds: ctx.retiringIds })) return false
+  if (!canStartContractTalk(p, ctx.elig)) return false
   if ((p.renewalLockedUntilYear ?? 0) > ctx.year) return false
   if (isSaleAnswerPending(p, ctx)) return false
   return true

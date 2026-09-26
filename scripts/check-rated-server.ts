@@ -159,6 +159,28 @@ function pickLineup(e: RatedEntrant, segCount: number): Record<number, string> {
 const START = '2026-09-01'
 const DAYS = 30
 
+console.log('\n[1-c] 走友会の人数の上限は1本（画面とサーバーで食い違わない・30人を超えない）')
+{
+  // ★この数も**2か所にある**。TS の `CLUB_MAX`（「満員」の表示と入るボタン）と、
+  //   `all.sql` の `club_member_cap`（サーバーが受けるか）。片方だけ動かすと
+  //   「満員と出ているのに入れる」「入れるボタンなのに弾かれる」になる（オーナー・2026-09-26「30以上は入れないようにしないと」）。
+  //   戻し方：all.sql の club_member_cap を 31 にする／join_club の `for update` を消す
+  const sql = readFileSync('supabase/all.sql', 'utf8')
+  const ts = readFileSync('src/lib/clubsApi.ts', 'utf8')
+  const cap = /create function public\.club_member_cap\(\)[\s\S]*?select\s+(\d+)/.exec(sql)
+  const max = /export const CLUB_MAX = (\d+)/.exec(ts)
+  check('サーバーの上限と CLUB_MAX が同じ', !!cap && !!max && cap[1] === max[1],
+    `all.sql は ${cap?.[1] ?? '?'} / CLUB_MAX は ${max?.[1] ?? '?'}`)
+  // 入る口は2つ（自分で入る join_club／会長が承認する approve_club_request）。
+  // どちらも走友会の行を押さえてから数える（同時に入って上限を超えないように）
+  const joins = (sql.match(/insert into public\.club_members \(user_id, club_id, role\) values \((?:me|p_user), c\.id, 'member'\)/g) ?? []).length
+  const capped = (sql.match(/if c\.members >= public\.club_member_cap\(\) then return 'full'; end if;/g) ?? []).length
+  const locked = (sql.match(/select \* into c from public\.clubs where id = [^;]+ for update;/g) ?? []).length
+  check('加入の口は2つ', joins === 2, `${joins}つ`)
+  check('2つとも上限を見る', capped === 2, `${capped}か所`)
+  check('2つとも走友会の行を押さえてから数える', locked === 2, `${locked}か所`)
+}
+
 console.log('\n[2] 提出したとおりに走る／出さなかった人も走る')
 {
   const entrants = makeEntrants(20)

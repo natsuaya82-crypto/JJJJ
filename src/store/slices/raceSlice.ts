@@ -36,6 +36,7 @@ import { movePlayer } from '../../utils/movePlayer'
 import { segmentPrizeHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
 import { playerConsentToMove, racesConsumed } from '../../utils/playerUtils'
 import { tierOfPlayerClub } from '../../utils/clubTier'
+import { eligibilityCtx } from '../../utils/transferEligibility'
 
 
 type Slice = Pick<GameStore,
@@ -324,8 +325,6 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       // 移籍ウィンドウは撤廃済み（getTransferWindow が常に「移籍受付中」を返す）。
       // 以前はここだけシーズンの35〜55%の間しかCPUのオファーを作らず、画面は
       // 「移籍受付中」なのに何も来ない期間ができていたので、常時オープンに揃えた
-      // 引退希望を受理済みの選手（移籍の話は持ちかけない）。売出の成立判定でも使う
-      const retiringWishIds = new Set((state.currentSeason.retirementRequests ?? []).map(r => r.playerId))
       // CPU同士の移籍の成立は engine/cpuTransfers 1本
       const cpuSettle = settleCpuTransfers({
         players: finalPlayers, clubs: state.clubs,
@@ -354,7 +353,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       // 買い取りの打診は**国内52＋海外180を1本のループ**で回す（engine/cpuMarket）。
       // クラブはそのまま渡す。**ここで id/name/leagueId/country だけに削っていた**ので、
       // 受け取る側は格も手元資金も見られず、いくらまで出せるかを初期値の格から作り直していた。
-      const transferData = generateTransferActivity(finalPlayers, clubsWithPrize, playerTeamId, nextClock, existingListingsFiltered, state.currentSeason.incomingOffers ?? [], state.currentSeason.transferRequests ?? [], retiringWishIds, state.currentSeason.year, updatedRaces.length,
+      const transferData = generateTransferActivity(finalPlayers, clubsWithPrize, playerTeamId, nextClock, existingListingsFiltered, state.currentSeason.incomingOffers ?? [], state.currentSeason.transferRequests ?? [], eligibilityCtx(state.currentSeason, playerTeamId), updatedRaces.length,
         // 出場率は utils/playRate 1本（本人が受けるかの判定がこれを見る）
         (pid) => playRateOf(pid, playerTeamId, state.currentSeason, state.clubs,
           prevSeasonOf(state.pastSeasons, state.currentSeason.year)),

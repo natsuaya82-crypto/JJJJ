@@ -13,7 +13,7 @@ import {
   type RatedEventInfo, type RatedMe, type RatedResult, type RatedToday,
 } from '../../lib/ratedApi'
 import { HOF_ENTRY_MIN } from '../../utils/hofRoster'
-import { jstTodayISO } from '../../utils/jstDate'
+import { jstGameDayISO } from '../../utils/jstDate'
 // 「準備中」の線は data/featureFlags 1本（画面に日付を書かない）
 import { ratedPreparing } from '../../data/featureFlags'
 import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
@@ -103,7 +103,7 @@ export default function RatedPage() {
 
   // 受付が開いているのは `today` があるときだけ。**開いていないなら押させない**
   //   （押せない理由はボタンの見出しに出す＝開幕ボタンと同じ扱い）
-  const startsLater = !!ev?.startsOn && ev.startsOn > jstTodayISO()
+  const startsLater = !!ev?.startsOn && ev.startsOn > jstGameDayISO()
   const startLabel = ev?.startsOn ? `${Number(ev.startsOn.split('-')[1])}.${Number(ev.startsOn.split('-')[2])}` : ''
   const openable = !!today
   // ★**開催前でも「参加する」は押せる**（オーナー・2026-08-19「参加するボタン欲しくね。
@@ -112,7 +112,7 @@ export default function RatedPage() {
   const joined = !!me?.joined
   // ★**準備中**（第一回は中止）。日付は data/featureFlags 1本で、ここに書かない。
   //   これが true のあいだは押せない＝サーバーへ参加を送らない
-  const preparing = ratedPreparing(jstTodayISO())
+  const preparing = ratedPreparing(jstGameDayISO())
   const canEnter = canJoin(hof) && startsLater && !joined
   const eligible = !preparing && canJoin(hof) && (openable || canEnter)
   const segs = today?.course.segments ?? []

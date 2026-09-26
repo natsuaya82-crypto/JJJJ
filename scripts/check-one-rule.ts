@@ -135,8 +135,9 @@ console.log('\n[8] 名簿を減らす経路は、どれも同じ下限（CPU_SEL
 {
   // 戻し方：cpuOffseason の canLeave を消して releaseSet.add を直に呼ぶ／
   //         runCpuLoans の `rosterSize(sid) <= CPU_SELL_FLOOR` を消す
-  // ★名簿が減るのは4つ（現金の移籍 engine/transferMarket／解雇 runCpuReleases／
-  //   レンタルで貸す runCpuLoans／シーズン中の出品の成立 engine/cpuTransfers）。**下限を見ていたのは2つだけ**で、しかも解雇の中でも
+  // ★名簿が減るのは5つ（現金の移籍 engine/transferMarket／解雇 runCpuReleases／
+  //   レンタルで貸す runCpuLoans／シーズン中の出品の成立 engine/cpuTransfers／
+  //   自チームへ貸したいと言ってくる borrow_in engine/cpuMarket）。**下限を見ていたのは2つだけ**で、しかも解雇の中でも
   //   「払える年俸」の枝だけが見ていて「衰えた選手」の枝は何人でも切れた。
   // ★**出現回数を数えないこと。** ここは `floors >= 4` で `CPU_SELL_FLOOR` の
   //   **字が何回出るか**を見ていましたが、それは経路と対応していません
@@ -148,6 +149,8 @@ console.log('\n[8] 名簿を減らす経路は、どれも同じ下限（CPU_SEL
   check('現金の移籍も下限を見る', /sellRoster\.length <= CPU_SELL_FLOOR/.test(code))
   // 戻し方：engine/cpuTransfers の出品の成立から `<= CPU_SELL_FLOOR` の行を消す
   // ★4本目の経路（シーズン中にCPUが出品した選手を別のCPUが買う）。以前は見ていなかった
+  // 戻し方：engine/cpuMarket の borrow_in の候補から `> CPU_SELL_FLOOR` の行を消す
+  check('自チームへ貸したいと言ってくる側も下限を見る', /teamRosterSize\(players, p\.teamId\) > CPU_SELL_FLOOR/.test(code))
   check('出品の成立も売り手の下限を見る', /rosterCount\.get\(listing\.fromTeamId\) \?\? 0\) <= CPU_SELL_FLOOR/.test(code))
 }
 

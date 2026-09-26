@@ -2,7 +2,7 @@
 // **レート戦の10:00。1日1回これが動く。**
 //
 //   ① 前日ぶんを締めて、グループごとに走らせて、順位とレートを書く
-//   ② その日のコースを `rated_rounds` に入れる（提出はここから23:59まで）
+//   ② その日のコースを `rated_rounds` に入れる（提出はここから翌9:59まで。1日は朝10時区切り）
 //
 // ★このファイルは**殻**です。判断は1つも書きません。
 //   走らせ方・グループ分け・レートは全部 `engine.js`（＝`src/engine/ratedTick.ts` を
@@ -22,9 +22,10 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { runRatedRound, ratedMatchCourse, ratedDayOf, assignGroups } from './engine.js'
 
-/** 日本時間の「今日」。SQL 側の `rated_today_jst()` と同じ日付になること */
+/** 日本時間の「今日」（朝10時区切り）。SQL 側の `rated_today_jst()` とアプリの `jstGameDayISO` と同じ日付になること。
+ *  JST = UTC+9 から10時間戻す＝UTC から1時間戻す */
 function todayJst(): string {
-  return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10)
+  return new Date(Date.now() - 3600 * 1000).toISOString().slice(0, 10)
 }
 
 const db = createClient(
