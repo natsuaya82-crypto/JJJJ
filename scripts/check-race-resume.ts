@@ -35,9 +35,11 @@ const check = (name: string, ok: boolean, detail = '') => {
 const race = readFileSync('src/components/race/RacePage.tsx', 'utf8')
 const results = readFileSync('src/components/race/ResultsPhase.tsx', 'utf8')
 
-// ① 結果へ入る道は3本ある（ここが増えたら②の意味が変わるので数える）
+// ① 結果へ入る道は2本ある（中継を最後まで見る／まるごとスキップ。ここが増えたら②の意味が変わるので数える）
+//   ★以前は3本だったが、1本（中継の途中から残りを一気に計算する `handleSkip`）は
+//     画面から一度も呼ばれていなかった（`SimPhase` が受け取って捨てていた）ので消した
 const enters = (race.match(/setPhase\('results'\)/g) ?? []).length
-check('結果へ入る道は3本', enters === 3, `${enters}本`)
+check('結果へ入る道は2本', enters === 2, `${enters}本`)
 
 // ② 写すのは1か所だけ（道ごとに書かない）
 const saves = (race.match(/setActiveRaceResults\(/g) ?? []).length

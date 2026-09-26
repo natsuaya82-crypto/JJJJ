@@ -100,7 +100,7 @@ console.log('[1] 効き目の表は1本（7つのイベントが同じ数字を�
     CHOICE_EFFECTS.every(e => Object.keys(e).sort().join(',') === 'effortType,timeBonusFail,timeBonusSuccess'),
     Object.keys(CHOICE_EFFECTS[0]).join(','))
   const r = resolveChoice(
-    { id: 'x', type: 'x', trigger: { type: 'stamina' }, situation: '', battleContext: '',
+    { id: 'x', type: 'x', trigger: { type: 'ratio', min: 0 }, situation: '', battleContext: '',
       choices: [], opponentOvr: 50, _effects: CHOICE_EFFECTS }, 0, 50, 3000)
   check('resolveChoice が返すのはタイムと成否だけ',
     Object.keys(r).sort().join(',') === 'success,timeDelta', Object.keys(r).join(','))
@@ -262,7 +262,7 @@ console.log('\n[5] 場面ごとに効き幅が違う（給水と山岳が同じ�
   check('ラスト勝負がいちばん大きい', ROWS[ROWS.length - 1][0] === 'final_push')
   check('全部が同じ値ではない', new Set(ROWS.map(r => r[1])).size > 1)
   // 効き幅は resolveChoice で1回だけ掛かる（イベント側に別の割合の表を持たせない）
-  const ev0 = { id: 'x', type: 'x', trigger: { type: 'stamina' } as const, situation: '', battleContext: '',
+  const ev0 = { id: 'x', type: 'x', trigger: { type: 'ratio', min: 0 } as const, situation: '', battleContext: '',
     choices: [], opponentOvr: 1, _effects: CHOICE_EFFECTS }
   const small = resolveChoice({ ...ev0, scale: 0.5 }, 0, 99, 10000)
   const big = resolveChoice({ ...ev0, scale: 1.4 }, 0, 99, 10000)

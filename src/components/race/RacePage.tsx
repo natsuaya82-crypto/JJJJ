@@ -8,7 +8,7 @@ import { applyRaceBoosts } from '../../engine/raceBoosts'
 import { useClubIndex } from '../../lib/useClubIndex'
 import { ovr, ratingColor, racesConsumed } from '../../utils/playerUtils'
 import { runWithLoading } from '../../store/loadingStore'
-import type { RaceResults, IndividualEvent, Player } from '../../types'
+import type { RaceResults, IndividualEvent, Player, Race, Segment } from '../../types'
 import PageHeader from '../ui/PageHeader'
 import GlassButton from '../ui/GlassButton'
 import PlayerFace from '../player/PlayerFace'
@@ -28,6 +28,7 @@ import {
   generateSegmentEvents, resolveChoice, finalizeSegment,
 } from '../../engine/interactiveRace'
 import type { ISim, InteractiveSegResult } from '../../engine/interactiveRace'
+import { buildTimeline, withNewLegTime, type RaceTimeline } from '../../engine/raceTimeline'
 import { buildTeamRankings, countSegmentsByTeam } from '../../engine/raceEngine'
 import ScreenPortal from '../ui/ScreenPortal'
 import { myClub, myLeagueId, myLeagueRaces } from '../../utils/world'
@@ -328,7 +329,7 @@ export default function RacePage() {
   const [phase, setPhaseLocal] = useState<Phase>(resumeResults ? 'results' : 'lineup')
   const [pickerSeg, setPickerSeg] = useState<number | null>(null)
   const [results, setResults] = useState<RaceResults | null>(resumeResults)
-  const [lockedRace, setLockedRace] = useState<import('../../types').Race | null>(
+  const [lockedRace, setLockedRace] = useState<Race | null>(
     resumeResults ? activeRaceLockedRace : null)
   const [lockedRaceIndex, setLockedRaceIndex] = useState<number>(
     resumeResults ? activeRaceLockedRaceIndex : 0)
@@ -351,7 +352,7 @@ export default function RacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   useEffect(() => { audio.playBgm('home') }, [])
-  // ★結果へ入る道は3本（イベントを最後まで見る／スキップ／流し見）あるので、
+  // ★結果へ入る道は2本（中継を最後まで見る＝handleFinish／まるごとスキップ＝handleFullSkip）あるので、
   //   写すのは道ごとではなく**ここ1本**。ロックしたレースは `setActiveRaceLocked` が既に写している
   useEffect(() => {
     if (phase === 'results' && results) setActiveRaceResults(results)
@@ -393,18 +394,6 @@ export default function RacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, raceLineup])
 
-  // イベントが無い区間（イベントオフ設定・抽選でイベント0件）は選択待ちが発生しないため、自動で区間を確定する。
-  // 従来はイベント選択の完了時にしか確定されず、流し見モードでスキップを押すまで止まってしまっていた。
-  // 結果の「表示」はSimPhase側がアニメ完了まで待つので、先に確定しても走りは最後まで見える
-  // ※このフックは early return より前に置く。後ろだとレース未設定時にフック数が変わって
-  //   「Rendered fewer hooks than expected」で白画面になる（finalizeCurrentSegは関数宣言なので巻き上げで呼べる）。
-  useEffect(() => {
-    if (!iSim || !race || phase !== 'simulating') return
-    if (iSim.showingSegResult || iSim.pendingEvents.length > 0) return
-    finalizeCurrentSeg(iSim)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [iSim, phase])
-
   if (!currentRace && phase === 'lineup') {
     return (
       <div style={{
@@ -426,34 +415,82 @@ export default function RacePage() {
   }
   if (!race) return null
 
+  const seasonProgress = raceIndex / myLeagueRaces(currentSeason, playerTeamId).length
+  const playerTeam = myClub({ clubs, playerTeamId })
+
+  /**
+   * CPU の区間タイムを**レースの頭で全区間ぶん**出す（タスキをつないで走るので、先頭は自チームより
+   * 先の区間を走っている）。式は `calcCpuTimesForSeg` のまま、引く順も区間の順・チームの順のまま
+   */
+  function cpuTimesByRace(activeRace: Race, cpuLineups: ISim['cpuLineups']): ISim['cpuTimesBySeg'] {
+    const out: ISim['cpuTimesBySeg'] = {}
+    for (const seg of activeRace.segments) {
+      out[seg.index] = calcCpuTimesForSeg(seg, clubs, cpuLineups, racePlayers, playerTeamId, activeRace, seasonProgress, activeRace.segments.length)
+    }
+    return out
+  }
+
+  /** 自チームの区間タイム（イベント無し＝素の実力。CPU と同じ消耗込みの式） */
+  function playerBaseTimeOf(seg: Segment, activeRace: Race): { time: number; segOvr: number; segStamina: number } {
+    const playerObj = racePlayers.find(p => p.id === raceLineup[seg.index])
+    const segOvr = playerObj ? calcSegOvr(playerObj, seg) : 50
+    const segStamina = Math.max(1, segOvr - calcNaturalDrain(segOvr, seg.distanceKm))
+    const time = playerObj
+      ? calcFinalSegTime(segStamina, segOvr, 0, playerObj, seg, playerTeam, activeRace, seasonProgress, raceStrategy, activeRace.segments.length)
+      : 9999
+    return { time, segOvr, segStamina }
+  }
+
+  /** いまの区間の自チームのタイム（スタミナ・イベントの補正込み）。確定したときもこの値になる */
+  function playerLiveTime(sim: ISim, activeRace: Race): number {
+    const playerObj = racePlayers.find(p => p.id === raceLineup[sim.currentSegIdx])
+    const seg = activeRace.segments.find(s => s.index === sim.currentSegIdx)
+    return playerObj && seg
+      ? calcFinalSegTime(sim.segStamina, sim.initialSegStamina, sim.playerTimeMod, playerObj, seg, playerTeam, activeRace, seasonProgress, raceStrategy, activeRace.segments.length)
+      : Math.max(30, sim.playerBaseTime)
+  }
+
+  /**
+   * 中継の時計（`engine/raceTimeline`）に渡す全チームの区間タイム。
+   * ★チームの並びは最終順位（`buildTeamRankingsForInteractive`）に渡る並びと同じ
+   *   ＝自チーム → CPU（同着の扱いを揃えるため）
+   */
+  function timelineOf(sim: ISim, activeRace: Race): RaceTimeline {
+    const done = new Map(sim.completedSegs.map(s => [s.segmentIndex, s]))
+    const myLegs = activeRace.segments.map(seg => {
+      const fixed = done.get(seg.index)?.runners.find(r => r.teamId === playerTeamId)?.timeSec
+      const via = sim.playerVia[seg.index]
+      if (fixed != null) return { time: fixed, via }
+      if (seg.index === sim.currentSegIdx) return { time: playerLiveTime(sim, activeRace), via }
+      return { time: playerBaseTimeOf(seg, activeRace).time }
+    })
+    const cpuIds = Object.keys(sim.cpuLineups).filter(id => id !== playerTeamId)
+    return buildTimeline(activeRace.segments.map(s => s.distanceKm), [
+      { teamId: playerTeamId, legs: myLegs },
+      ...cpuIds.map(teamId => ({
+        teamId,
+        legs: activeRace.segments.map(seg => {
+          const time = sim.cpuTimesBySeg[seg.index]?.[teamId]
+          return time == null ? null : { time }
+        }),
+      })),
+    ])
+  }
+
   function buildSegmentState(
     sim: ISim,
     segIdx: number,
-    activeRace: import('../../types').Race,
+    activeRace: Race,
   ): ISim {
     const seg = activeRace.segments.find(s => s.index === segIdx)
     if (!seg) return sim
 
-    const playerPlayerId = raceLineup[segIdx]
-    const playerObj = racePlayers.find(p => p.id === playerPlayerId)
-    const playerTeam = myClub({ clubs, playerTeamId })
-    const seasonProgress = raceIndex / myLeagueRaces(currentSeason, playerTeamId).length
-    const totalSegs = activeRace.segments.length
-
-    const cpuTimesForSeg = calcCpuTimesForSeg(
-      seg, clubs, sim.cpuLineups, racePlayers, playerTeamId,
-      activeRace, seasonProgress, totalSegs,
-    )
-
-    const segOvr = playerObj ? calcSegOvr(playerObj, seg) : 50
-    const naturalDrain = calcNaturalDrain(segOvr, seg.distanceKm)
-    const segStamina = Math.max(1, segOvr - naturalDrain)
+    const playerObj = racePlayers.find(p => p.id === raceLineup[segIdx])
+    const cpuTimesForSeg = sim.cpuTimesBySeg[segIdx] ?? {}
 
     // プレイヤーの区間タイムも CPU と同じ計算方式（消耗込み calcFinalSegTime）で見積もる。
     // イベント予測順位・ライブ表示・確定フォールバックの基準を CPU と揃える。
-    const playerBaseTime = playerObj
-      ? calcFinalSegTime(segStamina, segOvr, 0, playerObj, seg, playerTeam, activeRace, seasonProgress, raceStrategy, totalSegs)
-      : 9999
+    const { time: playerBaseTime, segOvr, segStamina } = playerBaseTimeOf(seg, activeRace)
 
     // Build cumulative times for event context (keyed by teamId, player as '__player__')
     const cumulativeTimes: Record<string, number> = { '__player__': sim.cumulativeTime[playerTeamId] ?? 0 }
@@ -471,25 +508,26 @@ export default function RacePage() {
           isFirstSeg: segIdx === activeRace.segments[0]?.index,
           isLastSeg: segIdx === activeRace.segments[activeRace.segments.length - 1]?.index,
           player: playerObj,
-          totalSegs,
+          totalSegs: activeRace.segments.length,
           players: racePlayers,
           cpuLineups: sim.cpuLineups,
           clubs,
         })
       : []
 
-    return {
+    const next: ISim = {
       ...sim,
       currentSegIdx: segIdx,
-      cpuTimesForSeg,
       playerBaseTime,
       initialSegStamina: segOvr,
       segStamina,
       playerTimeMod: 0,
       pendingEvents: events,
-      showingSegResult: false,
-      lastSegResult: null,
+      segDone: false,
     }
+    // イベントが無い区間（イベントオフ設定・抽選で0件）は選択待ちが無いので、区間の頭でタイムを確定する。
+    // 確定しても走りは止まらない（中継の時計は `engine/raceTimeline` の位置をそのまま進める）
+    return events.length === 0 ? finalizeCurrentSeg(next, activeRace) : next
   }
 
   function startInteractiveSim(_tactics: Record<number, string>) {
@@ -505,18 +543,18 @@ export default function RacePage() {
 
     const initialSim: ISim = {
       cpuLineups,
+      cpuTimesBySeg: cpuTimesByRace(currentRace, cpuLineups),
       currentSegIdx: 0,
-      cpuTimesForSeg: {},
       playerBaseTime: 0,
       initialSegStamina: 0,
       segStamina: 0,
       playerTimeMod: 0,
+      playerVia: {},
       pendingEvents: [],
       completedSegs: [],
       cumulativeTime: {},
       segPts: {},
-      showingSegResult: false,
-      lastSegResult: null,
+      segDone: false,
     }
 
     const firstSegIdx = currentRace.segments[0].index
@@ -525,209 +563,93 @@ export default function RacePage() {
     setPhase('simulating')
   }
 
-  function handleChoice(choiceIdx: number) {
+  /** 選んだ肢の効き目を入れる。`t` は選んだ時刻（その地点から先だけ速さが変わる＝位置が跳ばない） */
+  function handleChoice(choiceIdx: number, t: number) {
     if (!iSim || !race) return
     const event = iSim.pendingEvents[0]
     if (!event) return
-
-    const playerPlayerId = raceLineup[iSim.currentSegIdx]
-    const playerObj = racePlayers.find(p => p.id === playerPlayerId)
-    if (!playerObj) return
 
     // 効き目はタイムだけ（区間スタミナは動かさない。engine/interactiveRace の CHOICE_EFFECTS 参照）
     const { timeDelta } = resolveChoice(event, choiceIdx, iSim.segStamina, iSim.playerBaseTime)
 
     const remainingEvents = iSim.pendingEvents.slice(1)
-    const newPlayerTimeMod = iSim.playerTimeMod + timeDelta
-
-    if (remainingEvents.length === 0) {
-      finalizeCurrentSeg({ ...iSim, pendingEvents: [], playerTimeMod: newPlayerTimeMod })
-    } else {
-      setISim(prev => prev ? {
-        ...prev,
-        pendingEvents: remainingEvents,
-        playerTimeMod: newPlayerTimeMod,
-      } : null)
-    }
+    const changed: ISim = { ...iSim, playerTimeMod: iSim.playerTimeMod + timeDelta }
+    const leg = race.segments.findIndex(s => s.index === iSim.currentSegIdx)
+    const retimed = withNewLegTime(timelineOf(iSim, race), playerTeamId, leg, t, playerLiveTime(changed, race))
+    const via = retimed?.via ?? iSim.playerVia[iSim.currentSegIdx] ?? []
+    const next: ISim = { ...changed, playerVia: { ...iSim.playerVia, [iSim.currentSegIdx]: [...via] }, pendingEvents: remainingEvents }
+    setISim(remainingEvents.length === 0 ? finalizeCurrentSeg(next, race) : next)
   }
 
-  // 現区間を即確定（残りイベント・アニメをスキップして区間結果へ）
+  // 「この区間をスキップ」：残りのイベントを捨てて、いまの区間のタイムを確定する
   function handleSkipSegment() {
-    if (!iSim || !race) return
-    if (iSim.showingSegResult) return
-    finalizeCurrentSeg({ ...iSim, pendingEvents: [] })
+    if (!iSim || !race || iSim.segDone) return
+    setISim(finalizeCurrentSeg({ ...iSim, pendingEvents: [] }, race))
   }
 
-  function finalizeCurrentSeg(sim: ISim) {
-    if (!race) return
-    // 冪等化：同一区間を二重確定しない（選択とスキップの競合でのポイント二重加算を防止）
-    if (sim.showingSegResult || sim.completedSegs.some(s => s.segmentIndex === sim.currentSegIdx)) return
+  /** いまの区間の自チームのタイムを確定する（何度呼んでも1回だけ） */
+  function finalizeCurrentSeg(sim: ISim, activeRace: Race): ISim {
+    if (sim.segDone || sim.completedSegs.some(s => s.segmentIndex === sim.currentSegIdx)) return sim
 
-    const playerPlayerId = raceLineup[sim.currentSegIdx]
-    const playerObj2 = racePlayers.find(p => p.id === playerPlayerId)
-    const playerTeam2 = myClub({ clubs, playerTeamId })
-    const seg2 = race.segments.find(s => s.index === sim.currentSegIdx)
-    const seasonProgress2 = raceIndex / myLeagueRaces(currentSeason, playerTeamId).length
-    const totalSegs2 = race.segments.length
-    const playerFinalTime = playerObj2 && seg2
-      ? calcFinalSegTime(sim.segStamina, sim.initialSegStamina, sim.playerTimeMod, playerObj2, seg2, playerTeam2, race, seasonProgress2, raceStrategy, totalSegs2)
-      : Math.max(30, sim.playerBaseTime)
-
+    const cpuTimesForSeg = sim.cpuTimesBySeg[sim.currentSegIdx] ?? {}
+    const playerFinalTime = playerLiveTime(sim, activeRace)
     const segResult = finalizeSegment({
       segmentIndex: sim.currentSegIdx,
       playerTeamId,
-      playerPlayerId: playerPlayerId ?? '',
+      playerPlayerId: raceLineup[sim.currentSegIdx] ?? '',
       playerFinalTime,
-      cpuTimesForSeg: sim.cpuTimesForSeg,
+      cpuTimesForSeg,
       cpuLineups: sim.cpuLineups,
     })
 
-    // Update cumulative times
     const newCumTime = { ...sim.cumulativeTime }
     newCumTime[playerTeamId] = (newCumTime[playerTeamId] ?? 0) + playerFinalTime
-    for (const [tid, t] of Object.entries(sim.cpuTimesForSeg)) {
+    for (const [tid, t] of Object.entries(cpuTimesForSeg)) {
       newCumTime[tid] = (newCumTime[tid] ?? 0) + t
     }
 
-    // Update segment points (top 3)
+    // 区間賞のポイント（上位3）
     const newSegPts = { ...sim.segPts }
     segResult.runners.slice(0, 3).forEach((r, i) => {
       newSegPts[r.teamId] = (newSegPts[r.teamId] ?? 0) + [3, 2, 1][i]
     })
 
-    const newCompletedSegs = [...sim.completedSegs, segResult]
-
-    setISim({
+    return {
       ...sim,
-      completedSegs: newCompletedSegs,
+      completedSegs: [...sim.completedSegs, segResult],
       cumulativeTime: newCumTime,
       segPts: newSegPts,
-      showingSegResult: true,
-      lastSegResult: segResult,
+      segDone: true,
       pendingEvents: [],
-    })
+    }
   }
 
-  function handleAdvance() {
+  /** 自チームの走者がタスキを渡した（`leg` は `race.segments` の添字）。次の区間の用意をする */
+  function handleHandoff(leg: number) {
     if (!iSim || !race) return
-
-    // 完了区間数で判定（index の付き方に依存しない堅牢な完了検出）
-    const doneIdx = new Set(iSim.completedSegs.map(s => s.segmentIndex))
-    const nextSeg = race.segments.find(s => !doneIdx.has(s.index))
-    const allDone = iSim.completedSegs.length >= race.segments.length || !nextSeg
-
-    if (allDone) {
-      if (finalizedRaceIdRef.current === race.id) return  // 二重発火ガード
-      // Race complete — build RaceResults and hand off to store
-      const segmentResults = iSim.completedSegs.map(s => ({
-        segmentIndex: s.segmentIndex,
-        runners: s.runners,
-      }))
-
-      const teamRankings = buildTeamRankingsForInteractive(iSim.cumulativeTime, iSim.completedSegs, iSim.segPts, race.segments.length)
-
-      const preComputedResults: RaceResults = { teamRankings, segmentResults }
-      // runRace を先に実行してシーズン順位を更新してから結果画面へ（失敗しても結果は見られるように）
-      let finalResults: RaceResults = preComputedResults
-      try {
-        const r = runRace(raceLineup, {}, preComputedResults)
-        if (r) finalResults = r
-        // 成功後にガードを立てる（runRaceは同期なので二重クリックは防げる。失敗時は再試行を塞がない）
-        finalizedRaceIdRef.current = race.id
-      } catch (e) {
-        console.error('runRace failed:', e)
-      }
-      setResults(finalResults)
-      setPhase('results')
-      return
-    }
-
-    // Advance to next segment
-    const nextSim = buildSegmentState(iSim, nextSeg.index, race)
-    setISim(nextSim)
+    if (race.segments[leg]?.index !== iSim.currentSegIdx) return
+    const done = finalizeCurrentSeg(iSim, race)
+    const nextSeg = race.segments[leg + 1]
+    setISim(nextSeg ? buildSegmentState(done, nextSeg.index, race) : done)
   }
 
-  function handleSkip() {
+  /** 全チームが走り終えた：結果を確定して結果画面へ */
+  function handleFinish() {
     if (!iSim || !race) return
-
-    // Simulate remaining segments instantly (without events)
-    const sim = { ...iSim }
-
-    // If currently mid-segment, finalize it first
-    const playerPlayerId = raceLineup[sim.currentSegIdx]
-    const playerFinalTime = Math.max(30, sim.playerBaseTime)
-    const currentSegResult = finalizeSegment({
-      segmentIndex: sim.currentSegIdx,
-      playerTeamId,
-      playerPlayerId: playerPlayerId ?? '',
-      playerFinalTime,
-      cpuTimesForSeg: sim.cpuTimesForSeg,
-      cpuLineups: sim.cpuLineups,
-    })
-
-    let completedSegs = sim.showingSegResult && sim.lastSegResult
-      ? sim.completedSegs
-      : [...sim.completedSegs, currentSegResult]
-
-    const cumTime = { ...sim.cumulativeTime }
-    if (!sim.showingSegResult) {
-      cumTime[playerTeamId] = (cumTime[playerTeamId] ?? 0) + playerFinalTime
-      for (const [tid, t] of Object.entries(sim.cpuTimesForSeg)) {
-        cumTime[tid] = (cumTime[tid] ?? 0) + t
-      }
-    }
-
-    const segPts = { ...sim.segPts }
-    if (!sim.showingSegResult) {
-      currentSegResult.runners.slice(0, 3).forEach((r, i) => {
-        segPts[r.teamId] = (segPts[r.teamId] ?? 0) + [3, 2, 1][i]
-      })
-    }
-
-    // Simulate all remaining segments
-    const segs = race.segments
-    const doneSeg = new Set(completedSegs.map(s => s.segmentIndex))
-    const seasonProgress = raceIndex / myLeagueRaces(currentSeason, playerTeamId).length
-    const totalSegs = segs.length
-
-    for (const seg of segs) {
-      if (doneSeg.has(seg.index)) continue
-      const pid = raceLineup[seg.index]
-      const playerObj = racePlayers.find(p => p.id === pid)
-      const playerTeam = myClub({ clubs, playerTeamId })
-
-      const cpuTimes = calcCpuTimesForSeg(seg, clubs, sim.cpuLineups, racePlayers, playerTeamId, race, seasonProgress, totalSegs)
-      // スキップ区間もCPUと同じ消耗込み計算で見積もる
-      const skSegOvr = playerObj ? calcSegOvr(playerObj, seg) : 50
-      const skSegStamina = Math.max(1, skSegOvr - calcNaturalDrain(skSegOvr, seg.distanceKm))
-      const pBase = playerObj
-        ? calcFinalSegTime(skSegStamina, skSegOvr, 0, playerObj, seg, playerTeam, race, seasonProgress, raceStrategy, totalSegs)
-        : 9999
-
-      const skippedResult = finalizeSegment({
-        segmentIndex: seg.index,
-        playerTeamId,
-        playerPlayerId: pid ?? '',
-        playerFinalTime: pBase,
-        cpuTimesForSeg: cpuTimes,
-        cpuLineups: sim.cpuLineups,
-      })
-
-      completedSegs = [...completedSegs, skippedResult]
-      cumTime[playerTeamId] = (cumTime[playerTeamId] ?? 0) + pBase
-      for (const [tid, t] of Object.entries(cpuTimes)) {
-        cumTime[tid] = (cumTime[tid] ?? 0) + t
-      }
-      skippedResult.runners.slice(0, 3).forEach((r, i) => {
-        segPts[r.teamId] = (segPts[r.teamId] ?? 0) + [3, 2, 1][i]
-      })
-    }
-
-    const teamRankings = buildTeamRankingsForInteractive(cumTime, completedSegs, segPts, race.segments.length)
-    const preComputedResults: RaceResults = { teamRankings, segmentResults: completedSegs }
+    if (iSim.completedSegs.length < race.segments.length) return
     if (finalizedRaceIdRef.current === race.id) return  // 二重発火ガード
-    const finalResults = runRace(raceLineup, {}, preComputedResults)
-    finalizedRaceIdRef.current = race.id  // 成功後に立てる（同期実行なので二重クリックは防げる）
+    const teamRankings = buildTeamRankingsForInteractive(iSim.cumulativeTime, iSim.completedSegs, iSim.segPts, race.segments.length)
+    const preComputedResults: RaceResults = { teamRankings, segmentResults: iSim.completedSegs }
+    // runRace を先に実行してシーズン順位を更新してから結果画面へ（失敗しても結果は見られるように）
+    let finalResults: RaceResults = preComputedResults
+    try {
+      const r = runRace(raceLineup, {}, preComputedResults)
+      if (r) finalResults = r
+      // 成功後にガードを立てる（runRaceは同期なので二重クリックは防げる。失敗時は再試行を塞がない）
+      finalizedRaceIdRef.current = race.id
+    } catch (e) {
+      console.error('runRace failed:', e)
+    }
     setResults(finalResults)
     setPhase('results')
   }
@@ -741,21 +663,14 @@ export default function RacePage() {
     setActiveRaceLocked(currentRace, raceIndex)
     const race = currentRace
     const cpuLineups = buildCpuLineups(clubs, players, race, playerTeamId)
-    const seasonProgress = raceIndex / myLeagueRaces(currentSeason, playerTeamId).length
-    const totalSegs = race.segments.length
+    const cpuTimesBySeg = cpuTimesByRace(race, cpuLineups)
     let completedSegs: ReturnType<typeof finalizeSegment>[] = []
     const cumTime: Record<string, number> = {}
     const segPts: Record<string, number> = {}
     for (const seg of race.segments) {
       const pid = raceLineup[seg.index]
-      const playerObj = racePlayers.find(p => p.id === pid)
-      const playerTeam = myClub({ clubs, playerTeamId })
-      const cpuTimes = calcCpuTimesForSeg(seg, clubs, cpuLineups, racePlayers, playerTeamId, race, seasonProgress, totalSegs)
-      const skSegOvr = playerObj ? calcSegOvr(playerObj, seg) : 50
-      const skSegStamina = Math.max(1, skSegOvr - calcNaturalDrain(skSegOvr, seg.distanceKm))
-      const pBase = playerObj
-        ? calcFinalSegTime(skSegStamina, skSegOvr, 0, playerObj, seg, playerTeam, race, seasonProgress, raceStrategy, totalSegs)
-        : 9999
+      const cpuTimes = cpuTimesBySeg[seg.index]
+      const pBase = playerBaseTimeOf(seg, race).time
       const res = finalizeSegment({ segmentIndex: seg.index, playerTeamId, playerPlayerId: pid ?? '', playerFinalTime: pBase, cpuTimesForSeg: cpuTimes, cpuLineups })
       completedSegs = [...completedSegs, res]
       cumTime[playerTeamId] = (cumTime[playerTeamId] ?? 0) + pBase
@@ -815,24 +730,10 @@ export default function RacePage() {
   )
 
   if (phase === 'simulating' && iSim) {
-    const segRunnerIds: Record<string, string> = {}
-    const segIdx = iSim.currentSegIdx
-    if (raceLineup[segIdx]) segRunnerIds[playerTeamId] = raceLineup[segIdx]
-    for (const [tid, lineup] of Object.entries(iSim.cpuLineups)) {
-      if (lineup[segIdx]) segRunnerIds[tid] = lineup[segIdx]
-    }
-
-    // ライブ表示用：現在のスタミナ・イベント補正を反映した投影最終タイム（実結果と一致させる）
-    const livePlayerObj = racePlayers.find(p => p.id === raceLineup[segIdx])
-    const livePlayerTeam = myClub({ clubs, playerTeamId })
-    const liveSeg = race.segments.find(s => s.index === segIdx)
-    const liveSeasonProgress = raceIndex / myLeagueRaces(currentSeason, playerTeamId).length
-    const livePlayerTime = livePlayerObj && liveSeg
-      ? calcFinalSegTime(iSim.segStamina, iSim.initialSegStamina, iSim.playerTimeMod, livePlayerObj, liveSeg, livePlayerTeam, race, liveSeasonProgress, raceStrategy, race.segments.length)
-      : iSim.playerBaseTime
-
     // 画面に並べるのは**そのレースを走っているクラブだけ**（engine/raceEngine の1本）
     const raceTeams = racingTeams(clubs, iSim.cpuLineups, playerTeamId)
+    const leg = race.segments.findIndex(s => s.index === iSim.currentSegIdx)
+    const pendingEvent = iSim.pendingEvents[0]
 
     return (
       <SimPhase
@@ -840,23 +741,18 @@ export default function RacePage() {
         raceTeams={raceTeams}
         players={players}
         playerTeamId={playerTeamId}
-        pendingEvent={iSim.pendingEvents[0] ?? null}
-        pendingEventsCount={iSim.pendingEvents.length}
+        timeline={timelineOf(iSim, race)}
+        runnerIdOf={(teamId, j) => {
+          const segIdx = race.segments[j]?.index ?? -1
+          return teamId === playerTeamId ? raceLineup[segIdx] : iSim.cpuLineups[teamId]?.[segIdx]
+        }}
+        pending={pendingEvent ? { leg, event: pendingEvent } : null}
         lowStaminaHint={lowStaminaHint}
-        currentSegIdx={iSim.currentSegIdx}
-        completedSegResults={iSim.completedSegs}
-        cumulativeTime={iSim.cumulativeTime}
-        cpuTimesForSeg={iSim.cpuTimesForSeg}
-        playerBaseTime={livePlayerTime}
         segStamina={iSim.segStamina}
-        segPts={iSim.segPts}
-        showingSegResult={iSim.showingSegResult}
-        lastSegResult={iSim.lastSegResult}
-        segRunnerIds={segRunnerIds}
         onChoiceMade={handleChoice}
-        onAdvance={handleAdvance}
-        onSkip={handleSkip}
-        onSkipSegment={handleSkipSegment}
+        onHandoff={handleHandoff}
+        onSkipLeg={handleSkipSegment}
+        onFinish={handleFinish}
       />
     )
   }

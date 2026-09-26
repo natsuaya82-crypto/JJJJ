@@ -1,155 +1,66 @@
 import { useState, useEffect, useRef } from 'react'
+import type { ReactNode } from 'react'
 import type { Race, Player, WorldClub } from '../../types'
-import { panelStyle } from '../ui/Panel'
-import type { RaceSegmentEvent, InteractiveSegResult, EventTriggerCondition } from '../../engine/interactiveRace'
+import type { RaceSegmentEvent } from '../../engine/interactiveRace'
 import { choiceSuccessProb } from '../../engine/interactiveRace'
 import { formatDiff } from '../../engine/raceEngine'
-import { formatRaceTime } from '../../utils/eventTime'
+import {
+  legBoardAt, legEndAt, runnerAt, snapshotAt,
+  type RaceTimeline, type TimelineSnapshot,
+} from '../../engine/raceTimeline'
 import { terrainColor, terrainLabel } from './raceUtils'
 import { C, alpha, glassStyle, rankColor, SAIRA, bottomStack, F } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import { audio } from '../../utils/audio'
 import { useAdHeight } from '../layout/Layout'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
-import { useSegmentRecords } from '../../lib/useSegmentRecords'
 import { FaceOrDot } from './SegmentDetailCard'
+import PillTabs from '../ui/PillTabs'
 import ScreenPortal from '../ui/ScreenPortal'
+import { useStickyTab } from '../../lib/useStickyTab'
 import { clubById } from '../../utils/world'
+import { focusTeamOf, useRaceClock } from './useRaceClock'
 
+/** その区間（`race.segments` の添字）をそのチームで走る選手 */
+export type RunnerIdOf = (teamId: string, leg: number) => string | undefined
 
-function computeAnimGaps(
-  ratio: number,
-  cpuTimesForSeg: Record<string, number>,
-  playerBaseTime: number,
-  cumulativeTime: Record<string, number>,
-  playerTeamId: string,
-): { gapAheadSec: number | null; gapBehindSec: number | null; nearbyCount: number } {
-  const playerTotal = (cumulativeTime[playerTeamId] ?? 0) + playerBaseTime * ratio
-  let minAhead = Infinity
-  let minBehind = Infinity
-  let nearbyCount = 0
-  for (const [tid, cpuTime] of Object.entries(cpuTimesForSeg)) {
-    if (tid === playerTeamId) continue
-    const cpuTotal = (cumulativeTime[tid] ?? 0) + cpuTime * ratio
-    const diff = playerTotal - cpuTotal
-    if (diff > 0) minAhead = Math.min(minAhead, diff)
-    else minBehind = Math.min(minBehind, -diff)
-    if (Math.abs(diff) <= 15) nearbyCount++
-  }
-  return {
-    gapAheadSec: isFinite(minAhead) ? minAhead : null,
-    gapBehindSec: isFinite(minBehind) ? minBehind : null,
-    nearbyCount,
-  }
-}
+const BOARDS = ['total', 'leg'] as const
 
-function checkEventTrigger(
-  trigger: EventTriggerCondition,
-  ratio: number,
-  segDistKm: number,
-  lowStamina: boolean,
-  cpuTimesForSeg: Record<string, number>,
-  playerBaseTime: number,
-  cumulativeTime: Record<string, number>,
-  playerTeamId: string,
-): boolean {
-  switch (trigger.type) {
-    case 'ratio':
-      return ratio >= trigger.min
-    case 'kmRemaining':
-      return (1 - ratio) * segDistKm <= trigger.km
-    case 'stamina':
-      return lowStamina || ratio >= 0.45
-    case 'gapAheadBelow': {
-      const { gapAheadSec } = computeAnimGaps(ratio, cpuTimesForSeg, playerBaseTime, cumulativeTime, playerTeamId)
-      return (gapAheadSec !== null && gapAheadSec <= trigger.sec) || ratio >= 0.5
-    }
-    case 'gapBehindBelow': {
-      const { gapBehindSec } = computeAnimGaps(ratio, cpuTimesForSeg, playerBaseTime, cumulativeTime, playerTeamId)
-      return (gapBehindSec !== null && gapBehindSec <= trigger.sec) || ratio >= 0.35
-    }
-    case 'packSize': {
-      const { nearbyCount } = computeAnimGaps(ratio, cpuTimesForSeg, playerBaseTime, cumulativeTime, playerTeamId)
-      return nearbyCount >= trigger.minCount || ratio >= 0.4
-    }
-  }
-}
-
-type Props = {
-  race: Race
-  raceTeams: readonly WorldClub[]
-  players: Player[]
-  playerTeamId: string
-  pendingEvent: RaceSegmentEvent | null
-  pendingEventsCount: number
-  lowStaminaHint: boolean
-  currentSegIdx: number
-  completedSegResults: InteractiveSegResult[]
-  cumulativeTime: Record<string, number>
-  cpuTimesForSeg: Record<string, number>
-  playerBaseTime: number
-  segStamina: number
-  segPts: Record<string, number>
-  showingSegResult: boolean
-  lastSegResult: InteractiveSegResult | null
-  segRunnerIds?: Record<string, string>
-  onChoiceMade: (choiceIdx: number) => void
-  onAdvance: () => void
-  onSkip: () => void
-  onSkipSegment?: () => void
-}
-
-// ランナー位置計算（総合順位ベース）
-function calcRunnerPositions(
-  raceTeams: readonly WorldClub[],
-  playerTeamId: string,
-  playerBaseTime: number,
-  cpuTimesForSeg: Record<string, number>,
-  baselineCumulative: Record<string, number>,
-  kmRatio: number,
-  distanceKm: number,
-): { teamId: string; km: number; segTime: number; overallTotal: number }[] {
-  const segTimeOf = (id: string) => id === playerTeamId ? playerBaseTime : (cpuTimesForSeg[id] ?? playerBaseTime)
-  // 区間内の見た目位置用：区間先頭走者（最速）を基準
-  const validTimes = raceTeams.map(t => segTimeOf(t.id)).filter(s => s > 0)
-  const segLeaderTime = validTimes.length > 0 ? Math.min(...validTimes) : 1
-  return raceTeams.map(t => {
-    const segTime = segTimeOf(t.id)
-    // 区間内の到達距離（バー用）
-    const distRatio = segTime > 0 ? segLeaderTime / segTime : 1
-    const km = Math.min(distanceKm, Math.max(0, kmRatio * distRatio * distanceKm))
-    // 総合タイム = この区間より前の累積 + 現区間の進行分（kmRatio=1で実累積に一致）
-    const overallTotal = (baselineCumulative[t.id] ?? 0) + kmRatio * segTime
-    return { teamId: t.id, km, segTime, overallTotal }
-  }).sort((a, b) => a.overallTotal - b.overallTotal || a.teamId.localeCompare(b.teamId))
-}
-
-// レーストラック表示
+// レーストラック表示。位置と差は `engine/raceTimeline` だけから出す（ここで計算しない）
 export function RaceTrack({
-  raceTeams, players, segRunnerIds, playerTeamId, playerBaseTime, cpuTimesForSeg, baselineCumulative,
-  kmRatio, distanceKm, segCol, currentSegIdx, race,
+  race, raceTeams, players, playerTeamId, timeline, t, runnerIdOf, renderStage,
 }: {
+  race: Race
   raceTeams: readonly WorldClub[]
   players?: Player[]
-  segRunnerIds?: Record<string, string>
   playerTeamId: string
-  playerBaseTime: number
-  cpuTimesForSeg: Record<string, number>
-  baselineCumulative: Record<string, number>
-  kmRatio: number
-  distanceKm: number
-  segCol: string
-  currentSegIdx: number
-  race: Race
+  timeline: RaceTimeline
+  /** レース秒（`useRaceClock`） */
+  t: number
+  runnerIdOf: RunnerIdOf
+  /** 一覧の上に差し込む口（2.0.9 の3D）。同じ時計の同じ瞬間を渡す */
+  renderStage?: (snap: TimelineSnapshot) => ReactNode
 }) {
   const longPress = usePlayerLongPress()
-  const positions = calcRunnerPositions(raceTeams, playerTeamId, playerBaseTime, cpuTimesForSeg, baselineCumulative, kmRatio, distanceKm)
-  // positions[0] が総合首位
-  const leaderTotal = positions[0]?.overallTotal ?? 0
-  const hasData = playerBaseTime > 0 && Object.keys(cpuTimesForSeg).length > 0
-  const currentSeg = race.segments.find(s => s.index === currentSegIdx)
+  const [board, setBoard] = useStickyTab('board', BOARDS, 'total')
+  const snap = snapshotAt(timeline, t)
+  const focusId = focusTeamOf(timeline, playerTeamId, t)
+  const focus = focusId ? runnerAt(timeline, focusId, t) : null
+  const leg = focus?.leg ?? 0
+  const currentSeg = race.segments[leg]
+  const distanceKm = timeline.distances[leg] ?? 0
+  const legStartKm = timeline.startKm[leg] ?? 0
+  const segCol = currentSeg ? terrainColor(currentSeg.uphillPct, currentSeg.downhillPct) : C.blue
 
-  const myRank = positions.findIndex(p => p.teamId === playerTeamId) + 1
+  const rows = board === 'total'
+    ? snap.overall.map(s => ({ teamId: s.teamId, gap: s.gap as number | null, raceKm: s.raceKm, runnerId: runnerIdOf(s.teamId, s.leg) }))
+    : legBoardAt(timeline, t, leg).map(r => ({
+        ...r,
+        raceKm: runnerAt(timeline, r.teamId, t)?.raceKm ?? 0,
+        runnerId: runnerIdOf(r.teamId, leg),
+      }))
+
+  const myRank = snap.overall.findIndex(p => p.teamId === playerTeamId) + 1
   const prevRankRef = useRef(0)
   const overtakeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [overtakeKey, setOvertakeKey] = useState(0)
@@ -167,6 +78,7 @@ export function RaceTrack({
       overtakeTimerRef.current = setTimeout(() => setShowOvertake(false), 1800)
     }
   }, [myRank])
+  const flash = showOvertake && board === 'total'
 
   return (
     <div>
@@ -174,7 +86,7 @@ export function RaceTrack({
         @keyframes overtake-glow { 0%{opacity:1} 100%{opacity:0} }
         @keyframes overtake-arrow { 0%{opacity:0;transform:translateY(5px) translateX(-50%)} 20%{opacity:1;transform:translateY(-1px) translateX(-50%)} 75%{opacity:1;transform:translateY(-1px) translateX(-50%)} 100%{opacity:0;transform:translateY(-1px) translateX(-50%)} }
       `}</style>
-      {/* 区間情報ヘッダー */}
+      {/* 区間情報ヘッダー（自チームの走者の区間。走っていなければ先頭の区間） */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '10px 16px 10px',
@@ -186,7 +98,7 @@ export function RaceTrack({
             background: `linear-gradient(135deg, ${segCol}, ${alpha(segCol, 0.45)})`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: F.title, fontWeight: 900, color: C.bg, flexShrink: 0,
-          }}>{currentSegIdx}</div>
+          }}>{currentSeg?.index}</div>
           {currentSeg && (
             <div>
               <div style={{ fontSize: F.sub, fontWeight: 800, color: segCol }}>{currentSeg.distanceKm.toFixed(1)} km</div>
@@ -196,239 +108,191 @@ export function RaceTrack({
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 32, fontWeight: 900, color: C.text, fontFamily: SAIRA, lineHeight: 1 }}>
-            {(kmRatio * distanceKm).toFixed(1)}
+            {(focus?.km ?? 0).toFixed(1)}
           </div>
           <div style={{ fontSize: F.caption, color: C.textDim }}>/ {distanceKm.toFixed(1)} km</div>
         </div>
       </div>
 
-      {/* 順位リスト（総合順位） */}
-      {hasData && (
-        <div style={{ padding: '4px 0' }}>
-          <div style={{ padding: '4px 12px 2px', fontSize: F.tiny, color: C.textDim, letterSpacing: 2, fontWeight: 700 }}>総合順位</div>
-          {positions.map((pos, rank) => {
-            const t = clubById(raceTeams, pos.teamId)
-            if (!t) return null
-            const isMe = pos.teamId === playerTeamId
-            const pct = distanceKm > 0 ? (pos.km / distanceKm) * 100 : 0
-            // 総合首位との累積タイム差
-            const gapSec = pos.overallTotal - leaderTotal
-            const rankCol = rankColor(rank + 1)
-            const playerId = segRunnerIds?.[pos.teamId]
-            const player = players?.find(p => p.id === playerId)
+      {renderStage?.(snap)}
 
-            return (
-              <div key={pos.teamId} {...(playerId ? longPress(playerId) : {})} style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '7px 12px',
-                background: isMe ? alpha(segCol, 0.07) : 'transparent',
-                borderLeft: isMe ? `3px solid ${segCol}` : '3px solid transparent',
-                borderBottom: `1px solid ${C.border}`,
-                position: 'relative', overflow: 'hidden',
-                cursor: playerId ? 'pointer' : 'default',
+      <div style={{ padding: '4px 0' }}>
+        <PillTabs labels={['総合', '区間']} value={BOARDS.indexOf(board)} onChange={i => setBoard(BOARDS[i])} fill style={{ padding: '6px 12px' }} />
+        {rows.map((row, rank) => {
+          const tm = clubById(raceTeams, row.teamId)
+          if (!tm) return null
+          const isMe = row.teamId === playerTeamId
+          // 棒はヘッダーの区間の中の位置（先の区間にいるチームは満タン、まだ来ていないチームは空）
+          const pct = distanceKm > 0 ? Math.max(0, Math.min(1, (row.raceKm - legStartKm) / distanceKm)) * 100 : 0
+          const rankCol = rankColor(rank + 1)
+          const player = players?.find(p => p.id === row.runnerId)
+
+          return (
+            <div key={row.teamId} {...(row.runnerId ? longPress(row.runnerId) : {})} style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '7px 12px',
+              background: isMe ? alpha(segCol, 0.07) : 'transparent',
+              borderLeft: isMe ? `3px solid ${segCol}` : '3px solid transparent',
+              borderBottom: `1px solid ${C.border}`,
+              position: 'relative', overflow: 'hidden',
+              cursor: row.runnerId ? 'pointer' : 'default',
+            }}>
+              {/* オーバーテイクフラッシュ */}
+              {isMe && flash && (
+                <div key={`flash-${overtakeKey}`} style={{
+                  position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0,
+                  background: `linear-gradient(90deg, ${alpha(C.green, 0.4)}, transparent 70%)`,
+                  animation: 'overtake-glow 1.8s ease forwards',
+                }} />
+              )}
+              {/* 順位 + 矢印 */}
+              <div style={{
+                width: 20, textAlign: 'center', flexShrink: 0, position: 'relative', zIndex: 1,
+                fontSize: rank < 3 ? 15 : 12, fontWeight: 900,
+                color: isMe && flash ? C.green : rankCol, fontFamily: SAIRA,
               }}>
-                {/* オーバーテイクフラッシュ */}
-                {isMe && showOvertake && (
-                  <div key={`flash-${overtakeKey}`} style={{
-                    position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0,
-                    background: `linear-gradient(90deg, ${alpha(C.green, 0.4)}, transparent 70%)`,
-                    animation: 'overtake-glow 1.8s ease forwards',
-                  }} />
+                {row.gap != null && rank + 1}
+                {isMe && flash && (
+                  <div key={`arrow-${overtakeKey}`} style={{
+                    position: 'absolute', bottom: '100%', left: '50%',
+                    fontSize: F.label, fontWeight: 900, color: C.green, fontFamily: SAIRA,
+                    animation: 'overtake-arrow 1.8s ease forwards',
+                    whiteSpace: 'nowrap',
+                  }}>↑{overtakeCount > 1 ? overtakeCount : ''}</div>
                 )}
-                {/* 順位 + 矢印 */}
-                <div style={{
-                  width: 20, textAlign: 'center', flexShrink: 0, position: 'relative', zIndex: 1,
-                  fontSize: rank < 3 ? 15 : 12, fontWeight: 900,
-                  color: isMe && showOvertake ? C.green : rankCol, fontFamily: SAIRA,
-                }}>
-                  {rank + 1}
-                  {isMe && showOvertake && (
-                    <div key={`arrow-${overtakeKey}`} style={{
-                      position: 'absolute', bottom: '100%', left: '50%',
-                      fontSize: F.label, fontWeight: 900, color: C.green, fontFamily: SAIRA,
-                      animation: 'overtake-arrow 1.8s ease forwards',
-                      whiteSpace: 'nowrap',
-                    }}>↑{overtakeCount > 1 ? overtakeCount : ''}</div>
-                  )}
-                </div>
+              </div>
 
-                {/* 選手顔 */}
-                <div style={{ position: 'relative', zIndex: 1, flexShrink: 0 }}>
-                  <FaceOrDot playerId={player?.id} nationality={player?.nationality} size={30} />
-                </div>
+              {/* 選手顔 */}
+              <div style={{ position: 'relative', zIndex: 1, flexShrink: 0 }}>
+                <FaceOrDot playerId={player?.id} nationality={player?.nationality} size={30} />
+              </div>
 
-                {/* テキスト + バー */}
-                <div style={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
-                    <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} logoId={t.logoId} size={16} />
-                    <span style={{ fontSize: F.caption, fontWeight: 700, color: isMe ? segCol : t.colors.primary, flexShrink: 0 }}>{t.shortName}</span>
-                    {player && (
-                      <span style={{ fontSize: F.label, fontWeight: isMe ? 800 : 500, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {player.name}
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ position: 'relative', height: 5,background: C.border2 }}>
-                    <div style={{
-                      position: 'absolute', left: 0, top: 0, height: '100%',
-                      width: `${pct}%`,
-                      background: isMe
-                        ? `linear-gradient(90deg, ${segCol}, ${alpha(segCol, 0.5)})`
-                        : `linear-gradient(90deg, ${alpha(t.colors.primary, 0.8)}, ${alpha(t.colors.primary, 0.3)})`,
-                    }} />
-                  </div>
-                </div>
-
-                {/* 総合タイム差（折り返し禁止：折り返すと行高が変わり下位がガタつくため） */}
-                <div style={{ minWidth: 52, textAlign: 'right', flexShrink: 0, fontFamily: SAIRA, position: 'relative', zIndex: 1, whiteSpace: 'nowrap' }}>
-                  {rank === 0 ? (
-                    <span style={{ fontSize: F.label, color: C.gold, fontWeight: 900, whiteSpace: 'nowrap' }}>TOP</span>
-                  ) : (
-                    <span style={{ fontSize: F.body, fontWeight: 700, color: isMe ? C.red : C.textDim, whiteSpace: 'nowrap' }}>
-                      {formatDiff(gapSec)}
+              {/* テキスト + バー */}
+              <div style={{ flex: 1, minWidth: 0, position: 'relative', zIndex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
+                  <TeamLogoSVG primary={tm.colors.primary} secondary={tm.colors.secondary} shortName={tm.shortName} teamId={tm.id} logoId={tm.logoId} size={16} />
+                  <span style={{ fontSize: F.caption, fontWeight: 700, color: isMe ? segCol : tm.colors.primary, flexShrink: 0 }}>{tm.shortName}</span>
+                  {player && (
+                    <span style={{ fontSize: F.label, fontWeight: isMe ? 800 : 500, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {player.name}
                     </span>
                   )}
                 </div>
+                <div style={{ position: 'relative', height: 5,background: C.border2 }}>
+                  <div style={{
+                    position: 'absolute', left: 0, top: 0, height: '100%',
+                    width: `${pct}%`,
+                    background: isMe
+                      ? `linear-gradient(90deg, ${segCol}, ${alpha(segCol, 0.5)})`
+                      : `linear-gradient(90deg, ${alpha(tm.colors.primary, 0.8)}, ${alpha(tm.colors.primary, 0.3)})`,
+                  }} />
+                </div>
               </div>
-            )
-          })}
-        </div>
-      )}
+
+              {/* タイム差（折り返し禁止：折り返すと行高が変わり下位がガタつくため） */}
+              <div style={{ minWidth: 52, textAlign: 'right', flexShrink: 0, fontFamily: SAIRA, position: 'relative', zIndex: 1, whiteSpace: 'nowrap' }}>
+                {row.gap == null ? null : rank === 0 ? (
+                  <span style={{ fontSize: F.label, color: C.gold, fontWeight: 900, whiteSpace: 'nowrap' }}>TOP</span>
+                ) : (
+                  <span style={{ fontSize: F.body, fontWeight: 700, color: isMe ? C.red : C.textDim, whiteSpace: 'nowrap' }}>
+                    {formatDiff(row.gap)}
+                  </span>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
 
+type Props = {
+  race: Race
+  raceTeams: readonly WorldClub[]
+  players: Player[]
+  playerTeamId: string
+  timeline: RaceTimeline
+  runnerIdOf: RunnerIdOf
+  /** 自チームの走者に出るイベント。`leg` はそのイベントの区間（`race.segments` の添字） */
+  pending?: { leg: number; event: RaceSegmentEvent } | null
+  lowStaminaHint?: boolean
+  segStamina?: number
+  /** 選んだ肢と、選んだ時刻（レース秒） */
+  onChoiceMade?: (choiceIdx: number, t: number) => void
+  /** 自チームの走者がその区間（添字）を走り終えた */
+  onHandoff?: (leg: number) => void
+  /** 「この区間をスキップ」。自チームの走者の残りのイベントを捨てる */
+  onSkipLeg?: () => void
+  /** 全チームが走り終えたあとの「最終結果を見る」 */
+  onFinish: () => void
+}
+
 export function SimPhase({
-  race, raceTeams, players, playerTeamId,
-  pendingEvent, pendingEventsCount: _pendingEventsCount, lowStaminaHint,
-  currentSegIdx, completedSegResults, cumulativeTime, cpuTimesForSeg, playerBaseTime, segStamina, segPts,
-  showingSegResult, lastSegResult, segRunnerIds,
-  onChoiceMade, onAdvance, onSkip: _onSkip, onSkipSegment,
+  race, raceTeams, players, playerTeamId, timeline, runnerIdOf,
+  pending = null, lowStaminaHint = false, segStamina = 0,
+  onChoiceMade, onHandoff, onSkipLeg, onFinish,
 }: Props) {
   const adH = useAdHeight()
-  const teamMap = new Map(raceTeams.map(t => [t.id, t]))
-  const playerMap = new Map(players.map(p => [p.id, p]))
 
   const [selectedChoice, setSelectedChoice] = useState<number | null>(null)
   const [eventIntro, setEventIntro] = useState(false)
   const [peekRace, setPeekRace] = useState(false)
-  const [animKmRatio, setAnimKmRatio] = useState(0)
-  const [animDone, setAnimDone] = useState(false)
-  // 区間結果を出す前に必ず最終ストレートを見せるための最小表示時間。
-  // ラスト勝負イベントが終盤で発火すると選択直後に区間結果へ飛んでしまう（押した瞬間終了）ため、
-  // 選択後は最低でも少しの間トラックを見せてから結果を表示する。
-  const [resultDwellDone, setResultDwellDone] = useState(false)
-  const [skipped, setSkipped] = useState(false)  // 「この区間をスキップ」押下：待ち時間なしで即結果へ
   const [manualPause, setManualPause] = useState(false)  // 手動の一時停止
-  const rafRef = useRef<number>(0)
-  const segDurationRef = useRef(25000)
-  const animSegRef = useRef(-1)
-  const pausedRef = useRef(false)
-
-  const prevSegIdxRef = useRef(-1)
-  if (currentSegIdx !== prevSegIdxRef.current) {
-    prevSegIdxRef.current = currentSegIdx
-    const seg = race.segments.find(s => s.index === currentSegIdx)
-    // 距離比例の表示時間（短い区間でも見応えを確保）
-    segDurationRef.current = Math.max(12000, Math.min(30000, (seg?.distanceKm ?? 10) * 1400))
+  // イベントは自チームの走者の位置で出て、そこで時計を止める
+  const eventAt = (at: number) => {
+    const r = pending ? runnerAt(timeline, playerTeamId, at) : null
+    return !!pending && !!r && !r.finished && r.leg === pending.leg
+      && r.km / (timeline.distances[r.leg] || 1) >= pending.event.trigger.min
   }
+  const { t, jumpTo } = useRaceClock(timeline, playerTeamId, { pausedAt: at => manualPause || eventAt(at) })
+  const me = runnerAt(timeline, playerTeamId, t)
+  const pendingEvent = pending && eventAt(t) ? pending.event : null
 
-  // アニメ進行度。区間切替直後（animSegRef未更新）は0として扱い、前区間の値が漏れないように
-  const effectiveRatio = animSegRef.current === currentSegIdx ? animKmRatio : 0
-
-  // レースシミュレーション状態でトリガー条件を評価
-  const currentSeg0 = race.segments.find(s => s.index === currentSegIdx)
-  const segDistKm = currentSeg0?.distanceKm ?? 10
-  const atEvent = !!pendingEvent && !showingSegResult && checkEventTrigger(
-    pendingEvent.trigger,
-    effectiveRatio,
-    segDistKm,
-    lowStaminaHint,
-    cpuTimesForSeg,
-    playerBaseTime,
-    cumulativeTime,
-    playerTeamId,
-  )
-  pausedRef.current = atEvent || manualPause
-
-  // 区間ごとの距離に比例したアニメーション（イベント地点で一時停止）。最後まで再生してから区間結果を表示
+  // タスキを渡した区間を伝える（飛ばした区間があっても1本ずつ順に）
+  const handedRef = useRef(0)
+  const handed = me ? race.segments.filter((_, j) => { const end = legEndAt(timeline, playerTeamId, j); return end != null && end <= t }).length : 0
   useEffect(() => {
-    cancelAnimationFrame(rafRef.current)
-    animSegRef.current = currentSegIdx
-    setAnimKmRatio(0)
-    setAnimDone(false)
-    setSkipped(false)
-    setManualPause(false)
-    const duration = segDurationRef.current
-    let elapsed = 0
-    let lastTs = performance.now()
-    function tick(now: number) {
-      const dt = now - lastTs
-      lastTs = now
-      if (!pausedRef.current) elapsed += dt
-      const t = Math.min(elapsed / duration, 1)
-      setAnimKmRatio(t)
-      if (t < 1) rafRef.current = requestAnimationFrame(tick)
-      else setAnimDone(true)
-    }
-    rafRef.current = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(rafRef.current)
-  }, [currentSegIdx])
+    while (handedRef.current < handed) onHandoff?.(handedRef.current++)
+  }, [handed, onHandoff])
 
-  // イベントが発火（atEvent）したら選択状態をリセット＋「イベント発生」演出
-  const activeEventId = atEvent && pendingEvent ? pendingEvent.id : null
+  // イベントが発火したら選択状態をリセット＋「イベント発生」演出
+  const activeEventId = pendingEvent?.id ?? null
   useEffect(() => {
     setSelectedChoice(null)
     setPeekRace(false)
     if (!activeEventId) { setEventIntro(false); return }
     setEventIntro(true)
     audio.playSe('event')
-    const t = setTimeout(() => setEventIntro(false), 900)
-    return () => clearTimeout(t)
+    const tm = setTimeout(() => setEventIntro(false), 900)
+    return () => clearTimeout(tm)
   }, [activeEventId])
-
 
   function handleChoice(i: number) {
     if (selectedChoice !== null) return
     setSelectedChoice(i)
-    setTimeout(() => onChoiceMade(i), 380)
+    setTimeout(() => onChoiceMade?.(i, t), 380)
   }
 
+  // 「この区間をスキップ」：速さを決めているチームの区間の終わりへ（走り終えていればゴールへ）
+  function skipLeg() {
+    const id = focusTeamOf(timeline, playerTeamId, t)
+    const r = id ? runnerAt(timeline, id, t) : null
+    const end = id && r && !r.finished ? legEndAt(timeline, id, r.leg) : null
+    if (me && !me.finished) onSkipLeg?.()
+    jumpTo(end != null && end > t ? end : timeline.endTime)
+  }
+
+  const done = t >= timeline.endTime
   const totalSegs = race.segments.length
-  const progressPct = totalSegs > 0 ? (currentSegIdx / totalSegs) * 100 : 0
-  const currentSeg = race.segments.find(s => s.index === currentSegIdx)
+  const focusId = focusTeamOf(timeline, playerTeamId, t)
+  const focusLeg = (focusId ? runnerAt(timeline, focusId, t)?.leg : 0) ?? 0
+  const currentSeg = race.segments[focusLeg]
+  const progressPct = totalSegs > 0 && currentSeg ? (currentSeg.index / totalSegs) * 100 : 0
   const segCol = currentSeg ? terrainColor(currentSeg.uphillPct, currentSeg.downhillPct) : C.blue
 
-  // 表示用kmRatio（区間切替直後の漏れ防止）
-  const kmRatio = effectiveRatio
-
-  // 区間結果表示に入ったら、最終ストレートを見せる最小時間を確保する
-  useEffect(() => {
-    if (!showingSegResult) { setResultDwellDone(false); return }
-    setResultDwellDone(false)
-    const t = setTimeout(() => setResultDwellDone(true), 850)
-    return () => clearTimeout(t)
-  }, [showingSegResult, currentSegIdx])
-
-  // アニメーション完了 かつ 最小表示時間経過後に区間結果を表示。スキップ押下時は待たずに即表示。
-  const showResult = showingSegResult && (skipped || (animDone && resultDwellDone))
-  const showTrack = !showResult
-
-  const sortedStandings = Object.entries(cumulativeTime)
-    .filter(([, t]) => t > 0)
-    .sort(([, a], [, b]) => a - b)
-  const leaderCumTime = sortedStandings[0]?.[1] ?? 0
-
-  // 現区間より前の累積タイム（cumulativeTime は区間確定時に現区間分が加算されるため、確定後は差し引く）
-  const baselineCumulative: Record<string, number> = { ...cumulativeTime }
-  if (showingSegResult && lastSegResult) {
-    for (const r of lastSegResult.runners) {
-      baselineCumulative[r.teamId] = (baselineCumulative[r.teamId] ?? 0) - r.timeSec
-    }
-  }
-
   // ── イベント発生：ヘッダーと広告の間に固定（スクロールなし）──
-  if (atEvent && pendingEvent && !peekRace) {
+  if (pendingEvent && !peekRace) {
     return (
       <ScreenPortal>
         <div style={{
@@ -462,7 +326,7 @@ export function SimPhase({
               <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                   <span style={{ fontSize: F.caption, fontWeight: 900, letterSpacing: 3, color: segCol, textShadow: `0 0 8px ${alpha(segCol, 0.5)}` }}>{pendingEvent.type}</span>
-                  <span style={{ fontSize: F.caption, color: C.textDim }}>{currentSegIdx}区</span>
+                  <span style={{ fontSize: F.caption, color: C.textDim }}>{currentSeg?.index}区</span>
                   {lowStaminaHint && (
                     <span style={{ marginLeft: 'auto', fontSize: F.caption, fontWeight: 800, color: C.red }}>スタミナ低下</span>
                   )}
@@ -539,7 +403,7 @@ export function SimPhase({
     <div style={{ fontFamily: SAIRA, minHeight: '100svh', paddingBottom: 80 }}>
 
       {/* レース状況の覗き見中：イベントに戻る（広告枠の上に配置。買い切り版は0） */}
-      {atEvent && peekRace && (
+      {pendingEvent && peekRace && (
         <ScreenPortal>
           <div style={{
             position: 'fixed', bottom: bottomStack(adH), left: 0, right: 0, margin: '0 auto',
@@ -564,16 +428,20 @@ export function SimPhase({
           <div style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: C.red, boxShadow: `0 0 5px ${C.red}` }}/>
           <span style={{ fontSize: F.tiny, color: C.red, fontWeight: 800, letterSpacing: 2 }}>LIVE</span>
           <span style={{ fontSize: F.bodyLg, fontWeight: 700, color: C.text, flex: 1 }}>{race.name}</span>
-          <span style={{ fontSize: F.caption, color: C.textDim }}>{currentSegIdx}/{totalSegs}区</span>
+          <span style={{ fontSize: F.caption, color: C.textDim }}>{currentSeg?.index}/{totalSegs}区</span>
         </div>
         <div style={{ height: 3, backgroundColor: C.border2,overflow: 'hidden' }}>
           <div style={{ height: '100%', width: `${progressPct}%`, background: `linear-gradient(90deg, ${C.red}, ${C.gold})`,}}/>
         </div>
       </div>
 
-      {/* 区間スキップ（最上部・トラック表示中は常時） */}
-      {currentSeg && showTrack && (
-        <div style={{ padding: '10px 12px 0', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+      {/* 一時停止・区間スキップ。全チームが走り終えたら結果へ */}
+      <div style={{ padding: '10px 12px 0', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+        {done ? (
+          <button className="btn-game btn-game--gold" onClick={onFinish} style={{ width: '100%' }}>
+            <span className="btn-game__inner">最終結果を見る</span>
+          </button>
+        ) : (<>
           <button
             onClick={() => setManualPause(v => !v)}
             style={{
@@ -590,7 +458,7 @@ export function SimPhase({
               : <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M7 4h4v16H7zM13 4h4v16h-4z" fill="currentColor"/></svg>}
           </button>
           <button
-            onClick={() => { cancelAnimationFrame(rafRef.current); setAnimKmRatio(1); setAnimDone(true); setSkipped(true); onSkipSegment?.() }}
+            onClick={skipLeg}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '8px 16px',cursor: 'pointer',
@@ -604,185 +472,18 @@ export function SimPhase({
               <path d="M5 4l9 8-9 8V4zM17 4h2v16h-2z" fill="currentColor"/>
             </svg>
           </button>
-        </div>
-      )}
-
-      {/* レーストラック（アニメーション完了まで表示） */}
-      {currentSeg && showTrack && (
-        <RaceTrack
-          raceTeams={raceTeams}
-          players={players}
-          segRunnerIds={segRunnerIds}
-          playerTeamId={playerTeamId}
-          playerBaseTime={playerBaseTime}
-          cpuTimesForSeg={cpuTimesForSeg}
-          baselineCumulative={baselineCumulative}
-          kmRatio={kmRatio}
-          distanceKm={currentSeg.distanceKm}
-          segCol={segCol}
-          currentSegIdx={currentSegIdx}
-          race={race}
-        />
-      )}
-
-      {/* 区間結果（アニメーション完了後に表示） */}
-      {showResult && lastSegResult && (
-        <SegmentResultCard
-          seg={lastSegResult}
-          race={race}
-          teamMap={teamMap}
-          playerMap={playerMap}
-          playerTeamId={playerTeamId}
-          isLastSeg={completedSegResults.length >= totalSegs}
-          onAdvance={onAdvance}
-        />
-      )}
-
-
-      {/* 暫定順位（区間結果後） */}
-      {showResult && sortedStandings.length > 0 && (
-        <div style={{ margin: '12px 12px 0',overflow: 'hidden', border: `1px solid ${C.border}` }}>
-          <div style={{ padding: '7px 12px', backgroundColor: C.surface2, borderBottom: `1px solid ${C.border}` }}>
-            <span style={{ fontSize: F.tiny, color: C.textDim, letterSpacing: 2 }}>暫定順位</span>
-          </div>
-          {sortedStandings.map(([teamId, cumTime], i) => {
-            const t = teamMap.get(teamId)
-            const isMe = teamId === playerTeamId
-            const gap = cumTime - leaderCumTime
-            const rankCol = rankColor(i + 1)
-            const pts = segPts[teamId] ?? 0
-            return (
-              <div key={teamId} style={{
-                padding: '8px 12px', borderBottom: `1px solid ${C.surface2}`,
-                backgroundColor: isMe ? alpha(C.gold, 0.05) : 'transparent',
-                display: 'flex', alignItems: 'center', gap: 8,
-              }}>
-                <div style={{ width: 20, textAlign: 'center', fontSize: F.sub, fontWeight: 900, color: rankCol, fontFamily: SAIRA, flexShrink: 0 }}>{i + 1}</div>
-                {t && <TeamLogoSVG primary={t.colors.primary} secondary={t.colors.secondary} shortName={t.shortName} teamId={t.id} size={24}/>}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: F.body, fontWeight: isMe ? 800 : 500, color: isMe ? C.text : C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t?.name ?? teamId}</div>
-                  {pts > 0 && <div style={{ fontSize: F.tiny, color: C.gold }}>区間賞 {pts}pt</div>}
-                </div>
-                <div style={{ fontFamily: SAIRA, textAlign: 'right', flexShrink: 0 }}>
-                  {gap === 0
-                    ? <span style={{ fontSize: F.bodyLg, fontWeight: 900, color: C.gold }}>{formatRaceTime(cumTime)}</span>
-                    : <span style={{ fontSize: F.bodyLg, fontWeight: 700, color: isMe ? C.red : C.textDim }}>+{formatDiff(gap).replace('+', '')}</span>
-                  }
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-    </div>
-  )
-}
-
-export function SegmentResultCard({
-  seg, race, teamMap, playerMap, playerTeamId, isLastSeg, onAdvance, showRecordBadge = true, advanceLabel,
-  nextLabel, advanceDisabled = false,
-}: {
-  seg: InteractiveSegResult
-  race: Race
-  teamMap: ReadonlyMap<string, WorldClub>
-  playerMap: Map<string, Player>
-  playerTeamId: string
-  isLastSeg: boolean
-  onAdvance: () => void
-  /** 区間新の表示。オンライン対戦は手元の記録と関係ないので出さない */
-  showRecordBadge?: boolean
-  /** 最終区のボタン文字を差し替える */
-  advanceLabel?: string
-  /** 最終区以外のボタン文字を差し替える（オンライン対戦の待ち合わせ表示に使う） */
-  nextLabel?: string
-  /** 押せなくする（他のチームを待っているあいだ） */
-  advanceDisabled?: boolean
-}) {
-  const longPress = usePlayerLongPress()
-  const raceSegData = race.segments.find(s => s.index === seg.segmentIndex)
-  const segCol = raceSegData ? terrainColor(raceSegData.uphillPct, raceSegData.downhillPct) : C.blue
-  const winner = seg.runners[0]
-  const isMyWin = winner?.teamId === playerTeamId
-  // 区間新の判定：この時点の歴代記録（レース確定前なので従来記録のまま）を1位が上回っていれば区間新
-  const segRecords = useSegmentRecords()
-  const prevBestSec = (segRecords[`${race.name}-${seg.segmentIndex}`] ?? [])[0]?.timeSec ?? null
-  const isNewRecord = showRecordBadge && prevBestSec != null && winner != null && winner.timeSec < prevBestSec
-  const myRunner = seg.runners.find(r => r.teamId === playerTeamId)
-  const myRankCol = !myRunner ? C.textGhost : myRunner.rank === 1 ? C.gold : myRunner.rank <= 3 ? C.green : myRunner.rank <= 6 ? C.textSub : C.textGhost
-
-  return (
-    <div style={{ margin: '0 12px' }}>
-      <div style={panelStyle(isMyWin ? C.gold : segCol)}>
-        <div style={{
-          padding: '10px 14px 8px', display: 'flex', alignItems: 'center', gap: 10,
-          borderBottom: `1px solid ${alpha(segCol, 0.2)}`,
-        }}>
-          <div style={{
-            width: 34, height: 34,flexShrink: 0,
-            background: `linear-gradient(135deg, ${segCol}, ${alpha(segCol, 0.5)})`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: F.title, fontWeight: 900, color: C.bg,
-          }}>{seg.segmentIndex}</div>
-          <div>
-            {raceSegData && <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: segCol }}>{raceSegData.distanceKm.toFixed(1)} km</div>}
-            <div style={{ fontSize: F.tiny, color: isMyWin ? C.gold : C.textDim, letterSpacing: 2 }}>{isMyWin ? '★ 区間賞！' : '区間結果'}</div>
-          </div>
-        </div>
-        {/* 必ず5行：自チームが4位以内なら1〜5位、それ以外は1〜4位＋自チーム */}
-        {(() => {
-          const top4 = seg.runners.slice(0, 4)
-          const mine = seg.runners.find(r => r.teamId === playerTeamId)
-          return (!mine || top4.some(r => r.teamId === playerTeamId)) ? seg.runners.slice(0, 5) : [...top4, mine]
-        })().map((r) => {
-          const t = teamMap.get(r.teamId)
-          const p = playerMap.get(r.playerId)
-          const isMe = r.teamId === playerTeamId
-          const rCol = rankColor(r.rank)
-          return (
-            <div key={r.teamId} {...(p ? longPress(p.id) : {})} style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '9px 14px', borderBottom: `1px solid ${C.border}`,
-              background: isMe ? alpha(C.gold, 0.06) : 'transparent',
-              cursor: p ? 'pointer' : 'default',
-            }}>
-              <div style={{ width: 24, textAlign: 'center', flexShrink: 0, fontSize: r.rank <= 3 ? 18 : 14, fontWeight: 900, color: rCol, fontFamily: SAIRA, lineHeight: 1 }}>{r.rank}</div>
-              <FaceOrDot playerId={p?.id} nationality={p?.nationality} size={26} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
-                  {/* 国別対抗（nat_）は国旗＋国名で表示 */}
-                  {r.teamId.startsWith('nat_') && (
-                    <img src={`/flags/${r.teamId.slice(4)}.svg`} alt="" width={18} height={13} draggable={false}
-                      style={{ width: 18, height: 13,objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(0,0,0,0.35)' }} />
-                  )}
-                  <span style={{ fontSize: F.body, fontWeight: isMe ? 800 : 500, color: isMe ? C.gold : C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t?.name ?? r.teamId}</span>
-                  {isNewRecord && r.rank === 1 && (
-                    <span style={{ fontSize: F.micro, padding: '1px 4px',backgroundColor: alpha(C.red, 0.15), border: `1px solid ${alpha(C.red, 0.5)}`, color: C.red, fontWeight: 900, flexShrink: 0 }}>区間新！</span>
-                  )}
-                </div>
-                {p && <div style={{ fontSize: F.tiny, color: C.textSub }}>{p.name}</div>}
-              </div>
-              <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontSize: F.body, fontWeight: 700, color: r.rank === 1 ? C.gold : isMe ? myRankCol : C.textDim, fontFamily: SAIRA }}>{formatRaceTime(r.timeSec)}</div>
-                {winner && r.rank > 1 && <div style={{ fontSize: F.tiny, color: C.textGhost, fontFamily: 'monospace' }}>{formatDiff(r.timeSec - winner.timeSec)}</div>}
-              </div>
-            </div>
-          )
-        })}
-        <div style={{ padding: '10px 12px' }}>
-          {isLastSeg ? (
-            <button className="btn-game btn-game--gold" onClick={() => { if (!advanceDisabled) onAdvance() }}
-              style={{ width: '100%', opacity: advanceDisabled ? 0.5 : 1 }}>
-              <span className="btn-game__inner">{advanceLabel ?? '最終結果を見る'}</span>
-            </button>
-          ) : (
-            <button className="btn-game btn-game--blue" onClick={() => { if (!advanceDisabled) onAdvance() }}
-              style={{ width: '100%', opacity: advanceDisabled ? 0.5 : 1 }}>
-              <span className="btn-game__inner">{nextLabel ?? '次の区間へ →'}</span>
-            </button>
-          )}
-        </div>
+        </>)}
       </div>
+
+      <RaceTrack
+        race={race}
+        raceTeams={raceTeams}
+        players={players}
+        playerTeamId={playerTeamId}
+        timeline={timeline}
+        t={t}
+        runnerIdOf={runnerIdOf}
+      />
     </div>
   )
 }

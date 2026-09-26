@@ -3,6 +3,7 @@ import {
   calcBaseAbility, calcAffinity, calcConditionModifier,
   calcTraitModifier, calcWeatherModifier, calcClubModifier, scoreToTime,
 } from './raceEngine'
+import type { LegPoint } from './raceTimeline'
 import { MORALE_DEFAULT } from '../utils/condition'
 import { clubById } from '../utils/world'
 
@@ -14,13 +15,11 @@ export type RaceSegmentEventChoice = {
   lowStaminaText?: string
 }
 
-export type EventTriggerCondition =
-  | { type: 'ratio'; min: number }
-  | { type: 'kmRemaining'; km: number }
-  | { type: 'stamina' }
-  | { type: 'gapAheadBelow'; sec: number }
-  | { type: 'gapBehindBelow'; sec: number }
-  | { type: 'packSize'; minCount: number; withinSec: number }
+/**
+ * **イベントが出る地点**＝自チームの走者がその区間の何割まで来たか（`generateSegmentEvents` が決める）。
+ * 画面（`SimPhase`）は `engine/raceTimeline` の走者の位置とこれを比べて止まる。
+ */
+export type EventTriggerCondition = { type: 'ratio'; min: number }
 
 export type RaceSegmentEvent = {
   id: string
@@ -60,7 +59,7 @@ export type RaceSegmentEvent = {
  *
  * ■なぜスタミナが無いのか
  *   以前は `staminaSuccess: -2` のようにスタミナも動かしていたが、
- *   **区間スタミナは区間ごとに作り直される**（`RacePage` の `prepareSegment` が
+ *   **区間スタミナは区間ごとに作り直される**（`RacePage` の `buildSegmentState` が
  *   毎区間 `segOvr − 自然消耗` で引き直す）ので、「後半に響く」は実装されていなかった。
  *   実際にはその区間のタイムに効くだけ＝**隠れた2本目のタイム減点**で、しかも
  *   スタミナは固定値・タイムボーナスは割合なので、同じ選択が10kmと20kmで2倍ぶれていた。
@@ -153,6 +152,9 @@ function withSpecBonus(eventId: string, player: Player, opponentOvr: number): nu
     : opponentOvr
 }
 
+/** 出る地点を決める前のイベント（作り手が返す形） */
+type EventBody = Omit<RaceSegmentEvent, 'trigger'>
+
 export type InteractiveSegResult = {
   segmentIndex: number
   runners: { playerId: string; teamId: string; timeSec: number; rank: number }[]
@@ -160,18 +162,25 @@ export type InteractiveSegResult = {
 
 export type ISim = {
   cpuLineups: Record<string, Record<number, string>>
+  /**
+   * CPU の区間タイム（区間の index → チーム → 秒）。**レースの頭で全区間ぶん出しておく**
+   * （タスキをつないで走るので、先頭は自チームより先の区間を走っている）。式は `calcCpuTimesForSeg` のまま
+   */
+  cpuTimesBySeg: Record<number, Record<string, number>>
+  /** 自チームの走者がいま走っている区間の index */
   currentSegIdx: number
-  cpuTimesForSeg: Record<string, number>
   playerBaseTime: number
   initialSegStamina: number
   segStamina: number
   playerTimeMod: number
+  /** 区間の index → 選択で速さが変わった点（位置を跳ばさないため。`engine/raceTimeline` の `withNewLegTime`） */
+  playerVia: Record<number, LegPoint[]>
   pendingEvents: RaceSegmentEvent[]
   completedSegs: InteractiveSegResult[]
   cumulativeTime: Record<string, number>
   segPts: Record<string, number>
-  showingSegResult: boolean
-  lastSegResult: InteractiveSegResult | null
+  /** いまの区間の自チームのタイムが確定した（残りのイベントが無い） */
+  segDone: boolean
 }
 
 // ─── Stamina ─────────────────────────────────────────────────────────────────
@@ -291,7 +300,8 @@ export function generateSegmentEvents(params: {
   const { seg, playerBaseTime, cpuTimesForSeg, cumulativeTimes, isFirstSeg, isLastSeg, player, totalSegs, players, cpuLineups, clubs } = params
 
   // 各区間ちょうど1回だけイベントを出す（くどさ回避のため2回目は出さない）。
-  const events: RaceSegmentEvent[] = []
+  // 出る地点（trigger）は下でまとめて決める
+  const events: EventBody[] = []
 
   const playerMap = new Map(players.map(p => [p.id, p]))
   const segIdx = seg.index
@@ -393,18 +403,18 @@ export function generateSegmentEvents(params: {
 
   // 発火地点はイベントの内容に応じた適切なゾーンで出す（毎回同じにならないよう、ゾーン内で少しだけランダム）。
   // スタートダッシュ=序盤 / 山岳=序盤〜中盤 / 給水=中盤 / ラスト勝負=終盤 / 攻防系=中盤の駆け引き。
-  for (const e of events) {
+  const placed: RaceSegmentEvent[] = events.map(e => {
     let min: number
     if (e.id === 'start_dash') min = 0.08 + Math.random() * 0.10          // 序盤 8〜18%
     else if (e.id.startsWith('mountain')) min = 0.15 + Math.random() * 0.18  // 山 15〜33%
     else if (e.id === 'water_station') min = 0.35 + Math.random() * 0.20      // 給水 35〜55%
     else if (e.id === 'final_push') min = 0.74 + Math.random() * 0.14         // ラスト 74〜88%
     else min = 0.35 + Math.random() * 0.25                                     // 並走/追い上げ/先頭 35〜60%
-    e.trigger = { type: 'ratio', min }
-  }
+    return { ...e, trigger: { type: 'ratio', min } }
+  })
 
   // IDを区間ごとにユニークにする
-  return events.map((e, i) => ({ ...e, id: `${e.id}_seg${segIdx}_${i}` }))
+  return placed.map((e, i) => ({ ...e, id: `${e.id}_seg${segIdx}_${i}` }))
 }
 
 // ─── Event Makers ────────────────────────────────────────────────────────────
@@ -421,7 +431,7 @@ function fieldOvr(seg: Segment, rawLo: number, rawHi: number): number {
   return Math.max(1, Math.round(raw - calcNaturalDrain(raw, seg.distanceKm)))
 }
 
-function makeStartDashEvent(player: Player, seg: Segment, ctx: RaceContext): RaceSegmentEvent {
+function makeStartDashEvent(player: Player, seg: Segment, ctx: RaceContext): EventBody {
   const isKicker = player.specialty === 'kick'
   const isLong = player.specialty === 'long' || player.specialty === 'grinder'
   const situation = pick([
@@ -442,7 +452,6 @@ function makeStartDashEvent(player: Player, seg: Segment, ctx: RaceContext): Rac
   return {
     id: 'start_dash',
     type: 'スタートダッシュ',
-    trigger: { type: 'ratio', min: 0.1 },
     scale: EVENT_SCALE.start_dash,
     // 相手がいないイベントも難易度を持たせて、毎回同じ%にならないようにする
     opponentOvr: withSpecBonus('start_dash', player, fieldOvr(seg, 52, 75)),
@@ -457,7 +466,7 @@ function makeStartDashEvent(player: Player, seg: Segment, ctx: RaceContext): Rac
   }
 }
 
-function makeMountainAscentEvent(player: Player, seg: Segment, ctx: RaceContext): RaceSegmentEvent {
+function makeMountainAscentEvent(player: Player, seg: Segment, ctx: RaceContext): EventBody {
   const isMountain = player.specialty === 'mountain_up'
   const intensity = seg.uphillPct >= 45 ? '激しい登り坂' : '上り区間'
   const situation = pick([
@@ -486,7 +495,6 @@ function makeMountainAscentEvent(player: Player, seg: Segment, ctx: RaceContext)
   return {
     id: 'mountain_ascent',
     type: '山岳判断',
-    trigger: { type: 'ratio', min: 0.15 },
     scale: EVENT_SCALE.mountain_ascent,
     // 難易度＝坂のきつさ＋ぶれ（急坂ほど成功率が下がる）
     opponentOvr: withSpecBonus('mountain_ascent', player, fieldOvr(seg, 46 + seg.uphillPct * 0.5, 54 + seg.uphillPct * 0.5)),
@@ -501,7 +509,7 @@ function makeMountainAscentEvent(player: Player, seg: Segment, ctx: RaceContext)
   }
 }
 
-function makeMountainDescentEvent(player: Player, seg: Segment, ctx: RaceContext): RaceSegmentEvent {
+function makeMountainDescentEvent(player: Player, seg: Segment, ctx: RaceContext): EventBody {
   const isDownSpec = player.specialty === 'mountain_down'
   const situation = pick([
     '下り区間に入った。攻め方次第でタイムが大きく変わる局面。',
@@ -529,7 +537,6 @@ function makeMountainDescentEvent(player: Player, seg: Segment, ctx: RaceContext
   return {
     id: 'mountain_descent',
     type: '下り判断',
-    trigger: { type: 'ratio', min: 0.15 },
     scale: EVENT_SCALE.mountain_descent,
     opponentOvr: withSpecBonus('mountain_descent', player, fieldOvr(seg, 52, 75)),
     situation,
@@ -543,7 +550,7 @@ function makeMountainDescentEvent(player: Player, seg: Segment, ctx: RaceContext
   }
 }
 
-function makePackRaceEvent(player: Player, nearbyCount: number, opponentOvr: number | undefined, ctx: RaceContext): RaceSegmentEvent {
+function makePackRaceEvent(player: Player, nearbyCount: number, opponentOvr: number | undefined, ctx: RaceContext): EventBody {
   const isTeamPlayer = player.specialty === 'grinder' || player.specialty === 'allrounder'
   const situation = pick([
     `${nearbyCount}チームが僅差で並走している。集団走の展開になった。`,
@@ -565,7 +572,6 @@ function makePackRaceEvent(player: Player, nearbyCount: number, opponentOvr: num
   return {
     id: 'pack_race',
     type: '並走',
-    trigger: { type: 'packSize', minCount: 2, withinSec: 12 },
     scale: EVENT_SCALE.pack_race,
     situation,
     battleContext,
@@ -579,7 +585,7 @@ function makePackRaceEvent(player: Player, nearbyCount: number, opponentOvr: num
   }
 }
 
-function makeCatchingUpEvent(player: Player, aheadCount: number, opponentOvr: number | undefined, ctx: RaceContext): RaceSegmentEvent {
+function makeCatchingUpEvent(player: Player, aheadCount: number, opponentOvr: number | undefined, ctx: RaceContext): EventBody {
   const situation = pick([
     ctx.gapAheadSec != null && ctx.aheadName
       ? `現在総合${ctx.overallRank}位。前の${ctx.aheadName}まで${Math.round(ctx.gapAheadSec)}秒。ここで仕掛けるか。`
@@ -606,7 +612,6 @@ function makeCatchingUpEvent(player: Player, aheadCount: number, opponentOvr: nu
   return {
     id: 'catching_up',
     type: '追い上げ',
-    trigger: { type: 'gapAheadBelow', sec: 15 },
     scale: EVENT_SCALE.catching_up,
     situation,
     battleContext,
@@ -620,7 +625,7 @@ function makeCatchingUpEvent(player: Player, aheadCount: number, opponentOvr: nu
   }
 }
 
-function makeFrontPressureEvent(player: Player, opponentOvr: number | undefined, ctx: RaceContext): RaceSegmentEvent {
+function makeFrontPressureEvent(player: Player, opponentOvr: number | undefined, ctx: RaceContext): EventBody {
   const situation = pick([
     '単独トップを走っているが、後続の気配を感じる。プレッシャーをどう処理するか。',
     ctx.gapBehindSec != null && ctx.behindName
@@ -645,7 +650,6 @@ function makeFrontPressureEvent(player: Player, opponentOvr: number | undefined,
   return {
     id: 'front_pressure',
     type: '先頭プレッシャー',
-    trigger: { type: 'gapBehindBelow', sec: 20 },
     scale: EVENT_SCALE.front_pressure,
     situation,
     battleContext,
@@ -669,7 +673,7 @@ function makeFrontPressureEvent(player: Player, opponentOvr: number | undefined,
  *
  * 効き幅はいちばん大きい（`EVENT_SCALE.final_push` = 1.4）。得意なのはスパート型。
  */
-function makeFinalPushEvent(player: Player, seg: Segment, ctx: RaceContext): RaceSegmentEvent {
+function makeFinalPushEvent(player: Player, seg: Segment, ctx: RaceContext): EventBody {
   const isKicker = player.specialty === 'kick'
   const last = ctx.segIdx === ctx.totalSegs - 1
   const situation = pick([
@@ -698,8 +702,6 @@ function makeFinalPushEvent(player: Player, seg: Segment, ctx: RaceContext): Rac
   return {
     id: 'final_push',
     type: 'ラスト勝負',
-    // 発火地点は generateSegmentEvents 側で 74〜88% に置き換わる
-    trigger: { type: 'ratio', min: 0.74 },
     scale: EVENT_SCALE.final_push,
     opponentOvr: withSpecBonus('final_push', player, fieldOvr(seg, 50, 72)),
     situation,
@@ -713,7 +715,7 @@ function makeFinalPushEvent(player: Player, seg: Segment, ctx: RaceContext): Rac
   }
 }
 
-function makeWaterStationEvent(player: Player, seg: Segment, ctx: RaceContext): RaceSegmentEvent {
+function makeWaterStationEvent(player: Player, seg: Segment, ctx: RaceContext): EventBody {
   const situation = pick([
     '給水ポイントが近づいた。ここでどう補給するか。',
     `総合${ctx.overallRank}位で給水所へ。わずかな所作の差がタイムに響く。`,
@@ -736,7 +738,6 @@ function makeWaterStationEvent(player: Player, seg: Segment, ctx: RaceContext): 
   return {
     id: 'water_station',
     type: '給水',
-    trigger: { type: 'stamina' },
     scale: EVENT_SCALE.water_station,
     opponentOvr: withSpecBonus('water_station', player, fieldOvr(seg, 46, 66)),
     situation,

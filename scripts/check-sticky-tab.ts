@@ -57,6 +57,7 @@ console.log('\n[2] タブを持つ画面が実際に通しているか')
     ['クラブ詳細の出入り（加入/放出）', 'src/components/teams/TeamDetailPage.tsx', 'moveTab'],
     ['チャット（自チーム/移籍・獲得）', 'src/components/team/ChatPage.tsx', 'activeTab'],
     ['フレンド詳細のページャ（ロスター/殿堂入り）', 'src/components/friends/FriendDetailPage.tsx', 'page'],
+    ['中継の一覧（総合/区間）', 'src/components/race/SimPhase.tsx', 'board'],
   )
   for (const [label, file, name] of SCREENS) {
     const src = readFileSync(file, 'utf8')

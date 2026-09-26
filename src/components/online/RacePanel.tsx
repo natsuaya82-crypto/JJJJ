@@ -1,11 +1,15 @@
 // オンライン対戦のレース再生。
 //
-// 画面は本編のレース画面をそのまま使う（RaceTrack と 区間結果カード）。
-// 違うのは「自分で計算しない」ところだけ。ホストが配った結果を、そのとおりに再生する。
-import { useEffect, useMemo, useRef, useState } from 'react'
+// 画面は本編のレース画面をそのまま使う（RaceTrack と中継の時計 `engine/raceTimeline`）。
+// 違うのは「自分で計算しない」ところと、区間ごとに全員の待ち合わせがあるところ。
+// ホストが配った結果を、そのとおりに再生し、自チームの走者がタスキを渡すたびに止まって
+// 区間結果（`./SegmentResultCard`）を出す。
+import { useEffect, useMemo, useState } from 'react'
 import type { Player, Team } from '../../types'
-import { RaceTrack, SegmentResultCard } from '../race/SimPhase'
-import { terrainColor } from '../race/raceUtils'
+import { RaceTrack } from '../race/SimPhase'
+import { SegmentResultCard } from './SegmentResultCard'
+import { useRaceClock } from '../race/useRaceClock'
+import { buildTimeline, legEndAt } from '../../engine/raceTimeline'
 import { formatDiff } from '../../engine/raceEngine'
 import { formatRaceTime } from '../../utils/eventTime'
 import { TeamLogoSVG } from '../icons/Icons'
@@ -51,27 +55,45 @@ export default function RacePanel({
   solo?: boolean
 }) {
   const race = useMemo(() => courseToRace(course, raceNo), [course, raceNo])
-  const segIdxList = useMemo(() => payload.segments.map(s => s.segmentIndex), [payload])
 
   const [stage, setStage] = useState<Stage>('countdown')
   const [left, setLeft] = useState(0)
-  const [pos, setPos] = useState(0)              // 何区間目を再生しているか（0始まり）
-  const [kmRatio, setKmRatio] = useState(0)
+  const [pos, setPos] = useState(0)              // 自チームの走者が何区間目を走っているか（0始まり）
   const [paused, setPaused] = useState(false)
-  const pausedRef = useRef(false)
-  const rafRef = useRef(0)
   // 区間結果で「次の区間へ」を押したあと、他のチームがそろうのを待っている状態
   const [segWait, setSegWait] = useState<{ seg: number; until: number } | null>(null)
   const [segLeft, setSegLeft] = useState(SEG_WAIT_SEC)
   const [raceLeft, setRaceLeft] = useState(RACE_WAIT_SEC)
 
-  useEffect(() => { pausedRef.current = paused }, [paused])
+  // ── 中継の時計（本編と同じ `engine/raceTimeline`。タスキをつないで途切れずに走る） ──
+  // 並びは最終順位のまま（同着の扱いを最終結果と揃える）
+  const timeline = useMemo(() => {
+    const order = payload.standings.map(s => s.teamId).concat(payload.teams.map(t => t.id))
+    return buildTimeline(
+      payload.segments.map(sd => course.segments.find(s => s.index === sd.segmentIndex)?.distanceKm ?? 0),
+      [...new Set(order)].map(teamId => ({
+        teamId,
+        legs: payload.segments.map(sd => {
+          const time = sd.runners.find(r => r.teamId === teamId)?.timeSec
+          return time == null ? null : { time }
+        }),
+      })),
+    )
+  }, [payload, course])
+  // ★待ち合わせがあるので、自チームの走者がタスキを渡すたびに止まって区間結果を出す
+  const stopAt = legEndAt(timeline, meId, pos) ?? timeline.endTime
+  const { t, jumpTo, restart } = useRaceClock(timeline, meId, {
+    pausedAt: () => paused || stage !== 'track',
+    stopAt,
+  })
+  // 自チームの走者がタスキを渡したら区間結果（時計はそこで止まっている）
+  const view: Stage = stage === 'track' && t >= stopAt ? 'segresult' : stage
 
   // ── カウントダウン ──
   // 0になったら必ず止める。止め忘れると、あとで区間結果を出しても
   // 200ミリ秒ごとに走行画面へ引き戻されてしまう。
   useEffect(() => {
-    setStage('countdown'); setPos(0); setSegWait(null)
+    setStage('countdown'); setPos(0); setSegWait(null); restart()
     let t = 0 as unknown as ReturnType<typeof setInterval>
     const tick = () => {
       const ms = payload.startAt - serverNow()
@@ -81,35 +103,12 @@ export default function RacePanel({
     t = setInterval(tick, 200)
     tick()
     return () => clearInterval(t)
-  }, [payload])
-
-  // ── 区間ごとのアニメーション（本編と同じ速さ） ──
-  useEffect(() => {
-    if (stage !== 'track') return
-    const seg = course.segments.find(s => s.index === segIdxList[pos])
-    const duration = Math.max(12000, Math.min(30000, (seg?.distanceKm ?? 10) * 1400))
-    cancelAnimationFrame(rafRef.current)
-    setKmRatio(0)
-    setPaused(false)
-    let elapsed = 0
-    let last = performance.now()
-    const tick = (now: number) => {
-      const dt = now - last
-      last = now
-      if (!pausedRef.current) elapsed += dt
-      const t = Math.min(elapsed / duration, 1)
-      setKmRatio(t)
-      if (t < 1) rafRef.current = requestAnimationFrame(tick)
-      else setStage('segresult')
-    }
-    rafRef.current = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(rafRef.current)
-  }, [stage, pos, course, segIdxList])
+  }, [payload, restart])
 
   // ── 区間ごとの待ち合わせ ──
   // 全員が見終わればホストから合図（segGo）が来る。来なくても20秒たったら先へ進む。
   // こうしておけば、誰かが固まってもこちらの画面は止まらない。
-  const goNextSeg = () => { setSegWait(null); setPos(p => p + 1); setStage('track') }
+  const goNextSeg = () => { setSegWait(null); setPaused(false); setPos(p => p + 1); setStage('track') }
 
   useEffect(() => {
     if (!segWait) return
@@ -159,30 +158,6 @@ export default function RacePanel({
   // ── 進行中の区間の数字 ──
   const segData = payload.segments[pos]
   const seg = course.segments.find(s => s.index === segData?.segmentIndex)
-  const segCol = seg ? terrainColor(seg.uphillPct, seg.downhillPct) : C.blue
-
-  const cumBefore = useMemo(() => {
-    const out: Record<string, number> = {}
-    for (const t of payload.teams) out[t.id] = 0
-    for (let i = 0; i < pos; i++) {
-      for (const r of payload.segments[i].runners) out[r.teamId] = (out[r.teamId] ?? 0) + r.timeSec
-    }
-    return out
-  }, [payload, pos])
-
-  const timesForSeg = useMemo(() => {
-    const out: Record<string, number> = {}
-    for (const r of segData?.runners ?? []) out[r.teamId] = r.timeSec
-    return out
-  }, [segData])
-
-  const segRunnerIds = useMemo(() => {
-    const out: Record<string, string> = {}
-    for (const r of segData?.runners ?? []) out[r.teamId] = displayId(r.playerId)
-    return out
-  }, [segData, srcById, meId])   // eslint-disable-line react-hooks/exhaustive-deps
-
-  const myTime = timesForSeg[meId] ?? 0
 
   const segResultForCard = useMemo(() => ({
     segmentIndex: segData?.segmentIndex ?? 0,
@@ -191,15 +166,18 @@ export default function RacePanel({
 
   // 暫定順位（この区間まで）
   const standingsNow = useMemo(() => {
-    const out: Record<string, number> = { ...cumBefore }
-    for (const r of segData?.runners ?? []) out[r.teamId] = (out[r.teamId] ?? 0) + r.timeSec
+    const out: Record<string, number> = {}
+    for (const t of payload.teams) out[t.id] = 0
+    for (let i = 0; i <= pos; i++) {
+      for (const r of payload.segments[i]?.runners ?? []) out[r.teamId] = (out[r.teamId] ?? 0) + r.timeSec
+    }
     return Object.entries(out).sort(([, a], [, b]) => a - b)
-  }, [cumBefore, segData])
+  }, [payload, pos])
 
   const isLast = pos >= payload.segments.length - 1
 
   // ── カウントダウン ──
-  if (stage === 'countdown') {
+  if (view === 'countdown') {
     return (
       <div style={{ padding: '48px 16px 0', textAlign: 'center' }}>
         <div style={{ fontFamily: SAIRA, fontSize: F.body, color: C.gold, letterSpacing: 3, fontWeight: 900 }}>R{raceNo} / {totalRaces}</div>
@@ -215,7 +193,7 @@ export default function RacePanel({
   }
 
   // ── 最終結果（このレース） ──
-  if (stage === 'final') {
+  if (view === 'final') {
     return (
       <div style={{ padding: '10px 12px 0' }}>
         <div style={{ textAlign: 'center', marginBottom: 12 }}>
@@ -294,7 +272,7 @@ export default function RacePanel({
         </div>
       </div>
 
-      {stage === 'track' && seg && (<>
+      {view === 'track' && seg && (<>
         <div style={{ padding: '10px 12px 0', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
           <button onClick={() => setPaused(v => !v)} style={{
             padding: '8px 16px',cursor: 'pointer',
@@ -302,7 +280,7 @@ export default function RacePanel({
             border: `1px solid ${paused ? C.gold : C.border2}`, color: paused ? C.bg : C.textSub,
             fontFamily: SAIRA, fontSize: F.body, fontWeight: 700,
           }}>{paused ? '再生' : '一時停止'}</button>
-          <button onClick={() => { cancelAnimationFrame(rafRef.current); setKmRatio(1); setStage('segresult') }} style={{
+          <button onClick={() => jumpTo(stopAt)} style={{
             padding: '8px 16px',cursor: 'pointer',
             background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
             border: `1px solid ${C.border2}`, color: C.textSub,
@@ -311,22 +289,20 @@ export default function RacePanel({
         </div>
 
         <RaceTrack
+          race={race}
           raceTeams={entries}
           players={players}
-          segRunnerIds={segRunnerIds}
           playerTeamId={meId}
-          playerBaseTime={myTime}
-          cpuTimesForSeg={timesForSeg}
-          baselineCumulative={cumBefore}
-          kmRatio={kmRatio}
-          distanceKm={seg.distanceKm}
-          segCol={segCol}
-          currentSegIdx={segData.segmentIndex}
-          race={race}
+          timeline={timeline}
+          t={t}
+          runnerIdOf={(teamId, leg) => {
+            const pid = payload.segments[leg]?.runners.find(r => r.teamId === teamId)?.playerId
+            return pid ? displayId(pid) : undefined
+          }}
         />
       </>)}
 
-      {stage === 'segresult' && segData && (<>
+      {view === 'segresult' && segData && (<>
         <SegmentResultCard
           seg={segResultForCard}
           race={race}
@@ -334,7 +310,6 @@ export default function RacePanel({
           playerMap={playerMap}
           playerTeamId={meId}
           isLastSeg={isLast}
-          showRecordBadge={false}
           advanceLabel="このレースの結果へ"
           nextLabel={segWait ? `他のチームを待っています（${segLeft}）` : undefined}
           advanceDisabled={!!segWait}
