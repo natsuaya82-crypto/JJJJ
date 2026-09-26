@@ -1,0 +1,43 @@
+# いまの版（src/data/appMeta.ts の APP_VERSION）を App Store の審査に出す（scripts/store-submit.ts）。
+# 最新情報は CHANGELOG の同じ版の本文。審査に通ったら自動で公開（オーナー・2026-09-26）。
+# 鍵は ios-deploy.yml と同じ3つの Secrets。
+name: Store Submit
+
+on:
+  workflow_dispatch:
+    inputs:
+      build:
+        description: '付けるビルド番号（例 185）'
+        required: true
+      wait:
+        description: 'ビルドの処理が終わるのを待つ分数'
+        required: false
+        default: '90'
+      dry:
+        description: '何をするかを言うだけで、書きも出しもしない'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: 組む
+        run: npx esbuild --bundle --platform=node --format=cjs scripts/store-submit.ts --outfile=/tmp/store-submit.cjs --log-level=warning
+      - name: 審査に出す
+        env:
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          ASC_KEY_ID: ${{ secrets.IOS_KEY_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.IOS_API_KEY }}
+        run: |
+          ARGS="--build ${{ inputs.build }} --wait ${{ inputs.wait }}"
+          if [ "${{ inputs.dry }}" = "true" ]; then ARGS="$ARGS --dry"; fi
+          node /tmp/store-submit.cjs $ARGS
