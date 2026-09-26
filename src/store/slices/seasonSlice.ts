@@ -2,7 +2,7 @@
 
 import type { GameStore, SetGame } from '../gameStore'
 import type { ForeignClub, WorldClub } from '../../types'
-import { INITIAL_FOREIGN_CLUBS } from '../../data/leagues'
+import { INITIAL_FOREIGN_CLUBS, leagueRules } from '../../data/leagues'
 import { drawSeasonSchedules, generateIndividualEvents, generateSeasonRaces } from '../../data/races'
 import { ACHIEVEMENT_JEWELS, checkSeasonAchievements, podiumJewels, selectSeasonObjectives } from '../../engine/achievements'
 import { buildEclParticipants, buildEclRaces } from '../../engine/eclSeries'
@@ -43,7 +43,7 @@ import { teamHistoryOf } from '../../utils/teamHistory'
 import { hasNoPlayingTime } from '../../utils/transferDecision'
 import { writeSeasonArchive } from '../seasonArchive'
 import { facilitiesOf, facilityScoutPoints } from '../../utils/facilities'
-import { withForeignSchedules } from '../../engine/leagueDay'
+import { withCopiedSchedules } from '../../engine/leagueDay'
 
 type Slice = Pick<GameStore,
   'startRegularSeason' | 'initObjectivesIfEmpty' | 'endSeason' | 'acceptGmOffer' | 'declineGmOffer' | 'resignAsGm'>
@@ -360,7 +360,8 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const retiringIds = retire.retiringIds
       const playersAfterRetire = retire.players
 
-      // 海外クラブの年次入れ替え（引退を外し、若手を新加入させる）。
+      // 毎年の新しい選手の入口はリーグの決まり（data/leagueRules の newcomers）。
+      // 'refresh'（海外9リーグ）は引退を外し、若手を新加入させる。
       // ただし旧セーブの大再編が保留中なら、この年度更新で新9リーグへ丸ごと置換し旧海外選手は退場させる。
       const pendingRestructure = (state.currentSeason as unknown as { pendingForeignRestructure?: boolean }).pendingForeignRestructure === true
       const oldForeignClubIds = clubIdSet(clubsWhere(state.clubs, c => !isJpelLeague(c.leagueId)))
@@ -369,14 +370,14 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
         : new Set<string>()
       const foreignRefresh = pendingRestructure
         ? { newPlayers: generateForeignLeaguePlayers(INITIAL_FOREIGN_CLUBS, state.currentSeason.year + 1).players }
-        : refreshForeignLeagues(clubsWhere(state.clubs, c => !isJpelLeague(c.leagueId)) as ForeignClub[],
+        : refreshForeignLeagues(clubsWhere(state.clubs, c => leagueRules(c.leagueId).newcomers === 'refresh') as ForeignClub[],
           retiringIds, state.currentSeason.year + 1, grownPlayers)
       // 来季の世界の土台。大再編のときだけ、海外のクラブを新しい9リーグへ丸ごと入れ替える
       const refreshedClubs: WorldClub[] = pendingRestructure
         ? withAddedClubs<WorldClub>(jpelClubs(state.clubs), INITIAL_FOREIGN_CLUBS)
         : state.clubs
 
-      // ★**2部・3部にも若手を入れる**（オーナー・2026-08-16「2.3部にも若手補強しよう。
+      // ★**'youth'（日本の2部・3部）にも若手を入れる**（オーナー・2026-08-16「2.3部にも若手補強しよう。
       //   2人。レベル帯はドラフト外レベル」）。
       //   海外は `refreshForeignLeagues` で毎年1クラブ最大3人入るのに、国内は
       //   **ドラフト（1部20クラブだけ）しか口が無く**、6年で国内の在籍が
@@ -735,7 +736,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
           // 国内3部の日程と順位表。補ったクラブぶんも来季の順位表に並ぶよう、いまのクラブではなく
           // 補完後を使う。部の割り振りは昇降格を通したあとの部（＝来季走る部）で決まる
           // 海外リーグは日本1部と同じ10日を走る（engine/leagueDay）
-          leagues: withForeignSchedules(
+          leagues: withCopiedSchedules(
             divisionLeagues(nextSchedules, newSeasonStandings(syncedClubs, teamId => ({
               teamId, leaguePoints: 0, segmentPoints: 0, totalPoints: 0, raceResults: [] }))),
             syncedClubs),

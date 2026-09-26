@@ -30,18 +30,38 @@ export type LeagueRules = {
    *（オーナー・2026-09-25）。両方の印が付いた記録会は全員が走る
    */
   timeTrials: TimeTrialCircuit
+  /**
+   * **日程の手本にするリーグ。** null＝部ごとに抽選（日本の部。`data/races` の `drawSeasonSchedules`）。
+   * 海外9リーグは日本1部と同じ10日・同じコースの並びを走る（オーナー・2026-09-25。
+   * 組むのは `engine/leagueDay` の `withCopiedSchedules`）
+   */
+  scheduleFrom: LeagueId | null
+  /**
+   * **毎年の新しい選手の入口**（`engine/playerGenerator`）。
+   *   'draft'   … ドラフトで獲る（日本1部）
+   *   'youth'   … 1クラブ2人・ドラフト外の帯（日本2部・3部。オーナー・2026-08-16）＝`refreshDomesticYouth`
+   *   'refresh' … 23歳以下が3人を割ったら足す・26人まで（海外9）＝`refreshForeignLeagues`
+   * どれとも別に、開幕の直前の床（`fillRostersForSeason`）は232クラブ全部に効く
+   */
+  newcomers: Newcomers
 }
+
+/** 毎年の新しい選手の入口の種類 */
+export type Newcomers = 'draft' | 'youth' | 'refresh'
 
 /** 記録会の系統。記録会ごとに「どの系統のクラブが出るか」を持つ */
 export type TimeTrialCircuit = 'japan' | 'overseas'
 
 /** 決まりを持つリーグ。**ここに無いリーグ（海外9）は全部 false**（記録会は海外の系統） */
 const RULES: Readonly<Record<LeagueId, LeagueRules>> = {
-  'jpel-1': { promotion: true, tierMoves: true, draft: true, draftPicks: true, timeTrials: 'japan' },
-  'jpel-2': { promotion: true, tierMoves: true, draft: false, draftPicks: true, timeTrials: 'japan' },
-  'jpel-3': { promotion: true, tierMoves: true, draft: false, draftPicks: true, timeTrials: 'japan' },
+  'jpel-1': { promotion: true, tierMoves: true, draft: true, draftPicks: true, timeTrials: 'japan', scheduleFrom: null, newcomers: 'draft' },
+  'jpel-2': { promotion: true, tierMoves: true, draft: false, draftPicks: true, timeTrials: 'japan', scheduleFrom: null, newcomers: 'youth' },
+  'jpel-3': { promotion: true, tierMoves: true, draft: false, draftPicks: true, timeTrials: 'japan', scheduleFrom: null, newcomers: 'youth' },
 }
-const NO_RULES: LeagueRules = { promotion: false, tierMoves: false, draft: false, draftPicks: false, timeTrials: 'overseas' }
+const NO_RULES: LeagueRules = {
+  promotion: false, tierMoves: false, draft: false, draftPicks: false, timeTrials: 'overseas',
+  scheduleFrom: 'jpel-1', newcomers: 'refresh',
+}
 
 /** そのリーグの決まり。知らないリーグは何も無い */
 export function leagueRules(leagueId: LeagueId | null | undefined): LeagueRules {

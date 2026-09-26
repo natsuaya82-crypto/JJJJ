@@ -124,11 +124,14 @@ console.log('\n[5] 入れ方は1本（海外の新加入とまったく同じ口
   //   `[...foreignRefresh.newPlayers, ...domesticYouth]` という**並びそのもの**を
   //   当てていたので、同じ配列に3つ目（下限割れの救済 rosterFill）を足しただけで
   //   落ちた。足したのは2本目の入口ではないので、落ちるのは間違い。
-  const entries = (season.match(/newForeignPlayers:/g) ?? []).length
-  check('newForeignPlayers に渡す口は1つ', entries === 1, `${entries} か所`)
-  const line = /newForeignPlayers:\s*\[([^\]]*)\]/.exec(season)?.[1] ?? ''
-  check('海外の新加入と同じ引数に混ぜている（2本目の入口を作っていない）',
-    line.includes('...foreignRefresh.newPlayers') && line.includes('...domesticYouth'), line.trim())
+  //   入口は endSeason の中で来季の選手の並び（nextWorldPlayers）を作る1か所。
+  const entries = (season.match(/const nextWorldPlayers\s*=/g) ?? []).length
+  check('来季の選手の並びを作る口は1つ', entries === 1, `${entries} か所`)
+  const body = /const nextWorldPlayers\s*=\s*\[([\s\S]*?)\n\s*\]/.exec(season)?.[1] ?? ''
+  check('海外の新加入と同じ並びに混ぜている（2本目の入口を作っていない）',
+    body.includes('...foreignRefresh.newPlayers') && body.includes('...domesticYouth'), body.trim())
+  const uses = (season.match(/\.\.\.domesticYouth\b/g) ?? []).length
+  check('若手を足す場所はその1か所だけ', uses === 1, `${uses} か所`)
 }
 
 console.log('\n[6] 世界を3年回して、2部・3部が痩せない')

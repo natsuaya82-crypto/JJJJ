@@ -8,7 +8,7 @@ import {
 } from '../utils/league'
 import type { LeagueSeason } from '../types'
 import { normalizeStandingRows } from '../utils/clubStanding'
-import { withForeignSchedules } from '../engine/leagueDay'
+import { withCopiedSchedules } from '../engine/leagueDay'
 import { clubIdSet, clubsInLeague, jpelClubs } from '../utils/world'
 
 // ============================================================================
@@ -137,9 +137,9 @@ export function repairLoadedSave(input: RepairInput): RepairResult {
 
   // ── 4b. 海外リーグの日程（日本1部と同じ10日）がそろっているか ────────────
   // 旧セーブの海外リーグは自チームの部の日程を借りて走っていたので、自分の日程を持たない。
-  // 走り終えた回は残し、足りないぶんだけ足す（engine/leagueDay の withForeignSchedules）
+  // 走り終えた回は残し、足りないぶんだけ足す（engine/leagueDay の withCopiedSchedules）
   if (isInitialized && currentSeason?.leagues) {
-    const leagues = withForeignSchedules(currentSeason.leagues, clubs)
+    const leagues = withCopiedSchedules(currentSeason.leagues, clubs)
     if (leagues !== currentSeason.leagues) {
       currentSeason = { ...currentSeason, leagues }
       repairs.push('海外リーグの日程をそろえた')

@@ -10,8 +10,8 @@ import { SPECIALTIES } from '../utils/squadNeeds'
 import { buildNationalityBag } from '../data/nationTalent'
 // 所属は player.teamId が唯一の持ち場。クラブ側に名簿は持たない
 import { clubMembersByClub } from '../utils/rosterSync'
-import { joinsDraft } from '../utils/league'
-import { jpelClubs, mapClubs } from '../utils/world'
+import { leagueRules } from '../data/leagueRules'
+import { clubsWhere, mapClubs } from '../utils/world'
 import { ROSTER_MAX, SEASON_START_ROSTER } from '../data/rosterRules'
 
 const FAMILY_NAMES = [
@@ -1305,8 +1305,8 @@ export function refreshDomesticYouth(
   year: number,
   players: readonly Player[],
 ): Player[] {
-  // 日本の2部・3部のクラブだけ。1部はドラフトがある（data/leagues の rules.draft）
-  const targets = jpelClubs(clubs).filter(t => !joinsDraft(t))
+  // 入口が 'youth' のリーグのクラブ（日本の2部・3部。data/leagueRules の newcomers）
+  const targets = clubsWhere(clubs, c => leagueRules(c.leagueId).newcomers === 'youth')
   if (targets.length === 0) return []
   const membersByClub = clubMembersByClub(players as Player[])
   const out: Player[] = []

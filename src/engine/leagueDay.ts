@@ -2,48 +2,49 @@
 //
 // ■日程
 //   日本1部・2部・3部の日程は `data/races` の `drawSeasonSchedules`（部ごとに抽選）。
-//   海外9リーグは**日本1部と同じ10日・同じコースの並び**を走る（オーナー・2026-09-25）。
+//   手本を持つリーグ（`data/leagueRules` の `scheduleFrom`＝海外9リーグ）は、**手本（日本1部）と
+//   同じ10日・同じコースの並び**を走る（オーナー・2026-09-25）。
 //   コースの呼び名だけそのリーグの地域のもの（`data/courseNames` の `localizeRace`）。
-//   レースIDは `<1部のレースID>@<リーグID>`（同じ日に9リーグが同じコースを走るので分ける）。
+//   レースIDは `<手本のレースID>@<リーグID>`（同じ日に9リーグが同じコースを走るので分ける）。
 import type { LeagueId, LeagueSeason, Player, Race, Season, SeasonStanding, WorldClub } from '../types'
 import { courseRegionOfNation, localizeRace } from '../data/courseNames'
-import { TOP_DIVISION, addRaceToStandings, divisionLeagueId, divisionOfLeague } from '../utils/league'
+import { addRaceToStandings, divisionOfLeague } from '../utils/league'
 import { clubsInLeague } from '../utils/world'
-import { FOREIGN_LEAGUE_DEFS, type WorldLeague } from '../data/leagues'
+import { leaguesWhere, type WorldLeague } from '../data/leagues'
 import { playersByClub } from '../utils/rosterSync'
 import { applyCareerAdd, runBackgroundRace } from './backgroundRace'
 import { applyRaceMorale, standingOf } from './raceMorale'
 
 type Leagues = Record<LeagueId, LeagueSeason>
 
-/** 海外リーグの日程の手本＝日本1部の日程（結果は外す） */
-function templateRaces(leagues: Leagues): Race[] {
-  return (leagues[divisionLeagueId(TOP_DIVISION)]?.races ?? []).map(r => ({ ...r, results: undefined }))
+/** 日程の手本（結果は外す） */
+function templateRaces(leagues: Leagues, from: LeagueId): Race[] {
+  return (leagues[from]?.races ?? []).map(r => ({ ...r, results: undefined }))
 }
 
 /** 手本の1戦を、そのリーグの1戦にする（呼び名は地域のもの・IDはリーグごと） */
-function foreignRaceOf(template: Race, league: Pick<WorldLeague, 'id' | 'country'>): Race {
+function copiedRaceOf(template: Race, league: Pick<WorldLeague, 'id' | 'country'>): Race {
   const local = localizeRace(template, courseRegionOfNation(league.country as Parameters<typeof courseRegionOfNation>[0]))
   return { ...local, id: `${template.id}@${league.id}` }
 }
 
 /**
- * 海外リーグの日程と順位表をそろえる。**冪等**（何度通しても同じ）。
+ * 手本を持つリーグ（`scheduleFrom`）の日程と順位表をそろえる。**冪等**（何度通しても同じ）。
  *
  * ・日程は手本（日本1部）の本数までを足す。走り終えた回はそのまま残し、足りないぶんだけ
  *   手本の同じ番目から足す（旧セーブで自チームの部の日程を借りて走っていた回も消さない）
  * ・順位表が無いリーグは全クラブ 0pt で作る。途中で増えたクラブの行も足す
  */
-export function withForeignSchedules(leagues: Leagues, clubs: readonly WorldClub[] | undefined): Leagues {
-  const template = templateRaces(leagues)
+export function withCopiedSchedules(leagues: Leagues, clubs: readonly WorldClub[] | undefined): Leagues {
   let out: Leagues | null = null
-  for (const lg of FOREIGN_LEAGUE_DEFS) {
+  for (const lg of leaguesWhere(l => l.rules.scheduleFrom != null)) {
+    const template = templateRaces(leagues, lg.rules.scheduleFrom!)
     const members = clubsInLeague(clubs, lg.id)
     // クラブが1つも居ないリーグは組まない（そのリーグを持たない世界）
     if (members.length === 0) continue
     const cur = leagues[lg.id]
     const races = cur?.races ?? []
-    const add = template.slice(races.length).map(t => foreignRaceOf(t, lg))
+    const add = template.slice(races.length).map(t => copiedRaceOf(t, lg))
     const rows = cur?.standings ?? []
     const have = new Set(rows.map(r => r.teamId))
     const missing: SeasonStanding[] = members.filter(c => !have.has(c.id)).map(c => ({ teamId: c.id, totalPoints: 0, raceResults: [] }))
@@ -91,7 +92,7 @@ export function runLeaguesThrough(o: {
   /** 走らせないリーグ（自チームのリーグ。本編で走る） */
   skip?: LeagueId
 }): { season: Season; players: Player[] } | null {
-  const scheduled = withForeignSchedules(o.season.leagues, o.clubs)
+  const scheduled = withCopiedSchedules(o.season.leagues, o.clubs)
   const leagues: Leagues = { ...scheduled }
   const due: { leagueId: LeagueId; index: number; date: string }[] = []
   for (const [leagueId, lg] of Object.entries(leagues)) {

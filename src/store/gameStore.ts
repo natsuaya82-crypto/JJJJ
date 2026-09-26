@@ -64,7 +64,7 @@ import { newSeasonStandings, syncSeasonLeagues, divisionLeagues, withDivisionRac
 import { tierBudget, tierOf } from '../utils/clubTier'
 // 端末に置いているものの登録表（キーと寿命）。データ削除で消すのはここから引く
 import { clearGameStorage } from './appStorage'
-import { withForeignSchedules } from '../engine/leagueDay'
+import { withCopiedSchedules } from '../engine/leagueDay'
 
 /**
  * セーブ形式の版。**上げるのはここ1本。**
@@ -582,7 +582,7 @@ export const useGameStore = create<GameStore>()(
               //   「走る部」と「順位表に載っている部」が食い違い、自分の行が書き込み先に
               //   存在しなくなる（2部のクラブを選ぶと自分だけ0ptのまま・元の2部が裏で走り続けた）
               // 海外リーグは日本1部と同じ10日を走る（engine/leagueDay）
-              leagues: withForeignSchedules(syncSeasonLeagues({
+              leagues: withCopiedSchedules(syncSeasonLeagues({
                 leagues: withDivisionRaces(state.currentSeason.leagues, schedules), clubs, playerTeamId: setup.teamId }),
                 clubs) },
             // 監督の在任履歴はここが起点。以後の移籍でここに積んでいく（utils/gmTenure.ts）

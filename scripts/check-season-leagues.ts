@@ -22,7 +22,7 @@
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { withForeignSchedules } from '../src/engine/leagueDay'
+import { withCopiedSchedules } from '../src/engine/leagueDay'
 import { drawSeasonSchedules } from '../src/data/races'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'
 import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
@@ -125,7 +125,7 @@ console.log('[5] 海外の日程は日本1部と同じ10日・同じコースの
 {
   const teams = [...INITIAL_TEAMS, ...LOWER_DIVISION_TEAMS] as Team[]
   const schedules = drawSeasonSchedules(2031, () => 0.37)
-  const leagues = withForeignSchedules(
+  const leagues = withCopiedSchedules(
     divisionLeagues(schedules, newSeasonStandings<SeasonStanding>(teams, id => ({ teamId: id, totalPoints: 0, raceResults: [] }))),
     [...teams, ...INITIAL_FOREIGN_CLUBS])
   const top = leagues[divisionLeagueId(1)].races
@@ -138,13 +138,13 @@ console.log('[5] 海外の日程は日本1部と同じ10日・同じコースの
     if (rs.some((r, i) => r.name === top[i].name)) jpNames++
     if ((leagues[l.id]?.standings ?? []).length !== l.clubs.length) rows++
   }
-  // 戻し方：withForeignSchedules の手本を2部（divisionLeagueId(2)）にする
+  // 戻し方：data/leagueRules の海外の scheduleFrom を 'jpel-2' にする
   check('日本1部と同じ日付・同じ本数', top.length === 10 && dates === 0, `${dates}リーグ`)
   check('日本1部と同じコース（区間）', courses === 0, `${courses}リーグ`)
   check('レースIDは <1部のID>@<リーグID>（同じ日に9リーグが走っても分かれる）', ids === 0, `${ids}リーグ`)
   check('呼び名は地域のもの（国内の名前のまま走らない）', jpNames === 0, `${jpNames}リーグ`)
   check('順位表は全クラブぶん', rows === 0, `${rows}リーグ`)
-  check('何度通しても同じ（冪等）', withForeignSchedules(leagues, [...teams, ...INITIAL_FOREIGN_CLUBS]) === leagues)
+  check('何度通しても同じ（冪等）', withCopiedSchedules(leagues, [...teams, ...INITIAL_FOREIGN_CLUBS]) === leagues)
 }
 
 // ── ⑥ 別ファイルに出した過去シーズンの走行記録が、新しいキーでも旧いキーでも戻る ─────

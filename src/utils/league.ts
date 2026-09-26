@@ -94,7 +94,7 @@ export function leagueStandingRows(
 
 /**
  * 部ごとの日程と順位表から、国内3部ぶんのリーグを作る。**作る場所はここ1本。**
- * 海外リーグは `engine/leagueDay` の `withForeignSchedules` が足す。
+ * 海外リーグは `engine/leagueDay` の `withCopiedSchedules` が足す。
  */
 export function divisionLeagues(
   schedules: Partial<Record<Division, Race[]>>,
