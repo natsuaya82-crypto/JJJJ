@@ -10,9 +10,8 @@ import { runTradeMoves, swapDraftPicks, tradablePickKeys } from '../../engine/tr
 import { tradeConsentBonus, tradeRefuser } from '../../engine/tradeConsent'
 import { reinforcementBanned } from '../../data/economy'
 import { pickKeysValue, roundFee } from '../../data/economy'
-import { ROSTER_MAX, canReleaseFromRoster, canSignContract, canSignPlayer, teamRosterSize } from '../../data/rosterRules'
-import { nationalityToForeignCategory } from '../../engine/playerGenerator'
-import { type AcquisitionOffer, type ContractRequest, type ExpiredNegKind, type ForeignCategory, type IncomingOffer, type Player, type TradeNegotiation, type TransferListing } from '../../types'
+import { ROSTER_MAX, canReleaseFromRoster, canSignContract, teamRosterSize } from '../../data/rosterRules'
+import { type AcquisitionOffer, type ContractRequest, type ExpiredNegKind, type IncomingOffer, type Player, type TradeNegotiation, type TransferListing } from '../../types'
 import { MAJOR_NEWS_OVR, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
 import { tierLines, playerTierOf as playerTierFromLines } from '../../utils/playerTier'
 import { clubById, clubMap, isJpelLeague, jpelClubById, myClub, otherClubs, withMyClub, myLeagueRaces, leagueIdOfClub } from '../../utils/world'
@@ -23,24 +22,22 @@ import { canOfferRenewal, canReNegotiate, contractTalkCtx, liveContractOf } from
 import { domesticThroughRankOfTeam, rankOfTeam, rankedStandings, seasonLeagueStandings, leagueStandingRows } from '../../utils/league'
 import { fmtYen } from '../../utils/money'
 import { movePlayer } from '../../utils/movePlayer'
-import { foreignSignedHeadline, joinedHeadline, loanInOutHeadline, renewalHeadline, signedWithFeeHeadline, tradeAcceptedHeadline, tradeSummaryHeadline } from '../../utils/newsItems'
+import { joinedHeadline, loanInOutHeadline, renewalHeadline, signedWithFeeHeadline, tradeAcceptedHeadline, tradeSummaryHeadline } from '../../utils/newsItems'
 import { type OfferOutcome } from '../../utils/offerResult'
 import { playRateOf, prevSeasonOf } from '../../utils/playRate'
-import { acquisitionDesiredSalary, marketValueOf as marketValueOfUtil, faMarketSalary, freeContactConsent, newContractYears, ovr, perfOf, playerConsentToMove, racesConsumed, salaryAppealBonus, seasonPerfProfile, transferFeeFor } from '../../utils/playerUtils'
+import { acquisitionDesiredSalary, marketValueOf as marketValueOfUtil, faMarketSalary, freeContactConsent, newContractYears, ovr, perfOf, playerConsentToMove, racesConsumed, salaryAppealBonus, seasonPerfProfile } from '../../utils/playerUtils'
 import { belongsToClub, squadIdsOf, loanedInCount } from '../../utils/rosterSync'
 import { withSaleAnswer } from '../../utils/saleAnswer'
 import { STALE_TRADE_MSG } from '../../utils/talkSync'
 import { TRADE_HARD_NO_RATIO, TRADE_MIN_RATIO, TRADE_OK_RATIO, priceOf, tradeBalance, tradeNotLopsided, tradeValues } from '../../utils/tradeValue'
-import { type Appraisal, type Destination, appraiseMove, buildDestination, isSurplus, keyPlayerStatus, playingStatus, rankOffers, regionOfLeague } from '../../utils/transferDecision'
-import { comparePlayers } from '../../utils/playerSort'
-import { squadRankOf } from '../../utils/squadNeeds'
+import { type Appraisal, type Destination, appraiseMove, buildDestination, keyPlayerStatus, playingStatus, rankOffers, regionOfLeague } from '../../utils/transferDecision'
 import { canAcceptOfferFor, canBePoached, canListForSale, canLoanOut, canTradeAway, ctxForTeam, eligibilityCtx, isLeavingClub } from '../../utils/transferEligibility'
 // 入札・レンタル申請を出せるか（画面の「押せるか」と同じ1本）
 import { acquisitionBlockReason, bidBlockReason, loanBlockReason, LOAN_SLOTS } from '../../utils/bidGate'
 import { facilitiesOf, facilityScoutNegoBonus } from '../../utils/facilities'
 
 type Slice = Pick<GameStore,
-  'renewContractOffer' | 'sendScoutMission' | 'startFAVisit' | 'acceptTradeOffer' | 'rejectTradeOffer' | 'executeTransferPurchase' | 'destinationOf' | 'playerTierOf' | 'marketValueOf' | 'resolveStayOrLeave' | 'rankIncomingOffers' | 'consentToLeave' | 'acceptIncomingOffer' | 'declineIncomingOffer' | 'acceptIncomingLoanOffer' | 'declineIncomingLoanOffer' | 'initiateContractRenewal' | 'generateContractRequests' | 'submitContractRenewalOffer' | 'acceptContractCounter' | 'reNegotiateContract' | 'abandonContractRenewal' | 'startAcquisitionOffer' | 'submitAcquisitionOffer' | 'acceptAcquisitionCounter' | 'reNegotiateAcquisition' | 'abandonAcquisitionOffer' | 'releasePlayerWithBuyout' | 'counterAllIncomingOffers' | 'counterIncomingOffer' | 'dismissRetirementRequest' | 'acceptRetirement' | 'approveOverseasChallenge' | 'denyOverseasChallenge' | 'dismissTransferRequest' | 'allowPlayerTransfer' | 'toggleNoSale' | 'toggleLoanListed' | 'cancelSellListing' | 'loanInPlayer' | 'loanOutPlayer' | 'submitLoanRequest' | 'cancelLoanRequest' | 'dismissLoanResponse' | 'submitTransferBid' | 'acceptFeeCounter' | 'rejectTransferBid' | 'finalizeTransfer' | 'listMyPlayerForSale' | 'delistMyPlayer' | 'scoutOpponentPlayer' | 'toggleStarOpponent' | 'toggleStarProspect' | 'tradePlayer' | 'proposeTrade' | 'acceptTradeCounter' | 'dismissTradeNegotiation' | 'setChatLog' | 'signForeignPlayer' | 'getTransferWindow' | 'refuseFreeContactRetention'>
+  'renewContractOffer' | 'sendScoutMission' | 'startFAVisit' | 'acceptTradeOffer' | 'rejectTradeOffer' | 'executeTransferPurchase' | 'destinationOf' | 'playerTierOf' | 'marketValueOf' | 'resolveStayOrLeave' | 'rankIncomingOffers' | 'consentToLeave' | 'acceptIncomingOffer' | 'declineIncomingOffer' | 'acceptIncomingLoanOffer' | 'declineIncomingLoanOffer' | 'initiateContractRenewal' | 'generateContractRequests' | 'submitContractRenewalOffer' | 'acceptContractCounter' | 'reNegotiateContract' | 'abandonContractRenewal' | 'startAcquisitionOffer' | 'submitAcquisitionOffer' | 'acceptAcquisitionCounter' | 'reNegotiateAcquisition' | 'abandonAcquisitionOffer' | 'releasePlayerWithBuyout' | 'counterAllIncomingOffers' | 'counterIncomingOffer' | 'dismissRetirementRequest' | 'acceptRetirement' | 'approveOverseasChallenge' | 'denyOverseasChallenge' | 'dismissTransferRequest' | 'allowPlayerTransfer' | 'toggleNoSale' | 'toggleLoanListed' | 'cancelSellListing' | 'loanInPlayer' | 'loanOutPlayer' | 'submitLoanRequest' | 'cancelLoanRequest' | 'dismissLoanResponse' | 'submitTransferBid' | 'acceptFeeCounter' | 'rejectTransferBid' | 'finalizeTransfer' | 'listMyPlayerForSale' | 'delistMyPlayer' | 'scoutOpponentPlayer' | 'toggleStarOpponent' | 'toggleStarProspect' | 'tradePlayer' | 'proposeTrade' | 'acceptTradeCounter' | 'dismissTradeNegotiation' | 'setChatLog' | 'getTransferWindow' | 'refuseFreeContactRetention'>
 
 // トレードの同意判定に渡す材料（engine/tradeConsent）。成立させる側とチャットの打診側で
 // **同じものを渡す**ためにここ1本から作る（手書きすると片方だけ古い state を見る事故が起きる）
@@ -1560,72 +1557,6 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
   // 1人ぶんのログは直近60発言まで。放っておくと会話がセーブの中で伸び続ける
   setChatLog: (playerId, messages) => set(s => ({ currentSeason: { ...s.currentSeason, chatLogs: { ...(s.currentSeason.chatLogs ?? {}), [playerId]: messages.slice(-60) } } })),
 
-
-  // ── Foreign transfer market ───────────────────────────────────────
-  signForeignPlayer: (playerId, salary, years) => {
-    const state = get()
-    const player = state.players.find(p => p.id === playerId)
-    const myTeam = myClub(state)
-    if (!player || !myTeam) return false
-    if (reinforcementBanned(myTeam)) return false  // 赤字ペナルティ中・残高マイナスは補強不可
-
-    // 外国人枠（外国人3人・アジア5人）は廃止。人数制限なしで獲得できる。
-    // foreignCategory は選手データの表示用に持たせるだけ。
-    const foreignCat: ForeignCategory = player.foreignCategory ?? nationalityToForeignCategory(player.nationality)
-
-    // ★**在籍上限を見ること。** ここだけ `canSignPlayer` を通しておらず、
-    //   **この経路だけ `ROSTER_MAX` を素通り**していました（`finalizeTransfer` は見ている）。
-    if (!canSignPlayer(state.players, state.playerTeamId, playerId)) return false
-
-    // ★**移籍金は `transferFeeFor` 1本**（余剰でなければ `POACH_PREMIUM` の割増）。
-    //   ここは `calcTransferValue(player)` を第2引数も無しで呼んでいたので、
-    //   **海外から獲るときだけ主力が余剰と同じ値段**になっていました。
-    //   今季の出場を渡さないと、出場0の選手もフル出場の選手も同じ額になります。
-    const signRoster = state.players.filter(p => p.teamId === player.teamId && p.status === 'active')
-      .sort(comparePlayers('ovr'))
-    const signSurplus = isSurplus({ squadRank: squadRankOf(signRoster, player) })
-    const signPerf = perfOf(player, state)
-    const transferFee = transferFeeFor(player, signSurplus, signPerf)
-    if ((myTeam.finance?.budget ?? 0) < transferFee) return false
-
-    // ★**成否を返すこと。** ここは `set()` の外で無条件に `true` を返していたので、
-    //   `movePlayer` が失敗しても画面は「加入した」と受け取っていました
-    //   （`executeTransferPurchase` / `releasePlayerWithBuyout` は正しくフラグを返している）。
-    let signed = false
-    set(s => {
-      // 所属・名簿・移籍金・加入年・移籍履歴は movePlayer にまとめて任せる（国内移籍と同じ後始末）
-      const moved = movePlayer(s, playerId, s.playerTeamId, {
-        year: s.currentSeason.year,
-        date: myLeagueRaces(s.currentSeason, s.playerTeamId)[s.currentSeason.currentRaceIndex]?.date,
-        raceIndex: s.currentSeason.currentRaceIndex,
-        fee: transferFee,
-        myTeamId: s.playerTeamId,
-        contract: { annualSalary: salary, yearsLeft: years, contractType: 'standard' } })
-      if (!moved.ok) return s
-      signed = true
-      return {
-        // 海外選手だけの持ち物（国籍区分・FA取得年・性格）はここで足す
-        players: moved.players.map(p => p.id === playerId
-          ? {
-              ...p,
-              foreignCategory: foreignCat,
-              contract: { ...p.contract, faEligibleYear: s.currentSeason.year + years },
-              personality: p.personality ?? 'salary' }
-          : p
-        ),
-        clubs: moved.clubs,
-        transferHistory: [...(s.transferHistory ?? []), ...(moved.record ? [moved.record] : [])].slice(-400),
-        currentSeason: {
-          ...s.currentSeason,
-          transferSpend: (s.currentSeason.transferSpend ?? 0) + moved.spend,
-          newsFeed: [{
-            date: myLeagueRaces(s.currentSeason, s.playerTeamId)[s.currentSeason.currentRaceIndex]?.date ?? `${s.currentSeason.year}-06-01`,
-            headline: foreignSignedHeadline({ playerName: player.name, nationality: player.nationality, fee: transferFee }),
-            category: 'fa' as const,
-            relatedIds: [playerId] }, ...s.currentSeason.newsFeed].slice(0, 30) } }
-    })
-    return signed
-  },
 
   refuseFreeContactRetention: (playerId) => set(s => {
     const fc = (s.currentSeason.incomingOffers ?? []).find(o => o.playerId === playerId && o.offeredPrice === 0)

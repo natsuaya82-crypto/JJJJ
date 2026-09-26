@@ -202,11 +202,6 @@ export function overseasMoveHeadline(a: { playerName: string; playerOvr: number;
   return `${a.playerName}が海外クラブ${a.clubName}へ移籍（移籍金${fmtYen(a.fee)}）`
 }
 
-/** 海外クラブから獲得した */
-export function foreignSignedHeadline(a: { playerName: string; nationality: string; fee: number }): string {
-  return `${a.playerName}（${a.nationality}）を海外移籍金${fmtYen(a.fee)}で獲得`
-}
-
 /**
  * 日本↔海外の移籍（裏で動いた分）。格上へ行くのか、日本へ来るのかで書き分ける。
  * ★`stepUp` は utils/clubTier の `isStepUp`（行き先の格 < 送り出したクラブの格）で作ること。

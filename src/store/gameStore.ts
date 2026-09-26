@@ -292,7 +292,6 @@ export type GameStore = GameState & {
   acceptSponsorOffer: (offerId: string) => void
 
   // Foreign transfer market
-  signForeignPlayer: (playerId: string, salary: number, years: number) => boolean
 
   // National team
   setWorldSquad: (playerIds: string[]) => void

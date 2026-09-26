@@ -62,18 +62,6 @@ export function recentBest(p: Player, ev: WAEvent, currentYear: number): number 
   return b.timeSec
 }
 
-// その選手の距離総合スコア（高いほど速い）。得意種目の質で見る。
-export function distanceScore(p: Player, currentYear: number): number {
-  let best = 0
-  for (const ev of WA_EVENTS) {
-    const t = recentBest(p, ev, currentYear)
-    if (t == null) continue
-    const s = WA_REF[ev] / t
-    if (s > best) best = s
-  }
-  return best
-}
-
 export type Candidate = { player: Player; score: number; bests: Partial<Record<WAEvent, number>> }
 
 /**
@@ -140,22 +128,6 @@ export function ekidenCandidates(
 //   実際、選考画面は50人（適性混ぜ）、CPUは20人（適性6人）、国力は上位7人と3通りに割れていました。
 //   いまは ekidenCandidates 1本（OVR上位100人＋代表経験者）。100人あるので、
 //   登り屋・下り屋が候補から漏れる心配も無くなっています（旧50人＋適性枠の目的はここで満たされる）。
-
-export type IndividualEntry = { player: Player; timeSec: number }
-
-// 個人種目の出場者（参加標準記録を突破した選手をタイム順）。
-export function individualEntrants(players: Player[], nat: Nationality, ev: WAEvent, currentYear: number): IndividualEntry[] {
-  const std = WA_STANDARD[ev]
-  const out: IndividualEntry[] = []
-  for (const p of players) {
-    if (p.status === 'retired' || p.nationality !== nat) continue
-    const t = recentBest(p, ev, currentYear)
-    if (t == null || t > std) continue
-    out.push({ player: p, timeSec: t })
-  }
-  out.sort((a, b) => a.timeSec - b.timeSec)
-  return out
-}
 
 // AIおまかせ／海外国の駅伝20人選抜：個人種目のスターを除いた候補の上位20。
 export function autoSelectEkiden(candidates: Candidate[], individualStarIds: Set<string>, size = 20): Player[] {
