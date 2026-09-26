@@ -55,11 +55,33 @@ async function main() {
   check('シーズンの年が変わっていない',
     s.currentSeason.year === (before.currentSeason as { year: number }).year,
     `${(before.currentSeason as { year: number }).year} → ${s.currentSeason.year}`)
-  const stBefore = (before.currentSeason as { standings?: Record<string, unknown[]> }).standings ?? {}
-  const stAfter = s.currentSeason.standings ?? {}
-  const cntBefore = Object.values(stBefore).reduce((n, r) => n + (r?.length ?? 0), 0)
-  const cntAfter = Object.values(stAfter).reduce((n, r) => n + (r?.length ?? 0), 0)
-  check('順位表が残っている', cntAfter === cntBefore, `${cntBefore}行 → ${cntAfter}行`)
+  // v46 から日程・結果・順位表はリーグごと（`Season.leagues`）。旧い入れ物は3つ
+  //   国内の順位表 standings（部→行）／海外の順位表 foreignStandings（リーグ→行）／
+  //   結果の入った日程 races（自分の部）・divisionRaces（他の部。自分の部は結果の無い写し）・foreignRaces
+  // ★旧い名前（currentSeason.standings）を新しい側で読まないこと。移行したあとは必ず空なので、
+  //   ここが「52行 → 0行」で落ちるのは移行の失敗ではなく点検の読み違い（2026-09-26 に実際そうなった）
+  type Row = { teamId?: string; clubId?: string; totalPoints?: number }
+  const oldSeason = before.currentSeason as {
+    standings?: Record<string, Row[]>; foreignStandings?: Record<string, Row[]>
+    races?: { results?: unknown }[]; divisionRaces?: Record<string, { results?: unknown }[]>
+    foreignRaces?: Record<string, { results?: unknown }[]>
+  }
+  const pointsBefore = new Map<string, number>()
+  for (const rows of [...Object.values(oldSeason.standings ?? {}), ...Object.values(oldSeason.foreignStandings ?? {})])
+    for (const r of rows ?? []) pointsBefore.set(r.teamId ?? r.clubId ?? '', r.totalPoints ?? 0)
+  const pointsAfter = new Map<string, number>()
+  for (const lg of Object.values(s.currentSeason.leagues ?? {}))
+    for (const r of lg.standings ?? []) pointsAfter.set(r.teamId, r.totalPoints ?? 0)
+  check('順位表が残っている', pointsAfter.size === pointsBefore.size, `${pointsBefore.size}行 → ${pointsAfter.size}行`)
+  const lostPoints = [...pointsBefore].filter(([id, pt]) => pointsAfter.get(id) !== pt)
+  check('順位表の得点が変わっていない', lostPoints.length === 0,
+    lostPoints.slice(0, 3).map(([id, pt]) => `${id} ${pt} → ${pointsAfter.get(id)}`).join(' / '))
+  const done = (rs: { results?: unknown }[] | undefined) => (rs ?? []).filter(r => r?.results).length
+  const doneBefore = done(oldSeason.races)
+    + Object.values(oldSeason.divisionRaces ?? {}).reduce((n, rs) => n + done(rs), 0)
+    + Object.values(oldSeason.foreignRaces ?? {}).reduce((n, rs) => n + done(rs), 0)
+  const doneAfter = Object.values(s.currentSeason.leagues ?? {}).reduce((n, lg) => n + done(lg.races), 0)
+  check('走り終えたレースが残っている', doneAfter === doneBefore, `${doneBefore}本 → ${doneAfter}本`)
   check('過去シーズンが減っていない',
     (s.pastSeasons?.length ?? 0) >= ((before.pastSeasons as unknown[])?.length ?? 0),
     `${(before.pastSeasons as unknown[])?.length ?? 0} → ${s.pastSeasons?.length ?? 0}`)
