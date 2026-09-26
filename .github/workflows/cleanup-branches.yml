@@ -1,0 +1,49 @@
+name: 旧ブランチの削除（1回きり）
+
+# オーナー・2026-09-26「俺は消せないから頼む」。取り込み済み・不要の旧ブランチ20本を消す。
+# 中身は全部 main に入っているか不要なもの（全履歴で確認済み）。main と作業中のブランチは消さない。
+# ★使い終わったらこのファイルごと消すこと（残すと誰でも押せる削除ボタンになる）。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 旧ブランチを消す
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -u
+          for b in \
+            'claude/chatpage-split' \
+            'claude/code-refactoring-audit-wajp1i' \
+            'claude/coordination-thread' \
+            'claude/course-pool' \
+            'claude/course-positions' \
+            'claude/dead-code-removal-world-athletics' \
+            'claude/dedupe-formatters' \
+            'claude/growth-refactor-world-athletics' \
+            'claude/jpel-spec-fixes-86b677ac' \
+            'claude/jpel-spec-fixes-q7wnk2' \
+            'claude/last-dupes' \
+            'claude/news-cleanup' \
+            'claude/opus-instruction-execution-ocm4dz' \
+            'claude/race-button-color-unification' \
+            'claude/sort-unify' \
+            'claude/view-layer-guardrails' \
+            'claude/weekly-limit-issues-4kud0v' \
+            'feature/world-athletics' \
+            'fix/batch-9-1-2-7-8-10' \
+            'release/1.1.1-ads' \
+          ; do
+            case "$b" in main|claude/kimi-ga-shinriidaa-0jliwi) echo "skip $b"; continue ;; esac
+            if gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/$b" >/dev/null 2>&1; then
+              echo "deleted $b"
+            else
+              echo "FAILED  $b"
+            fi
+          done
