@@ -262,9 +262,13 @@ export function createStage(canvas: HTMLCanvasElement, segs: readonly StageSegme
     onReady?.()
   })
 
-  // カメラ（追っている走者の斜め後ろ。切り替えたときはなめらかに寄る）
+  // カメラ（追っている走者の斜め後ろ）。走者にはぴったり付いて行き、なめらかにするのは
+  // 追う相手を切り替えたときのずれだけ。位置そのものを追いかけさせると、再生中は走者が
+  // 1秒に数百m進むので、カメラが道を作った範囲より後ろへ置いていかれる
+  const camOff = new THREE.Vector3(), lookOff = new THREE.Vector3()
   const camPos = new THREE.Vector3(), camLook = new THREE.Vector3()
   let camInit = false
+  let camFocus: string | null = null
   let frame: StageFrame = { runners: [], focusTeamId: null }
   let raf = 0
   let last = performance.now()
@@ -301,9 +305,15 @@ export function createStage(canvas: HTMLCanvasElement, segs: readonly StageSegme
     const lat = (focus && actors.get(focus.teamId)?.lat) ?? 0
     const want = roadPoint(fx - 4.5, lat * 0.85, hAt, new THREE.Vector3()); want.y += 2
     const look = roadPoint(fx + 7, lat * 0.9, hAt, new THREE.Vector3()); look.y += 1
-    if (!camInit) { camPos.copy(want); camLook.copy(look); camInit = true }
-    const k = 1 - Math.exp(-dt * 4)
-    camPos.lerp(want, k); camLook.lerp(look, k)
+    const focusId = focus?.teamId ?? null
+    if (camInit && focusId !== camFocus) { camOff.subVectors(camPos, want); lookOff.subVectors(camLook, look) }
+    camInit = true
+    camFocus = focusId
+    const k = Math.exp(-dt * 4)
+    camOff.multiplyScalar(k); lookOff.multiplyScalar(k)
+    // 切り替えのずれが大きい（遠くの走者へ移った）ときは、道の無い所を映さないよう跳ぶ
+    if (camOff.length() > BEHIND * 0.5) { camOff.set(0, 0, 0); lookOff.set(0, 0, 0) }
+    camPos.addVectors(want, camOff); camLook.addVectors(look, lookOff)
     camera.position.copy(camPos)
     camera.lookAt(camLook)
 
