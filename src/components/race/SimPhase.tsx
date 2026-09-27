@@ -330,7 +330,6 @@ export function SimPhase({
   const focusId = focusTeamOf(timeline, playerTeamId, t)
   const focusLeg = (focusId ? runnerAt(timeline, focusId, t)?.leg : 0) ?? 0
   const currentSeg = race.segments[focusLeg]
-  const progressPct = totalSegs > 0 && currentSeg ? (currentSeg.index / totalSegs) * 100 : 0
   const segCol = currentSeg ? terrainColor(currentSeg.uphillPct, currentSeg.downhillPct) : C.blue
 
   // ── イベント発生：ヘッダーと広告の間に固定（スクロールなし）──
@@ -476,16 +475,13 @@ export function SimPhase({
           <div style={{
             background: C.surface2,
             borderBottom: `1px solid ${C.border}`,
-            padding: '8px 16px 6px',
+            padding: '8px 16px',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: C.red, boxShadow: `0 0 5px ${C.red}` }}/>
               <span style={{ fontSize: F.tiny, color: C.red, fontWeight: 800, letterSpacing: 2 }}>LIVE</span>
               <span style={{ fontSize: F.bodyLg, fontWeight: 700, color: C.text, flex: 1 }}>{race.name}</span>
               <span style={{ fontSize: F.caption, color: C.textDim }}>{currentSeg?.index}/{totalSegs}区</span>
-            </div>
-            <div style={{ height: 3, backgroundColor: C.border2,overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${progressPct}%`, background: `linear-gradient(90deg, ${C.red}, ${C.gold})`,}}/>
             </div>
           </div>
 

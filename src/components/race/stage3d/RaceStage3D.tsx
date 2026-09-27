@@ -6,6 +6,8 @@ import { panelStyle } from '../../ui/Panel'
 import { useSegmentRecords } from '../../../lib/useSegmentRecords'
 import { formatRaceTime } from '../../../utils/eventTime'
 import { clubById } from '../../../utils/world'
+import { TeamLogoSVG } from '../../icons/Icons'
+import { FaceOrDot } from '../SegmentDetailCard'
 import type { Stage } from './scene'
 
 // ============================================================================
@@ -16,7 +18,7 @@ import type { Stage } from './scene'
 // ★three.js と走者の模型は、この画面を開いたときにだけ読み込む（`import('./scene')`）。
 //   アプリの起動には載らない。
 // ★文字は3Dの上に重ねすぎないこと。追っている走者の体が隠れる（試作でオーナー「見えない」）。
-//   左上＝区間・距離・いまの地点・区間記録／右上＝時計、追うチームの切り替えは3Dの下。
+//   左上＝区間・距離・いまの地点・区間記録／右上＝時計／下の端＝追うチームの切り替え（一覧の行と同じ顔・ロゴ・名前）。
 // ============================================================================
 
 /** 区間新のテロップを出しておく秒（レースの秒） */
@@ -38,6 +40,8 @@ export function RaceStage3D({ race, raceTeams, players, playerTeamId, timeline, 
   const [followId, setFollowId] = useState<string | null>(null)
 
   const records = useSegmentRecords()
+  // 自チームの走者の頭の上の▼。位置は scene が毎コマ直に書く（React を毎コマ回さない）
+  const labelRefs = useRef(new Map<string, HTMLSpanElement>())
 
   // 追っているチーム：選んだチーム → 自チーム（走っていれば）→ 先頭
   const order = snap.overall
@@ -58,7 +62,13 @@ export function RaceStage3D({ race, raceTeams, players, playerTeamId, timeline, 
       if (!alive || !canvasRef.current) return
       stage = createStage(canvasRef.current, race.segments,
         raceTeams.map(t => ({ teamId: t.id, color: t.colors?.primary ?? C.textDim })),
-        () => { if (alive) setReady(true) })
+        () => { if (alive) setReady(true) },
+        (teamId, x, y, visible) => {
+          const el = labelRefs.current.get(teamId)
+          if (!el) return
+          el.style.visibility = visible ? 'visible' : 'hidden'
+          el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`
+        })
       stageRef.current = stage
       const box = boxRef.current
       if (box) stage.resize(box.clientWidth, box.clientHeight)
@@ -123,6 +133,12 @@ export function RaceStage3D({ race, raceTeams, players, playerTeamId, timeline, 
       <div ref={boxRef} style={{ ...panelStyle(), position: 'relative', aspectRatio: '16 / 9', background: TV.sky }}>
         <canvas ref={canvasRef} aria-label="3D中継" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }} />
 
+        {/* 自チームの走者の頭の上の▼ */}
+        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+          <span ref={el => { if (el) labelRefs.current.set(playerTeamId, el); else labelRefs.current.delete(playerTeamId) }}
+            style={{ position: 'absolute', left: 0, top: 0, visibility: 'hidden', fontSize: F.caption, lineHeight: 1, color: TV.red, textShadow: TV.glow, willChange: 'transform' }}>▼</span>
+        </div>
+
         {/* 左上：区間・距離・いまの地点・区間記録 */}
         <div style={{ position: 'absolute', top: 6, left: 6, width: 118, display: 'flex', flexDirection: 'column', gap: 2, pointerEvents: 'none' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -168,20 +184,21 @@ export function RaceStage3D({ race, raceTeams, players, playerTeamId, timeline, 
           </div>
         )}
 
+        {/* 下の端：追うチームの切り替え（一覧の行と同じ顔・ロゴ・名前） */}
+        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, display: 'grid', gridTemplateColumns: '28px 1fr 28px', alignItems: 'stretch', background: alpha(C.bg, 0.5) }}>
+          <button type="button" aria-label="前のチーム" onClick={() => step(-1)} style={{ appearance: 'none', border: 0, background: 'transparent', color: C.gold, fontFamily: SAIRA, fontWeight: 900, fontSize: F.sub, cursor: 'pointer', padding: 0 }}>‹</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 0', minWidth: 0 }}>
+            <FaceOrDot playerId={runner?.id} nationality={runner?.nationality} size={22} />
+            {club && <TeamLogoSVG primary={club.colors.primary} secondary={club.colors.secondary} shortName={club.shortName} teamId={club.id} logoId={club.logoId} size={13} />}
+            <span style={{ fontSize: F.tiny, fontWeight: 700, color: club?.colors?.primary ?? C.textDim, flexShrink: 0 }}>{club?.shortName ?? ''}</span>
+            {runner && <span style={{ fontSize: F.caption, fontWeight: 500, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{runner.name}</span>}
+          </div>
+          <button type="button" aria-label="次のチーム" onClick={() => step(1)} style={{ appearance: 'none', border: 0, background: 'transparent', color: C.gold, fontFamily: SAIRA, fontWeight: 900, fontSize: F.sub, cursor: 'pointer', padding: 0 }}>›</button>
+        </div>
+
         {!ready && (
           <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', background: alpha(C.bg, 0.7), fontWeight: 700, fontSize: F.bodyLg, color: C.textSub }}>読み込み中</div>
         )}
-      </div>
-
-      {/* 追うチームの切り替え（3Dの上に重ねない） */}
-      <div style={{ ...panelStyle(), display: 'grid', gridTemplateColumns: '36px 1fr 36px', alignItems: 'stretch' }}>
-        <button type="button" aria-label="前のチーム" onClick={() => step(-1)} style={{ appearance: 'none', border: 0, background: 'transparent', color: C.gold, fontFamily: SAIRA, fontWeight: 900, fontSize: F.titleLg, cursor: 'pointer', padding: 0 }}>‹</button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', minWidth: 0 }}>
-          <span style={{ width: 10, height: 22, flex: 'none', background: club?.colors?.primary ?? C.textDim }} />
-          <span style={{ fontWeight: 900, fontSize: F.subLg, whiteSpace: 'nowrap', color: C.text }}>{club?.shortName ?? ''}</span>
-          <span style={{ fontSize: F.body, color: C.textSub, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{runner?.name ?? ''}</span>
-        </div>
-        <button type="button" aria-label="次のチーム" onClick={() => step(1)} style={{ appearance: 'none', border: 0, background: 'transparent', color: C.gold, fontFamily: SAIRA, fontWeight: 900, fontSize: F.titleLg, cursor: 'pointer', padding: 0 }}>›</button>
       </div>
     </div>
   )

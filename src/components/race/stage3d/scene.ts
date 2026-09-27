@@ -138,8 +138,16 @@ type Actor = {
   finished: boolean
 }
 
+/** 走者の頭の上の▼を置く所（canvas の左上からの px）。映っていなければ visible が false */
+export type PlaceLabel = (teamId: string, x: number, y: number, visible: boolean) => void
+
+/** ▼を出す範囲（追っている走者から前後 m） */
+const LABEL_M = 400
+/** ▼と頭のすき間（m）。高さは模型の背の高さから決める */
+const LABEL_GAP = 0
+
 /** 3D中継を canvas に作る。模型の読み込みが終わるまでは道だけ映る */
-export function createStage(canvas: HTMLCanvasElement, segs: readonly StageSegment[], racers: readonly StageTeam[], onReady?: () => void): Stage {
+export function createStage(canvas: HTMLCanvasElement, segs: readonly StageSegment[], racers: readonly StageTeam[], onReady?: () => void, placeLabel?: PlaceLabel): Stage {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1))
   renderer.outputColorSpace = THREE.SRGBColorSpace
@@ -223,11 +231,17 @@ export function createStage(canvas: HTMLCanvasElement, segs: readonly StageSegme
 
   // 走者（模型が読めたら並べる）
   const actors = new Map<string, Actor>()
+  let labelY = 2
   let disposed = false
   new GLTFLoader().load(runnerUrl, gltf => {
     if (disposed) return
     const clip = gltf.animations[0]
     gltf.scene.traverse(o => { if ((o as THREE.Mesh).isMesh && o.name !== 'char1') o.visible = false })
+    {
+      const box = new THREE.Box3()
+      gltf.scene.traverse(o => { if ((o as THREE.Mesh).isMesh && o.visible) box.expandByObject(o) })
+      if (!box.isEmpty()) labelY = box.max.y + LABEL_GAP
+    }
     racers.forEach((tm, i) => {
       const body = cloneSkinned(gltf.scene)
       const uniform = new THREE.Color(tm.color)
@@ -316,6 +330,21 @@ export function createStage(canvas: HTMLCanvasElement, segs: readonly StageSegme
     camera.lookAt(camLook)
 
     renderer.render(scene, camera)
+
+    // 頭の上の▼。描いたカメラで写した位置を渡すだけ（▼は画面の側で作る）
+    if (placeLabel) {
+      camera.updateMatrixWorld()
+      const w = canvas.clientWidth, h = canvas.clientHeight
+      for (const r of frame.runners) {
+        const a = actors.get(r.teamId)
+        const show = !!a && a.holder.visible && Math.abs(a.x - fx) < LABEL_M
+        if (!a || !show) { placeLabel(r.teamId, 0, 0, false); continue }
+        p.copy(a.holder.position); p.y += labelY
+        p.project(camera)
+        const inView = p.z < 1 && Math.abs(p.x) <= 1.1 && Math.abs(p.y) <= 1.1
+        placeLabel(r.teamId, (p.x + 1) / 2 * w, (1 - p.y) / 2 * h, inView)
+      }
+    }
     raf = requestAnimationFrame(tick)
   }
   raf = requestAnimationFrame(tick)
