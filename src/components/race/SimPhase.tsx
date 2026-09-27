@@ -20,6 +20,7 @@ import ScreenPortal from '../ui/ScreenPortal'
 import { useStickyTab } from '../../lib/useStickyTab'
 import { clubById } from '../../utils/world'
 import { focusTeamOf, useRaceClock } from './useRaceClock'
+import { RaceStage3D } from './stage3d/RaceStage3D'
 
 /** その区間（`race.segments` の添字）をそのチームで走る選手 */
 export type RunnerIdOf = (teamId: string, leg: number) => string | undefined
@@ -483,6 +484,10 @@ export function SimPhase({
         timeline={timeline}
         t={t}
         runnerIdOf={runnerIdOf}
+        renderStage={snap => (
+          <RaceStage3D race={race} raceTeams={raceTeams} players={players} playerTeamId={playerTeamId}
+            timeline={timeline} snap={snap} runnerIdOf={runnerIdOf} />
+        )}
       />
     </div>
   )

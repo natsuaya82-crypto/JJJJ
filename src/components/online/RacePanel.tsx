@@ -7,6 +7,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Player, Team } from '../../types'
 import { RaceTrack } from '../race/SimPhase'
+import { RaceStage3D } from '../race/stage3d/RaceStage3D'
 import { SegmentResultCard } from './SegmentResultCard'
 import { useRaceClock } from '../race/useRaceClock'
 import { buildTimeline, legEndAt } from '../../engine/raceTimeline'
@@ -137,6 +138,11 @@ export default function RacePanel({
   const displayId = (pid: string) => {
     const r = srcById.get(pid)
     return r ? (r.teamId === meId ? r.srcId : r.id) : pid
+  }
+  // その区間をそのチームで走る選手（一覧と3Dの両方が同じここを通る）
+  const runnerIdOf = (teamId: string, leg: number) => {
+    const pid = payload.segments[leg]?.runners.find(r => r.teamId === teamId)?.playerId
+    return pid ? displayId(pid) : undefined
   }
   const players: Player[] = useMemo(() => {
     const out: Player[] = [...myPlayers]
@@ -284,10 +290,11 @@ export default function RacePanel({
           playerTeamId={meId}
           timeline={timeline}
           t={t}
-          runnerIdOf={(teamId, leg) => {
-            const pid = payload.segments[leg]?.runners.find(r => r.teamId === teamId)?.playerId
-            return pid ? displayId(pid) : undefined
-          }}
+          runnerIdOf={runnerIdOf}
+          renderStage={snap => (
+            <RaceStage3D race={race} raceTeams={entries} players={players} playerTeamId={meId}
+              timeline={timeline} snap={snap} runnerIdOf={runnerIdOf} />
+          )}
         />
       </>)}
 
