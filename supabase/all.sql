@@ -345,14 +345,18 @@ alter table public.match_results   enable row level security;
 alter table public.match_details   enable row level security;
 alter table public.reports         enable row level security;
 alter table public.blocks          enable row level security;
-alter table public.rated_events    enable row level security;
-alter table public.rated_entries   enable row level security;
-alter table public.rated_rounds    enable row level security;
-alter table public.rated_lineups   enable row level security;
-alter table public.rated_results   enable row level security;
-alter table public.rated_races     enable row level security;
-alter table public.rated_players   enable row level security;
-alter table public.rated_round_groups enable row level security;
+-- ランクマッチ（削除済み）の表は、ある環境（ランクマッチを流したことのあるDB）でだけ RLS を掛け続ける。
+-- 表を作る文はもう無いので、無いDB（新しいプロジェクト）で名指しすると 42P01 で全体が巻き戻る
+do $$
+declare t text;
+begin
+  foreach t in array array['rated_events','rated_entries','rated_rounds','rated_lineups',
+                           'rated_results','rated_races','rated_players','rated_round_groups'] loop
+    if to_regclass('public.' || t) is not null then
+      execute format('alter table public.%I enable row level security', t);
+    end if;
+  end loop;
+end $$;
 
 -- ============================================================
 -- 2. ポリシー・トリガー・既定値を外す
@@ -2039,10 +2043,16 @@ grant select, insert         on public.reports to authenticated;
 grant select, insert, delete on public.blocks  to authenticated;
 
 -- ── レート戦（削除済み）：表だけ残っているので、端末からの権限を取り上げたままにする ──
-revoke all on public.rated_events, public.rated_entries, public.rated_rounds,
-              public.rated_lineups, public.rated_results, public.rated_races,
-              public.rated_players, public.rated_round_groups
-  from anon, authenticated;
+do $$
+declare t text;
+begin
+  foreach t in array array['rated_events','rated_entries','rated_rounds','rated_lineups',
+                           'rated_results','rated_races','rated_players','rated_round_groups'] loop
+    if to_regclass('public.' || t) is not null then
+      execute format('revoke all on public.%I from anon, authenticated', t);
+    end if;
+  end loop;
+end $$;
 
 do $$
 declare f text;

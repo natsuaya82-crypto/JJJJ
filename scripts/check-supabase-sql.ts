@@ -71,6 +71,21 @@ console.log('\n② データを消さない')
     'create table if not exists 以外があると、既にある表で落ちます')
   check('列は「無ければ足す」',
     !/add\s+column\s+(?!if\s+not\s+exists)/i.test(sql))
+  // 名指しする表は、このファイルが作っている表だけ（新しいプロジェクトでも最後まで流れること）。
+  // 作る文を消した表（ランクマッチの rated_*）を alter / grant / revoke で名指しすると、
+  // その表が無いDBで 42P01 になり begin ごと巻き戻る。残す操作は to_regclass で守った do ブロックの中だけ
+  // 戻し方：all.sql の rated_* の do ブロックを `alter table public.rated_events enable row level security;` に戻す
+  {
+    const code = sql.split('\n').filter(l => !l.trimStart().startsWith('--')).join('\n')
+    const created = new Set([...code.matchAll(/create\s+table\s+if\s+not\s+exists\s+public\.(\w+)/gi)].map(m => m[1]))
+    const named = [
+      ...code.matchAll(/\balter\s+table\s+(?:if\s+exists\s+)?public\.(\w+)/gi),
+      ...code.matchAll(/\b(?:grant|revoke)\b[^;]*?\bon\s+((?:public\.\w+\s*,\s*)*public\.\w+)/gi),
+    ].flatMap(m => m[1].split(',').map(x => x.trim().replace(/^public\./, '')))
+    const ghost = [...new Set(named.filter(t => !created.has(t)))]
+    check(`名指しする表は全部このファイルで作っている（${created.size}表）`, ghost.length === 0,
+      ghost.join(', ') + ' — 作っていない表は to_regclass で守った do ブロックの中で扱うこと')
+  }
   // 最後に PostgREST のスキーマキャッシュを捨てさせる。
   // これが無いと、足したばかりの列や関数が「無い」と返ることがある（＝画面はオフライン表示）
   check('最後に PostgREST へ reload schema を送っている',
