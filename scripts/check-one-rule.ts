@@ -408,6 +408,18 @@ console.log('\n[22] 日本のリーグだけに絞っていた処理が戻って
     && (code.match(/(?<!function )isAbroad\(/g) ?? []).length >= 3)
   check('出場実績（perfOf）に海外だけの物差しが戻っていない', !/foreignPerfProfile|foreignRacesDone/.test(code))
   check('裏のリーグで国内・海外の集計を分けて積んでいない', !/awayAppearances: awayApps|foreignAppearances: foreignApps/.test(code))
+  // ★名前（jpelClubs など）で探すだけでは足りない。部の番号の並び（DIVISIONS）で日本の部のリーグを
+  //   1本ずつ引く書き方でも日本だけに絞れる。区間記録がそれで海外リーグを1本も数えていなかった（2026-09-27）
+  // 戻し方：utils/segmentRecords の racesOf を `DIVISIONS.flatMap(d => leagueRaces(s, divisionLeagueId(d)))` に戻す
+  const seg = stripped('src/utils/segmentRecords.ts')
+  check('区間記録は12リーグ全部の走りを数える（日本の部の並びで引いていない）',
+    !/\bDIVISIONS\b|\bdivisionLeagueId\(/.test(seg) && /Object\.values\(s\.leagues/.test(seg))
+  // 国内の通し順位（1〜52）は海外クラブに順位が無い（0）。クラブ同士を比べるのは格。
+  // 使ってよいのは指名権の番号（指名権を持てるのは日本の部のクラブだけ＝leagueRules の draftPicks）
+  // 戻し方：store/slices/marketSlice の優勝型の乗り気を domesticThroughRankOfTeam で比べる形に戻す
+  const throughUsers = srcFiles.filter(f => f !== 'src/utils/league.ts' && /(?<!function )domesticThroughRankOfTeam\(/.test(stripped(f)))
+  check('国内の通し順位でクラブを比べるのは指名権の番号だけ',
+    throughUsers.length === 1 && throughUsers[0] === 'src/engine/draftPicks.ts', throughUsers.join(' / '))
 }
 
 console.log('')

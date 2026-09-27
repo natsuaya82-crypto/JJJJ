@@ -1,5 +1,4 @@
 import type { LeagueId, Race, SegmentRecord } from '../types'
-import { DIVISIONS, divisionLeagueId, leagueRaces } from './league'
 
 // 区間記録（歴代トップ10）を、保存してあるレース結果から毎回組み立てる。
 //
@@ -11,17 +10,17 @@ import { DIVISIONS, divisionLeagueId, leagueRaces } from './league'
 // ■キーの形
 //   `${大会名}-${区番号}`。以前セーブに入っていたキーと同じなので、読む側の書き方は変わらない。
 //
-// ■どの部の走りも同じ記録に入る
-//   1部・2部・3部は同じ25本のコースを分け合って走る（data/races.ts の drawSeasonSchedules）。
-//   同じコースなら距離も起伏も同じなので、**区間記録はそのコースでいちばん速いタイム**であって
-//   部ごとに分ける意味がない。以前は自分の部しか数えておらず、
-//   裏で走っている他の部の走りが記録に一切載らなかった。
-//   ここで国内3部のリーグを全部一緒に数える。
+// ■どのリーグの走りも数える（12リーグ＋ECL）
+//   **区間記録はそのコースでいちばん速いタイム**で、リーグで分けない。同じ呼び名のコース
+//   （日本の1部・2部・3部、同じ地域の海外リーグ）は同じ記録に入り、地域が違えば呼び名が
+//   違うので記録も別になる（data/courseNames）。
+//   ★**日本の部だけに絞らないこと。** 以前は日本の1部・2部・3部とECLしか数えておらず、
+//   海外リーグの走りは1本も記録に入らなかった（海外クラブを指揮すると区間記録が出ない）。
 //
 // ■並び
 //   同じ選手は一番速い1本だけ。速い順に10人まで。
 
-/** 記録を数える対象。main = JPEL+ECL（1軍）、reserve = リザーブ駅伝 */
+/** 記録を数える対象。main = 12リーグ＋ECL（1軍）、reserve = リザーブ駅伝 */
 export type RecordKind = 'main' | 'reserve'
 
 /** `${大会名}-${区番号}` → 速い順トップ10 */
@@ -30,7 +29,7 @@ export type SegmentRecordMap = Record<string, SegmentRecord[]>
 /** 過去シーズンでも今シーズンでも同じように読めるように、必要な物だけを受ける */
 export type SeasonRacesLike = {
   year: number
-  /** リーグごとの日程。区間記録は国内の部のぶんだけ見る */
+  /** リーグごとの日程（12リーグ全部を見る） */
   leagues?: Readonly<Record<LeagueId, { races: Race[] }>>
   secondTeamRaces?: Race[]
   eclRace?: Race
@@ -41,8 +40,8 @@ function racesOf(s: SeasonRacesLike, kind: RecordKind): Race[] {
   if (kind === 'reserve') return s.secondTeamRaces ?? []
   // ECLは5戦シリーズ。旧セーブの一発勝負（eclRace）も同じコース名なので一緒に数える
   return [
-    // どの部の走りも同じコースの記録に入る（同じコース＝同じ距離・同じ起伏）
-    ...DIVISIONS.flatMap(d => leagueRaces(s, divisionLeagueId(d))),
+    // どのリーグの走りも、同じ呼び名のコースの記録に入る
+    ...Object.values(s.leagues ?? {}).flatMap(l => l?.races ?? []),
     ...(s.eclSeries?.races ?? []),
     ...(s.eclRace ? [s.eclRace] : []),
   ]

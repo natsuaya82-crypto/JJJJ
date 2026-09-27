@@ -19,7 +19,7 @@ import { payBetween } from '../../utils/clubMoney'
 import { bigClub, clubCountryOf, findClub, homeCountryOf, isAbroad } from '../../utils/clubs'
 import { withMorale } from '../../utils/condition'
 import { canOfferRenewal, canReNegotiate, contractTalkCtx, liveContractOf } from '../../utils/contractTalk'
-import { domesticThroughRankOfTeam, rankOfTeam, rankedStandings, seasonLeagueStandings, leagueStandingRows } from '../../utils/league'
+import { rankOfTeam, rankedStandings, seasonLeagueStandings, leagueStandingRows } from '../../utils/league'
 import { fmtYen } from '../../utils/money'
 import { movePlayer } from '../../utils/movePlayer'
 import { joinedHeadline, loanInOutHeadline, renewalHeadline, signedWithFeeHeadline, tradeAcceptedHeadline, tradeSummaryHeadline } from '../../utils/newsItems'
@@ -666,12 +666,12 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       // 性格×行き先：優勝型は「今より強いチーム」なら安くても乗る／弱いチームだと渋る。
       const appealAdj = (() => {
         if (personality !== 'winning') return 0
-        // 部をまたいで比べるので、部内順位ではなく国内通し順位（1〜52）で見る
-        const myRank = domesticThroughRankOfTeam(state.currentSeason, state.playerTeamId)
-        const theirRank = domesticThroughRankOfTeam(state.currentSeason, player.teamId)
-        if (myRank <= 0 || theirRank <= 0) return 0
-        // 自チームが相手より上位なら閾値↓(乗りやすい)、下位なら↑
-        return Math.max(-0.08, Math.min(0.08, (theirRank - myRank) * -0.012))
+        // リーグをまたぐので格で比べる（国内の通し順位だと海外が絡むと効かない）。1段＝以前の通し順位 0.012 × 52位 ÷ 格16段
+        const myTier = tierOfPlayerClub(state.playerTeamId, state.clubs)
+        const theirTier = tierOfPlayerClub(player.teamId, state.clubs)
+        if (myTier == null || theirTier == null) return 0
+        // 自チームが相手より格上なら閾値↓(乗りやすい)、格下なら↑
+        return Math.max(-0.08, Math.min(0.08, (theirTier - myTier) * -(0.012 * 52 / 16)))
       })()
       // スカウト拠点: Lv×2%ぶん受諾ラインを緩和（獲得・移籍しやすくなる）
       const scoutLv = facilitiesOf(myClub(state)).scoutOffice

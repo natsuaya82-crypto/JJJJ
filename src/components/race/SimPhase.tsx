@@ -21,7 +21,7 @@ import { useStickyTab } from '../../lib/useStickyTab'
 import { clubById } from '../../utils/world'
 import { focusTeamOf, useRaceClock } from './useRaceClock'
 import { RaceStage3D } from './stage3d/RaceStage3D'
-import { useSegmentRecords } from './useSegmentRecords'
+import { useSegmentRecords } from '../../lib/useSegmentRecords'
 import { useGameStore } from '../../store/gameStore'
 import { formatRaceTime } from '../../utils/eventTime'
 

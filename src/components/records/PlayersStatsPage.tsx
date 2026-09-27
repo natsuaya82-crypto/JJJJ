@@ -1,4 +1,3 @@
-import { findClub } from '../../utils/clubs'
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../ui/PageHeader'
@@ -14,13 +13,13 @@ import GlassButton from '../ui/GlassButton'
 
 
 type Category = 'jpel' | 'ecl' | 'reserve'
-const CAT_LABEL: Record<Category, string> = { jpel: 'JPEL', ecl: 'ECL', reserve: 'リザーブ駅伝' }
+const CAT_LABEL: Record<Category, string> = { jpel: 'リーグ', ecl: 'ECL', reserve: 'リザーブ駅伝' }
 const CAT_COLOR: Record<Category, string> = { jpel: CARD.gold, ecl: C.green, reserve: '#AB8ED6' }
 
 // 区間記録：歴代優勝と同じ構成。カテゴリ（JPEL/リザーブ）→ 大会一覧 → 区間を横に並べて切り替え
 export default function PlayersStatsPage() {
   const navigate = useNavigate()
-  const { players, openPlayerSheet, removedPlayers, clubs, playerTeamId } = useGameStore()
+  const { players, openPlayerSheet, removedPlayers } = useGameStore()
   const clubIndex = useClubIndex()
   // 区間記録はセーブに貯めず、保存してあるレース結果から数え直す（utils/segmentRecords.ts）
   const mainRecords = useSegmentRecords()
@@ -36,9 +35,8 @@ export default function PlayersStatsPage() {
   })
 
   const [cat, setCat] = useState<Category | null>(null)
-  // jpel ＝「自分のリーグ」。呼び名は自チームのリーグ（日本の部なら JPEL）
-  const myLeagueName = findClub(clubs, playerTeamId)?.leagueName ?? CAT_LABEL.jpel
-  const catLabel = (c: Category) => (c === 'jpel' ? myLeagueName : CAT_LABEL[c])
+  // jpel ＝ 12リーグ全部の駅伝（区間記録はどのリーグの走りも数える＝utils/segmentRecords）
+  const catLabel = (c: Category) => CAT_LABEL[c]
   const [selectedRace, setSelectedRace] = useState<string | null>(null)
   const [segIdx, setSegIdx] = useState<number | null>(null)
 
@@ -47,7 +45,7 @@ export default function PlayersStatsPage() {
   const nameOfKey = (key: string) => key.substring(0, key.lastIndexOf('-'))
   const segOfKey = (key: string) => parseInt(key.substring(key.lastIndexOf('-') + 1))
 
-  // カテゴリ別の大会名一覧（1軍の記録にはJPELとECLが両方入るので名前で振り分ける）
+  // カテゴリ別の大会名一覧（1軍の記録には12リーグとECLが両方入るので名前で振り分ける）
   const allRecordNames = [...new Set(Object.keys(records).map(nameOfKey))]
   const raceNames = cat === 'jpel'
     ? allRecordNames.filter(n => !n.startsWith('ECL')).sort()

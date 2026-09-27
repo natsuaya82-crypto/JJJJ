@@ -153,7 +153,7 @@ md は消すこと**。2026-08-23 に7本（リファクタリング設計書・
 | `src/utils/clubStanding.ts` | **「そのクラブは今どこにいるか」の引き方**。`clubStandingRow` / `clubSeasonRank` / `clubRacesDone` / `clubWonLeague`。順位表の**行の型は1つ**（`SeasonStanding`・キーは `teamId`）。置き場所もリーグごとの1つ（`Season.leagues`）で、読む側は国内か海外かを区別しない。旧セーブ（キーが `clubId`）の行を均すのは `normalizeStandingRows` 1本 |
 | `src/utils/playRate.ts` | **その選手が今季どれだけ走っているか**。`playRateOf` / `clubSeasonRaces` と、**出場を数える `seasonAppearances`**（`playerUtils` から移しました。あちらに置くと `playRate` → `playerUtils` → `transferDecision` → `playRate` の輪ができます）。日程はそのクラブのリーグ（`Season.leagues`）から引く。**自チームのリーグの日程（`myLeagueRaces`）で数えないこと**（自分の部だけなので他の部の選手が全員0％になり、移籍判定の「干されている」が全員に付く） |
 | `src/utils/clubStanding.ts` の `clubSeasonRank` | **画面に出す順位**。国内＝部内順位（1部1〜20／2部・3部1〜16）、海外＝リーグ内順位。**通し順位（1〜52）は返さない**（格を決める内部の数。「47位」「52位」に意味は無い）。`{rank, total, division}` |
-| `src/utils/segmentRecords.ts` | **区間記録**。1部・2部・3部は同じコースを分け合って走るので、**そのコースでいちばん速いタイム1本**。部で分けない（国内3部のリーグを全部一緒に数える） |
+| `src/utils/segmentRecords.ts` | **区間記録**。**そのコースでいちばん速いタイム1本**で、リーグで分けない。**12リーグ全部とECLの走りを数える**（同じ呼び名のコース＝日本の1〜3部・同じ地域の海外リーグは同じ記録。地域が違えば呼び名が違うので別の記録）。★以前は日本の1〜3部とECLだけで、海外クラブを指揮すると区間記録が出なかった（2026-09-27）。画面からは `lib/useSegmentRecords` 1本 |
 | `src/utils/awards.ts` | **年度表彰（MVP・新人王）。リーグごとに選ぶ**（12リーグ。1部MVP・2部MVP・3部MVP・海外9はリーグ名つき。オーナー・2026-09-26「mvpはそれぞれのリーグごとに」）。走る相手も本数も違うので混ぜない。分け方は `racesByLeague` 1本。★**新人王の候補は「その年に世界に入った選手」**（`draftYear === 年`＝ドラフト・若手の補充・海外の補充・開幕の床）で、育成選手（IDの頭が `data/rosterRules` の `DEV_PROSPECT_ID_PREFIX`）だけ外す。以前は「ドラフト指名選手」だけで、ドラフトの無い2部・3部・海外には候補が居なかった。見出しの字は `utils/league` の `leagueLabelOf` 1本 |
 | `src/utils/league.ts` | 順位の出し方。**日程・結果・順位表はリーグごとに持つ**（`Season.leagues`＝リーグID → 日程・順位表。国内の部のリーグIDは `divisionLeagueId`）。`leagueRaces` / `leagueStandingRows` / `divisionStandings`（部）／ **`seasonLeagueStandings`（そのクラブがその年に走ったリーグの順位表＝自チームの順位はここ。日本の部も海外リーグも同じ）** / `newSeasonStandings`。**指名権を持てるクラブは `draftPickHolders`**（`data/leagueRules` の `draftPicks`。発行・指名順・売り買いはこの並びだけを相手にする） |
 | `src/utils/clubs.ts` の `leagueRoutePath` | **そのリーグの順位表の行き先**（日本の部＝順位表の画面でその部を開く／海外＝リーグの画面）。「自分のリーグを開く」はここを通す。**`/standings` を決め打ちしないこと**——海外クラブを指揮していると日本の1部が開く。クラブ詳細の行き先は隣の `clubRoutePath` |
@@ -686,7 +686,7 @@ ECLの出場枠（頂点のリーグそれぞれの上位2）・レースと表�
 カード報酬の順位の読み方（`myLeagueSize` / `leagueThroughRank`）・順位表の自己修復（`syncSeasonLeagues`）・
 「海外」の意味（`utils/clubs` の `isAbroad`＝**国をまたぐか**。日本を基準にしない）・在籍の記録（`seasonMemberships`）・
 出場実績（`perfOf`）・保存の形（`engine/seasonArchivePrep`）・選手の国籍の配り方（下の `rosterNationality`）・記録室の対象
-（`samePyramid`＝自分のリーグとつながっているリーグ）。`check-one-rule` の㉒が戻りを見張る。
+（`samePyramid`＝自分のリーグとつながっているリーグ）。★2026-09-27 に**区間記録**（日本の1〜3部とECLだけだった＝12リーグ全部へ）と、**優勝型の選手の乗り気**（国内の通し順位で比べていて海外クラブが絡むと効かなかった＝格で比べる）も揃えた。★**名前（`jpelClubs` など）で探すだけでは足りない**——部の番号の並び（`DIVISIONS`）で日本の部のリーグを1本ずつ引く書き方でも日本だけに絞れて、区間記録はそれで素通りしていた。`check-one-rule` の㉒が戻りを見張る。
 ★**優勝回数のキーは `TitleKey`**（日本の部＝部の番号 1/2/3、ほか＝リーグID）。部の番号のままなのは、フレンドの
 プロフィールに `titles: {1: 2}` の形で載っていて古いアプリがそれを読むため
 
