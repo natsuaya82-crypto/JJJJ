@@ -21,6 +21,9 @@ import { useStickyTab } from '../../lib/useStickyTab'
 import { clubById } from '../../utils/world'
 import { focusTeamOf, useRaceClock } from './useRaceClock'
 import { RaceStage3D } from './stage3d/RaceStage3D'
+import { useSegmentRecords } from './useSegmentRecords'
+import { useGameStore } from '../../store/gameStore'
+import { formatRaceTime } from '../../utils/eventTime'
 
 /** その区間（`race.segments` の添字）をそのチームで走る選手 */
 export type RunnerIdOf = (teamId: string, leg: number) => string | undefined
@@ -29,7 +32,7 @@ const BOARDS = ['total', 'leg'] as const
 
 // レーストラック表示。位置と差は `engine/raceTimeline` だけから出す（ここで計算しない）
 export function RaceTrack({
-  race, raceTeams, players, playerTeamId, timeline, t, runnerIdOf, renderStage,
+  race, raceTeams, players, playerTeamId, timeline, t, runnerIdOf, renderStage, head,
 }: {
   race: Race
   raceTeams: readonly WorldClub[]
@@ -41,6 +44,8 @@ export function RaceTrack({
   runnerIdOf: RunnerIdOf
   /** 一覧の上に差し込む口（2.0.9 の3D）。同じ時計の同じ瞬間を渡す */
   renderStage?: (snap: TimelineSnapshot) => ReactNode
+  /** 上に固定する所の先頭に置くもの（LIVEの帯・一時停止など）。一覧だけがスクロールする */
+  head?: ReactNode
 }) {
   const longPress = usePlayerLongPress()
   const [board, setBoard] = useStickyTab('board', BOARDS, 'total')
@@ -53,13 +58,27 @@ export function RaceTrack({
   const legStartKm = timeline.startKm[leg] ?? 0
   const segCol = currentSeg ? terrainColor(currentSeg.uphillPct, currentSeg.downhillPct) : C.blue
 
+  // 区間の一覧は、1区のあいだは1区、そのあとは走り終えた1つ前の区間（ゴールしたら最後の区間）
+  const boardLeg = board === 'leg' && focus && !focus.finished && leg > 0 ? leg - 1 : leg
   const rows = board === 'total'
     ? snap.overall.map(s => ({ teamId: s.teamId, gap: s.gap as number | null, raceKm: s.raceKm, runnerId: runnerIdOf(s.teamId, s.leg) }))
-    : legBoardAt(timeline, t, leg).map(r => ({
+    : legBoardAt(timeline, t, boardLeg).map(r => ({
         ...r,
         raceKm: runnerAt(timeline, r.teamId, t)?.raceKm ?? 0,
-        runnerId: runnerIdOf(r.teamId, leg),
+        runnerId: runnerIdOf(r.teamId, boardLeg),
       }))
+  // 棒はヘッダーの区間（区間の一覧では、並べている区間）の中の位置
+  const barStartKm = timeline.startKm[boardLeg] ?? 0
+  const barKm = timeline.distances[boardLeg] ?? 0
+
+  // 区間の一覧の上の札：その区間の記録（何年の誰か）
+  const records = useSegmentRecords()
+  const worldClubs = useGameStore(s => s.clubs)
+  const worldPlayers = useGameStore(s => s.players)
+  const boardSeg = race.segments[boardLeg]
+  const record = boardSeg ? records[`${race.name}-${boardSeg.index}`]?.[0] : undefined
+  const recordHolder = record ? worldPlayers.find(p => p.id === record.playerId) : undefined
+  const recordClub = record ? clubById(worldClubs, record.teamId) : undefined
 
   const myRank = snap.overall.findIndex(p => p.teamId === playerTeamId) + 1
   const prevRankRef = useRef(0)
@@ -82,11 +101,14 @@ export function RaceTrack({
   const flash = showOvertake && board === 'total'
 
   return (
-    <div>
+    <div style={{ overflowAnchor: 'none' }}>
       <style>{`
         @keyframes overtake-glow { 0%{opacity:1} 100%{opacity:0} }
         @keyframes overtake-arrow { 0%{opacity:0;transform:translateY(5px) translateX(-50%)} 20%{opacity:1;transform:translateY(-1px) translateX(-50%)} 75%{opacity:1;transform:translateY(-1px) translateX(-50%)} 100%{opacity:0;transform:translateY(-1px) translateX(-50%)} }
       `}</style>
+      {/* ここから上に固定（3Dを見ながら下の一覧だけをスクロールする） */}
+      <div style={{ position: 'sticky', top: 0, zIndex: 20, background: C.bg }}>
+      {head}
       {/* 区間情報ヘッダー（自チームの走者の区間。走っていなければ先頭の区間） */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -117,14 +139,33 @@ export function RaceTrack({
 
       {renderStage?.(snap)}
 
-      <div style={{ padding: '4px 0' }}>
+      <div style={{ padding: '4px 0 0' }}>
         <PillTabs labels={['総合', '区間']} value={BOARDS.indexOf(board)} onChange={i => setBoard(BOARDS[i])} fill style={{ padding: '6px 12px' }} />
+        {board === 'leg' && boardSeg && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 12px 6px', minWidth: 0 }}>
+            <span style={{ flex: 'none', fontWeight: 900, fontSize: F.body, lineHeight: 1, padding: '3px 6px 2px', color: C.text, background: C.surface3, border: `1px solid ${C.border2}` }}>{boardSeg.index}区</span>
+            {record && (<>
+              <span style={{ flex: 'none', fontWeight: 900, fontSize: F.caption, lineHeight: 1, padding: '3px 5px 2px', color: C.gold, background: alpha(C.gold, 0.16), border: `1px solid ${alpha(C.gold, 0.65)}` }}>区間記録</span>
+              <span style={{ flex: 'none', fontFamily: SAIRA, fontWeight: 900, fontSize: F.subLg, lineHeight: 1, fontVariantNumeric: 'tabular-nums', color: C.text }}>{formatRaceTime(record.timeSec)}</span>
+              <span style={{ flex: 'none', fontFamily: SAIRA, fontWeight: 700, fontSize: F.body, color: C.textSub }}>{record.year}年</span>
+              <span style={{ minWidth: 0, fontSize: F.label, fontWeight: 700, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {recordHolder?.name ?? ''}{recordClub && <span style={{ marginLeft: 4, fontSize: F.caption, color: C.textDim }}>{recordClub.shortName}</span>}
+              </span>
+            </>)}
+          </div>
+        )}
+      </div>
+      </div>
+
+      <div style={{ padding: '0 0 4px' }}>
         {rows.map((row, rank) => {
           const tm = clubById(raceTeams, row.teamId)
           if (!tm) return null
           const isMe = row.teamId === playerTeamId
           // 棒はヘッダーの区間の中の位置（先の区間にいるチームは満タン、まだ来ていないチームは空）
-          const pct = distanceKm > 0 ? Math.max(0, Math.min(1, (row.raceKm - legStartKm) / distanceKm)) * 100 : 0
+          const pct = board === 'leg'
+            ? (barKm > 0 ? Math.max(0, Math.min(1, (row.raceKm - barStartKm) / barKm)) * 100 : 0)
+            : (distanceKm > 0 ? Math.max(0, Math.min(1, (row.raceKm - legStartKm) / distanceKm)) * 100 : 0)
           const rankCol = rankColor(rank + 1)
           const player = players?.find(p => p.id === row.runnerId)
 
@@ -418,64 +459,6 @@ export function SimPhase({
         </ScreenPortal>
       )}
 
-      {/* 上部：レース全体の進行バー */}
-      <div style={{
-        position: 'sticky', top: 0, zIndex: 20,
-        background: C.surface2,
-        borderBottom: `1px solid ${C.border}`,
-        padding: '8px 16px 6px',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-          <div style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: C.red, boxShadow: `0 0 5px ${C.red}` }}/>
-          <span style={{ fontSize: F.tiny, color: C.red, fontWeight: 800, letterSpacing: 2 }}>LIVE</span>
-          <span style={{ fontSize: F.bodyLg, fontWeight: 700, color: C.text, flex: 1 }}>{race.name}</span>
-          <span style={{ fontSize: F.caption, color: C.textDim }}>{currentSeg?.index}/{totalSegs}区</span>
-        </div>
-        <div style={{ height: 3, backgroundColor: C.border2,overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${progressPct}%`, background: `linear-gradient(90deg, ${C.red}, ${C.gold})`,}}/>
-        </div>
-      </div>
-
-      {/* 一時停止・区間スキップ。全チームが走り終えたら結果へ */}
-      <div style={{ padding: '10px 12px 0', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-        {done ? (
-          <button className="btn-game btn-game--gold" onClick={onFinish} style={{ width: '100%' }}>
-            <span className="btn-game__inner">最終結果を見る</span>
-          </button>
-        ) : (<>
-          <button
-            onClick={() => setManualPause(v => !v)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 16px',cursor: 'pointer',
-              background: manualPause ? `linear-gradient(180deg, ${C.gold}, ${alpha(C.gold, 0.7)})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-              border: `1px solid ${manualPause ? C.gold : C.border2}`, color: manualPause ? C.bg : C.textSub,
-              fontFamily: SAIRA, fontSize: F.body, fontWeight: 700,
-            }}
-          >
-            {manualPause ? '再生' : '一時停止'}
-            {manualPause
-              ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 4l14 8-14 8V4z" fill="currentColor"/></svg>
-              : <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M7 4h4v16H7zM13 4h4v16h-4z" fill="currentColor"/></svg>}
-          </button>
-          <button
-            onClick={skipLeg}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '8px 16px',cursor: 'pointer',
-              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-              border: `1px solid ${C.border2}`, color: C.textSub,
-              fontFamily: SAIRA, fontSize: F.body, fontWeight: 700,
-            }}
-          >
-            この区間をスキップ
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path d="M5 4l9 8-9 8V4zM17 4h2v16h-2z" fill="currentColor"/>
-            </svg>
-          </button>
-        </>)}
-      </div>
-
       <RaceTrack
         race={race}
         raceTeams={raceTeams}
@@ -488,6 +471,64 @@ export function SimPhase({
           <RaceStage3D race={race} raceTeams={raceTeams} players={players} playerTeamId={playerTeamId}
             timeline={timeline} snap={snap} runnerIdOf={runnerIdOf} />
         )}
+        head={<>
+          {/* 上部：レース全体の進行バー */}
+          <div style={{
+            background: C.surface2,
+            borderBottom: `1px solid ${C.border}`,
+            padding: '8px 16px 6px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <div style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: C.red, boxShadow: `0 0 5px ${C.red}` }}/>
+              <span style={{ fontSize: F.tiny, color: C.red, fontWeight: 800, letterSpacing: 2 }}>LIVE</span>
+              <span style={{ fontSize: F.bodyLg, fontWeight: 700, color: C.text, flex: 1 }}>{race.name}</span>
+              <span style={{ fontSize: F.caption, color: C.textDim }}>{currentSeg?.index}/{totalSegs}区</span>
+            </div>
+            <div style={{ height: 3, backgroundColor: C.border2,overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${progressPct}%`, background: `linear-gradient(90deg, ${C.red}, ${C.gold})`,}}/>
+            </div>
+          </div>
+
+          {/* 一時停止・区間スキップ。全チームが走り終えたら結果へ */}
+          <div style={{ padding: '10px 12px 0', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+            {done ? (
+              <button className="btn-game btn-game--gold" onClick={onFinish} style={{ width: '100%' }}>
+                <span className="btn-game__inner">最終結果を見る</span>
+              </button>
+            ) : (<>
+              <button
+                onClick={() => setManualPause(v => !v)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '8px 16px',cursor: 'pointer',
+                  background: manualPause ? `linear-gradient(180deg, ${C.gold}, ${alpha(C.gold, 0.7)})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+                  border: `1px solid ${manualPause ? C.gold : C.border2}`, color: manualPause ? C.bg : C.textSub,
+                  fontFamily: SAIRA, fontSize: F.body, fontWeight: 700,
+                }}
+              >
+                {manualPause ? '再生' : '一時停止'}
+                {manualPause
+                  ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 4l14 8-14 8V4z" fill="currentColor"/></svg>
+                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M7 4h4v16H7zM13 4h4v16h-4z" fill="currentColor"/></svg>}
+              </button>
+              <button
+                onClick={skipLeg}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '8px 16px',cursor: 'pointer',
+                  background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+                  border: `1px solid ${C.border2}`, color: C.textSub,
+                  fontFamily: SAIRA, fontSize: F.body, fontWeight: 700,
+                }}
+              >
+                この区間をスキップ
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path d="M5 4l9 8-9 8V4zM17 4h2v16h-2z" fill="currentColor"/>
+                </svg>
+              </button>
+            </>)}
+          </div>
+        </>}
       />
     </div>
   )

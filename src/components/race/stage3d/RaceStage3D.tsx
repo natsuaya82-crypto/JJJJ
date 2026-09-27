@@ -3,8 +3,7 @@ import type { Player, Race, WorldClub } from '../../../types'
 import { legEndAt, type RaceTimeline, type TimelineSnapshot } from '../../../engine/raceTimeline'
 import { C, F, SAIRA, FONT, TV, alpha } from '../../../styles/tokens'
 import { panelStyle } from '../../ui/Panel'
-import { useGameStore } from '../../../store/gameStore'
-import { segmentRecordsOf } from '../../../utils/segmentRecords'
+import { useSegmentRecords } from '../useSegmentRecords'
 import { formatRaceTime } from '../../../utils/eventTime'
 import { clubById } from '../../../utils/world'
 import type { Stage } from './scene'
@@ -38,9 +37,9 @@ export function RaceStage3D({ race, raceTeams, players, playerTeamId, timeline, 
   const [ready, setReady] = useState(false)
   const [followId, setFollowId] = useState<string | null>(null)
 
-  const pastSeasons = useGameStore(s => s.pastSeasons)
-  const currentSeason = useGameStore(s => s.currentSeason)
-  const records = useMemo(() => segmentRecordsOf(pastSeasons, currentSeason, 'main'), [pastSeasons, currentSeason])
+  const records = useSegmentRecords()
+  // 頭の上の札（順位と▼）。位置は scene が毎コマ直に書く（React を毎コマ回さない）
+  const labelRefs = useRef(new Map<string, HTMLDivElement>())
 
   // 追っているチーム：選んだチーム → 自チーム（走っていれば）→ 先頭
   const order = snap.overall
@@ -61,7 +60,13 @@ export function RaceStage3D({ race, raceTeams, players, playerTeamId, timeline, 
       if (!alive || !canvasRef.current) return
       stage = createStage(canvasRef.current, race.segments,
         raceTeams.map(t => ({ teamId: t.id, color: t.colors?.primary ?? C.textDim })),
-        () => { if (alive) setReady(true) })
+        () => { if (alive) setReady(true) },
+        (teamId, x, y, visible) => {
+          const el = labelRefs.current.get(teamId)
+          if (!el) return
+          el.style.visibility = visible ? 'visible' : 'hidden'
+          el.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`
+        })
       stageRef.current = stage
       const box = boxRef.current
       if (box) stage.resize(box.clientWidth, box.clientHeight)
@@ -126,6 +131,21 @@ export function RaceStage3D({ race, raceTeams, players, playerTeamId, timeline, 
       <div ref={boxRef} style={{ ...panelStyle(), position: 'relative', aspectRatio: '16 / 9', background: TV.sky }}>
         <canvas ref={canvasRef} aria-label="3D中継" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }} />
 
+        {/* 走者の頭の上：順位と▼ */}
+        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+          {order.map((r, i) => (
+            <div key={r.teamId} ref={el => { if (el) labelRefs.current.set(r.teamId, el); else labelRefs.current.delete(r.teamId) }}
+              style={{ position: 'absolute', left: 0, top: 0, visibility: 'hidden', display: 'flex', flexDirection: 'column', alignItems: 'center', willChange: 'transform' }}>
+              <span style={{
+                fontFamily: SAIRA, fontWeight: 900, fontSize: F.label, lineHeight: 1, fontVariantNumeric: 'tabular-nums',
+                padding: '2px 4px 1px', minWidth: 16, textAlign: 'center', color: C.text,
+                background: r.teamId === focusId ? TV.orange : TV.navy, border: `1px solid ${C.text}`,
+              }}>{i + 1}</span>
+              <span style={{ fontSize: F.caption, lineHeight: 1, color: TV.red, textShadow: TV.glow }}>▼</span>
+            </div>
+          ))}
+        </div>
+
         {/* 左上：区間・距離・いまの地点・区間記録 */}
         <div style={{ position: 'absolute', top: 6, left: 6, width: 118, display: 'flex', flexDirection: 'column', gap: 2, pointerEvents: 'none' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -143,7 +163,8 @@ export function RaceStage3D({ race, raceTeams, players, playerTeamId, timeline, 
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 3, width: 'max-content' }}>
               <span style={{ flex: 'none', fontFamily: FONT, fontWeight: 900, fontSize: F.tiny, lineHeight: 1, color: TV.navy, background: C.gold, padding: '2px 4px' }}>区間記録</span>
               <span style={{ ...num, fontSize: F.bodyLg }}>{formatRaceTime(record.timeSec)}</span>
-              {holder && <span style={{ fontFamily: FONT, fontWeight: 700, fontSize: F.tiny, color: C.text, textShadow: TV.edge }}>{holder.name}</span>}
+              <span style={{ fontFamily: SAIRA, fontWeight: 700, fontSize: F.caption, color: C.text, textShadow: TV.glow }}>{record.year}年</span>
+              {holder && <span style={{ fontFamily: FONT, fontWeight: 700, fontSize: F.tiny, color: C.text, textShadow: TV.glow }}>{holder.name}</span>}
             </div>
           )}
         </div>
@@ -151,7 +172,7 @@ export function RaceStage3D({ race, raceTeams, players, playerTeamId, timeline, 
         {/* 右上：時計とコース */}
         <div style={{ position: 'absolute', top: 4, right: 8, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', pointerEvents: 'none' }}>
           <span style={{ ...num, fontSize: F.headLg, lineHeight: 1 }}>{formatRaceTime(snap.t)}</span>
-          <span style={{ marginTop: 2, fontFamily: FONT, fontWeight: 700, fontSize: F.tiny, color: C.text, textShadow: TV.edge }}>{race.name}</span>
+          <span style={{ marginTop: 2, fontFamily: FONT, fontWeight: 700, fontSize: F.tiny, color: C.text, textShadow: TV.glow }}>{race.name}</span>
         </div>
 
         {/* 区間新（区間記録の行と入れ替わって出る） */}

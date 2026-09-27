@@ -101,6 +101,8 @@ export const TV = {
   sky:    '#a9d3ee',
   /** 白い太字に付ける黒い縁 */
   edge:   '0 0 2px #000, 1px 1px 0 #000, -1px 1px 0 #000, 1px -1px 0 #000, -1px -1px 0 #000',
+  /** 小さな日本語に付けるぼかした縁（硬い縁だと小さい字が欠けてガタガタに見える） */
+  glow:   '0 0 3px #000, 0 0 2px #000',
 } as const
 
 export const F = {

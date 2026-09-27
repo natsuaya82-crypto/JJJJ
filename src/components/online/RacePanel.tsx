@@ -268,21 +268,6 @@ export default function RacePanel({
       </div>
 
       {view === 'track' && seg && (<>
-        <div style={{ padding: '10px 12px 0', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-          <button onClick={() => setPaused(v => !v)} style={{
-            padding: '8px 16px',cursor: 'pointer',
-            background: paused ? `linear-gradient(180deg, ${C.gold}, ${alpha(C.gold, 0.7)})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-            border: `1px solid ${paused ? C.gold : C.border2}`, color: paused ? C.bg : C.textSub,
-            fontFamily: SAIRA, fontSize: F.body, fontWeight: 700,
-          }}>{paused ? '再生' : '一時停止'}</button>
-          <button onClick={() => jumpTo(stopAt)} style={{
-            padding: '8px 16px',cursor: 'pointer',
-            background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-            border: `1px solid ${C.border2}`, color: C.textSub,
-            fontFamily: SAIRA, fontSize: F.body, fontWeight: 700,
-          }}>この区間をスキップ</button>
-        </div>
-
         <RaceTrack
           race={race}
           raceTeams={entries}
@@ -295,6 +280,22 @@ export default function RacePanel({
             <RaceStage3D race={race} raceTeams={entries} players={players} playerTeamId={meId}
               timeline={timeline} snap={snap} runnerIdOf={runnerIdOf} />
           )}
+          head={
+            <div style={{ padding: '10px 12px 0', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+              <button onClick={() => setPaused(v => !v)} style={{
+                padding: '8px 16px',cursor: 'pointer',
+                background: paused ? `linear-gradient(180deg, ${C.gold}, ${alpha(C.gold, 0.7)})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+                border: `1px solid ${paused ? C.gold : C.border2}`, color: paused ? C.bg : C.textSub,
+                fontFamily: SAIRA, fontSize: F.body, fontWeight: 700,
+              }}>{paused ? '再生' : '一時停止'}</button>
+              <button onClick={() => jumpTo(stopAt)} style={{
+                padding: '8px 16px',cursor: 'pointer',
+                background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
+                border: `1px solid ${C.border2}`, color: C.textSub,
+                fontFamily: SAIRA, fontSize: F.body, fontWeight: 700,
+              }}>この区間をスキップ</button>
+            </div>
+          }
         />
       </>)}
 
