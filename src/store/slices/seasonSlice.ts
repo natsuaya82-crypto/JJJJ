@@ -300,7 +300,9 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
           for (const p of expiring) {
             // 序列は `utils/squadNeeds` の `squadRankOf` 1本（すぐ下の `needsPlayer` と同じ物差し）。
             // `findIndex` で数え直すと、同じOVRが並んだときに答えが割れる
-            const renewRank = squadRankOf(renewRoster, p)
+            // 数えるのは走れる人（active）だけ＝主力の判定（keyPlayerStatus）と同じ名簿（オーナー・2026-09-28「走れる人」）。
+            // 原資の計算（上の renewRoster）は怪我人込みのまま（年俸は払っているので）
+            const renewRank = squadRankOf(renewRoster.filter(x => x.status === 'active'), p)
             if (hasNoPlayingTime(renewRank) && !needsPlayer(renewRoster, p)) continue
             const sal = cpuRenewalSalary(p)
             if (budget < sal) continue
