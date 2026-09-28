@@ -25,7 +25,6 @@ export function settleBonusClauses(params: {
   totalPayout: number
   news: { date: string; headline: string; category: 'race'; relatedIds: string[] }[]
   playerSegWins: Record<string, number>
-  leagueMvpId: string | undefined
 } {
   const { rosterIds: playerTeamRosterIds, currentSeason, playerTeamId, finalRank, seasonAward: newSeasonAward } = params
   const players = params.players
@@ -60,12 +59,12 @@ export function settleBonusClauses(params: {
           bonusTotalPayout += payout
           bonusPayoutNews.push({ date: `${currentSeason.year}-10-26`, headline: bonusPayoutHeadline({ playerName: p.name, kind: 'segment_win', amount: payout, count: wins }), category: 'race', relatedIds: [p.id] })
         }
-      } else if (clause.type === 'mvp' && p.career.mvpAwards > 0) {
+      // 払うのは今季のMVP（自チームのリーグの年度表彰）だけ。以前は「過去に一度でもMVP」で毎年払っていた（オーナー・2026-09-28「今期」）
+      } else if (clause.type === 'mvp' && newSeasonAward.mvpId === p.id) {
         bonusTotalPayout += clause.amount
         bonusPayoutNews.push({ date: `${currentSeason.year}-10-26`, headline: bonusPayoutHeadline({ playerName: p.name, kind: 'mvp', amount: clause.amount }), category: 'race', relatedIds: [p.id] })
       }
     }
   }
-  const leagueMvpId = newSeasonAward.mvpId
-  return { totalPayout: bonusTotalPayout, news: bonusPayoutNews, playerSegWins: playerSegWinsSeason, leagueMvpId }
+  return { totalPayout: bonusTotalPayout, news: bonusPayoutNews, playerSegWins: playerSegWinsSeason }
 }
