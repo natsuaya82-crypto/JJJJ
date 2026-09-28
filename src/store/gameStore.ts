@@ -271,7 +271,7 @@ export type GameStore = GameState & {
   // （engine/leagueDay の runLeaguesThrough。時計は日付1本）
   advanceLeaguesTo: (date: string) => void
   runCpuMarketRound: (date: string) => void  // CPU同士の移籍・トレード・レンタル。日付で3週ごと（部のレース数に依らない）
-  advanceMarketOneRace: () => void           // 本編以外(リザーブ/記録会)のレースでも入札・レンタル要請の応答を進める
+  advanceMarketOneRace: (date?: string) => void           // 本編以外(リザーブ/記録会)のレースでも入札・レンタル要請の応答を進める
   // ECL：前年の各リーグ上位2（計16チーム）がシーズン中の5戦をポイント制で争う。
   // 次の1戦を開催する（自チーム出場時は lineup で区間配置。未指定はOVR上位を自動配置）。
   // 5戦目の消化で最終順位・賞金・パッチ・歴代記録が確定する

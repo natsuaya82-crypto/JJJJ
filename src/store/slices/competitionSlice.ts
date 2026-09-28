@@ -18,8 +18,8 @@ import { eclRaceHeadline, eclSeasonEndHeadline, segmentRecordHeadline, type News
 import { keyPlayerStatus } from '../../utils/transferDecision'
 import { belongsToClub } from '../../utils/rosterSync'
 import { segmentRecordsOf } from '../../utils/segmentRecords'
-import { resolveBid } from '../../utils/transferBid'
-import { locksNegotiation } from '../../engine/bidResolution'
+import { resolveTransferBids } from '../../engine/bidResolution'
+import { applySettledTransfers } from '../../engine/applyTransfers'
 
 
 type Slice = Pick<GameStore,
@@ -88,31 +88,25 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
 
   // 本編以外(リザーブ戦/記録会)のレース完了時にも、出した入札(移籍金オファー)とレンタル要請の応答を進める。
   // 本編レースは runRace 内で処理するので、こちらはリザーブ/記録会から呼ぶ。
-  advanceMarketOneRace: () => set(state => {
+  advanceMarketOneRace: (date) => set(state => {
     const cs = state.currentSeason
     const raceIdx = cs.currentRaceIndex ?? 0
     const playerTeamId = state.playerTeamId
     const expiredNegs: ExpiredNegotiation[] = []
     const lockedIds: string[] = []
 
-    // 入札(移籍金オファー)の応答。判定は本編の1戦と同じ resolveBid 1本
-    const bids = (cs.transferBids ?? []).map(bid => {
-      const r = resolveBid(bid, {
-        players: state.players,
-        listings: cs.transferListings ?? [],
-        clubs: state.clubs,
-        currentSeason: cs,
-        pastSeasons: state.pastSeasons,
-        raceIndex: raceIdx })
-      if (r.expired) {
-        expiredNegs.push(r.expired)
-        // ★来季まで交渉不可にするかは engine/bidResolution の locksNegotiation 1本。
-        //   ここは本編の1戦と同じ判断でなければならない（以前はここだけ、
-        //   競り負けても額が足りなくても全部ロックしていた）
-        if (locksNegotiation(r.expired.kind)) lockedIds.push(r.expired.playerId)
-      }
-      return r.bid
-    })
+    // 入札(移籍金オファー)の応答。**本編の1戦と同じ engine/bidResolution の resolveTransferBids 1本**
+    // （取り合いの相手も同じ rivalClubsFor で数える）。★以前はここだけ resolveBid を直に呼んでいて、
+    //   相手クラブを渡していなかったので**この日には競り負けが起きず**、競り負けても選手が動かなかった
+    const bidResult = resolveTransferBids({
+      bids: cs.transferBids ?? [], players: state.players, clubs: state.clubs,
+      listings: cs.transferListings ?? [], currentSeason: cs, seasonAfterRace: cs,
+      pastSeasons: state.pastSeasons, raceClock: raceIdx, playerTeamId,
+      destinationOf: (clubId, p) => get().destinationOf(clubId, p),
+      playerTierOf: (p) => get().playerTierOf(p) })
+    const bids = bidResult.bids
+    expiredNegs.push(...bidResult.expiredNegs)
+    lockedIds.push(...bidResult.expiredPlayerIds)
 
     // レンタル要請の応答
     const pendingLoanReqs = cs.loanRequests ?? []
@@ -135,7 +129,7 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
 
     // 変化が無ければ何もしない
     const bidsChanged = bids.some((b, i) => b !== (cs.transferBids ?? [])[i])
-    if (!bidsChanged && newLoanResponses.length === 0 && expiredNegs.length === 0) return {}
+    if (!bidsChanged && newLoanResponses.length === 0 && expiredNegs.length === 0 && bidResult.outbidMoves.length === 0) return {}
 
     let players: Player[] = state.players.map(p =>
       lockedIds.includes(p.id) ? { ...p, transferLockedUntilYear: cs.year + 1 } : p)
@@ -153,11 +147,30 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
       clubs = m.clubs
     }
 
+    // 競り負けた選手を相手クラブへ移す。本編の1戦と同じ engine/applyTransfers 1本（移す直前に本人の意思を見る）
+    let outbidRecords: TransferRecord[] = []
+    let outbidNews: NewsItem[] = []
+    if (bidResult.outbidMoves.length > 0) {
+      const applied = applySettledTransfers({
+        players, clubs, origPlayers: state.players, currentSeason: cs, pastSeasons: state.pastSeasons,
+        listings: cs.transferListings ?? [], txList: [], outbidMoves: bidResult.outbidMoves,
+        playerTeamId, raceDate: date ?? cs.lastCpuMarketDate ?? '', raceClock: raceIdx,
+        playerTierOf: (p) => get().playerTierOf(p),
+        destinationOf: (clubId, p) => get().destinationOf(clubId, p) })
+      players = applied.players
+      clubs = applied.clubs
+      outbidRecords = applied.records
+      outbidNews = applied.outbidNews
+      expiredNegs.push(...applied.stayNegs)
+    }
+
     return {
       players,
       clubs,
+      ...(outbidRecords.length > 0 ? { transferHistory: [...(state.transferHistory ?? []), ...outbidRecords].slice(-400) } : {}),
       currentSeason: {
         ...cs,
+        ...(outbidNews.length > 0 ? { newsFeed: [...outbidNews, ...cs.newsFeed].slice(0, 40) } : {}),
         transferBids: bids,
         loanRequests: pendingLoanReqs.length > 0 ? [] : (cs.loanRequests ?? []),
         loanResponses: [...(cs.loanResponses ?? []), ...newLoanResponses],

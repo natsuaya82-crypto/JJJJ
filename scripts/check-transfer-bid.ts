@@ -310,8 +310,14 @@ console.log('\n[9] ストアが自前で判定を持っていない')
   // （存在の話）は logicSource（store＋engine）で見る。混ぜないこと
   const store = storeSource()
   const logic = logicSource()
-  check('入札の応答は resolveBid を呼ぶだけ（本編とサブの2箇所）',
-    (logic.match(/resolveBid\(/g) ?? []).length === 2, `${(logic.match(/resolveBid\(/g) ?? []).length}箇所`)
+  // ★2026-09-28 に、サブの1戦（記録会の日）も engine/bidResolution の resolveTransferBids を通すようにした。
+  //   それまでサブの1戦は resolveBid を直に呼び、取り合いの相手（rivals）を渡していなかったので、
+  //   その日には競り負けが起きず、負けても選手が動かなかった。
+  //   **判定（resolveBid）は bidResolution の中の1か所、入口（resolveTransferBids）は本編とサブの2か所**
+  check('判定の resolveBid を呼ぶのは engine/bidResolution の1か所',
+    (logic.match(/(?<!function )resolveBid\(/g) ?? []).length === 1, `${(logic.match(/(?<!function )resolveBid\(/g) ?? []).length}箇所`)
+  check('入札を決着させる道（本編の1戦・サブの1戦）は2つとも resolveTransferBids を通る',
+    (logic.match(/(?<!function )resolveTransferBids\(/g) ?? []).length === 2, `${(logic.match(/(?<!function )resolveTransferBids\(/g) ?? []).length}箇所`)
   check('主力ガードの判定を入札処理で自前に書いていない', !store.includes("kStatus === 'locked'"))
   check('受諾ラインを自前で組み立てていない', !store.includes('bidThreshold('))
   check('出品中の受諾ラインを手書きしていない', !store.includes('0.85 + Math.random() * 0.15'))
@@ -343,8 +349,9 @@ console.log('\n[9] ストアが自前で判定を持っていない')
   //   ★数えるのは**呼んでいる側だけ**。`export function locksNegotiation(` の
   //     定義も同じ字なので、除かないと1つ多く数える
   const lockCalls = (logic.match(/(?<!function )locksNegotiation\(/g) ?? []).length
-  check('入札を決着させる道と同じ数だけ locksNegotiation を通る（2か所）',
-    lockCalls === 2, `${lockCalls}か所`)
+  // 2つの道が同じ resolveTransferBids を通るので、ロックの判定はその中の1か所
+  check('ロックの判定は resolveTransferBids の中の locksNegotiation 1か所',
+    lockCalls === 1, `${lockCalls}か所`)
   check('種類を手書きで比べる形に戻っていない', !logic.includes("r.expired.kind !== 'outbid'"))
   // 「上回られた」と出しておいて選手が残っていたら、次の節に同じ額でもう一度出せてしまう
   // ★**字があるかではなく、作る口と渡す口を数えること。** `store.includes('outbidMoves')` は
@@ -352,8 +359,8 @@ console.log('\n[9] ストアが自前で判定を持っていない')
   const outbidPushes = (logic.match(/outbidMoves\.push\(/g) ?? []).length
   check('競り負けを積むのは1か所（engine/bidResolution）', outbidPushes === 1, `${outbidPushes}か所`)
   const applyCalls = [...logic.matchAll(/(?<!function )applySettledTransfers\(\{([\s\S]*?)\}\)/g)]
-  check('競り負けた選手は実際に相手クラブへ移る（移籍の反映は1か所で、outbidMoves を渡している）',
-    applyCalls.length === 1 && applyCalls.every(m => /\boutbidMoves(\s*:\s*[\w.]*\boutbidMoves)?\s*[,}\n]/.test(m[1])), `${applyCalls.length}か所`)
+  check('競り負けた選手は実際に相手クラブへ移る（本編とサブの2か所とも applySettledTransfers に outbidMoves を渡している）',
+    applyCalls.length === 2 && applyCalls.every(m => /\boutbidMoves(\s*:\s*[\w.]*\boutbidMoves)?\s*[,}\n]/.test(m[1])), `${applyCalls.length}か所`)
   // ★競り負けた選手を実際に動かす処理は engine/applyTransfers.ts へ移設。
   //   窓を狭くしないこと。ループの中に「移す直前に本人へもう一度聞く」処理が入ったぶん
   //   400文字では届かなくなった（movePlayer は動いていないのに落ちる）

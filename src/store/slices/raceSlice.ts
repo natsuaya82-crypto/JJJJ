@@ -639,7 +639,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       return next
     })
     // 記録会の完了でも入札・レンタル要請の応答を進める（本編以外でも返答が来るように）
-    try { get().advanceMarketOneRace() } catch (e) { console.error('advanceMarketOneRace failed', e) }
+    try { get().advanceMarketOneRace(get().currentSeason.individualEvents?.find(e => e.id === eventId)?.date) } catch (e) { console.error('advanceMarketOneRace failed', e) }
     // CPU同士の市場も記録会の日付で進める。**レースだけで数えると部ごとに回数が変わる**
     // （1部10戦・2部8戦・3部7戦）。記録会は3部とも同じ7回なので、ここも通す
     try {
