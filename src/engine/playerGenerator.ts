@@ -2,7 +2,7 @@
 import { MORALE_DEFAULT } from '../utils/condition'
 import { natCategory } from '../data/nationalities'
 import type { TraitId } from '../utils/traitUtils'
-import type { Rank } from '../types'
+import type { LeagueId, Rank } from '../types'
 import { curveOvr } from './ageCurve'
 import { tierOf, tierRankSlots, TIER_POTENTIAL_CAP, INITIAL_ROSTER_SIZE, type ClubTier } from '../utils/clubTier'
 import { SPEC_STRONG_STATS, faMarketSalary, STAT_CAP } from '../utils/playerUtils'
@@ -1030,109 +1030,103 @@ export function generateDraftPool(year: number, avoidNames?: Set<string>): Playe
   return players
 }
 
-export function generateCpuRosters(
-  rosterClubs: readonly { id: string; initialRank?: number; tier?: ClubTier }[],
+/** 選手を作るクラブ。リーグ（国籍の配り方）・国・格が分かれば足りる */
+type RosterClub = { id: string; leagueId?: LeagueId; country?: string; tier?: ClubTier; initialRank?: number }
+
+/**
+ * **世界のクラブの初期ロスターを作る、唯一の幹**（日本のリーグのクラブも海外クラブも同じ）。
+ *
+ * オーナー・2026-09-28「1本で」「18〜28 2〜5年」。以前は日本のクラブ（旧 `generateCpuRosters` の本体）と
+ * 海外クラブ（旧 `generateForeignLeaguePlayers` の本体）で別の作り方をしていて、
+ * 年齢が 18〜32 と 18〜28、契約が 2〜4年 と 1〜3年 に割れていた。
+ *
+ *   格 → ランク構成（`tierRankSlots`）→ 年齢カーブ（`buildRatingsForRank`）→ OVR → 年俸（`faMarketSalary`）
+ *
+ * 違うのは国籍の配り方だけで、それはリーグの決まり（`data/leagueRules` の `rosterNationality`）から引く：
+ *   'home'  … 自国中心。外国籍は1クラブ `HOME_FOREIGN_RANGE` 人（どの枠が外国籍かはランダム）
+ *   'world' … 席の強さ（ランク）から国籍を引く（`utils/nationTier` の `drawNationalityForRank`）
+ * 年齢はランクと紐づけない（紐づけると「高ランク＝年上」になるが、早熟のSSSは22歳が全盛なので実態と合わない）。
+ * 毎年の海外の補充（`refreshForeignLeagues`）は年齢の帯だけ変えて同じここを通る。
+ */
+export function generateClubRosters(
+  /** 選手を作るクラブ（並びの順に作る＝乱数を引く順） */
+  rosterClubs: readonly RosterClub[],
   year: number,
-): { cpuPlayers: Player[]; teamRosters: Record<string, { main: string[] }> } {
-  const cpuPlayers: Player[] = []
-  const teamRosters: Record<string, { main: string[] }> = {}
-  const usedNames = new Set<string>()
+  ageRange: [number, number] = [18, 28],
+): Player[] {
+  const out: Player[] = []
   const specialties: Specialty[] = [...SPECIALTIES]
   const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']
-  let cpuIdCounter = 5000
 
-  function makePlayer(rank: Rank, i: number, teamId: string, potentialCap: number, isForeign: boolean): Player {
-    cpuIdCounter++
-    const specialty = specialties[rng(0, specialties.length - 1)]
-    const growthCurve = growthCurves[rng(0, growthCurves.length - 1)]
-    // 年齢は18〜32でばらけさせる。ランクとは紐づけない
-    // （紐づけると「高ランク＝年上」になるが、早熟のSSSは22歳が全盛なので実態と合わない）
-    const age = 18 + Math.round(i * 14 / Math.max(1, INITIAL_ROSTER_SIZE - 1))
-    const yearsPro = Math.max(0, age - 22)
-
-    const id = `ai-${teamId}-${cpuIdCounter}`
-    // 能力値は年齢カーブ1本（engine/ageCurve.ts）。上限はそのクラブの格
-    const { ratings, potential: potentialVal } = buildRatingsForRank({
-      id, rank, specialty, growthCurve, age, potentialCap,
-    })
-
-    let name: string
-    let origin: string
-    let nationality: Nationality
-
-    if (isForeign) {
-      // 外国籍の国は席の強さから引く（utils/nationTier の drawNationalityForRank 1本）
-      const fn = nationalIdentity(drawNationalityForRank(rank, Math.random, 'JPN'), usedNames)
-      name = fn.name; origin = fn.origin; nationality = fn.nat
-    } else {
-      origin = Math.random() < 0.6
-        ? UNIVERSITIES[rng(0, UNIVERSITIES.length - 1)]
-        : HIGHSCHOOLS[rng(0, HIGHSCHOOLS.length - 1)]
-      nationality = 'JPN'
-      let attempts = 0
-      do {
-        name = `${FAMILY_NAMES[rng(0, FAMILY_NAMES.length - 1)]} ${GIVEN_NAMES_MALE[rng(0, GIVEN_NAMES_MALE.length - 1)]}`
-        attempts++
-      } while (usedNames.has(name) && attempts < 60)
-      usedNames.add(name)
-    }
-
-    const made: Player = {
-      id, name, nameKana: '', age, yearsPro,
-      draftYear: year - yearsPro, draftRound: null, draftPick: null,
-      ratings, specialty,
-      potential: potentialVal,
-      growthCurve,
-      teamId,
-      contract: {
-        yearsLeft: rng(2, 4),
-        annualSalary: 0,
-        faEligibleYear: year + rng(2, 4),
-        contractType: 'standard',
-      },
-      nationality, origin,
-      status: 'active', fatigue: 0, morale: rng(65, 85), form: 0,
-      career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
-      traits: assignTraits(rank, specialty, age),
-      personality: (['salary', 'salary', 'winning', 'winning', 'loyalty'] as const)[rng(0, 4)],
-    }
-    // 年俸は国内・海外・契約更新すべて共通の相場式で決める（faMarketSalary）。
-    // 旧仕様はチーム予算の分配額をそのまま年俸にしていたため、同じOVRでもチームや
-    // 国内/海外で額が食い違っていた（海外は最高8650万・国内は最高3550万）。
-    made.contract.annualSalary = faMarketSalary(made)
-    return made
-  }
-
-  for (const team of rosterClubs) {
-    // ロスターの中身は「格」が決める（そのクラブに各ランクが何人いるか）。
-    //
-    // 前は 予算 → distributeSalaries で25人に年俸を配る → その額から rankForSalary で
-    // ランクを逆算、という中間の仕組み（配分年俸）があった。しかも実際に払う年俸は
-    // OVRから計算し直していたので、年俸が2つあって互いを見ていない状態だった。
-    // いまは 格 → ランク構成 → 年齢カーブ → OVR → 年俸 の1本。
-    const tier = tierOf(team)
+  for (const club of rosterClubs) {
+    const tier = tierOf(club)
     const cap = TIER_POTENTIAL_CAP[tier]
+    // ロスターの中身は格が決める（そのクラブに各ランクが何人いるか）。
+    // シャッフル済みなので、refreshForeignLeagues が先頭数人を新加入として拾っても常にスターだけにはならない
     const slots = tierRankSlots(tier)
+    const home = (clubCountryOf(club) ?? 'JPN') as Nationality
+    const world = leagueRules(club.leagueId).rosterNationality === 'world'
+    const foreignSlots = world ? null
+      : new Set(slots.map((_, k) => k).sort(() => Math.random() - 0.5).slice(0, rng(HOME_FOREIGN_RANGE[0], HOME_FOREIGN_RANGE[1])))
+    const usedNames = new Set<string>()
 
-    const ids: string[] = []
-    // 外国籍は1クラブ5〜6人（HOME_FOREIGN_RANGE・オーナー・2026-09-26「日本は日本中心で外国籍5〜6人くらい」）。
-    // どの枠が外国籍になるかはランダム（強さの枠に偏らせない）
-    const foreignN = rng(HOME_FOREIGN_RANGE[0], HOME_FOREIGN_RANGE[1])
-    const order = slots.map((_, k) => k).sort(() => Math.random() - 0.5)
-    const foreignSlots = new Set(order.slice(0, foreignN))
     slots.forEach((rank, i) => {
-      const p = makePlayer(rank, i, team.id, cap, foreignSlots.has(i))
-      cpuPlayers.push(p); ids.push(p.id)
+      foreignIdCounter++
+      const specialty = specialties[rng(0, specialties.length - 1)]
+      const growthCurve = growthCurves[rng(0, growthCurves.length - 1)]
+      const age = rng(ageRange[0], ageRange[1])
+      const who = world ? nationalIdentity(drawNationalityForRank(rank, Math.random), usedNames)
+        : foreignSlots!.has(i) ? nationalIdentity(drawNationalityForRank(rank, Math.random, home), usedNames)
+        : homeIdentity(home, usedNames)
+      // IDには年とランダム接尾辞を含める（カウンタはアプリ再起動で戻るので、既存セーブのIDと衝突させない）
+      const id = `fp-${club.id}-${year}-${foreignIdCounter}-${Math.random().toString(36).slice(2, 7)}`
+      // 能力値の作り方は buildRatingsForRank の1本（年齢ぶんの成長の焼き込みもそこで行う）。上限はそのクラブの格
+      const { ratings, potential } = buildRatingsForRank({ id, rank, specialty, growthCurve, age, potentialCap: cap })
+      // ★22歳以下は0年目（`age - 22` のままだと負の年数になり、入った年＝draftYear が未来になって
+      //   新人王の候補に一度も入らなかった）
+      const yearsPro = Math.max(0, age - 22)
+      const made: Player = {
+        id, name: who.name, nameKana: '', age, yearsPro,
+        draftYear: year - yearsPro, draftRound: null, draftPick: null,
+        ratings, specialty, potential, growthCurve,
+        teamId: club.id,
+        contract: {
+          yearsLeft: rng(2, 5),
+          annualSalary: 0,
+          faEligibleYear: year + rng(2, 5),
+          contractType: 'standard',
+        },
+        nationality: who.nat,
+        ...(who.nat !== 'JPN' ? { foreignCategory: nationalityToForeignCategory(who.nat) } : {}),
+        origin: who.origin,
+        status: 'active', fatigue: 0, morale: rng(65, 85), form: 0,
+        career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
+        traits: assignTraits(rank, specialty, age),
+        personality: (['salary', 'salary', 'winning', 'winning', 'loyalty'] as const)[rng(0, 4)],
+      }
+      // 年俸は国内・海外・契約更新すべて共通の相場式（faMarketSalary）
+      made.contract.annualSalary = faMarketSalary(made)
+      out.push(made)
     })
-    teamRosters[team.id] = { main: ids }
   }
+  return out
+}
 
+/** `generateClubRosters` の戻り値を「クラブ → 名簿」の形でも返す（呼ぶ側の形に合わせるだけ。中身は1本） */
+export function generateCpuRosters(
+  rosterClubs: readonly RosterClub[],
+  year: number,
+): { cpuPlayers: Player[]; teamRosters: Record<string, { main: string[] }> } {
+  const cpuPlayers = generateClubRosters(rosterClubs, year)
+  const teamRosters: Record<string, { main: string[] }> = {}
+  for (const c of rosterClubs) teamRosters[c.id] = { main: [] }
+  for (const p of cpuPlayers) teamRosters[p.teamId!]?.main.push(p.id)
   return { cpuPlayers, teamRosters }
 }
 
 // プレイヤーチームの初期ロスター生成。
 //
-// ★中身は「格」が決める。CPU(generateCpuRosters)・海外(generateForeignLeaguePlayers)と
+// ★中身は「格」が決める。世界のクラブ（generateClubRosters）と
 //   同じ tierRankComposition / TIER_POTENTIAL_CAP を通す。
 //   以前はここだけ ['A','B'×8,'C'×3] のような固定のランク表を持っていて、
 //   どのクラブを選んでも同じ強さで始まっていた。3部のクラブを選んでもA級が1人いる、
@@ -1309,7 +1303,7 @@ export function buildDraftOrder(
  *   ・年齢は海外の補充と同じ 19〜22（伸びしろ持ちの若手）
  *   ・**上限（`ROSTER_MAX`）は超えない**
  *
- * ★中身の作り方は `generateCpuRosters` 1本を通します（能力値は `buildRatingsForRank`、
+ * ★中身の作り方は `generateClubRosters` 1本を通します（能力値は `buildRatingsForRank`、
  *   年俸は `faMarketSalary`）。ここで独自に選手を組み立てないこと。
  */
 export const DOMESTIC_YOUTH_PER_CLUB = 2
@@ -1321,7 +1315,7 @@ const DOMESTIC_YOUTH_RANKS: Rank[] = ['C', 'D']
  * 若手の補充（`refreshDomesticYouth`）も、開幕の床（`fillRostersForSeason`）も
  * ここから分岐します。**呼ぶ側で選手を手組みしないこと。**
  *
- * 中身は `generateCpuRosters` →（帯を当て直す）`buildRatingsForRank` →
+ * 中身は `generateClubRosters` →（帯を当て直す）`buildRatingsForRank` →
  * 年俸は `faMarketSalary`。**1回の呼び出しで25人ぶん作られる**ので、
  * クラブの数だけ呼ばずに先頭から n 人だけ使います。
  *
@@ -1334,7 +1328,7 @@ function makeNewPlayersFor(
   team: WorldClub, year: number, n: number, ranks: readonly Rank[], prefix: string,
 ): Player[] {
   if (n <= 0) return []
-  const made = generateCpuRosters([{ id: team.id, tier: tierOf(team) }], year).cpuPlayers.slice(0, n)
+  const made = generateClubRosters([team], year).slice(0, n)
   // 名前・国籍はリーグの決まり（rosterNationality）どおり（newcomerIdentity 1本）
   const usedNames = new Set<string>()
   return made.map((p, i) => {
@@ -1428,7 +1422,7 @@ export function refreshForeignLeagues(
   players: Player[],
 ): { newPlayers: Player[] } {
   // 補充は伸びしろ持ちの若手(19〜22)だけ。数年かけてそのティアのエースに育つ。
-  const fresh = generateForeignLeaguePlayers(targetClubs, year, [19, 22])
+  const fresh = { players: generateClubRosters(targetClubs, year, [19, 22]) }
   // 新人は teamId にクラブが入った状態で作られるので、クラブごとに束ねて取り出す
   const freshByClub = clubMembersByClub(fresh.players)
   const byId = new Map(fresh.players.map(p => [p.id, p]))
@@ -1464,8 +1458,8 @@ export function refreshForeignLeagues(
 /**
  * ランク・成長タイプ・年齢から「初期能力値とポテンシャル」を作る、ただ1つの場所。
  *
- * 自チーム(generatePlayerInitialRoster) / CPU(generateCpuRosters) / 海外(generateForeignLeaguePlayers)
- * の3つが同じランク体系を使っているのに、生成の手順だけ別々に手書きされていた。その結果
+ * 自チーム(generatePlayerInitialRoster) / 世界のクラブ(generateClubRosters)
+ * の2つが同じランク体系を使っているのに、生成の手順だけ別々に手書きされていた。その結果
  * 自チームだけ bakeAgeGrowth（年齢ぶんの成長の焼き込み）が抜けており、自チームの26歳が
  * 「22歳の能力のまま歳だけ26」という状態で始まっていた（CPUの26歳は4年ぶん成長済み）。
  * 開幕時点で1軍平均OVRに12ポイント、エースで21ポイントの差がつく原因になっていた。
@@ -1519,114 +1513,11 @@ function hashForCap(s: string): number {
   return Math.abs(strHash(s) | 0)
 }
 
+/** `generateClubRosters` を `{ players }` の形で返す（呼ぶ側の形に合わせるだけ。中身は1本） */
 export function generateForeignLeaguePlayers(
-  /** 選手を作るクラブ（並びの順に作る＝乱数を引く順） */
-  targetClubs: readonly Pick<ForeignClub, 'id' | 'country'>[],
+  targetClubs: readonly RosterClub[],
   year: number,
-  // 年齢範囲。毎年の補充(refreshForeignLeagues)は伸びしろ持ちの若手だけを入れるので[19,22]を渡す。
-  //
-  // 2046調整: 初期ロスターは[22,30]だった。当時は引退が32〜40歳だったので最初の5〜8年は誰も抜けず、
-  // 補充ゲート（当時は在籍26人未満のときだけ新人を入れる）が一度も開かなかった。結果、
-  // 初期コホートがそのまま歳を取るだけで、海外リーグに若手が一人も居ない状態が続いていた。
-  // [18,28]に下げて最初から若手を混ぜる（能力値は年齢カーブ engine/ageCurve から出る）。
   ageRange: [number, number] = [18, 28],
 ): { players: Player[] } {
-  const players: Player[] = []
-  const specialties: Specialty[] = [...SPECIALTIES]
-  const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']
-
-  // 海外クラブの強さも「格」1本で決まる（utils/clubTier.ts）。
-  //
-  // 前は REGION という別の表があり、budget / potBonus / minRank / maxRank / potCap の
-  // 5つのノブで地域ごとに強さを決めていた。国内は格、海外は REGION、と決まりが2本立てで、
-  // 「4大リーグへ進む」「3部の原石を奪い合う」を同じ物差しで比べられなかった。
-  // いまは全232クラブが同じ格に乗っている。
-
-  // 国籍はクラブの所在国ではなく、席の強さ（ランク）から引く（utils/nationTier の drawNationalityForRank 1本）。
-  // クラブの所在国に固定すると、国の選手層＝その国のクラブ数になり、
-  // ニュージーランド220人・エチオピア66人のような転倒が起きる（実測）。
-  // 席の強さはクラブの格のまま＝クラブの強さは変わらず、国の格は「その席に誰が座るか」だけを決める。
-
-  for (const club of targetClubs) {
-    {
-      const tier = tierOf(club)
-      const cap = TIER_POTENTIAL_CAP[tier]
-      // ロスターの中身は格が決める（そのクラブに各ランクが何人いるか）。
-      // シャッフルするのは refreshForeignLeagues が先頭数人を新加入として拾うため
-      // （常にスターだけが入るのを防ぐ）
-      const rankSlots = tierRankSlots(tier)
-      const clubUsedNames = new Set<string>()
-
-      rankSlots.forEach((rank) => {
-        foreignIdCounter++
-        const specialty = specialties[rng(0, specialties.length - 1)]
-        const growthCurve = growthCurves[rng(0, growthCurves.length - 1)]
-        const age = rng(ageRange[0], ageRange[1])
-        const nat: Nationality = drawNationalityForRank(rank, Math.random)
-        const foreignCat = nationalityToForeignCategory(nat)
-
-        // 名前は所属クラブの国ではなく【国籍】から引く。
-        // 切り離した以上、スペインのクラブにいるケニア人にスペイン名が付いてはいけない。
-        const namePools = FOREIGN_LEAGUE_POOLS[nat as string] ?? FOREIGN_LEAGUE_POOLS._default
-        // クラブ内で同名が出ないよう組み合わせをリトライする
-        const pool = namePools[rng(0, namePools.length - 1)]
-        let nameEntry = pickForeignName(pool)
-        let nameAttempts = 0
-        while (clubUsedNames.has(nameEntry.name) && nameAttempts < 60) {
-          nameEntry = pickForeignName(pool)
-          nameAttempts++
-        }
-        clubUsedNames.add(nameEntry.name)
-
-        const id = `fp-${club.id}-${year}-${foreignIdCounter}-${Math.random().toString(36).slice(2, 7)}`
-
-        // 能力値の作り方は buildRatingsForRank の1本（年齢ぶんの成長の焼き込みもそこで行う）。
-        // 地域でポテンシャルを底上げする（若手は高ポテンシャルで生成 → 成長で伸びる。現在値はいきなり上げない）。
-        // potCap で地域ごとの実効OVR天井を決める。
-        const { ratings, potential: potentialVal } = buildRatingsForRank({
-          id, rank, specialty, growthCurve, age,
-          potentialCap: cap,
-        })
-
-        const madeF: Player = {
-          id,
-          name: nameEntry.name,
-          nameKana: '',
-          age,
-          // ★22歳以下は0年目（`age - 22` のままだと負の年数になり、入った年＝draftYear が未来になって
-          //   新人王の候補に一度も入らなかった）
-          yearsPro: Math.max(0, age - 22),
-          draftYear: year - Math.max(0, age - 22),
-          draftRound: null,
-          draftPick: null,
-          ratings,
-          specialty,
-          potential: potentialVal,
-          growthCurve,
-          teamId: club.id,
-          contract: {
-            yearsLeft: rng(1, 3),
-            annualSalary: 0,
-            faEligibleYear: year + rng(1, 3),
-          },
-          nationality: nat,
-          foreignCategory: foreignCat,
-          origin: nameEntry.origin,
-          status: 'active',
-          fatigue: 0,
-          morale: rng(65, 85),
-          form: 0,
-          career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
-          traits: assignTraits(rank, specialty, age),
-          personality: (['salary', 'salary', 'winning', 'winning', 'loyalty'] as const)[rng(0, 4)],
-        }
-        // 年俸は国内リーグと完全に同じ相場式で決める（クラブ予算 clubSalary はランク＝強さの割り当て専用）。
-        // 「海外と日本で同じ選手の額が違うのはおかしい」への対応：物差しは1本、違うのはレースだけ。
-        madeF.contract.annualSalary = faMarketSalary(madeF)
-        players.push(madeF)
-      })
-    }
-  }
-
-  return { players }
+  return { players: generateClubRosters(targetClubs, year, ageRange) }
 }

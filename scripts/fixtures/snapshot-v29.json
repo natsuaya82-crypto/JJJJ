@@ -854,6 +854,7 @@
    "draftRound": "null",
    "draftYear": "number",
    "fatigue": "number",
+   "foreignCategory?": "string",
    "form": "number",
    "growthCurve": "string",
    "id": "string",
