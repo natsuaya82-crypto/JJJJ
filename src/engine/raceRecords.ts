@@ -4,10 +4,12 @@
 // **このレースの結果はまだ currentSeason に入っていない**ので、引いた記録は
 // 「今走ったレースより前の記録」になる。＝そのまま比べれば「新記録か」が出る。
 //
-// 1部・2部・3部は同じコースを分け合って走るので、記録はコース1本ぶん（部で分けない）。
+// 同じ呼び名のコースは同じ記録（リーグで分けない。utils/segmentRecords）。
+// ★本編の1戦（store/slices/raceSlice）も、裏で走るほかの11リーグ（engine/leagueDay）も
+//   ここ1本で判定する（オーナー・2026-09-28「直します」。以前は自分のリーグだけニュースになった）。
 // 乱数は使わない。
 import type { LeagueId, Player, Race, RaceResults, WorldClub } from '../types'
-import { segmentRecordsOf, type SeasonRacesLike } from '../utils/segmentRecords'
+import type { SegmentRecordMap } from '../utils/segmentRecords'
 import { type NewsItem, segmentRecordHeadline } from '../utils/newsItems'
 import { clubById } from '../utils/world'
 
@@ -18,15 +20,11 @@ export function detectSegmentRecords(params: {
   clubs: WorldClub[]
   playerTeamId: string
   /** そのレースのリーグ（見出しに添える呼び名） */
-  myLeagueId: LeagueId | undefined
-  pastSeasons: SeasonRacesLike[]
-  currentSeason: SeasonRacesLike
+  leagueId: LeagueId | undefined
+  /** このレースを走る前の区間記録（utils/segmentRecords の segmentRecordsOf） */
+  prevSegRecords: SegmentRecordMap
 }): { news: NewsItem[]; marks: { segmentIndex: number; playerId: string }[] } {
-  const { race, results, players, clubs, playerTeamId, myLeagueId, pastSeasons, currentSeason } = params
-  // 区間新記録の判定。
-  // 歴代記録はセーブに貯めず、保存してあるレース結果から数え直す。
-  // このレースの結果はまだ currentSeason に入っていないので、これは「今走ったレースの前の記録」になる。
-  const prevSegRecords = segmentRecordsOf(pastSeasons, currentSeason)
+  const { race, results, players, clubs, playerTeamId, leagueId, prevSegRecords } = params
   // 区間新記録が出たらニュースにする（過去記録がある区間で更新された場合のみ）
   const news: NewsItem[] = []
   // 結果画面の「区間新！」バッジ用（このレースで従来記録を破った区間×選手）
@@ -44,7 +42,7 @@ export function detectSegmentRecords(params: {
       news.push({
         date: race.date,
         headline: segmentRecordHeadline({
-          leagueId: myLeagueId, raceName: race.name, segmentIndex: sr.segmentIndex,
+          leagueId, raceName: race.name, segmentIndex: sr.segmentIndex,
           playerName: plName, clubShort: tmShort,
           timeSec: fastestRunner.timeSec, prevTimeSec: prevBest, mine: isMine }),
         category: 'race' as const,

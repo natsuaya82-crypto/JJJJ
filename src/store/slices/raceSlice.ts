@@ -9,6 +9,7 @@ import { buildRaceNews } from '../../engine/raceNews'
 import { applyRaceFatigue } from '../../engine/raceFatigue'
 import { applyRaceProgress } from '../../engine/raceProgress'
 import { detectSegmentRecords } from '../../engine/raceRecords'
+import { segmentRecordsOf } from '../../utils/segmentRecords'
 import { settleCpuTransfers } from '../../engine/cpuTransfers'
 import { resolveExpiredOffers } from '../../engine/offerExpiry'
 import { resolveTransferBids } from '../../engine/bidResolution'
@@ -400,7 +401,9 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       // 区間新記録の判定は engine/raceRecords 1本（歴代記録は保存済みの結果から数え直す）
       const segRecords = detectSegmentRecords({
         race, results, players: state.players, clubs: state.clubs,
-        playerTeamId, myLeagueId: myLeague, pastSeasons: state.pastSeasons, currentSeason: state.currentSeason })
+        playerTeamId, leagueId: myLeague,
+        // このレースの結果はまだ currentSeason に入っていない＝「今走ったレースの前の記録」
+        prevSegRecords: segmentRecordsOf(state.pastSeasons, state.currentSeason) })
       const segRecordNewsItems = segRecords.news
       const newSegRecordMarks = segRecords.marks
 

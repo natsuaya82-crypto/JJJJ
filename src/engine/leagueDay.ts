@@ -17,6 +17,9 @@ import { leaguesWhere, type WorldLeague } from '../data/leagues'
 import { playersByClub } from '../utils/rosterSync'
 import { applyCareerAdd, runBackgroundRace } from './backgroundRace'
 import { applyRaceMorale, standingOf } from './raceMorale'
+import { detectSegmentRecords } from './raceRecords'
+import { segmentRecordsOf, type SeasonRacesLike, type SegmentRecordMap } from '../utils/segmentRecords'
+import type { NewsItem } from '../utils/newsItems'
 
 type Leagues = Record<LeagueId, LeagueSeason>
 
@@ -96,7 +99,9 @@ export function runLeaguesThrough(o: {
   skip?: LeagueId
   /** 自チーム（怪我のニュースは自チームだけ） */
   playerTeamId: string
-}): { season: Season; players: Player[] } | null {
+  /** 区間新記録の判定に使う過去のシーズン（本編の1戦と同じ engine/raceRecords で判定する） */
+  pastSeasons: SeasonRacesLike[]
+}): { season: Season; players: Player[]; news: NewsItem[] } | null {
   const scheduled = withCopiedSchedules(o.season.leagues, o.clubs)
   const leagues: Leagues = { ...scheduled }
   const due: { leagueId: LeagueId; index: number; date: string }[] = []
@@ -106,7 +111,7 @@ export function runLeaguesThrough(o: {
   }
   if (due.length === 0) {
     // 走るものが無くても、海外リーグの日程をそろえたなら残す（日程の画面が空にならないように）
-    return scheduled === o.season.leagues ? null : { season: { ...o.season, leagues: scheduled }, players: o.players }
+    return scheduled === o.season.leagues ? null : { season: { ...o.season, leagues: scheduled }, players: o.players, news: [] }
   }
   // 日付の順。同じ日はリーグの並び（Array#sort は安定）
   due.sort((a, b) => a.date.localeCompare(b.date))
@@ -114,6 +119,10 @@ export function runLeaguesThrough(o: {
   // 施設（戦術室）は国内・海外とも所属クラブのもの
   let players = o.players
   const segPrize = { ...(o.season.seasonSegPrize ?? {}) }
+  // 区間新記録（オーナー・2026-09-28「直します」＝自分のリーグだけでなく全リーグ）。
+  // 走る前の記録を1回だけ組み、1本走るたびにその本の最速を書き足す（毎回組み直すと過去の全シーズンを数え直す）
+  const records: SegmentRecordMap = { ...segmentRecordsOf(o.pastSeasons, o.season) }
+  const news: NewsItem[] = []
 
   for (const d of due) {
     const lg = leagues[d.leagueId]
@@ -124,6 +133,19 @@ export function runLeaguesThrough(o: {
       seasonProgress: d.index / lg.races.length,
       entrants: lg.standings.map(s => ({ id: s.teamId, roster: (byClub.get(s.teamId) ?? []).filter(canRunLeagueRace) })),
     })
+    if (out.race.results) {
+      news.push(...detectSegmentRecords({
+        race: out.race, results: out.race.results, players, clubs: o.clubs,
+        playerTeamId: o.playerTeamId, leagueId: d.leagueId, prevSegRecords: records }).news)
+      for (const sr of out.race.results.segmentResults) {
+        const key = `${out.race.name}-${sr.segmentIndex}`
+        for (const run of sr.runners) {
+          if (!run.playerId) continue
+          const best = records[key]?.[0]
+          if (!best || run.timeSec < best.timeSec) records[key] = [{ playerId: run.playerId, teamId: run.teamId, timeSec: run.timeSec, year: o.season.year }]
+        }
+      }
+    }
     leagues[d.leagueId] = {
       races: lg.races.map((r, i) => (i === d.index ? out.race : r)),
       standings: addRaceToStandings(lg.standings, out.race),
@@ -154,5 +176,6 @@ export function runLeaguesThrough(o: {
   return {
     players,
     season: { ...o.season, leagues, seasonSegPrize: segPrize },
+    news,
   }
 }

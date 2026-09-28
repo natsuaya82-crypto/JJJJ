@@ -34,8 +34,14 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
     const out = runLeaguesThrough({
       season: state.currentSeason, players: state.players, clubs: state.clubs, through: date,
       skip: myLeagueId(state.currentSeason, state.playerTeamId), playerTeamId: state.playerTeamId,
+      pastSeasons: state.pastSeasons,
     })
-    return out ? { players: out.players, currentSeason: out.season } : {}
+    if (!out) return {}
+    // ほかのリーグの区間新記録もニュースに載せる（本編の1戦と同じ置き場所・同じ40件）
+    const newsFeed = out.news.length > 0
+      ? [...[...out.news].reverse(), ...out.season.newsFeed].slice(0, 40)
+      : out.season.newsFeed
+    return { players: out.players, currentSeason: { ...out.season, newsFeed } }
   }),
 
 

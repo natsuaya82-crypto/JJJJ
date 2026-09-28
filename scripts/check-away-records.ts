@@ -40,7 +40,7 @@ const myLeague = divisionLeagueId(3)
 
 // 6月末まで（途中の日付で止まることも見る）
 const THROUGH = `${YEAR}-06-30`
-const out = runLeaguesThrough({ season, players, clubs, through: THROUGH, skip: myLeague, playerTeamId: "" })
+const out = runLeaguesThrough({ season, players, clubs, through: THROUGH, skip: myLeague, playerTeamId: "", pastSeasons: [] })
 if (!out) { console.log('✗ 空振り（1本も走らなかった）'); process.exit(1) }
 const L = out.season.leagues
 
@@ -60,7 +60,7 @@ console.log('[0] 裏のリーグの選手も疲れ、怪我をする（本編の
   // 怪我は疲労65を超えてから（raceInjury）。ふつうの1年ではCPUはそこまで疲れないので、
   // 裏のリーグの選手を最初から疲れさせた世界で、走った選手が怪我をするかを見る
   const tiredWorld = players.map(p => inOther.has(p.teamId) ? { ...p, fatigue: 100 } : p)
-  const t = runLeaguesThrough({ season, players: tiredWorld, clubs, through: THROUGH, skip: myLeague, playerTeamId: "" })
+  const t = runLeaguesThrough({ season, players: tiredWorld, clubs, through: THROUGH, skip: myLeague, playerTeamId: "", pastSeasons: [] })
   const hurt = (t?.players ?? []).filter(p => inOther.has(p.teamId) && p.status === 'injured').length
   check('裏のリーグの選手も怪我をする（疲れた世界）', hurt > 0, `${hurt}人`)
 }
@@ -89,7 +89,7 @@ console.log('[1b] 開催日ちょうどまで走らせると、その日の開�
 {
   // 1部の開幕日。海外9リーグも同じ日に開幕する
   const day = season.leagues[divisionLeagueId(1)].races[0].date
-  const o = runLeaguesThrough({ season, players, clubs, through: day, skip: myLeague, playerTeamId: "" })
+  const o = runLeaguesThrough({ season, players, clubs, through: day, skip: myLeague, playerTeamId: "", pastSeasons: [] })
   const onDay = Object.entries(o?.season.leagues ?? {}).filter(([id]) => id !== myLeague)
     .flatMap(([, lg]) => lg.races.filter(r => r.date === day))
   check('その日の開催が全部走っている', onDay.length > 0 && onDay.every(r => !!r.results), `${onDay.filter(r => !r.results).length}本残り／${onDay.length}本`)
@@ -154,8 +154,26 @@ console.log('[5] 日付の順に走る（同じリーグの2戦目は1戦目の�
   }
   check('前の日付を飛ばして走ったレースが無い', bad === 0, `${bad}本`)
   // 同じ日付にもう一度呼んでも何も走らない（二重に走らせない）
-  const again = runLeaguesThrough({ season: out.season, players: out.players, clubs, through: THROUGH, skip: myLeague, playerTeamId: "" })
+  const again = runLeaguesThrough({ season: out.season, players: out.players, clubs, through: THROUGH, skip: myLeague, playerTeamId: "", pastSeasons: [] })
   check('同じ日まで2回呼んでも2回目は何も走らない', again === null)
+}
+
+console.log('[6] ほかのリーグの区間新記録もニュースになる（オーナー・2026-09-28「直します」）')
+{
+  // 以前は区間新のニュースが自分のリーグ（本編の1戦）だけだった。
+  // 戻し方：engine/leagueDay の runLeaguesThrough から detectSegmentRecords を消す
+  // 同じ半年を「去年」として持たせ、もう一度走らせる＝どのコースにも前の記録がある
+  const past = [{ ...out.season, year: YEAR - 1 }]
+  seed = 7
+  const again = runLeaguesThrough({ season, players, clubs, through: THROUGH, skip: myLeague, playerTeamId: '', pastSeasons: past })
+  const news = again?.news ?? []
+  const foreignIds = new Set(players.filter(p => FOREIGN_LEAGUE_DEFS.some(l => clubs.find(c => c.id === p.teamId)?.leagueId === l.id)).map(p => p.id))
+  const foreignNews = news.filter(n => (n.relatedIds ?? []).some(id => foreignIds.has(id))).length
+  console.log(`      区間新 ${news.length}件（海外リーグ ${foreignNews}件）`)
+  check('ほかのリーグの区間新がニュースになる', news.length > 0 && news.every(n => n.headline.startsWith('【区間新記録】')), `${news.length}件`)
+  check('海外リーグの区間新もニュースになる', foreignNews > 0, `${foreignNews}件`)
+  // 過去のシーズンが無くても、同じ呼び名のコースを先に走ったリーグの記録が「前の記録」になる
+  console.log(`      （過去のシーズン無しでも、同じ半年のうちに ${out.news.length}件）`)
 }
 
 console.log('')
