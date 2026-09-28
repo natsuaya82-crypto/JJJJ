@@ -5,7 +5,7 @@
 import { isDeclining } from './ageCurve'
 import { clubSalaryTotal } from '../utils/clubMoney'
 import { roundFee, transferCapOf } from '../data/economy'
-import { CPU_SELL_FLOOR, ROSTER_MAX, ROSTER_MIN, teamRosterSize } from '../data/rosterRules'
+import { CPU_SELL_FLOOR, ROSTER_MAX, ROSTER_MIN, SEASON_START_ROSTER, teamRosterSize } from '../data/rosterRules'
 import { type ForeignClub, type IncomingLoanOffer, type IncomingOffer, type Player, type Specialty, type TransferListing, type WorldClub } from '../types'
 import type { Destination } from '../utils/transferDecision'
 import { clubSeasonRank } from '../utils/clubStanding'
@@ -290,7 +290,8 @@ export function generateLoanOffers(params: {
   }
 
   // 3) レンタル打診：相手が自チームに選手を貸したい（borrow_in）。
-  // クラブが貸しに出すのは「出番のない選手」：出場率が低い26歳以下から、こちらの補強ニーズに合う選手を優先して提示
+  // クラブが貸しに出すのは「出番のない選手」：走れる7人に入らず・出場率が低い選手から、こちらの補強ニーズに合う選手を優先して提示
+  // ★年齢とOVRの線（26歳以下・OVR76未満）は直書きだったので外した（オーナー・2026-09-28「直書きなし」）
   if (aiTeams.length > 0 && Math.random() < 0.20) {
     const myNeedsLoan = cpuSpecialtyNeeds(playerTeamId, players)
     // ★出場率は「そのクラブが走っている日程」で数える（utils/playRate の1本）。
@@ -302,7 +303,7 @@ export function generateLoanOffers(params: {
       .filter(x => x.status === 'active').sort(comparePlayers('ovr'))
     const cands = players.filter(p =>
       p.teamId !== playerTeamId && p.teamId !== '' && aiTeams.some(t => t.id === p.teamId)
-      && p.status === 'active' && !p.loan && p.age <= 26 && ovr(p) < 76 && !loanTargetIds.has(p.id)
+      && p.status === 'active' && !p.loan && !loanTargetIds.has(p.id)
       && !wouldMakeLineup(rosterOfClub(p.teamId), p)
       // ★貸す側の下限（`data/rosterRules` の `CPU_SELL_FLOOR` 1本）。貸すと出した側の在籍が1人減るので、
       //   CPU同士のレンタル（runCpuLoans）と同じ線を当てる（オーナー・2026-09-26「下限あてなさい」）
@@ -406,8 +407,8 @@ export function generateTransferActivity(
       }
     }
 
-    // Surplus roster > 20: list player well below team average
-    if (!listed && teamPlayers.length > 20) {
+    // 開幕の人数（SEASON_START_ROSTER）より多いクラブは、余った選手を出品する
+    if (!listed && teamPlayers.length > SEASON_START_ROSTER) {
       const c = [...teamPlayers].filter(p => spare(p) && p.contract.yearsLeft > 0).sort((a, b) => ovr(a) - ovr(b))[0]
       if (c) {
         newListings.push({ id: `lst-${raceIndex}-${c.id}`, playerId: c.id, fromTeamId: team.id, askingPrice: roundFee(marketValue(c)), listedAtRace: raceIndex, expiresAtRace: raceIndex + 5, competingTeams: aiTeams.filter(t => t.id !== team.id && Math.random() < 0.4).slice(0, 3).map(t => t.id) })
@@ -549,7 +550,7 @@ export function generateTransferActivity(
     if (dreamHome.length > 0 && Math.random() < 0.75) {
       targets = dreamHome
     } else {
-      const needsSlot = clubPlayers.length < 20
+      const needsSlot = clubPlayers.length < SEASON_START_ROSTER
       // どれだけ動くかは**そのクラブの格**で決まる（格1が45%、格20が15%）。
       // 以前はロスターの平均OVRから作った elite/mid/weak の3段階だった
       const wantsUpgrade = Math.random() < 0.15 + 0.30 * tierStrength(tier)

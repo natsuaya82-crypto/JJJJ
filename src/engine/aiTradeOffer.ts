@@ -10,7 +10,9 @@
 import type { AITradeOffer, Player, Season, WorldClub } from '../types'
 import { AI_OFFER_GAIN_MAX, AI_OFFER_GAIN_MIN, priceOf, type TradeValueCtx } from '../utils/tradeValue'
 import { canBePoached, eligibilityCtx } from '../utils/transferEligibility'
-import { effectiveOvr, ovr } from '../utils/playerUtils'
+import { ovr } from '../utils/playerUtils'
+import { wouldMakeLineup } from '../utils/squadNeeds'
+import { SQUAD_DEPTH_SLOTS } from '../data/rosterRules'
 import { cpuSpecialtyNeeds } from './cpuMarket'
 import { clubById, clubIds, otherClubs } from '../utils/world'
 
@@ -35,27 +37,30 @@ export function generateAiTradeOffers(params: {
       // トレードで欲しがられる条件も他の移籍と同じ（utils/transferEligibility.ts）。
       // ここだけ非売しか見ておらず、海外挑戦を承認した選手や引退希望の選手にも打診が来ていた
       const tradeCtx = eligibilityCtx(currentSeason, playerTeamId)
-      const myTradables = players.filter(p => canBePoached(p, tradeCtx) && ovr(p) >= 62)
+      // ★**OVRの下限を直書きしないこと**（オーナー・2026-09-28「直書きなし」）。以前は 62 / 68 / 65 と
+      //   自チーム10番手の線を手で書いていた。「そのクラブの戦力に入るか」は `wouldMakeLineup(…, SQUAD_DEPTH_SLOTS)`
+      //   （14番手まで）1本＝移籍市場・FA・CPU間のトレードと同じ線
+      const myRoster = players.filter(p => p.teamId === playerTeamId && p.status === 'active')
+      const rosterOf = (id: string) => players.filter(p => p.teamId === id && p.status === 'active')
       const myNeeds = cpuSpecialtyNeeds(playerTeamId, players)
       // ★**打診してくるのは国内52＋海外180の全部**（オーナー・2026-09-16「二も一緒」）。
       //   CPU同士のトレードは 2026-08-13 に既に1本化されている（「移籍は揃えて。
       //   国内国外という考えは消す」）のに、**GMに来る打診だけ国内に閉じて**いました。
       const cpuIds = clubIds(otherClubs(clubs, playerTeamId))
-      // 自チームの穴を埋められる選手(OVR68+)を持つチームを優先。いなければランダム
+      // 自チームの穴を埋められる選手（こちらの戦力に入る）を持つチームを優先。いなければランダム
       const teamsWithFit = cpuIds.filter(id => players.some(p =>
-        p.teamId === id && p.status === 'active' && !p.loan && myNeeds.includes(p.specialty) && ovr(p) >= 68))
+        p.teamId === id && p.status === 'active' && !p.loan && myNeeds.includes(p.specialty)
+        && wouldMakeLineup(myRoster, p, SQUAD_DEPTH_SLOTS)))
       const fromId = teamsWithFit.length > 0
         ? teamsWithFit[Math.floor(rng() * teamsWithFit.length)]
         : cpuIds[Math.floor(rng() * cpuIds.length)]
       const theirNeeds = cpuSpecialtyNeeds(fromId, players)
-      // 「自チームで出番がある選手」しか提示させない：自チーム10番手のOVRを下回る選手の打診は出さない
-      const myMainOvrs = players
-        .filter(p => p.teamId === playerTeamId && p.status === 'active')
-        .map(p => ovr(p)).sort((a, b) => b - a)
-      const lineupBar = myMainOvrs[Math.min(9, Math.max(0, myMainOvrs.length - 1))] ?? 0
+      // 「自チームで出番がある選手」しか提示させない＝こちらの戦力に入る選手（14番手まで）
       const theirRoster = players.filter(p =>
-        // ★年齢の蓋（`p.age <= 33`）は外した。強さは `effectiveOvr`（年齢込み）1本で見る
-        p.teamId === fromId && p.status === 'active' && !p.loan && effectiveOvr(p) >= Math.max(65, lineupBar))
+        p.teamId === fromId && p.status === 'active' && !p.loan && wouldMakeLineup(myRoster, p, SQUAD_DEPTH_SLOTS))
+      // 相手が欲しがるのは、相手の戦力に入る自チームの選手（14番手まで）
+      const fromRoster = rosterOf(fromId)
+      const myTradables = players.filter(p => canBePoached(p, tradeCtx) && wouldMakeLineup(fromRoster, p, SQUAD_DEPTH_SLOTS))
       // 自チームの穴（手薄なポジション）に合う選手を優先。いなければ出番基準を満たす全員から
       const fitRoster = theirRoster.filter(p => myNeeds.includes(p.specialty))
       const offerPool = fitRoster.length > 0 ? fitRoster : theirRoster

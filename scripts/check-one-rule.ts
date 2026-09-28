@@ -387,6 +387,17 @@ console.log('\n[20] 「その選手はいくらか」の材料も1本（今季�
   // 戻し方：engine/tradeExecution の movePlayer から `...joinContractOf(...)` を消す
   const joinCalls = (code.match(/(?<!function )joinContractOf\(/g) ?? []).length
   check('加入の入口6か所が joinContractOf を通る', joinCalls === 6, `${joinCalls}か所`)
+  // ★「そのクラブにとってOVRいくつ以上か」を直書きしないこと（CLAUDE.md「クラブの強さの物差しは格1本」・オーナー・2026-09-28「直書きなし」）。
+  //   GMに来るトレードの打診（62 / 68 / 65・自チーム10番手の線）とレンタルで貸してくる相手（26歳以下・OVR76未満）に残っていた。
+  //   戦力に入るかは wouldMakeLineup(…, SQUAD_DEPTH_SLOTS)、出番が無いかは playingStatus
+  // 戻し方：engine/aiTradeOffer の myTradables に `&& ovr(p) >= 62` を戻す
+  for (const f of ['src/engine/aiTradeOffer.ts', 'src/engine/cpuMarket.ts']) {
+    const body = fileCode(f).replace(/\/\*[\s\S]*?\*\//g, '').split('\n').filter(l => !l.trim().startsWith('//')).join('\n')
+    // 年齢は「再建中のクラブが27歳以下のFAを好む」（オーナー判断・2026-08-14）があるので、外した1本だけを名指しする
+    // 確率の曲線（`ovr(p) >= 80 ? 0.65 : …`＝強い選手ほど声が掛かりやすい）は線ではないので除く（三項の条件）
+    const hit = body.match(/(?:effectiveOvr|ovr)\(\w+\)\s*[<>]=?\s*(?:Math\.max\()?\d{2}\b(?!\s*\?)|\.age\s*<=\s*26\s*&&\s*ovr/)
+    check(`${f.replace('src/engine/', '')} に OVR の線を直書きしていない`, !hit, hit?.[0] ?? '')
+  }
 }
 
 console.log('\n[21] 「世界へ挑戦」の見出しは clubTier の isWorldChallenge 1本')
