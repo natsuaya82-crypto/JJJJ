@@ -28,7 +28,7 @@ import { applyRaceBoosts } from '../../engine/raceBoosts'
 import { buildCpuLineups, simulateRace } from '../../engine/raceEngine'
 import { type ExpiredNegotiation, type GameState, type IndividualEvent, type Player, type Ratings, type TransferRecord } from '../../types'
 import { generateDropCards } from '../../utils/cardCombo'
-import { myClub, myLeagueId, myLeagueRaces, withLeagueRaces } from '../../utils/world'
+import { clubsInLeague, myClub, myLeagueId, myLeagueRaces, withLeagueRaces } from '../../utils/world'
 import { withFatigue, withMorale } from '../../utils/condition'
 import { isLiveContract } from '../../utils/contractTalk'
 import { leagueThroughRank, myLeagueSize, segmentPrizeByTeam, leagueStandingRows, addRaceToStandings } from '../../utils/league'
@@ -227,7 +227,8 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       // 疲労の増減は engine/raceFatigue 1本（医療センターはCPUにも効く）
       const updatedPlayers = applyRaceFatigue({
         players: state.players, racingIds, clubs: state.clubs,
-        raceStrategy: state.raceStrategy, segmentCount: race.segments.length })
+        raceStrategy: state.raceStrategy, segmentCount: race.segments.length,
+        clubIds: new Set(clubsInLeague(state.clubs, myLeague).map(c => c.id)) })
 
       // ★順位別のレース賞金と観客収入は廃止した。クラブの収入は「格の年間予算」1本
       //   （data/economy.ts）。順位は翌年の格を通してのみ収入に効く。

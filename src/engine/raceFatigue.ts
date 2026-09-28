@@ -24,8 +24,14 @@ export function applyRaceFatigue(params: {
   raceStrategy: RaceStrategy | undefined
   /** そのレースの区間数（長いレースほど溜まる） */
   segmentCount: number
+  /**
+   * そのレースを走ったリーグのクラブ。**疲れる・休んで回復するのはこのクラブの選手だけ**。
+   * ★どのリーグも自分のレースの日に同じだけ動く（本編の1戦も裏のリーグも。オーナー・2026-09-28「同じ」）。
+   *   以前は本編の1戦で世界中の選手が休養ぶん回復し、裏のリーグの選手は1度も疲れなかった
+   */
+  clubIds: ReadonlySet<string>
 }): Player[] {
-  const { players, racingIds, clubs, raceStrategy, segmentCount } = params
+  const { players, racingIds, clubs, raceStrategy, segmentCount, clubIds } = params
   const stratMult = STRATEGY_FATIGUE_MULT[raceStrategy ?? 'balanced'] ?? 1.0
   // ★施設は `facilitiesOf` 1本（格から出る土台＋自分で建てたぶん）
   const medLvByTeam = clubMap(clubs, t => facilitiesOf(t).medicalCenter)
@@ -34,6 +40,7 @@ export function applyRaceFatigue(params: {
   return players.map(p => {
     // 引退選手は能力値を消してセーブを軽くしてあるので、疲労計算の対象外
     if (!p.ratings || p.status === 'retired') return p
+    if (!clubIds.has(p.teamId)) return p
     if (racingIds.has(p.id)) {
       const medMult = facilityMedFatigueMultiplier(medLvByTeam.get(p.teamId) ?? 0)
       // 回復力が高いほど溜まりにくい（50で標準・90で-12%）

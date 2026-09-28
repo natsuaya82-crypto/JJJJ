@@ -33,7 +33,7 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
   advanceLeaguesTo: (date) => set(state => {
     const out = runLeaguesThrough({
       season: state.currentSeason, players: state.players, clubs: state.clubs, through: date,
-      skip: myLeagueId(state.currentSeason, state.playerTeamId),
+      skip: myLeagueId(state.currentSeason, state.playerTeamId), playerTeamId: state.playerTeamId,
     })
     return out ? { players: out.players, currentSeason: out.season } : {}
   }),

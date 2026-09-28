@@ -10,6 +10,9 @@ import type { LeagueId, LeagueSeason, Player, Race, Season, SeasonStanding, Worl
 import { courseRegionOfNation, localizeRace } from '../data/courseNames'
 import { addRaceToStandings } from '../utils/league'
 import { clubsInLeague } from '../utils/world'
+import { applyRaceFatigue } from './raceFatigue'
+import { rollRaceInjuries } from './raceInjury'
+import { racesConsumed } from '../utils/playerUtils'
 import { leaguesWhere, type WorldLeague } from '../data/leagues'
 import { playersByClub } from '../utils/rosterSync'
 import { applyCareerAdd, runBackgroundRace } from './backgroundRace'
@@ -91,6 +94,8 @@ export function runLeaguesThrough(o: {
   through: string
   /** 走らせないリーグ（自チームのリーグ。本編で走る） */
   skip?: LeagueId
+  /** 自チーム（怪我のニュースは自チームだけ） */
+  playerTeamId: string
 }): { season: Season; players: Player[] } | null {
   const scheduled = withCopiedSchedules(o.season.leagues, o.clubs)
   const leagues: Leagues = { ...scheduled }
@@ -130,6 +135,16 @@ export function runLeaguesThrough(o: {
       segWinIds: new Set(Object.entries(out.careerAdd).filter(([, a]) => a.segWins > 0).map(([id]) => id)),
       racingIds: new Set(Object.keys(out.ranFor)),
     })
+    // 疲労と怪我も本編の1戦と同じ（engine/raceFatigue・engine/raceInjury）。作戦はCPUに無いので標準。
+    // 疲れる・休むのはこのリーグのクラブの選手だけ。怪我の復帰時期は本編と同じ「何本走ったか」の時計で数える
+    const ranIds = new Set(Object.keys(out.ranFor))
+    players = applyRaceFatigue({
+      players, racingIds: ranIds, clubs: o.clubs, raceStrategy: undefined,
+      segmentCount: lg.races[d.index].segments.length,
+      clubIds: new Set(lg.standings.map(s => s.teamId)) })
+    players = rollRaceInjuries({
+      players, racingIds: ranIds, playerTeamId: o.playerTeamId,
+      nextClock: racesConsumed(o.season) + 1, raceDate: d.date }).players
     for (const [tid, v] of Object.entries(out.segPrize)) segPrize[tid] = (segPrize[tid] ?? 0) + v
     // ★出走の集計（旧 awayAppearances / foreignAppearances）はもう積まない。走行記録（`Season.leagues`）が
     //   12リーグ全部に残るので、通算成績（utils/careerStats）も在籍（seasonMemberships）もそこから数える。

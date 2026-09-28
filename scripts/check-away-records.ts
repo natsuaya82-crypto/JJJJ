@@ -40,7 +40,7 @@ const myLeague = divisionLeagueId(3)
 
 // 6月末まで（途中の日付で止まることも見る）
 const THROUGH = `${YEAR}-06-30`
-const out = runLeaguesThrough({ season, players, clubs, through: THROUGH, skip: myLeague })
+const out = runLeaguesThrough({ season, players, clubs, through: THROUGH, skip: myLeague, playerTeamId: "" })
 if (!out) { console.log('✗ 空振り（1本も走らなかった）'); process.exit(1) }
 const L = out.season.leagues
 
@@ -48,6 +48,21 @@ const problems: string[] = []
 const check = (name: string, ok: boolean, detail = '') => {
   console.log(`  ${ok ? 'ok' : 'NG'}  ${name}${ok || !detail ? '' : ` — ${detail}`}`)
   if (!ok) problems.push(name)
+}
+
+console.log('[0] 裏のリーグの選手も疲れ、怪我をする（本編の1戦と同じ・オーナー・2026-09-28「同じ」）')
+{
+  // 以前は疲労と怪我が自チームのリーグのレースでしか起きず、ほかの11リーグの選手は1度も疲れなかった
+  // 戻し方：engine/leagueDay の runLeaguesThrough から applyRaceFatigue / rollRaceInjuries を消す
+  const inOther = new Set(Object.entries(L).filter(([id]) => id !== myLeague).flatMap(([, lg]) => lg.standings.map(s => s.teamId)))
+  const tired = out.players.filter(p => inOther.has(p.teamId) && (p.fatigue ?? 0) > 0).length
+  check('裏のリーグの選手に疲労が溜まる', tired > 0, `${tired}人`)
+  // 怪我は疲労65を超えてから（raceInjury）。ふつうの1年ではCPUはそこまで疲れないので、
+  // 裏のリーグの選手を最初から疲れさせた世界で、走った選手が怪我をするかを見る
+  const tiredWorld = players.map(p => inOther.has(p.teamId) ? { ...p, fatigue: 100 } : p)
+  const t = runLeaguesThrough({ season, players: tiredWorld, clubs, through: THROUGH, skip: myLeague, playerTeamId: "" })
+  const hurt = (t?.players ?? []).filter(p => inOther.has(p.teamId) && p.status === 'injured').length
+  check('裏のリーグの選手も怪我をする（疲れた世界）', hurt > 0, `${hurt}人`)
 }
 
 console.log('[1] その日までの開催が全部走り、その日より後は走らない')
@@ -74,7 +89,7 @@ console.log('[1b] 開催日ちょうどまで走らせると、その日の開�
 {
   // 1部の開幕日。海外9リーグも同じ日に開幕する
   const day = season.leagues[divisionLeagueId(1)].races[0].date
-  const o = runLeaguesThrough({ season, players, clubs, through: day, skip: myLeague })
+  const o = runLeaguesThrough({ season, players, clubs, through: day, skip: myLeague, playerTeamId: "" })
   const onDay = Object.entries(o?.season.leagues ?? {}).filter(([id]) => id !== myLeague)
     .flatMap(([, lg]) => lg.races.filter(r => r.date === day))
   check('その日の開催が全部走っている', onDay.length > 0 && onDay.every(r => !!r.results), `${onDay.filter(r => !r.results).length}本残り／${onDay.length}本`)
@@ -139,7 +154,7 @@ console.log('[5] 日付の順に走る（同じリーグの2戦目は1戦目の�
   }
   check('前の日付を飛ばして走ったレースが無い', bad === 0, `${bad}本`)
   // 同じ日付にもう一度呼んでも何も走らない（二重に走らせない）
-  const again = runLeaguesThrough({ season: out.season, players: out.players, clubs, through: THROUGH, skip: myLeague })
+  const again = runLeaguesThrough({ season: out.season, players: out.players, clubs, through: THROUGH, skip: myLeague, playerTeamId: "" })
   check('同じ日まで2回呼んでも2回目は何も走らない', again === null)
 }
 
