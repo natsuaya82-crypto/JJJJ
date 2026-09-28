@@ -311,7 +311,7 @@ export default function DraftRoom() {
       {watchIntro && (
         <ConfirmDialog
           title="今年のドラフトは観戦のみです"
-          message="指名できるのは1部のクラブだけです。指名されなかった選手はFAになるので、そこから獲得できます。"
+          message="指名できるのはJPEL1部のみです。指名されなかった選手はFAになるので、そこから獲得できます。"
           cancelLabel="スキップ"
           confirmLabel="観戦する"
           accent={C.gold}
