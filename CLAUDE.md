@@ -622,7 +622,7 @@ tab / page / view / division / section のものが一覧に無ければ落ち�
 作り方**の話で、「シートにしてよい」という意味ではありません。
 
 見張りは `check-size` と同じ形＝**今日より増えたら落ちる**
-（`scripts/fixtures/bottom-sheet-budget.json`・いま5件）。許可が出たときだけ
+（`scripts/fixtures/bottom-sheet-budget.json`・いま15件。`ActionSheet` を使っている側も数える）。許可が出たときだけ
 `UPDATE_GOLDEN=1` でこの点検だけ引き直すこと。
 
 ### 画面下から出るものは必ず `BottomSheet` を通すこと

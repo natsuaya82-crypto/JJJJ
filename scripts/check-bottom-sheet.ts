@@ -39,12 +39,18 @@ const walk = (d: string) => {
 }
 walk('src/components')
 
-// 入れもの自身（ui/BottomSheet.tsx）は数えない。数えるのは**使っている側**
+// 入れもの自身（ui/BottomSheet.tsx・ui/ActionSheet.tsx）は数えない。数えるのは**使っている側**。
+// ★ActionSheet も下から出るシート（中身は BottomSheet）なので、使っている側を数える
+//   （以前は ActionSheet.tsx の1件にしか見えず、使っている9か所が予算の外だった・2026-09-28）
 const counts: Record<string, number> = {}
+const handMade: string[] = []
 for (const f of files) {
-  if (f.endsWith('ui/BottomSheet.tsx')) continue
-  const n = [...readFileSync(f, 'utf8').matchAll(/<BottomSheet\b/g)].length
+  if (f.endsWith('ui/BottomSheet.tsx') || f.endsWith('ui/ActionSheet.tsx')) continue
+  const src = readFileSync(f, 'utf8')
+  const n = [...src.matchAll(/<(?:BottomSheet|ActionSheet)\b/g)].length
   if (n > 0) counts[f] = n
+  // ★シートを自前で組まないこと（入札・レンタルが ScreenCover の sheet 段で自作していた・2026-09-28）
+  if (/level="sheet"/.test(src)) handMade.push(f)
 }
 const total = Object.values(counts).reduce((a, b) => a + b, 0)
 
@@ -69,6 +75,7 @@ if (process.env.UPDATE_GOLDEN === '1') {
   if (total < wantTotal) {
     console.log(`  -- 減りました（${wantTotal} → ${total}件）。fixture を引き直してコミットしてください`)
   }
+  check('シートを自前で組んでいない（ScreenCover の sheet 段は ui/BottomSheet だけ）', handMade.length === 0, handMade.join(' / '))
   // ★この点検が何も見ていない状態で緑になるのを防ぐ
   check('そもそも数えられている（空振りの緑ではない）', total > 0, `${total}件`)
 }

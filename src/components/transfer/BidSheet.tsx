@@ -1,18 +1,17 @@
 import { useState } from 'react'
-import { useAdHeight } from '../layout/Layout'
 import NumberDial from '../ui/NumberDial'
 import { playerConsentToMove } from '../../utils/playerUtils'
 import { keyPlayerStatus } from '../../utils/transferDecision'
 import { bidThreshold, transferAcceptChance, listedAcceptChance, roundFee } from '../../data/economy'
 import { useGameStore } from '../../store/gameStore'
-import { C, SAIRA, F, bottomStack } from '../../styles/tokens'
+import { C, SAIRA, F } from '../../styles/tokens'
 import type { Player, TransferListing } from '../../types'
 import { fmtYen } from '../../utils/money'
 import { myClub } from '../../utils/world'
 import { tierOfPlayerClub } from '../../utils/clubTier'
 import GlassButton from '../ui/GlassButton'
 import { facilitiesOf } from '../../utils/facilities'
-import ScreenCover from '../ui/ScreenCover'
+import BottomSheet from '../ui/BottomSheet'
 import { playRateOf, prevSeasonOf } from '../../utils/playRate'
 
 
@@ -24,7 +23,6 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
   onSubmit: (fee: number) => void
   onClose: () => void
 }) {
-  const adH = useAdHeight()
   // 市場価値は store の `marketValueOf` 1本（成立の判定と同じ材料を見る）
   const val = useGameStore(s => s.marketValueOf)(player)
   // 出品中はクラブ希望額(askingPrice)が受諾ライン。デフォルト入札額も希望額に合わせる（満額＝ほぼ成立）。
@@ -68,38 +66,34 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
   const overallPct = mind === 'refuse' ? 0 : chancePct
 
   return (
-    <ScreenCover level="sheet" onBackdrop={onClose}
-      style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-      <div className="sheet-up" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, margin: '0 auto', maxHeight: '85vh', overflowY: 'auto', background: C.surface,border: `1px solid ${C.border2}`, borderBottom: 'none', boxShadow: '0 -12px 40px rgba(0,0,0,0.6)', paddingTop: 8, paddingLeft: 16, paddingRight: 16, paddingBottom: bottomStack(adH, { aboveNav: true, extra: 16 }) }}>
-        <div style={{ width: 38, height: 4,background: C.border3, margin: '4px auto 12px' }} />
-        <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.text, marginBottom: 8 }}>{player.name} へ入札</div>
-        <div style={{ fontSize: F.caption, color: C.textSub, marginBottom: '8px', fontFamily: SAIRA }}>
-          入札金額 — 市場価値: <span style={{ color: C.gold, fontFamily: SAIRA }}>{fmtYen(val)}</span>
-          {listing && <span style={{ marginLeft: '8px', color: C.orange, fontFamily: SAIRA }}>クラブ希望: {fmtYen(listing.askingPrice)}</span>}
-          <span style={{ marginLeft: '8px', color: over ? C.red : C.textDim, fontFamily: SAIRA }}>予算: {fmtYen(budget)}</span>
-        </div>
-        <div style={{ padding: '4px 0 10px' }}>
-          <NumberDial value={fee} onChange={v => setFee(Math.max(1000000, v))} min={1000000} accent={C.gold} />
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-          <span style={{ fontSize: F.caption, color: C.textDim, fontFamily: SAIRA }}>クラブ合意{isKeyGuard && <span style={{ color: C.orange }}>（主力＝割増が必要）</span>}{isLocked && <span style={{ color: C.red }}>（新人・データ不足で獲得不可）</span>}</span>
-          <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 800, color: C.textSub }}>{chancePct}%</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-          <span style={{ fontSize: F.caption, color: C.textDim, fontFamily: SAIRA }}>本人の意向</span>
-          <span style={{ fontSize: F.label, fontWeight: 800, color: mindColor }}>{mindLabel}</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', paddingTop: '6px', borderTop: `1px solid ${C.border}` }}>
-          <span style={{ fontSize: F.label, color: C.textSub, fontFamily: SAIRA }}>成立見込み</span>
-          <span style={{ fontFamily: SAIRA, fontSize: F.headLg, fontWeight: 900, color: overallPct >= 70 ? C.green : overallPct >= 35 ? C.gold : C.red }}>{overallPct}%</span>
-        </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <GlassButton disabled={over} style={{ flex: 1, padding: '13px', fontSize: F.sub, fontFamily: SAIRA }} onClick={() => onSubmit(fee)}>
-            {over ? '予算不足' : '入札する'}
-          </GlassButton>
-          <button onClick={onClose} style={{ padding: '13px 16px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textDim, fontSize: F.bodyLg, cursor: 'pointer', fontFamily: SAIRA }}>取消</button>
-        </div>
+    <BottomSheet open onClose={onClose}>
+      <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.text, marginBottom: 8 }}>{player.name} へ入札</div>
+      <div style={{ fontSize: F.caption, color: C.textSub, marginBottom: '8px', fontFamily: SAIRA }}>
+        入札金額 — 市場価値: <span style={{ color: C.gold, fontFamily: SAIRA }}>{fmtYen(val)}</span>
+        {listing && <span style={{ marginLeft: '8px', color: C.orange, fontFamily: SAIRA }}>クラブ希望: {fmtYen(listing.askingPrice)}</span>}
+        <span style={{ marginLeft: '8px', color: over ? C.red : C.textDim, fontFamily: SAIRA }}>予算: {fmtYen(budget)}</span>
       </div>
-    </ScreenCover>
+      <div style={{ padding: '4px 0 10px' }}>
+        <NumberDial value={fee} onChange={v => setFee(Math.max(1000000, v))} min={1000000} accent={C.gold} />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+        <span style={{ fontSize: F.caption, color: C.textDim, fontFamily: SAIRA }}>クラブ合意{isKeyGuard && <span style={{ color: C.orange }}>（主力＝割増が必要）</span>}{isLocked && <span style={{ color: C.red }}>（新人・データ不足で獲得不可）</span>}</span>
+        <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 800, color: C.textSub }}>{chancePct}%</span>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+        <span style={{ fontSize: F.caption, color: C.textDim, fontFamily: SAIRA }}>本人の意向</span>
+        <span style={{ fontSize: F.label, fontWeight: 800, color: mindColor }}>{mindLabel}</span>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', paddingTop: '6px', borderTop: `1px solid ${C.border}` }}>
+        <span style={{ fontSize: F.label, color: C.textSub, fontFamily: SAIRA }}>成立見込み</span>
+        <span style={{ fontFamily: SAIRA, fontSize: F.headLg, fontWeight: 900, color: overallPct >= 70 ? C.green : overallPct >= 35 ? C.gold : C.red }}>{overallPct}%</span>
+      </div>
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <GlassButton disabled={over} style={{ flex: 1, padding: '13px', fontSize: F.sub, fontFamily: SAIRA }} onClick={() => onSubmit(fee)}>
+          {over ? '予算不足' : '入札する'}
+        </GlassButton>
+        <button onClick={onClose} style={{ padding: '13px 16px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textDim, fontSize: F.bodyLg, cursor: 'pointer', fontFamily: SAIRA }}>取消</button>
+      </div>
+    </BottomSheet>
   )
 }
