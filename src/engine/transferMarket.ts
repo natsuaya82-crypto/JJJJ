@@ -42,6 +42,7 @@ import { comparePlayers } from '../utils/playerSort'
 import { playerTierOf, worldTierLines } from '../utils/playerTier'
 import { playRateOf, prevSeasonOf, type PlayRateSeason } from '../utils/playRate'
 import { clubById, clubMap, isJpelLeague, mapClubs, otherClubs } from '../utils/world'
+import { clubCountryOf, isAbroad } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
 import { roundRobin } from '../utils/roundRobin'
 import { needsPlayer, squadRankOf } from '../utils/squadNeeds'
@@ -117,7 +118,7 @@ export function runTransferMarket(
   const newsRows: { player: Player; from: MarketClub; to: MarketClub; fee: number; rank: number; benched: boolean }[] = []
 
   // ── 市場に並ぶクラブ（国内52＋海外180）。自チームは入らない（プレイヤーが決めるので）
-  //    並びは世界の並びのまま。`domestic` は見出しの文面を選ぶためだけに使う
+  //    並びは世界の並びのまま。`domestic` はクラブの呼び名を選ぶためだけに使う（国をまたぐかは見出しで isAbroad）
   const market: MarketClub[] = mapClubs(otherClubs(world.clubs, ctx.playerTeamId), c => isJpelLeague(c.leagueId)
     ? { id: c.id, tier: tierOf(c), domestic: true, name: c.shortName, label: clubLabel(c.id, world.clubs) }
     : { id: c.id, tier: tierOf(c), domestic: false, name: c.name, label: c.name })
@@ -366,22 +367,28 @@ export function runTransferMarket(
       .slice(0, NEWS_MAX)
       .map(({ player: p, from, to, fee, rank, benched }) => {
         const relatedIds = [p.id]
-        const crossBorder = from.domestic !== to.domestic
-        const big = isBigClub(clubById(world.clubs, to.id))
-        if (crossBorder) {
+        const fromClub = clubById(world.clubs, from.id)
+        const toClub = clubById(world.clubs, to.id)
+        // 国をまたぐか（utils/clubs の isAbroad 1本。オーナー・2026-09-28「国を跨ぐかで」）。
+        // 以前は「日本のリーグのクラブか」で見ていて、ケニア→イギリスは海外移籍の見出しにならなかった
+        const fromCountry = clubCountryOf(fromClub)
+        const toCountry = clubCountryOf(toClub)
+        const big = isBigClub(toClub)
+        if (isAbroad(fromCountry, toClub)) {
           // 日本から格4以上の海外クラブへ渡った＝世界へ挑戦（clubTier の isWorldChallenge 1本。
           // 自チームが売ったときの見出しと同じ線。以前はここだけ OVR85 以上も要った）
-          if (isWorldChallenge(clubById(world.clubs, from.id), clubById(world.clubs, to.id))) {
+          if (isWorldChallenge(fromClub, toClub)) {
             return {
               date, category: 'trade' as const, relatedIds, major: true,
-              headline: overseasBreakthroughHeadline({ playerName: p.name, playerOvr: ovr(p), toName: to.name, fee }),
+              headline: overseasBreakthroughHeadline({ playerName: p.name, playerOvr: ovr(p), toName: to.name, fee, japanese: p.nationality === 'JPN' }),
             }
           }
           return {
             date, category: 'trade' as const, relatedIds, major: ovr(p) >= MAJOR_NEWS_OVR || big,
             headline: crossBorderHeadline({
-              playerName: p.name, playerOvr: ovr(p), fee, dir: to.domestic ? 'in' : 'out',
-              stepUp: !to.domestic && isStepUp(clubById(world.clubs, from.id), clubById(world.clubs, to.id)),
+              playerName: p.name, playerOvr: ovr(p), fee,
+              dir: toCountry === 'JPN' ? 'in' : fromCountry === 'JPN' ? 'out' : 'abroad',
+              stepUp: isStepUp(fromClub, toClub),
               fromName: from.name, toName: to.name }),
           }
         }

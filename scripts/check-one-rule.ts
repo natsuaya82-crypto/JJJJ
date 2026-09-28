@@ -411,6 +411,18 @@ console.log('\n[21] 「世界へ挑戦」の見出しは clubTier の isWorldCha
   check('OVR で「世界へ挑戦」を決めていない', !/big && ovr\(p\) >= MAJOR_NEWS_OVR/.test(code))
 }
 
+console.log('\n[21b] 裏の移籍の見出しは「国をまたぐか」（isAbroad）で決め、「日本人ランナー」は日本国籍だけ')
+{
+  // 戻し方：engine/transferMarket の buildNews を `from.domestic !== to.domestic` に戻す
+  // オーナー・2026-09-28「国を跨ぐかで」。以前はケニア→イギリスが海外移籍の見出しにならず、
+  // 【世界へ挑戦】の「日本人ランナーの歴史的な挑戦」がケニア人にも出ていた
+  const tm = fileCode('src/engine/transferMarket.ts')
+  check('国をまたぐかを isAbroad で決めている', /isAbroad\(fromCountry, toClub\)/.test(tm))
+  check('「日本のクラブか」で国をまたぐかを決めていない', !/from\.domestic !== to\.domestic/.test(tm))
+  check('「日本人ランナー」は日本国籍のときだけ', /japanese: p\.nationality === 'JPN'/.test(tm)
+    && /if \(!a\.japanese\)/.test(fileCode('src/utils/newsItems.ts')))
+}
+
 console.log('\n[22] 日本のリーグだけに絞っていた処理が戻っていない（オーナー・2026-09-26「日本だけになってるやつは全部バグ」）')
 {
   // 戻し方：engine/timeTrial の mapClubs の頭に `if (!isJpelLeague(t.leagueId)) return t` を戻す

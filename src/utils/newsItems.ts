@@ -200,7 +200,8 @@ export function overseasMoveHeadline(a: { playerName: string; playerOvr: number;
 }
 
 /**
- * 日本↔海外の移籍（裏で動いた分）。格上へ行くのか、日本へ来るのかで書き分ける。
+ * 国をまたぐ移籍（裏で動いた分）。日本へ来るのか、日本から出るのか、海外どうしかで書き分ける。
+ * ★国をまたぐかは utils/clubs の `isAbroad` で決めること（オーナー・2026-09-28「国を跨ぐかで」）。
  * ★`stepUp` は utils/clubTier の `isStepUp`（行き先の格 < 送り出したクラブの格）で作ること。
  *   以前はここだけ「格1〜4のクラブなら」という絶対の線で、自チームの見出しと基準が違っていた。
  */
@@ -210,16 +211,21 @@ export function crossBorderHeadline(a: {
   fromName: string
   toName: string
   fee: number
-  dir: 'in' | 'out'
+  dir: 'in' | 'out' | 'abroad'
   stepUp: boolean
 }): string {
   if (a.dir === 'in') return `【海外→日本】${a.playerName}（OVR${a.playerOvr}）が${a.fromName}から${a.toName}へ移籍（移籍金${fmtYen(a.fee)}）`
+  if (a.dir === 'abroad') {
+    if (a.stepUp) return `【ステップアップ】${a.playerName}（OVR${a.playerOvr}）が格上の${a.toName}へ移籍。より高いレベルへ挑む（移籍金${fmtYen(a.fee)}）`
+    return `${a.playerName}（OVR${a.playerOvr}）が${a.fromName}から${a.toName}へ移籍（移籍金${fmtYen(a.fee)}）`
+  }
   if (a.stepUp) return `【日本→海外】${a.playerName}（OVR${a.playerOvr}）が格上の${a.toName}へ移籍。世界の舞台で腕試し（移籍金${fmtYen(a.fee)}）`
   return `【日本→海外】${a.playerName}（OVR${a.playerOvr}）が${a.fromName}から${a.toName}へ移籍（移籍金${fmtYen(a.fee)}）`
 }
 
-/** 日本人選手が世界最高峰へ渡った。列島が沸くやつ */
-export function overseasBreakthroughHeadline(a: { playerName: string; playerOvr: number; toName: string; fee: number }): string {
+/** 日本のクラブから世界最高峰へ渡った。「日本人ランナー」と書くのは日本国籍の選手だけ */
+export function overseasBreakthroughHeadline(a: { playerName: string; playerOvr: number; toName: string; fee: number; japanese: boolean }): string {
+  if (!a.japanese) return `【世界へ挑戦】${a.playerName}（OVR${a.playerOvr}）が世界最高峰・${a.toName}へ電撃移籍！（移籍金${fmtYen(a.fee)}）`
   return `【世界へ挑戦】${a.playerName}（OVR${a.playerOvr}）が世界最高峰・${a.toName}へ電撃移籍！日本人ランナーの歴史的な挑戦に列島が沸く（移籍金${fmtYen(a.fee)}）`
 }
 
