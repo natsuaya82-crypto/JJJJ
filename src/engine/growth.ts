@@ -226,10 +226,14 @@ export function growPlayer(p: Player): Player {
   const ratings = { ...p.ratings }
   const primary = getPrimaryKey(p.specialty)
 
-  // 加齢でポテンシャル上限自体が下がる。35歳以降は急に（37歳でエースが85のまま等を防ぐ）。
+  // 加齢でポテンシャル上限自体が下がる。引退の間際は急に（引退する歳でエースが85のまま等を防ぐ）。
+  // ★急になる歳は下の能力の衰えと同じく「その選手が引退する歳」（`retirementAgeOf`）から数える
+  //   （オーナー・2026-09-28「そうやね」）。以前は 37 / 35 の絶対年齢で、引退が30〜36になってから
+  //   37の枝は誰も通らず、35は選手によって引退の0〜5年前とずれていた
+  const retireAt = retirementAgeOf(p)
   let potential = p.potential
-  if (nextAge >= 37) potential = Math.max(45, potential - 3)
-  else if (nextAge >= 35) potential = Math.max(45, potential - 2)
+  if (nextAge >= retireAt) potential = Math.max(45, potential - 3)
+  else if (nextAge >= retireAt - 1) potential = Math.max(45, potential - 2)
   else if (ageDiff >= 1) potential = Math.max(50, potential - (ageDiff >= 6 ? 2 : 1))
   const caps = getStatPotentials({ ...p, potential })  // 減衰後の上限で頭打ち
 
@@ -250,7 +254,6 @@ export function growPlayer(p: Player): Player {
   //   ときに追随しておらず、**37の枝は誰も通らず**（そこまで生きている選手が居ない）、
   //   35の枝も「引退の1年前」の意味だったのが選手によって0〜5年前にずれていました。
   //   引退から逆算すれば、**早熟でも晩成でも「最後の1〜2年で落ちる」**が揃います。
-  const retireAt = retirementAgeOf(p)
   const PHYS: RatingsKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'recovery']
   if (nextAge >= retireAt) {
     for (const s of PHYS) ratings[s] = Math.max(20, ratings[s] - rnd(3, 6))
