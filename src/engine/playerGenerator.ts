@@ -4,7 +4,7 @@ import { natCategory } from '../data/nationalities'
 import type { TraitId } from '../utils/traitUtils'
 import type { LeagueId, Rank } from '../types'
 import { curveOvr } from './ageCurve'
-import { tierOf, tierRankSlots, TIER_POTENTIAL_CAP, INITIAL_ROSTER_SIZE, type ClubTier } from '../utils/clubTier'
+import { tierOf, tierRankSlots, TIER_POTENTIAL_CAP, type ClubTier } from '../utils/clubTier'
 import { SPEC_STRONG_STATS, faMarketSalary, STAT_CAP } from '../utils/playerUtils'
 import { strHash } from '../utils/hash'
 import { SPECIALTIES } from '../utils/squadNeeds'
@@ -1034,11 +1034,12 @@ export function generateDraftPool(year: number, avoidNames?: Set<string>): Playe
 type RosterClub = { id: string; leagueId?: LeagueId; country?: string; tier?: ClubTier; initialRank?: number }
 
 /**
- * **世界のクラブの初期ロスターを作る、唯一の幹**（日本のリーグのクラブも海外クラブも同じ）。
+ * **世界のクラブの初期ロスターを作る、唯一の幹**（日本のリーグのクラブも海外クラブも、新しいゲームの自チームも同じ）。
  *
  * オーナー・2026-09-28「1本で」「18〜28 2〜5年」。以前は日本のクラブ（旧 `generateCpuRosters` の本体）と
  * 海外クラブ（旧 `generateForeignLeaguePlayers` の本体）で別の作り方をしていて、
- * 年齢が 18〜32 と 18〜28、契約が 2〜4年 と 1〜3年 に割れていた。
+ * 年齢が 18〜32 と 18〜28、契約が 2〜4年 と 1〜3年 に割れていた。自チームだけは3本目（`generatePlayerInitialRoster`・
+ * 年齢18〜32・契約2〜4年・年俸は新人の表）で作っていたが、これも寄せた（オーナー・2026-09-28「2は1本って」）。
  *
  *   格 → ランク構成（`tierRankSlots`）→ 年齢カーブ（`buildRatingsForRank`）→ OVR → 年俸（`faMarketSalary`）
  *
@@ -1122,80 +1123,6 @@ export function generateCpuRosters(
   for (const c of rosterClubs) teamRosters[c.id] = { main: [] }
   for (const p of cpuPlayers) teamRosters[p.teamId!]?.main.push(p.id)
   return { cpuPlayers, teamRosters }
-}
-
-// プレイヤーチームの初期ロスター生成。
-//
-// ★中身は「格」が決める。世界のクラブ（generateClubRosters）と
-//   同じ tierRankComposition / TIER_POTENTIAL_CAP を通す。
-//   以前はここだけ ['A','B'×8,'C'×3] のような固定のランク表を持っていて、
-//   どのクラブを選んでも同じ強さで始まっていた。3部のクラブを選んでもA級が1人いる、
-//   という状態になり「格でロスターが決まる」という決まりから外れていた。
-export function generatePlayerInitialRoster(year: number, tier: ClubTier): {
-  players: Player[]
-  mainIds: string[]
-  dualIds: string[]
-  secondIds: string[]
-} {
-  const potentialCap = TIER_POTENTIAL_CAP[tier]
-  const slots = tierRankSlots(tier)
-
-  const specialties: Specialty[] = [...SPECIALTIES]
-  const growthCurves: GrowthCurve[] = ['early', 'normal', 'normal', 'late_bloomer']
-  const usedNames = new Set<string>()
-  const players: Player[] = []
-  const mainIds: string[] = []
-  const dualIds: string[] = []
-  const secondIds: string[] = []
-
-  // 自チームも日本のクラブと同じ配り方（日本人中心・外国籍は HOME_FOREIGN_RANGE 人。枠はランダム）
-  const foreignN = rng(HOME_FOREIGN_RANGE[0], HOME_FOREIGN_RANGE[1])
-  const foreignSlots = new Set(slots.map((_, k) => k).sort(() => Math.random() - 0.5).slice(0, foreignN))
-
-  function makePRPlayer(rank: Rank, i: number): Player {
-    idCounter++
-    const specialty = specialties[rng(0, specialties.length - 1)]
-    const growthCurve = growthCurves[rng(0, growthCurves.length - 1)]
-    // 年齢の散らし方もCPUと同じ（18〜32を均等に。ランクとは紐づけない）
-    const age = 18 + Math.round(i * 14 / Math.max(1, INITIAL_ROSTER_SIZE - 1))
-    const yearsPro = Math.max(0, age - 22)
-    const id = `pr-${year}-${idCounter}`
-    // 能力値の作り方は buildRatingsForRank の1本。上限もCPUと同じくそのクラブの格
-    const { ratings, potential } = buildRatingsForRank({ id, rank, specialty, growthCurve, age, potentialCap })
-    const who = foreignSlots.has(i)
-      ? nationalIdentity(drawNationalityForRank(rank, Math.random, 'JPN'), usedNames)
-      : homeIdentity('JPN', usedNames)
-    const { name, origin } = who
-    return {
-      id,
-      name, nameKana: '', age, yearsPro,
-      draftYear: year - yearsPro, draftRound: null, draftPick: null,
-      ratings, specialty,
-      potential,
-      growthCurve,
-      teamId: '',
-      contract: {
-        yearsLeft: rng(2, 4),
-        annualSalary: calculateRookieSalary(rank),
-        faEligibleYear: year + rng(2, 5),
-        contractType: 'standard',
-      },
-      nationality: who.nat, origin,
-      status: 'active', fatigue: 0, morale: rng(70, 90), form: 0,
-      career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
-      traits: assignTraits(rank, specialty, age),
-      personality: (['salary', 'salary', 'winning', 'winning', 'loyalty'] as const)[rng(0, 4)],
-    }
-  }
-
-  slots.forEach((rank, i) => {
-    const p = makePRPlayer(rank, i)
-    players.push(p); mainIds.push(p.id)
-  })
-
-  // ロスターは1つだけ（2軍・2wayは廃止済み）。dualIds/secondIds は呼ぶ側が見ていないが、
-  // 戻り値の形は変えずに空で返す
-  return { players, mainIds, dualIds, secondIds }
 }
 
 // CPUチームの2軍を補充するための若手選手を生成する（teamId付き）。
@@ -1458,7 +1385,7 @@ export function refreshForeignLeagues(
 /**
  * ランク・成長タイプ・年齢から「初期能力値とポテンシャル」を作る、ただ1つの場所。
  *
- * 自チーム(generatePlayerInitialRoster) / 世界のクラブ(generateClubRosters)
+ * 世界のクラブ（自チームも。generateClubRosters）
  * の2つが同じランク体系を使っているのに、生成の手順だけ別々に手書きされていた。その結果
  * 自チームだけ bakeAgeGrowth（年齢ぶんの成長の焼き込み）が抜けており、自チームの26歳が
  * 「22歳の能力のまま歳だけ26」という状態で始まっていた（CPUの26歳は4年ぶん成長済み）。

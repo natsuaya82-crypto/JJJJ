@@ -10,9 +10,9 @@ import { pickCpuFreeAgents } from '../../engine/cpuMarket'
 import { CPU_TICK_TRANSFERS, runCpuLoans, runCpuReleases, runCpuTrades } from '../../engine/cpuOffseason'
 import { runTransferMarket } from '../../engine/transferMarket'
 import { draftLotteryOrder, draftOrderTeams, pickExistsAnywhere, standingsPickNumbers } from '../../engine/draftOrder'
-import { buildDraftOrder, generateCpuRosters, generateDraftPool, generateForeignLeaguePlayers, generatePlayerInitialRoster } from '../../engine/playerGenerator'
+import { buildDraftOrder, generateCpuRosters, generateDraftPool, generateClubRosters, generateForeignLeaguePlayers } from '../../engine/playerGenerator'
 import { type ForeignClub, type Player, type Team, type TransferRecord, type WorldClub } from '../../types'
-import { tierBudget, tierOf, tierOfPlayerClub } from '../../utils/clubTier'
+import { tierBudget, tierOfPlayerClub } from '../../utils/clubTier'
 import { clubById, clubsWhere, isJpelLeague, jpelClubs, mapClubs, myClub, otherClubs, withMyClub, myLeagueId, myLeagueRaces, withLeagueRaces } from '../../utils/world'
 import { findClub } from '../../utils/clubs'
 import { draftPickHolders, draftRoundOf, joinsDraft } from '../../utils/league'
@@ -57,8 +57,8 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     // 自チームの初期ロスターも「格」から作る。CPU・海外と同じ tierRankComposition を通るので、
     // 3部のクラブを選べば3部相当の顔ぶれで始まる（前はどのクラブでも同じ固定の強さだった）
     const myTeamForRoster = myClub(state)
-    const { players: prPlayers } = generatePlayerInitialRoster(state.currentSeason.year, tierOf(myTeamForRoster))
-    const prPlayersWithTeam = prPlayers.map(p => ({ ...p, teamId: state.playerTeamId }))
+    // 作り方は世界のクラブと同じ generateClubRosters 1本（年齢・契約・年俸・国籍の配り方も同じ）
+    const prPlayersWithTeam = myTeamForRoster ? generateClubRosters([myTeamForRoster], state.currentSeason.year) : []
 
     const seededClubs = withMyClub(state, t => ({
       ...t,

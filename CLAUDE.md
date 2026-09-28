@@ -716,7 +716,7 @@ ECLの出場枠（頂点のリーグそれぞれの上位2）・レースと表�
 **1本＝国籍は「席の強さ（ランク）」から国の格で引く**（`utils/nationTier` の `drawNationalityForRank`・国の格は `data/nationTiers`）。
 席の強さはクラブの格のまま（`tierRankSlots`）で、**国の格が決めるのは「その席に誰が座るか」だけ**＝クラブの強さは1つも動かない。
 海外クラブの初期ロスター・海外の毎年の補充・開幕の床・若手の補充・日本のクラブの外国籍の席・自チームの外国籍の席の**6つとも**ここを通る
-（呼ぶ口は `engine/playerGenerator` の5か所＝補充・開幕の床・若手の補充は同じ `newcomerIdentity` を通る。`check-nationality` の⑥がこの5を数える）。
+（呼ぶ口は `engine/playerGenerator` の4か所＝初期ロスターの `generateClubRosters`（自チームも）と、補充・開幕の床・若手の補充が通る `newcomerIdentity` の、それぞれ 'world' と 'home'。`check-nationality` の⑥がこの4を数える）。
 
 | 1本にした理由 | |
 |---|---|

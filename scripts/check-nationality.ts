@@ -16,7 +16,7 @@
  */
 import { existsSync, readFileSync } from 'node:fs'
 import { HOME_FOREIGN_RANGE, nationTierOf, rankShareOf, worldNations } from '../src/utils/nationTier'
-import { fillRostersForSeason, generateCpuRosters, generateForeignLeaguePlayers, generatePlayerInitialRoster } from '../src/engine/playerGenerator'
+import { fillRostersForSeason, generateClubRosters, generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { INITIAL_FOREIGN_CLUBS } from '../src/data/leagues'
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
@@ -84,7 +84,7 @@ console.log('\n[4] 日本のクラブは日本人中心・外国籍5〜6人')
   const ns = jpTeams.map(t => per.get(t.id) ?? 0)
   check(`CPU：どのクラブも外国籍 ${HOME_FOREIGN_RANGE[0]}〜${HOME_FOREIGN_RANGE[1]} 人`,
     ns.every(n => n >= HOME_FOREIGN_RANGE[0] && n <= HOME_FOREIGN_RANGE[1]), `${Math.min(...ns)}〜${Math.max(...ns)}`)
-  const mine = generatePlayerInitialRoster(2027, 20).players
+  const mine = generateClubRosters([{ id: 'me', tier: 20, leagueId: 'jpel-3', country: 'JPN' }], 2027)
   const mf = mine.filter(p => p.nationality !== 'JPN').length
   check(`自チーム：外国籍 ${HOME_FOREIGN_RANGE[0]}〜${HOME_FOREIGN_RANGE[1]} 人`, mf >= HOME_FOREIGN_RANGE[0] && mf <= HOME_FOREIGN_RANGE[1], `${mf}`)
   const cand = new Set<string>(worldNations())
@@ -112,8 +112,9 @@ console.log('\n[5] あとから入る選手（開幕の床）も同じ決まり'
 console.log('\n[6] 国籍を引く口は1本')
 {
   const gen = readFileSync('src/engine/playerGenerator.ts', 'utf8')
-  // 海外の初期ロスター・日本のクラブの外国籍の席・自チームの外国籍の席・あとから入る選手（'world' と 'home'）の5つ
-  check('drawNationalityForRank を通る口が5つ', (gen.match(/drawNationalityForRank\(/g) ?? []).length === 5, `${(gen.match(/drawNationalityForRank\(/g) ?? []).length}`)
+  // 初期ロスター（generateClubRosters の 'world' と 'home'。自チームも同じ幹）・あとから入る選手（'world' と 'home'）の4つ
+  // （2026-09-28 に自チームの初期ロスターの3本目を寄せて5→4）
+  check('drawNationalityForRank を通る口が4つ', (gen.match(/drawNationalityForRank\(/g) ?? []).length === 4, `${(gen.match(/drawNationalityForRank\(/g) ?? []).length}`)
   check('古い人数表が戻っていない', !existsSync('src/data/nationTalent.ts') && !existsSync('src/utils/nationTalent.ts') && !/nationTalent|buildNationalityBag/.test(gen))
   check('外国籍の枠を「2人まで・55%」で決めていない', !/teamForeignCount < 2|Math\.random\(\) < 0\.55/.test(gen))
 }
