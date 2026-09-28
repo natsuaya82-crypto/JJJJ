@@ -51,7 +51,7 @@ for (const l of FOREIGN_LEAGUES) foreignStandings[l.id] = l.clubs.map((c, i) => 
 
 const teams = base.map(t => ({ ...t, finance: { ...(t.finance ?? {}), budget: 400_000_000 } })) as Team[]
 // ★**出場記録を入れること。** 空の results で回すと playRate が全員0になり、
-//   「いま走れている選手は格下へ行かない」の関門（tooFarDown）が一度も発火しない。
+//   「いま走れている選手は格下へ行かない」の関門（当時の tooFarDown。いまは廃止して utils/playerTier の TIER_FALL_LIMIT 1本）が一度も発火しない。
 //   8/14 の計測はこれで、全員が「干されている」扱いだった。
 const sched = drawSeasonSchedules(YEAR, rnd)
 const myDiv = divisionOf(teams.find(t => t.id === MY)!)
@@ -59,7 +59,7 @@ const races = sched[myDiv]
 
 // ★**全部の部と海外リーグを実際に走らせること。** 自分の部だけ走らせると、
 //   他の 212 クラブは出場記録がゼロ＝`playRateOf` が「分からない(0.5 / 0戦)」を返し、
-//   `appraiseMove` の関門（unproven / tooFarDown）が一度も発火しない世界になる。
+//   `appraiseMove` の関門（当時の unproven / tooFarDown。いまは utils/playerTier の TIER_FALL_LIMIT）が一度も発火しない世界になる。
 const runDiv = (rs: typeof races, ts: Team[]) => rs.map(r => {
   const lineups: Record<string, Record<number, string>> = {}
   for (const t of ts) lineups[t.id] = bgLineup(players.filter(p => p.teamId === t.id && p.status === 'active'), r)

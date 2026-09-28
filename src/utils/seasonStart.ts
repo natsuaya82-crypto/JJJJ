@@ -45,9 +45,10 @@ export type PreSeasonState = {
  * 人数が足りているか。線は `data/rosterRules` の `ROSTER_MIN` 1本。
  *
  * ★**これは開幕を止めません**（2026-09-15 に止めるのをやめました）。
- *   足りないときは `startRegularSeason` が足りないぶんだけ足して開幕します
+ *   開幕の直前に `startRegularSeason` が `fillRostersForSeason` で全クラブを
+ *   `SEASON_START_ROSTER`(20) 人まで埋めてから開幕します（`ROSTER_MIN` までではない）
  *   （オーナー「足りないならシーズン開始に勝手足りない分弱いの足せば？」）。
- *   残してあるのは**画面の見出しに出すため**だけです。
+ *   いまはどの画面からも呼ばれていません（残すかはオーナー判断）。
  */
 export function rosterShortFor(rosterCount: number): boolean {
   return rosterCount < ROSTER_MIN
@@ -55,7 +56,8 @@ export function rosterShortFor(rosterCount: number): boolean {
 
 /**
  * 開幕を止めている用件。**空なら開幕してよい。**
- * 画面はこの文言をそのまま出すこと（「なぜ押せないか」を必ず見せるため）。
+ * 画面（Dashboard）は `canStartSeason` でボタンをグレーアウトするだけで、この文言は出さない
+ * （オーナー・2026-08-16「この説明いらんグレーアウトだけ」。何が残っているかはプレシーズンの一覧に並ぶ）。
  *
  * ★**人数はここに入れないこと**（2026-09-15）。入れると、下限を割った人は
  *   ボタンが押せない＝`startRegularSeason` の救済に**一生たどり着けません**。

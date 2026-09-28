@@ -27,7 +27,7 @@ export const GREAT_SUCCESS_CHANCE = 0.05
  * 開催中のイベント。**終わったら消すこと。**
  *
  * ここに1行足すだけで始まり、消すだけで終わる。
- * 配布のほうは store の `grantUpdateGifts`（`GIFT_VERSION` を変えると全員に配られる）。
+ * 配布のほうは store の `grantUpdateGifts`（いまは期限切れの掃除だけで、配っていない）。
  *
  * ★`to` は**その日を含む**（`from <= 今日 <= to`）。8/23〜8/25 で3日間。
  */
