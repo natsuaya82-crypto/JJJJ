@@ -272,11 +272,12 @@ console.log('\n[7] 呼び出し側が自前で閾値を書いていない')
   // 入札の判定はストアから出して utils/transferBid.ts の1本にした（詳しくは check-transfer-bid.ts）。
   // ストア側が受諾ラインを組み立て直したら、また画面の表示とズレるので通らせない
   check('ストアが受諾ラインを自前で組み立てない', !store.includes('bidThreshold('))
-  // ★入札の応答は2つの道（本編の1戦＝engine/bidResolution と ECL等＝competitionSlice）にある。
-  //   engine 側へ移したので store だけでは1箇所しか見えない。**store＋engine で数える**
-  check('入札の応答は resolveBid を呼ぶだけ（本編とサブの2箇所）',
-    (logic.match(/resolveBid\(/g) ?? []).length === 2,
-    `${(logic.match(/resolveBid\(/g) ?? []).length}箇所`)
+  // ★入札の応答の道は2つ（本編の1戦・サブの1戦）あるが、2026-09-28 から2つとも engine/bidResolution の
+  //   resolveTransferBids を通すので、判定の resolveBid を呼ぶのはその中の1か所。**store＋engine で数える**
+  check('入札の判定は resolveBid 1か所（本編とサブの2つの道とも resolveTransferBids を通る）',
+    (logic.match(/(?<!function )resolveBid\(/g) ?? []).length === 1
+      && (logic.match(/(?<!function )resolveTransferBids\(/g) ?? []).length === 2,
+    `resolveBid ${(logic.match(/(?<!function )resolveBid\(/g) ?? []).length}箇所`)
   // 逆提示の上限（市場価値1.15倍 / 提示額1.3倍）
   check('逆提示の上限のべた書きが無い', !/\* 1\.15,/.test(logic) && !/offeredPrice \* 1\.3/.test(logic))
   // ★上限を出すのは willingFeeFor 1本になった（marketOps）。

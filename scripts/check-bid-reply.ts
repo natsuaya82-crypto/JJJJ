@@ -128,7 +128,10 @@ console.log('\n[4] 来季まで交渉できなくなるのは「決裂した」�
 console.log('\n[5] 進め方で結果が変わらない（本編の1戦とサブの1戦が同じ判断を通す）')
 {
   const sub = readFileSync('src/store/slices/competitionSlice.ts', 'utf8')
-  check('サブの1戦も locksNegotiation を通す', /locksNegotiation\(r\.expired\.kind\)/.test(sub))
+  // 2026-09-28 から、サブの1戦も本編と同じ engine/bidResolution の resolveTransferBids を通す
+  //   （ロックの判定 locksNegotiation はその中）。サブの側で resolveBid を直に呼ぶ形に戻ったら落とす
+  check('サブの1戦も本編と同じ resolveTransferBids を通す（locksNegotiation はその中）',
+    /resolveTransferBids\(/.test(sub) && !/(?<!function )resolveBid\(/.test(sub))
   // ★ここが本体。無条件で積む形に戻ったら落とす
   check('無条件で来季までロックする形に戻っていない',
     !/expiredNegs\.push\(r\.expired\)\s*\n\s*lockedIds\.push\(/.test(sub))
