@@ -276,10 +276,12 @@ export function packForeignApps(m: Record<string, ForeignApp>): ForeignAppsPacke
 // ── 活躍データ（年俸と移籍金が共通で見る素材）──
 // 出場割合・平均区間順位・今季の区間賞。国内リーグは races から、海外リーグは
 // currentSeason.foreignAppearances から作る（どちらも同じ物差しで評価するため）。
-// 区間順位は1区間につき1チーム1人なので 1〜20位。リーグ平均はちょうど10.5。
+// 区間順位は1区間につき1チーム1人なので 1〜リーグの人数。真ん中は (人数+1)/2（1部なら10.5）。
 export type PerfProfile = {
   playFraction: number    // 今季の出場割合 0..1（チームの消化レース数に対する出走数）
   avgSegRank?: number     // 今季の平均区間順位。1度も走っていなければ undefined
+  /** 走った区間の平均の出走数（リーグの人数。1部20・2部3部16・海外はリーグごと）。区間順位をこれで割る */
+  avgFieldSize?: number
   seasonSegWins: number   // 今季の区間賞
 }
 
@@ -287,19 +289,20 @@ export type SegRaceLike = { results?: { segmentResults: { runners: { playerId: s
 
 // 国内リーグの今季成績から活躍データを作る（MVP選考 utils/awards.ts と同じ集計軸）
 export function seasonPerfProfile(playerId: string, races: readonly SegRaceLike[], teamRaces: number): PerfProfile {
-  let apps = 0, rankSum = 0, segWins = 0
+  let apps = 0, rankSum = 0, segWins = 0, fieldSum = 0
   for (const r of races) {
     if (!r.results) continue
     for (const seg of r.results.segmentResults) {
       const run = seg.runners.find(rn => rn.playerId === playerId)
       if (!run) continue
-      apps++; rankSum += run.rank
+      apps++; rankSum += run.rank; fieldSum += seg.runners.length
       if (run.rank === 1) segWins++
     }
   }
   return {
     playFraction: teamRaces > 0 ? Math.min(1, apps / teamRaces) : 0,
     avgSegRank: apps > 0 ? rankSum / apps : undefined,
+    avgFieldSize: apps > 0 ? fieldSum / apps : undefined,
     seasonSegWins: segWins,
   }
 }
@@ -318,9 +321,13 @@ export function salaryPerfFactor(p: Player, perf?: PerfProfile): number {
   if (perf) {
     // 出場割合：出場0で0.6倍、6割以上出場で1.0倍
     f *= 0.6 + 0.4 * Math.min(1, perf.playFraction / 0.6)
-    // 平均区間順位：1位で+15%、リーグ平均(10.5位)で±0、最下位(20位)で-15%
+    // 平均区間順位：1位で+15%、真ん中で±0、最下位で-15%。**真ん中と最下位はそのリーグの人数から出す**
+    //   （オーナー・2026-09-28「リーグの人数で割る」）。以前は20クラブのリーグを前提に (10.5 − 順位) / 9.5 と
+    //   書いていて、16クラブの2部・3部の真ん中（8.5位）が+3%得をしていた。20クラブならいままでと同じ値
     if (perf.avgSegRank != null) {
-      f *= 1 + 0.15 * Math.max(-1, Math.min(1, (10.5 - perf.avgSegRank) / 9.5))
+      const n = Math.max(2, perf.avgFieldSize ?? 20)
+      const mid = (n + 1) / 2
+      f *= 1 + 0.15 * Math.max(-1, Math.min(1, (mid - perf.avgSegRank) / (mid - 1)))
     }
     // 今季の区間賞：1回+1%（上限+8%）
     f *= 1 + Math.min(perf.seasonSegWins * 0.01, 0.08)
