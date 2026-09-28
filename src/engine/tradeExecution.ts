@@ -13,6 +13,8 @@
 //   ・ニュースの文面 … 入口ごとに書き分けたいので呼び出し側（`utils/newsItems`）
 //   ・現金（移籍金）の受け渡し … `tradePlayer` にしか無い（打診を飲む側に現金は無い）
 import { movePlayer, type DepartureNotice } from '../utils/movePlayer'
+import { joinContractOf } from '../utils/playerUtils'
+import type { PlayRateWorld } from '../utils/playRate'
 import type { Player, Team, TransferRecord, WorldClub } from '../types'
 import { clubById, mapClubs } from '../utils/world'
 import { holdsDraftPicks } from '../data/leagueRules'
@@ -36,7 +38,8 @@ export type TradeMoveResult = {
 export function runTradeMoves(
   world: { players: Player[]; clubs: WorldClub[] },
   moves: TradeMove[],
-  opts: { year: number; date?: string; raceIndex: number; myTeamId: string },
+  /** season＝今季（トレードでも契約を結び直す＝joinContractOf。オーナー・2026-09-28「結び直し」） */
+  opts: { year: number; date?: string; raceIndex: number; myTeamId: string; season: PlayRateWorld['currentSeason'] },
 ): TradeMoveResult {
   let players = world.players
   let clubs = world.clubs
@@ -48,7 +51,8 @@ export function runTradeMoves(
       date: opts.date,
       raceIndex: opts.raceIndex,
       kind: 'trade',
-      myTeamId: opts.myTeamId })
+      myTeamId: opts.myTeamId,
+      ...joinContractOf(mv.playerId, { players, clubs, currentSeason: opts.season }) })
     if (!m.ok) continue
     players = m.players
     clubs = m.clubs

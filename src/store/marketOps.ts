@@ -15,7 +15,7 @@ import { clubById, myClub, myLeagueRaces } from '../utils/world'
 import { bigClub, findClub } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
 import { clubLabel, overseasMoveHeadline, soldPlayerHeadline } from '../utils/newsItems'
-import { faMarketSalary, marketValueOf, newContractYears, ovr, perfOf } from '../utils/playerUtils'
+import { joinContractOf, marketValueOf, ovr } from '../utils/playerUtils'
 import { type PlayRateWorld } from '../utils/playRate'
 import { type TradeValueCtx } from '../utils/tradeValue'
 
@@ -81,9 +81,8 @@ export function sellMove(
     fee, toName,
     myTeamId: state.playerTeamId,
     lockUntilYear: state.currentSeason.year + 1,
-    // ★加入の入口は必ず契約を渡す（movePlayer が signedOnJoin の印を付けるのは契約を渡されたときだけ）。
-    //   年数は newContractYears・年俸は faMarketSalary（出場は perfOf）＝シーズン中のFA・移籍市場と同じ
-    ...(p ? { contract: { yearsLeft: newContractYears(p, state.currentSeason.year), annualSalary: faMarketSalary(p, perfOf(p, state)) } } : {}) })
+    // ★加入の入口は必ず契約を渡す（movePlayer が signedOnJoin の印を付けるのは契約を渡されたときだけ）＝joinContractOf 1本
+    ...(p ? joinContractOf(p.id, state) : {}) })
 }
 
 /**

@@ -719,3 +719,14 @@ export function perfOf(p: Pick<Player, 'id' | 'teamId'>, w: PerfWorld): PerfProf
   if (teamRaces < PLAY_SAMPLE_RACES) return undefined
   return seasonPerfProfile(p.id, list, teamRaces)
 }
+
+/**
+ * **加入の入口で結び直す契約。** 年数は `newContractYears`、年俸は `faMarketSalary`（出場は `perfOf`）。
+ * `movePlayer` の opts へそのまま広げる（契約を渡すと `movePlayer` が加入時のロック `signedOnJoin` を付ける）。
+ * 移籍・FA・トレード・監督について行く選手のどれも同じここを通す（オーナー・2026-09-28「結び直し」）
+ */
+export function joinContractOf(playerId: string, w: PerfWorld): { contract?: { yearsLeft: number; annualSalary: number } } {
+  const p = w.players.find(x => x.id === playerId)
+  return p ? { contract: { yearsLeft: newContractYears(p, w.currentSeason.year),
+    annualSalary: faMarketSalary(p, perfOf(p, w)) } } : {}
+}

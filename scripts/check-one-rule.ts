@@ -377,7 +377,16 @@ console.log('\n[20] 「その選手はいくらか」の材料も1本（今季�
   //   同じ日に、画面の市場年俸（ChatView の年俸ダイヤルの初期値2つ・NewsPage・ChatPage）が
   //   出場を渡さずに `faMarketSalary(p)` を呼んでいて store の判定と額が違っていたのを揃えて +4。
   //   移籍の直訴の希望年俸（engine/playerWishes）が seasonPerfProfile を直に呼んでいたのを寄せて +1 → 16）
-  check('`perfOf` を呼ぶのは16か所', perfCallers === 16, `${perfCallers}か所`)
+  //   そのあと、加入の入口の契約（自チームの契約満了の移籍・自チームが売ったとき・CPUの出品の買い取りと競り負け）を
+  //   utils/playerUtils の joinContractOf 1本に寄せて 3 → 1（トレードと監督について行く選手も同じ1本）→ 14）
+  check('`perfOf` を呼ぶのは14か所', perfCallers === 14, `${perfCallers}か所`)
+  // ★加入の入口で結び直す契約は joinContractOf 1本（年数 newContractYears・年俸 faMarketSalary＋perfOf）。
+  //   CPUの出品の買い取りと競り負け（engine/applyTransfers）・自チームの契約満了の移籍（raceSlice）・自チームが売ったとき（marketOps）・
+  //   トレード（engine/tradeExecution と engine/cpuOffseason のCPU間）・監督について行く選手（seasonSlice の applyGmMove）の6か所
+  //   （オーナー・2026-09-28「結び直し」）。1か所でも外すと、その道で動いた選手だけ前のクラブの契約のまま・加入時のロックも付かない
+  // 戻し方：engine/tradeExecution の movePlayer から `...joinContractOf(...)` を消す
+  const joinCalls = (code.match(/(?<!function )joinContractOf\(/g) ?? []).length
+  check('加入の入口6か所が joinContractOf を通る', joinCalls === 6, `${joinCalls}か所`)
 }
 
 console.log('\n[21] 「世界へ挑戦」の見出しは clubTier の isWorldChallenge 1本')

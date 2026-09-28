@@ -172,7 +172,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       const moved = runTradeMoves({ players: state.players, clubs: state.clubs }, [
         ...offer.offeredPlayerIds.map(pid => ({ playerId: pid, toTeamId: state.playerTeamId })),
         ...offer.requestedPlayerIds.map(pid => ({ playerId: pid, toTeamId: offer.fromTeamId })),
-      ], { year: state.currentSeason.year, date: tradeDate, raceIndex: state.currentSeason.currentRaceIndex, myTeamId: state.playerTeamId })
+      ], { year: state.currentSeason.year, date: tradeDate, raceIndex: state.currentSeason.currentRaceIndex, myTeamId: state.playerTeamId, season: state.currentSeason })
       const players = moved.players
       const clubs = swapDraftPicks(moved.clubs,
         { teamId: offer.fromTeamId, pickKeys: offer.offeredPickKeys ?? [] },
@@ -1398,7 +1398,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
       const moved = runTradeMoves({ players: state.players, clubs: state.clubs }, [
         ...offeredIds.map(id => ({ playerId: id, toTeamId: targetTeamId })),
         ...incomingIds.map(id => ({ playerId: id, toTeamId: state.playerTeamId })),
-      ], { year: state.currentSeason.year, date: tradeDate, raceIndex: state.currentSeason.currentRaceIndex, myTeamId: state.playerTeamId })
+      ], { year: state.currentSeason.year, date: tradeDate, raceIndex: state.currentSeason.currentRaceIndex, myTeamId: state.playerTeamId, season: state.currentSeason })
       const players = moved.players
       const tradeRecords = moved.records
       const tradeNotices = moved.notices

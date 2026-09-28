@@ -34,7 +34,7 @@ import { isLiveContract } from '../../utils/contractTalk'
 import { leagueThroughRank, myLeagueSize, segmentPrizeByTeam, leagueStandingRows, addRaceToStandings } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
 import { segmentPrizeHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
-import { faMarketSalary, newContractYears, perfOf, playerConsentToMove, racesConsumed } from '../../utils/playerUtils'
+import { joinContractOf, playerConsentToMove, racesConsumed } from '../../utils/playerUtils'
 import { tierOfPlayerClub } from '../../utils/clubTier'
 import { eligibilityCtx } from '../../utils/transferEligibility'
 
@@ -503,11 +503,8 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
           kind: 'free',
           myTeamId: playerTeamId,
           lockUntilYear: state.currentSeason.year + 1,
-          // ★加入の入口は必ず契約を渡す（signedOnJoin の印・契約年数は movePlayer が契約から付ける）。
-          //   年数は newContractYears・年俸は faMarketSalary（出場は perfOf）＝シーズン中のFA・移籍市場と同じ
-          ...(leaver ? { contract: {
-            yearsLeft: newContractYears(leaver, state.currentSeason.year),
-            annualSalary: faMarketSalary(leaver, perfOf(leaver, { players: playersAfterFreeMoves, clubs: clubsAfterFreeMoves, currentSeason: state.currentSeason })) } } : {}) })
+          // ★加入の入口は必ず契約を渡す（signedOnJoin の印・契約年数は movePlayer が契約から付ける）＝joinContractOf 1本
+          ...(leaver ? joinContractOf(leaver.id, { players: playersAfterFreeMoves, clubs: clubsAfterFreeMoves, currentSeason: state.currentSeason }) : {}) })
         if (!m.ok) continue
         playersAfterFreeMoves = m.players
         clubsAfterFreeMoves = m.clubs

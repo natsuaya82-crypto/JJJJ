@@ -24,7 +24,7 @@ import { comparePlayers } from '../utils/playerSort'
 import { clubIndexOf } from '../utils/rosterSync'
 import { clubIds, clubMap, otherClubs } from '../utils/world'
 import { movePlayer } from '../utils/movePlayer'
-import { effectiveOvr, ovr, playerConsentToMove } from '../utils/playerUtils'
+import { effectiveOvr, joinContractOf, ovr, playerConsentToMove } from '../utils/playerUtils'
 import { clubLabel, loanHeadline, type NewsItem } from '../utils/newsItems'
 import { needsPlayer, squadRankOf } from '../utils/squadNeeds'
 import { tierOfPlayerClub, tierBudget } from '../utils/clubTier'
@@ -426,7 +426,9 @@ export function runCpuTrades(
         const m = movePlayer({ players, clubs }, pid, toId, {
           year: ctx.year,
           date: ctx.date ?? `${ctx.year}-02-01`,
-          kind: 'trade' })
+          kind: 'trade',
+          // トレードでも契約を結び直す（joinContractOf 1本・オーナー・2026-09-28「結び直し」）
+          ...joinContractOf(pid, { players, clubs, currentSeason: { year: ctx.year, ...(ctx.season ?? {}) } }) })
         if (!m.ok) continue
         players = m.players
         clubs = m.clubs

@@ -35,7 +35,7 @@ import { managedTeamIds, startTenure } from '../../utils/gmTenure'
 import { standingsByLeague, titleKeyOf, titleTier, TOP_DIVISION, draftPickHolders, myLeagueSize, newSeasonStandings, rankOfTeam, seasonLeagueStandings, divisionLeagues, divisionOfLeague } from '../../utils/league'
 import { leagueChampionHeadline, divisionsFoundedHeadline, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline } from '../../utils/newsItems'
 import { comparePlayers } from '../../utils/playerSort'
-import { faMarketSalary, newContractYears, ovr, packForeignApps, perfOf } from '../../utils/playerUtils'
+import { faMarketSalary, joinContractOf, newContractYears, ovr, packForeignApps, perfOf } from '../../utils/playerUtils'
 import { movePlayer } from '../../utils/movePlayer'
 import { squadIdsOf, clubIndexOf } from '../../utils/rosterSync'
 import { needsPlayer, squadRankOf } from '../../utils/squadNeeds'
@@ -120,7 +120,9 @@ function applyGmMove(state: GameStore, offer: GmOffer, inviteId?: string): Parti
     }, invited.id)
     if (fee != null) {
       const m = movePlayer({ players, clubs }, invited.id, offer.teamId, {
-        year: offer.year, date: `${offer.year}-02-01`, fee, myTeamId: offer.teamId })
+        year: offer.year, date: `${offer.year}-02-01`, fee, myTeamId: offer.teamId,
+        // 監督について行く選手も契約を結び直す（joinContractOf 1本・オーナー・2026-09-28「結び直し」）
+        ...joinContractOf(invited.id, { players, clubs, currentSeason: state.currentSeason }) })
       // ★お金は movePlayer の中で両側が動く（utils/clubMoney の payBetween）。
       //   返ってきた clubs を受け取らないと、新しいクラブが払っていないことになる
       if (m.ok) { players = m.players; clubs = m.clubs; inviteRecord = m.record; inviteSpend = m.spend }

@@ -15,7 +15,7 @@ import { MAJOR_NEWS_OVR, tierOfPlayerClub } from '../utils/clubTier'
 import { bigClub, findClub } from '../utils/clubs'
 import { movePlayer, type DepartureNotice } from '../utils/movePlayer'
 import { type NewsItem, transferHeadline } from '../utils/newsItems'
-import { faMarketSalary, newContractYears, ovr, perfOf } from '../utils/playerUtils'
+import { joinContractOf, ovr } from '../utils/playerUtils'
 import { appraiseMove, type Destination } from '../utils/transferDecision'
 import type { CpuTx } from './cpuTransfers'
 import { playRateOf, prevSeasonOf, type PlayRateSeason } from '../utils/playRate'
@@ -72,11 +72,8 @@ export function applySettledTransfers(params: {
   let myCpuSaleIncome = 0
   // ★加入の入口は必ず契約を渡す（movePlayer が signedOnJoin の印を付けるのは契約を渡されたときだけ）。
   //   年数は newContractYears・年俸は faMarketSalary（出場は perfOf）＝移籍市場・シーズン中のFAと同じ
-  const joinContract = (playerId: string, world: { players: Player[]; clubs: WorldClub[] }) => {
-    const p = world.players.find(x => x.id === playerId)
-    return p ? { contract: { yearsLeft: newContractYears(p, currentSeason.year),
-      annualSalary: faMarketSalary(p, perfOf(p, { ...world, currentSeason })) } } : {}
-  }
+  const joinContract = (playerId: string, world: { players: Player[]; clubs: WorldClub[] }) =>
+    joinContractOf(playerId, { ...world, currentSeason })
   for (const tx of cpuTxList) {
     const m = movePlayer({ players: playersWithCpuTx, clubs: clubsNow }, tx.playerId, tx.toTeamId, {
       year: currentSeason.year,
