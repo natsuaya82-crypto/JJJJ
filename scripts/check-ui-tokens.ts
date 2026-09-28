@@ -580,5 +580,84 @@ console.log('\n⑯ 節の番号がダブっていない（この点検自身の�
     marks.join(''))
 }
 
+console.log('\n⑰ 枠を手書きした <button> が無い（押すボタンは GlassButton / PillTabs）')
+{
+  // ⑥が数えるのは「ぼかし無しで下へ落ちる影」だけで、**影を持たずに枠（border）だけを
+  // 手書きした `<button>` は1件も数えていなかった**。2026-09-28 に数えたら画面に126か所あり、
+  // オーナーの「1はいいよ」で全部を共通の部品へ寄せた（押すボタン＝`ui/GlassButton`、
+  // どれか1つを選ぶ横並び＝`ui/PillTabs`。見た目はガラスの標準に変わってよい）。
+  //
+  // 数えるのは `src/components` の画面（`ui/` は部品そのものなので除く）で、
+  // `<button` の**開きタグの中**に `border…: '…px solid'` があるもの。
+  // ★**style を関数や定数から持ってくる形も数えること**（`style={actionButton(C.gold)}` /
+  //   `style={{ ...cardStyle(…) }}`）。開きタグだけを見ると、同じファイルの中で
+  //   枠を描く関数を1つ作れば何か所でも手書きできてしまう（走友会の画面に17か所あった）。
+  //
+  // 押すボタンではない物（顔やロゴの入ったカード・行・タイル、スタンプ、Layout の中身）は
+  // 残してある。**ファイルごとに理由を書くこと**（「漏れた」と「あえて」を区別するため）。
+  const HAND_ROLLED: Record<string, string> = {
+    'src/components/friends/FriendClubPage.tsx': 'カードを選ぶタイル（TrainingCardSVG）と、掲示板の反応（絵文字の数つき）',
+    'src/components/friends/FriendDetailPage.tsx': '走友会の行（ロゴ＋名前＋矢印）',
+    'src/components/jewels/JewelsPage.tsx': '2行のメニュー行（見出し＋補足＋矢印）',
+    'src/components/layout/Layout.tsx': 'ヘッダーのジュエル残高（Layout の中身）',
+    'src/components/more/MorePage.tsx': 'メニュー行（アイコン枠＋2行＋矢印）と、ロゴを変える行（ロゴの絵）',
+    'src/components/notifications/NotificationsPage.tsx': '2行のカード（選手をつくる案内・接触中の知らせ＝顔つき）',
+    'src/components/onboarding/Onboarding.tsx': 'ロゴを変える行（ロゴの絵）',
+    'src/components/online/RulesPanel.tsx': 'コースの行（コース名＋区間数・距離）',
+    'src/components/online/StampBar.tsx': 'スタンプ（絵文字・選手の顔）＝送る機能そのもの',
+    'src/components/race/RacePage.tsx': '記録会の結果の行（顔つき）',
+    'src/components/team/ChatPage.tsx': '選手の行（顔つき）',
+    'src/components/team/chat/Cards.tsx': '選手の札（顔つき）',
+    'src/components/team/chat/TradeChatView.tsx': 'トレードで選ぶ選手の行（顔つき）',
+    'src/components/transfer/TransferPage.tsx': 'トレード相手のクラブのタイル（ロゴつき）',
+  }
+  const BORDER = /border\w*\s*:\s*[`'"][^`'"\n]*\d+(?:\.\d+)?px solid/
+  /** `<button` の開きタグ（`{…}` の中の `>` では切らない） */
+  const openTag = (src: string, i: number): string => {
+    let depth = 0
+    let q: string | null = null
+    for (let j = i + 7; j < src.length; j++) {
+      const c = src[j]
+      if (q) { if (c === q && src[j - 1] !== '\\') q = null; continue }
+      if (depth > 0 && (c === '"' || c === "'" || c === '`')) { q = c; continue }
+      if (c === '{') depth++
+      else if (c === '}') depth--
+      else if (c === '>' && depth === 0) return src.slice(i, j + 1)
+    }
+    return src.slice(i)
+  }
+  /** 同じファイルの中で、枠を描いている関数・定数の名前 */
+  const borderHelpers = (src: string): Set<string> => {
+    const out = new Set<string>()
+    for (const m of src.matchAll(/(?:const|function)\s+(\w+)\b[^\n]*/g)) {
+      if (BORDER.test(src.slice(m.index!).split('\n').slice(0, 10).join('\n'))) out.add(m[1])
+    }
+    return out
+  }
+  const comps = screens.filter(f => /^src[\\/]components[\\/]/.test(f) && !/^src[\\/]components[\\/]ui[\\/]/.test(f))
+  const hits: Record<string, string[]> = {}
+  for (const f of comps) {
+    const src = read(f).replace(/\/\*[\s\S]*?\*\//g, m => m.replace(/[^\n]/g, ' ')).replace(/^\s*\/\/.*$/gm, '')
+    const helpers = borderHelpers(src)
+    for (let i = src.indexOf('<button'); i >= 0; i = src.indexOf('<button', i + 1)) {
+      if (!/[\s>]/.test(src[i + 7] ?? '')) continue
+      const tag = openTag(src, i)
+      const via = tag.match(/style=\{\{?\s*(?:\.\.\.)?(\w+)\s*\(/)
+      if (BORDER.test(tag) || (via && helpers.has(via[1]))) {
+        (hits[f.replace(/\\/g, '/')] ??= []).push(`${f}:${src.slice(0, i).split('\n').length}`)
+      }
+    }
+  }
+  const total = Object.values(hits).reduce((a, b) => a + b.length, 0)
+  check(`画面を実際に数えている（${comps.length}ファイル）`, comps.length > 20)
+  const leaked = Object.entries(hits).filter(([f]) => !HAND_ROLLED[f]).flatMap(([, v]) => v)
+  check(`枠を手書きした <button> が、理由を書いたファイルの外に無い（残してあるのは${total}件）`, leaked.length === 0,
+    leaked.join('\n      ') + '\n      → 押すボタンは components/ui/GlassButton.tsx、横並びの切り替えは components/ui/PillTabs.tsx を使うこと')
+  // ★**網が死んでいないか。** 理由を書いたファイルがもう1件も当たらないなら、その行は嘘
+  const dead = Object.keys(HAND_ROLLED).filter(f => !hits[f])
+  check('HAND_ROLLED の行がどれもいまも当たる', dead.length === 0,
+    dead.map(f => `${f} はもう手書きしていない（HAND_ROLLED から消すこと）`).join('\n      '))
+}
+
 console.log(failed === 0 ? '\n  → OK\n' : `\n  → NG ${failed}件\n`)
 process.exit(failed === 0 ? 0 : 1)
