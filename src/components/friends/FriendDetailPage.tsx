@@ -1,3 +1,5 @@
+import GlassButton from '../ui/GlassButton'
+import PillTabs from '../ui/PillTabs'
 import { useEffect, useRef, useState } from 'react'
 import { useStickyTab } from '../../lib/useStickyTab'
 import { useParams, useNavigate } from 'react-router-dom'
@@ -189,15 +191,15 @@ export default function FriendDetailPage() {
         <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: alpha(C.gold, 0.85), letterSpacing: '3px', fontWeight: 900 }}>FRIEND</div>
         <div style={{ flex: 1 }} />
         {isFriend === true && (
-          <button onClick={() => setAskRemove(true)} style={{ padding: '5px 10px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: F.label, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>解除</button>
+          <GlassButton onClick={() => setAskRemove(true)} color={C.textSub} size="sm">解除</GlassButton>
         )}
         {isFriend === false && isSent && (
           <span style={{ padding: '5px 10px',border: `1px solid ${C.border2}`, color: C.textDim, fontSize: F.label, fontWeight: 800, fontFamily: SAIRA }}>申請中</span>
         )}
         {isFriend === false && !isSent && (
-          <button onClick={() => { void onAdd() }} className="btn-press" style={{ padding: '5px 10px',border: `2px solid ${alpha(C.gold, 0.6)}`, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, color: C.gold, fontSize: F.label, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>＋フレンド</button>
+          <GlassButton onClick={() => { void onAdd() }} color={C.gold} size="sm">＋フレンド</GlassButton>
         )}
-        <button onClick={() => setMenu(true)} aria-label="メニュー" style={{ padding: '5px 10px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: F.bodyLg, fontWeight: 900, fontFamily: SAIRA, letterSpacing: '1px', cursor: 'pointer' }}>···</button>
+        <GlassButton onClick={() => setMenu(true)} ariaLabel="メニュー" color={C.textSub} size="sm">···</GlassButton>
       </div>
 
       {/* チーム情報 */}
@@ -242,18 +244,7 @@ export default function FriendDetailPage() {
       {/* ロスターと殿堂入りを横に並べる。スワイプでも見出しのタップでも切り替わる */}
       <div style={{ padding: '16px 0 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 8, padding: '0 16px' }}>
-          {PAGES.map((label, i) => (
-            <button
-              key={label}
-              onClick={() => goPage(i)}
-              style={{
-                padding: '2px 0 4px', background: 'none', cursor: 'pointer', fontFamily: SAIRA,
-                fontSize: F.caption, letterSpacing: '2px', fontWeight: 900,
-                color: page === i ? C.gold : C.textGhost,
-                border: 'none', borderBottom: `2px solid ${page === i ? C.gold : 'transparent'}`,
-              }}
-            >{label}</button>
-          ))}
+          <PillTabs labels={[...PAGES]} value={page} onChange={goPage} />
           <div style={{ flex: 1 }} />
           <div style={{ fontSize: F.caption, color: C.textGhost }}>長押しで詳細</div>
         </div>

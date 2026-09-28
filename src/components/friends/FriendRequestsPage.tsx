@@ -1,6 +1,7 @@
 // 「申請」と「承認」を1画面にまとめたページ。
 // 分けていた頃は申請を送るたびに承認ページへ戻る必要があって面倒だったため、
 // 自分のコード・コード入力・届いた申請・送った申請を縦に並べて1画面で完結させる。
+import GlassButton from '../ui/GlassButton'
 import { useState, useRef } from 'react'
 import PageHeader from '../ui/PageHeader'
 import ConfirmDialog from '../ui/ConfirmDialog'
@@ -170,9 +171,9 @@ export default function FriendRequestsPage() {
             <div style={{ fontFamily: SAIRA, fontSize: F.head, fontWeight: 900, color: code.data ? C.text : C.textGhost, letterSpacing: '3px' }}>{myCodeText}</div>
           </div>
           {code.error ? (
-            <button onClick={code.reload} style={{ flexShrink: 0, padding: '9px 12px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: F.label, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>再取得</button>
+            <GlassButton onClick={code.reload} color={C.textSub} size="sm" style={{ flexShrink: 0 }}>再取得</GlassButton>
           ) : (
-            <button onClick={shareCode} disabled={sharing || !code.data} style={{ flexShrink: 0, padding: '9px 14px',background: `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})`, backdropFilter: 'blur(10px) saturate(118%)', WebkitBackdropFilter: 'blur(10px) saturate(118%)', border: `1px solid ${alpha(C.gold, 0.65)}`, color: C.gold, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22)', fontSize: F.body, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer', opacity: sharing || !code.data ? 0.6 : 1 }}>{sharing ? '作成中' : '共有'}</button>
+            <GlassButton onClick={shareCode} disabled={sharing || !code.data} color={C.gold} size="sm" style={{ flexShrink: 0 }}>{sharing ? '作成中' : '共有'}</GlassButton>
           )}
         </div>
       </div>
@@ -182,8 +183,7 @@ export default function FriendRequestsPage() {
         <div style={{ display: 'flex', gap: 8 }}>
           <input value={addCode} onChange={e => setAddCode(e.target.value.replace(/\D/g, '').slice(0, 10))} inputMode="numeric" placeholder="コード（数字10桁）"
             style={{ flex: 1, padding: '11px 12px',border: `1px solid ${C.border2}`, background: C.surface2, color: C.text, fontSize: F.subLg, fontFamily: SAIRA, letterSpacing: '3px', outline: 'none' }} />
-          <button onClick={onCheck} disabled={sending || addCode.length !== 10}
-            style={{ padding: '0 18px',border: `2px solid ${C.cyan}`, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, color: C.cyan, fontSize: F.bodyLg, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer', opacity: sending || addCode.length !== 10 ? 0.45 : 1 }}>{sending ? '確認中' : '申請'}</button>
+          <GlassButton onClick={onCheck} disabled={sending || addCode.length !== 10} color={C.cyan} style={{ flexShrink: 0 }}>{sending ? '確認中' : '申請'}</GlassButton>
         </div>
 
         {/* 届いた申請（承認・拒否） */}
@@ -194,8 +194,8 @@ export default function FriendRequestsPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {received.map(r => (
               <RequestRow key={r.id} r={r} dim={busy === r.id} right={<>
-                <button onClick={() => onAccept(r)} disabled={!!busy} style={{ padding: '7px 12px',background: `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})`, backdropFilter: 'blur(10px) saturate(118%)', WebkitBackdropFilter: 'blur(10px) saturate(118%)', border: `1px solid ${alpha(C.gold, 0.65)}`, color: C.gold, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22)', fontSize: F.body, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>承認</button>
-                <button onClick={() => onReject(r)} disabled={!!busy} style={{ padding: '7px 10px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: F.body, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>拒否</button>
+                <GlassButton onClick={() => onAccept(r)} disabled={!!busy} color={C.gold} size="sm">承認</GlassButton>
+                <GlassButton onClick={() => onReject(r)} disabled={!!busy} color={C.textSub} size="sm">拒否</GlassButton>
               </>} />
             ))}
           </div>
@@ -210,7 +210,7 @@ export default function FriendRequestsPage() {
             {sent.map(r => (
               <RequestRow key={r.id} r={r} dim={busy === r.id} right={<>
                 <span style={{ fontSize: F.caption, color: C.textDim, fontWeight: 700 }}>承認待ち</span>
-                <button onClick={() => onCancel(r)} disabled={!!busy} style={{ padding: '6px 10px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: F.label, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>取消</button>
+                <GlassButton onClick={() => onCancel(r)} disabled={!!busy} color={C.textSub} size="sm">取消</GlassButton>
               </>} />
             ))}
           </div>

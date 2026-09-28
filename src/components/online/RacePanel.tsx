@@ -4,6 +4,7 @@
 // 違うのは「自分で計算しない」ところと、区間ごとに全員の待ち合わせがあるところ。
 // ホストが配った結果を、そのとおりに再生し、自チームの走者がタスキを渡すたびに止まって
 // 区間結果（`./SegmentResultCard`）を出す。
+import GlassButton from '../ui/GlassButton'
 import { useEffect, useMemo, useState } from 'react'
 import type { Player, Team } from '../../types'
 import { RaceTrack } from '../race/SimPhase'
@@ -282,18 +283,8 @@ export default function RacePanel({
           )}
           head={<>
             <div style={{ padding: '10px 12px 0', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-              <button onClick={() => setPaused(v => !v)} style={{
-                padding: '8px 16px',cursor: 'pointer',
-                background: paused ? `linear-gradient(180deg, ${C.gold}, ${alpha(C.gold, 0.7)})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                border: `1px solid ${paused ? C.gold : C.border2}`, color: paused ? C.bg : C.textSub,
-                fontFamily: SAIRA, fontSize: F.body, fontWeight: 700,
-              }}>{paused ? '再生' : '一時停止'}</button>
-              <button onClick={() => jumpTo(stopAt)} style={{
-                padding: '8px 16px',cursor: 'pointer',
-                background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                border: `1px solid ${C.border2}`, color: C.textSub,
-                fontFamily: SAIRA, fontSize: F.body, fontWeight: 700,
-              }}>この区間をスキップ</button>
+              <GlassButton onClick={() => setPaused(v => !v)} color={paused ? C.gold : C.textSub} size="sm">{paused ? '再生' : '一時停止'}</GlassButton>
+              <GlassButton onClick={() => jumpTo(stopAt)} color={C.textSub} size="sm">この区間をスキップ</GlassButton>
             </div>
             {/* 再生の速さ（本編の中継と同じ） */}
             <div style={{ padding: '8px 12px 0', display: 'flex', justifyContent: 'flex-end' }}>

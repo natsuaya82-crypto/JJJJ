@@ -1,3 +1,4 @@
+import GlassButton from '../ui/GlassButton'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../ui/PageHeader'
@@ -56,15 +57,7 @@ const ovrLabel = (v: number) => (v <= OVR_MIN ? 'なし' : `${v} 以上`)
  */
 function ChoiceButton({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} style={{
-      flex: 1, padding: '9px 0',cursor: 'pointer', fontFamily: SAIRA,
-      fontSize: F.label, fontWeight: 900, whiteSpace: 'nowrap',
-      color: on ? C.gold : C.textGhost,
-      background: on ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})` : alpha('#000', 0.3),
-      border: `1px solid ${on ? alpha(C.gold, 0.65) : C.border3}`,
-      boxShadow: on ? `0 0 0 2px ${alpha(C.gold, 0.28)}` : 'none',
-      opacity: on ? 1 : 0.75,
-    }}>{on ? `✓ ${label}` : label}</button>
+    <GlassButton type="button" onClick={onClick} color={on ? C.gold : C.textDim} size="sm" style={{ flex: 1 }}>{on ? `✓ ${label}` : label}</GlassButton>
   )
 }
 
@@ -240,15 +233,15 @@ function ClubEditor({ initial, title, okLabel, busy, onSubmit, onCancel }: {
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-        <button onClick={onCancel} className="btn-press" style={{ ...actionButton(C.textDim), flex: 1, padding: '12px 0' }}>
+        <GlassButton onClick={onCancel} color={C.textDim} style={{ flex: 1 }}>
           やめる
-        </button>
-        <button
+        </GlassButton>
+        <GlassButton
           onClick={() => onSubmit({ ...f, name: f.name.trim() })}
           disabled={busy || f.name.trim().length === 0}
-          className="btn-press"
-          style={{ ...actionButton(C.gold, busy || f.name.trim().length === 0), flex: 2, padding: '12px 0' }}
-        >{busy ? '送信中…' : okLabel}</button>
+          color={C.gold}
+          style={{ flex: 2 }}
+        >{busy ? '送信中…' : okLabel}</GlassButton>
       </div>
     </div>
   )
@@ -385,7 +378,7 @@ export function ClubSearch({ onChanged, readOnly }: { onChanged?: () => void; re
             placeholder="走友会名 または コード10桁"
             style={inputStyle}
           />
-          <button onClick={() => setTerm(q)} className="btn-press" style={actionButton(C.gold)}>探す</button>
+          <GlassButton onClick={() => setTerm(q)} color={C.gold} size="sm" style={{ flexShrink: 0 }}>探す</GlassButton>
         </div>
 
         <SectionLabel>{term ? `「${term}」の検索結果` : 'おすすめの走友会'}</SectionLabel>
@@ -404,18 +397,19 @@ export function ClubSearch({ onChanged, readOnly }: { onChanged?: () => void; re
                  right={
                  readOnly ? null :
                  requested.has(c.id) ? (
-                   <button onClick={() => onCancelReq(c)} disabled={busy === c.id} className="btn-press" style={actionButton(C.textDim)}>
+                   <GlassButton onClick={() => onCancelReq(c)} disabled={busy === c.id} color={C.textDim} size="sm" style={{ flexShrink: 0 }}>
                      申請中
-                   </button>
+                   </GlassButton>
                  ) : (
-                   <button
+                   <GlassButton
                      onClick={() => setConfirm(c)}
                      disabled={busy === c.id || c.joinType === 'closed' || c.members >= CLUB_MAX}
-                     className="btn-press"
-                     style={actionButton(c.joinType === 'approval' ? C.cyan : C.gold, busy === c.id || c.joinType === 'closed' || c.members >= CLUB_MAX)}
+                     color={c.joinType === 'approval' ? C.cyan : C.gold}
+                     size="sm"
+                     style={{ flexShrink: 0 }}
                    >
                      {c.members >= CLUB_MAX ? '満員' : c.joinType === 'closed' ? '停止中' : c.joinType === 'approval' ? '申請' : '入る'}
-                   </button>
+                   </GlassButton>
                  )
                } />
              ))}
@@ -423,11 +417,7 @@ export function ClubSearch({ onChanged, readOnly }: { onChanged?: () => void; re
          )}
 
         {!readOnly && <SectionLabel>自分で作る</SectionLabel>}
-        {!readOnly && <button onClick={() => setMaking(true)} className="btn-press" style={{
-          width: '100%', padding: '14px',cursor: 'pointer',
-          border: `2px solid ${C.goldDark}`, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-          color: C.gold, fontSize: F.sub, fontWeight: 900, fontFamily: SAIRA,
-        }}>走友会を作る</button>}
+        {!readOnly && <GlassButton onClick={() => setMaking(true)} color={C.gold} full>走友会を作る</GlassButton>}
       </div>
 
       {confirm && (
@@ -496,18 +486,16 @@ export function MemberRow({ m, canKick, isMe, friendState, onKick, onMenu, onOpe
         </div>
       </div>
       {!m.blocked && m.code !== '' && friendState === 'none' && (
-        <button onClick={onAddFriend} className="btn-press" style={{ ...actionButton(C.gold), padding: '8px 10px' }}>＋フレンド</button>
+        <GlassButton onClick={onAddFriend} color={C.gold} size="sm" style={{ flexShrink: 0 }}>＋フレンド</GlassButton>
       )}
       {!m.blocked && friendState === 'sent' && (
         <span style={{ ...actionButton(C.textDim, true), padding: '8px 10px' }}>申請中</span>
       )}
       {canKick && (
-        <button onClick={onKick} className="btn-press" style={actionButton(C.red)}>外す</button>
+        <GlassButton onClick={onKick} color={C.red} size="sm" style={{ flexShrink: 0 }}>外す</GlassButton>
       )}
       {!isMe && !readOnly && (
-        <button onClick={onMenu} className="btn-press" aria-label="メニュー" style={{
-          ...actionButton(C.textDim), padding: '8px 10px', letterSpacing: '1px',
-        }}>···</button>
+        <GlassButton onClick={onMenu} ariaLabel="メニュー" color={C.textDim} size="sm" style={{ flexShrink: 0 }}>···</GlassButton>
       )}
     </div>
   )
@@ -965,11 +953,7 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
                     {p.roomCode}
                   </span>
                 </div>
-                <button onClick={() => { void onJoinRoom(p.roomCode) }} disabled={busy === 'join'} className="btn-press" style={{
-                  flexShrink: 0, padding: '6px 14px',cursor: 'pointer',
-                  border: `1px solid ${alpha(C.cyan, 0.6)}`, background: alpha(C.cyan, 0.14),
-                  color: C.cyan, fontSize: F.body, fontWeight: 900, fontFamily: 'inherit',
-                }}>参加する</button>
+                <GlassButton onClick={() => { void onJoinRoom(p.roomCode) }} disabled={busy === 'join'} color={C.cyan} size="sm" style={{ flexShrink: 0 }}>参加する</GlassButton>
               </div>
             ) : (
               <div style={{ fontSize: F.bodyLg, color: C.text, marginTop: 1 }}>
@@ -1019,16 +1003,14 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
             p.mine ? <Pill color={C.textDim}>お願い中</Pill> :
             p.openStats.length === 0 ? <Pill color={C.textDim}>受付を待っています</Pill> :
             canGive ? (
-              <button onClick={() => setPicking(p)} disabled={busy === p.id} className="btn-press"
-                style={actionButton(C.green, busy === p.id)}>わたす</button>
+              <GlassButton onClick={() => setPicking(p)} disabled={busy === p.id} color={C.green} size="sm" style={{ flexShrink: 0 }}>わたす</GlassButton>
             ) : null
           )}
           {/* 自分の投稿にメニューは出ないが、幅は空けておく。
               空けないと「集まりました」だけが投稿ごとに左右へずれる */}
           <div style={{ width: 42, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
             {!p.mine && (
-              <button onClick={() => setMenuPost(p)} className="btn-press" aria-label="メニュー"
-                style={{ ...actionButton(C.textDim), padding: '6px 10px', letterSpacing: '1px' }}>···</button>
+              <GlassButton onClick={() => setMenuPost(p)} ariaLabel="メニュー" color={C.textDim} size="sm" style={{ flexShrink: 0 }}>···</GlassButton>
             )}
           </div>
         </div>
@@ -1064,12 +1046,7 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {/* 対戦の募集。部屋を立てて、その番号を掲示板に貼る */}
-            <button onClick={() => setConfirmInvite(true)} disabled={busy === 'room'} className="btn-press" style={{
-              flexShrink: 0, width: 40, height: 40,cursor: 'pointer',
-              border: `1px solid ${alpha(C.cyan, 0.5)}`, background: alpha(C.cyan, 0.12),
-              color: C.cyan, fontFamily: 'inherit', padding: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }} title="対戦を募集する" aria-label="対戦を募集する">
+            <GlassButton onClick={() => setConfirmInvite(true)} disabled={busy === 'room'} color={C.cyan} title="対戦を募集する" ariaLabel="対戦を募集する" style={{ flexShrink: 0, width: 40, height: 40, padding: 0 }}>
               {/* ★アイコンは他の画面と同じ SVG。絵文字（🏁）は端末ごとに絵が変わるうえ、
                   色も太さもこの画面の他のアイコンと揃わない */}
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
@@ -1077,7 +1054,7 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
                 <path d="M5 4.5h14v9H5z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/>
                 <path d="M5 4.5h4.7v4.5H5zM14.3 4.5H19v4.5h-4.7zM9.7 9h4.6v4.5H9.7z" fill="currentColor"/>
               </svg>
-            </button>
+            </GlassButton>
             <div style={{
               flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6,
               padding: '6px 6px 6px 14px',
@@ -1104,11 +1081,7 @@ function ClubBoard({ tab }: { tab: 'board' | 'cards' }) {
                   {draft.length}/{CLUB_TEXT_MAX}
                 </span>
               )}
-              <button onClick={() => { void onSend() }} disabled={!draft.trim() || busy === 'msg'} style={{
-                flexShrink: 0, fontSize: F.body, fontWeight: 900, cursor: draft.trim() ? 'pointer' : 'default',
-                color: draft.trim() ? C.gold : C.textGhost, background: draft.trim() ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})` : C.border3, border: `1px solid ${draft.trim() ? alpha(C.gold, 0.65) : C.border3}`,
-padding: '6px 14px', fontFamily: 'inherit',
-              }}>送る</button>
+              <GlassButton onClick={() => { void onSend() }} disabled={!draft.trim() || busy === 'msg'} color={C.gold} size="sm" style={{ flexShrink: 0 }}>送る</GlassButton>
             </div>
           </div>
         </div>
@@ -1120,9 +1093,7 @@ padding: '6px 14px', fontFamily: 'inherit',
     <div style={{ padding: '10px 12px 0' }}>
       <SectionLabel>もらったカード</SectionLabel>
       {(gifts.data ?? 0) > 0 ? (
-        <button onClick={onClaim} disabled={busy === 'claim'} className="btn-press" style={{
-          ...actionButton(C.gold, busy === 'claim'), width: '100%', padding: '13px 0',
-        }}>{gifts.data}枚 受け取る</button>
+        <GlassButton onClick={onClaim} disabled={busy === 'claim'} color={C.gold} full>{gifts.data}枚 受け取る</GlassButton>
       ) : (
         <EmptyBox label="いま届いているカードはありません" />
       )}
@@ -1130,15 +1101,12 @@ padding: '6px 14px', fontFamily: 'inherit',
       <SectionLabel>カードをお願いする（1日1回）</SectionLabel>
       <div style={{ display: 'flex', gap: 6 }}>
         {REQ_RARITIES.map(r => (
-          <button key={r} onClick={() => setAsking(r)} disabled={busy === 'req' || askedToday}
-            className="btn-press" style={{
-              ...actionButton(RARITY_COLORS[r], busy === 'req' || askedToday),
-              flex: 1, padding: '9px 0', lineHeight: 1.35,
-            }}>
+          <GlassButton key={r} onClick={() => setAsking(r)} disabled={busy === 'req' || askedToday}
+            color={RARITY_COLORS[r]} size="sm" style={{ flex: 1, lineHeight: 1.35 }}>
             {RARITY_LABELS[r]}を
             <br />
             {CLUB_REQ_CAP[r]}枚おねがい
-          </button>
+          </GlassButton>
         ))}
       </div>
       {askedToday && (
@@ -1374,11 +1342,9 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
             見たい数字がどのタブに出るのかを覚えていないと探せなかった */}
         <ClubHeaderCard club={club} right={<>
           {canEdit && (
-            <button onClick={() => setEditing(true)} className="btn-press" style={actionButton(C.cyan)}>設定</button>
+            <GlassButton onClick={() => setEditing(true)} color={C.cyan} size="sm" style={{ flexShrink: 0 }}>設定</GlassButton>
           )}
-          <button onClick={() => setMenuClub(true)} className="btn-press" aria-label="走友会のメニュー" style={{
-            ...actionButton(C.textDim), padding: '8px 10px', letterSpacing: '1px',
-          }}>···</button>
+          <GlassButton onClick={() => setMenuClub(true)} ariaLabel="走友会のメニュー" color={C.textDim} size="sm" style={{ flexShrink: 0 }}>···</GlassButton>
         </>} />
 
         {/* 横タブ */}
@@ -1428,8 +1394,8 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
                     {/* ★入会条件は平均OVRなので、ここは平均OVRのまま（見て判断する数字を消さない） */}
                     <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 2 }}>GM {a.gmName} ・ 平均OVR {a.avgOvr}</div>
                   </div>
-                  <button onClick={() => onApprove(a.id, false)} disabled={busy === a.id} className="btn-press" style={actionButton(C.textDim)}>断る</button>
-                  <button onClick={() => onApprove(a.id, true)} disabled={busy === a.id} className="btn-press" style={actionButton(C.green)}>入れる</button>
+                  <GlassButton onClick={() => onApprove(a.id, false)} disabled={busy === a.id} color={C.textDim} size="sm" style={{ flexShrink: 0 }}>断る</GlassButton>
+                  <GlassButton onClick={() => onApprove(a.id, true)} disabled={busy === a.id} color={C.green} size="sm" style={{ flexShrink: 0 }}>入れる</GlassButton>
                 </div>
               ))}
             </div>
@@ -1457,9 +1423,7 @@ function ClubHome({ mine, onChanged }: { mine: MyClub; onChanged: () => void }) 
             </div>
 
             <SectionLabel>走友会</SectionLabel>
-            <button onClick={() => setConfirmLeave(true)} disabled={busy === 'leave'} className="btn-press" style={{
-              ...actionButton(C.red, busy === 'leave'), width: '100%', padding: '12px 0',
-            }}>走友会を抜ける</button>
+            <GlassButton onClick={() => setConfirmLeave(true)} disabled={busy === 'leave'} color={C.red} full>走友会を抜ける</GlassButton>
           </>
         )}
       </div>
@@ -1564,20 +1528,16 @@ export default function FriendClubPage() {
           入っていると自分の走友会のページに置き換わるので、**探す道が1本も無かった**
           （テスターの報告・2026-08-20「他の走友会を見ることができない」） */}
       <PageHeader title="走友会" right={mine.data ? (
-        <button
+        <GlassButton
           onClick={() => navigate('/friends/clubs')}
-          aria-label="走友会をさがす"
-          className="btn-press"
-          style={{
-            width: 34, height: 34, flexShrink: 0, padding: 0, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            border: `1px solid ${alpha(C.gold, 0.45)}`, background: alpha(C.gold, 0.10), color: C.gold,
-          }}>
+          ariaLabel="走友会をさがす"
+          color={C.gold}
+          style={{ width: 34, height: 34, flexShrink: 0, padding: 0 }}>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
             <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.9"/>
             <path d="M16 16l4.5 4.5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"/>
           </svg>
-        </button>
+        </GlassButton>
       ) : undefined} />
 
       {/* 走友会の説明は、まだ入っていない人にだけ出す。

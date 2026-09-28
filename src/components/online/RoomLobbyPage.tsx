@@ -659,7 +659,7 @@ export default function RoomLobbyPage() {
         {conn !== 'online' && (
           <div style={{ fontSize: F.caption, color: C.textDim }}>{conn === 'connecting' ? '接続中…' : 'オフライン'}</div>
         )}
-        <button onClick={() => setAskLeave(true)} disabled={busy} style={{ padding: '5px 10px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: F.label, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>退出</button>
+        <GlassButton onClick={() => setAskLeave(true)} disabled={busy} color={C.textSub} size="sm">退出</GlassButton>
       </div>
 
       {phase === 'lobby' && (<>
@@ -703,7 +703,7 @@ export default function RoomLobbyPage() {
                   <div style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 900, color: C.green }}>準備OK</div>
                 )}
                 {isHost && !isMe && (
-                  <button onClick={() => setAskKick(m)} disabled={busy} style={{ padding: '4px 9px',border: `1px solid ${alpha(C.red, 0.5)}`, background: 'transparent', color: C.red, fontSize: F.caption, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer' }}>退出</button>
+                  <GlassButton onClick={() => setAskKick(m)} disabled={busy} color={C.red} size="sm">退出</GlassButton>
                 )}
               </div>
             )
@@ -721,14 +721,9 @@ export default function RoomLobbyPage() {
       {/* 準備完了（ゲストのみ。ホストは開始ボタン側で操作する） */}
       {!isHost && mine && (
         <div style={{ padding: '20px 12px 0' }}>
-          <button onClick={onToggleReady} disabled={busy} className="btn-press" style={{
-            width: '100%', padding: '15px 14px',
-            border: `2px solid ${mine.ready ? C.green : C.goldDark}`,
-            background: mine.ready ? alpha(C.green, 0.15) : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-            color: mine.ready ? C.green : C.gold, fontFamily: SAIRA, fontSize: F.title, fontWeight: 900, cursor: 'pointer',
-          }}>
+          <GlassButton onClick={onToggleReady} disabled={busy} color={mine.ready ? C.green : C.gold} size="lg" full>
             {mine.ready ? '準備完了（取り消す）' : '準備完了'}
-          </button>
+          </GlassButton>
         </div>
       )}
 
@@ -816,11 +811,7 @@ export default function RoomLobbyPage() {
             <div style={{ fontFamily: SAIRA, fontSize: F.body, color: alpha(C.gold, 0.85), letterSpacing: '3px', fontWeight: 900 }}>FINISH</div>
             <div style={{ fontSize: F.titleLg, fontWeight: 900, color: C.text, marginTop: 8 }}>対戦終了</div>
             <div style={{ fontSize: F.body, color: C.textDim, marginTop: 10, lineHeight: 1.7 }}>お疲れさまでした。</div>
-            <button onClick={() => setAskLeave(true)} className="btn-press" style={{
-              marginTop: 24, padding: '13px 28px',border: `2px solid ${C.goldDark}`,
-              background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-              color: C.gold, fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900, cursor: 'pointer',
-            }}>部屋を出る</button>
+            <GlassButton onClick={() => setAskLeave(true)} color={C.gold} style={{ marginTop: 24 }}>部屋を出る</GlassButton>
           </div>
         )
       )}

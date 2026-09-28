@@ -3,6 +3,7 @@
 // App Store の審査基準 1.2 で「不適切な内容を通報できること」が要る。
 // 送り先は Supabase の reports テーブルで、他の利用者からは見えない。
 // 相手が利用者の場合は、ここから同時にブロックもできるようにしてある。
+import GlassButton from '../ui/GlassButton'
 import { useState } from 'react'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import { REPORT_REASONS, REPORT_DETAIL_MAX, sendReport, blockUser, invalidateBlocked, type ReportReason } from '../../lib/moderationApi'
@@ -78,17 +79,13 @@ export default function ReportSheet({ target, onClose, onDone }: {
           {REPORT_REASONS.map(r => {
             const on = reason === r.key
             return (
-              <button
+              <GlassButton
                 key={r.key}
                 type="button"
                 onClick={() => setReason(r.key)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 9, width: '100%',
-                  padding: '10px 12px',cursor: 'pointer',
-                  background: on ? alpha(C.red, 0.14) : alpha('#000', 0.22),
-                  border: `1px solid ${on ? alpha(C.red, 0.6) : C.border}`,
-                  color: C.text, fontFamily: 'inherit', textAlign: 'left',
-                }}
+                color={on ? C.red : C.textDim}
+                full
+                style={{ gap: 9, justifyContent: 'flex-start' }}
               >
                 <span style={{
                   width: 16, height: 16,flexShrink: 0,
@@ -96,7 +93,7 @@ export default function ReportSheet({ target, onClose, onDone }: {
                   background: on ? C.red : 'transparent',
                 }} />
                 <span style={{ fontSize: F.bodyLg, fontWeight: 700 }}>{r.label}</span>
-              </button>
+              </GlassButton>
             )
           })}
         </div>
@@ -132,26 +129,12 @@ export default function ReportSheet({ target, onClose, onDone }: {
         )}
 
         <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-          <button
-            onClick={onClose}
-            style={{ flex: 1, padding: '12px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontFamily: SAIRA, fontSize: F.sub, fontWeight: 700, cursor: 'pointer' }}
-          >
+          <GlassButton onClick={onClose} color={C.textSub} style={{ flex: 1 }}>
             やめる
-          </button>
-          <button
-            onClick={onSend}
-            disabled={!canSend}
-            style={{
-              flex: 1.4, padding: '12px',
-              border: `2px solid ${canSend ? C.red : C.border2}`,
-              background: canSend ? `linear-gradient(180deg, ${alpha(C.red, 0.25)}, ${alpha(C.red, 0.1)})` : 'transparent',
-              color: canSend ? C.red : C.textGhost,
-              fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900,
-              cursor: canSend ? 'pointer' : 'default',
-            }}
-          >
+          </GlassButton>
+          <GlassButton onClick={onSend} disabled={!canSend} color={C.red} style={{ flex: 1.4 }}>
             {busy ? '送信中…' : '通報する'}
-          </button>
+          </GlassButton>
         </div>
       </div>
     </ScreenCover>

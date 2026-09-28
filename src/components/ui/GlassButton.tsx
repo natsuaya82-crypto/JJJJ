@@ -12,6 +12,7 @@ import { C, glassStyle } from '../../styles/tokens'
 
 export default function GlassButton({
   children, color = C.gold, size = 'md', disabled, full, style, onClick,
+  title, ariaLabel, ariaPressed, type,
 }: {
   children: React.ReactNode
   /** その ボタンの色。既定は金 */
@@ -21,7 +22,12 @@ export default function GlassButton({
   /** 横いっぱいに広げる */
   full?: boolean
   style?: React.CSSProperties
-  onClick: () => void
+  /** 押したときの処理。親への伝わりを止めたいときは受け取った e を使う */
+  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void
+  title?: string
+  ariaLabel?: string
+  ariaPressed?: boolean
+  type?: 'button' | 'submit'
 }) {
   const pad = size === 'sm' ? '7px 11px' : size === 'lg' ? '15px 0' : '11px 14px'
   const fs = size === 'sm' ? 11 : size === 'lg' ? 16 : 13
@@ -30,8 +36,12 @@ export default function GlassButton({
   //   線で縁を描くボタンとは両立しない（形はメニュー行と選手カードで出す）
   return (
     <button
-      onClick={() => { if (!disabled) onClick() }}
+      onClick={e => { if (!disabled) onClick(e) }}
       disabled={disabled}
+      title={title}
+      aria-label={ariaLabel}
+      aria-pressed={ariaPressed}
+      type={type}
       className={disabled ? undefined : 'btn-press'}
       style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',

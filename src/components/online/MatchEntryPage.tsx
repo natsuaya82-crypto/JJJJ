@@ -91,13 +91,7 @@ export default function MatchEntryPage() {
             placeholder="000000"
             style={{ flex: 1, minWidth: 0, width: 0, padding: '11px 14px',border: `1px solid ${C.border2}`, background: C.surface2, color: C.text, fontSize: F.head, fontWeight: 900, fontFamily: SAIRA, letterSpacing: '10px', textAlign: 'center', outline: 'none' }}
           />
-          <button onClick={onJoin} disabled={!!busy || code.length !== 6} style={{
-            flexShrink: 0, minWidth: 72, whiteSpace: 'nowrap',
-            padding: '0 16px',border: `2px solid ${C.cyan}`,
-            background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`, color: C.cyan,
-            fontSize: F.bodyLg, fontWeight: 900, fontFamily: SAIRA, cursor: 'pointer',
-            opacity: busy || code.length !== 6 ? 0.45 : 1,
-          }}>{busy === 'join' ? '確認中' : '入る'}</button>
+          <GlassButton onClick={onJoin} disabled={!!busy || code.length !== 6} color={C.cyan} style={{ flexShrink: 0, minWidth: 72 }}>{busy === 'join' ? '確認中' : '入る'}</GlassButton>
         </div>
       </div>
 

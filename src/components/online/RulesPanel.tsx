@@ -4,6 +4,7 @@ import type { MatchRules } from '../../lib/roomsApi'
 import { MATCH_COURSES, CATEGORY_LABEL, courseById, randomCourseIds, type CourseCategory } from '../../data/matchCourses'
 import { C, alpha, SAIRA, F } from '../../styles/tokens'
 import GlassButton from '../ui/GlassButton'
+import PillTabs from '../ui/PillTabs'
 import ScreenCover from '../ui/ScreenCover'
 
 
@@ -167,18 +168,13 @@ function Segmented({ options, value, disabled, onChange }: {
       {options.map(o => {
         const on = o.key === value
         return (
-          <button
+          <GlassButton
             key={o.key}
-            onClick={() => !disabled && onChange(o.key)}
-            style={{
-              flex: 1, padding: '10px 4px',
-              border: `2px solid ${on ? C.gold : C.border2}`,
-              background: on ? alpha(C.gold, 0.15) : C.surface2,
-              color: on ? C.gold : C.textDim,
-              fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 900,
-              cursor: disabled ? 'default' : 'pointer', opacity: disabled && !on ? 0.5 : 1,
-            }}
-          >{o.label}</button>
+            onClick={() => { if (!disabled) onChange(o.key) }}
+            disabled={disabled && !on}
+            color={on ? C.gold : C.textDim}
+            style={{ flex: 1, padding: '10px 4px' }}
+          >{o.label}</GlassButton>
         )
       })}
     </div>
@@ -187,13 +183,11 @@ function Segmented({ options, value, disabled, onChange }: {
 
 function Step({ label, disabled, onClick }: { label: string; disabled?: boolean; onClick: () => void }) {
   return (
-    <button onClick={() => !disabled && onClick()} style={{
-      width: 44, height: 44,border: `2px solid ${disabled ? C.border2 : C.goldDark}`,
-      background: C.surface2, color: disabled ? C.textGhost : C.gold,
-      fontFamily: SAIRA, fontSize: F.head, fontWeight: 900, cursor: disabled ? 'default' : 'pointer',
-    }}>{label}</button>
+    <GlassButton onClick={onClick} disabled={disabled} color={C.gold} size="lg" style={{ width: 44, height: 44, padding: 0 }}>{label}</GlassButton>
   )
 }
+
+const CATEGORY_KEYS: CourseCategory[] = ['main', 'reserve', 'ecl']
 
 /** コースを選ぶ全画面リスト。1軍・リザーブ・ECLの34コースから選ぶ。
  *  ページ側は変形アニメが掛かっていて重なり順が効かないので、body直下に出す。 */
@@ -209,22 +203,16 @@ function CoursePicker({ onPick, onClose }: { onPick: (id: string) => void; onClo
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 12px 8px' }}>
         <div style={{ fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900, color: C.text, flex: 1 }}>コースを選ぶ</div>
-        <button onClick={onClose} style={{ padding: '5px 12px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: F.label, fontWeight: 800, fontFamily: SAIRA, cursor: 'pointer' }}>閉じる</button>
+        <GlassButton onClick={onClose} color={C.textSub} size="sm">閉じる</GlassButton>
       </div>
 
-      <div style={{ display: 'flex', gap: 6, padding: '0 12px 10px' }}>
-        {(['main', 'reserve', 'ecl'] as CourseCategory[]).map(k => {
-          const on = k === tab
-          return (
-            <button key={k} onClick={() => setTab(k)} style={{
-              flex: 1, padding: '9px 4px',
-              border: `2px solid ${on ? C.gold : C.border2}`,
-              background: on ? alpha(C.gold, 0.15) : C.surface2,
-              color: on ? C.gold : C.textDim, fontFamily: SAIRA, fontSize: F.body, fontWeight: 900, cursor: 'pointer',
-            }}>{CATEGORY_LABEL[k]}</button>
-          )
-        })}
-      </div>
+      <PillTabs
+        labels={CATEGORY_KEYS.map(k => CATEGORY_LABEL[k])}
+        value={CATEGORY_KEYS.indexOf(tab)}
+        onChange={i => setTab(CATEGORY_KEYS[i])}
+        fill
+        style={{ padding: '0 12px 10px' }}
+      />
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 12px 24px', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {rows.map(c => (

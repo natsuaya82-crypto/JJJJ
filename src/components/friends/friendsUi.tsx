@@ -1,7 +1,8 @@
 // フレンド系画面で共通の「読み込み中／通信失敗」表示と、取得用の小さなフック。
 // 見た目は既存の空状態（薄い箱＋中央テキスト）に合わせてある。
+import GlassButton from '../ui/GlassButton'
 import { useCallback, useEffect, useState } from 'react'
-import { C, alpha, SAIRA, F } from '../../styles/tokens'
+import { C, SAIRA, F } from '../../styles/tokens'
 import { OFFLINE_TEXT } from '../../lib/supabase'
 
 
@@ -84,11 +85,7 @@ export function ErrorBox({ onRetry }: { onRetry?: () => void }) {
       <div>{OFFLINE_TEXT.title}</div>
       <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 4 }}>{OFFLINE_TEXT.message}</div>
       {onRetry && (
-        <button onClick={onRetry} className="btn-press" style={{
-          marginTop: 12, padding: '8px 18px',cursor: 'pointer',
-          border: `2px solid ${alpha(C.gold, 0.5)}`, background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-          color: C.gold, fontSize: F.body, fontWeight: 900, fontFamily: SAIRA,
-        }}>再読み込み</button>
+        <GlassButton onClick={onRetry} color={C.gold} size="sm" style={{ marginTop: 12 }}>再読み込み</GlassButton>
       )}
     </div>
   )
