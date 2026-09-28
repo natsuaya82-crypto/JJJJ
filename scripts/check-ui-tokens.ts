@@ -496,11 +496,19 @@ console.log('\n⑭ 選手カードの色（CARD）を画面に直書きしてい
   // `usa_running` の紺など）。JPEL の金がたまたま同じ値なだけで、CARD.gold を
   // 明るくしたときにリーグのエンブレムまで変わるほうが間違い。
   const LEAGUE_COLORS = 'src/components/icons/Icons.tsx'
+  const rgbaNets = values.map(v => {
+    const [r, g, b] = [1, 3, 5].map(i => parseInt(v.slice(i, i + 2), 16))
+    return [v, new RegExp(`rgba\\(\\s*${r}\\s*,\\s*${g}\\s*,\\s*${b}\\s*,`)] as const
+  })
   const bad: string[] = []
   for (const f of screens) {
     if (f === LEAGUE_COLORS) continue
     const up = read(f).toUpperCase()
     for (const v of values) if (up.includes(v)) bad.push(`${f} に ${v}`)
+    // ★**rgba(r,g,b,a) の形でも同じ色**。16進だけを見ていたころ、`rgba(232,70,42,0.3)`（＝CARD.red）が
+    //   9か所すり抜けていた。透明度つきは `alpha(CARD.◯◯, a)` で書くこと
+    const body = read(f)
+    for (const [v, re] of rgbaNets) if (re.test(body)) bad.push(`${f} に rgba 形の ${v}`)
   }
   for (const b of bad.slice(0, 8)) console.log(`      ${b}`)
   check('画面に1件も書かれていない', bad.length === 0,
@@ -527,14 +535,19 @@ console.log('\n⑮ 画面に絵文字を書いていない')
   // 絵文字そのものが機能になっている画面だけ、理由を書いて外す
   const EMOJI_OK: Record<string, string> = {
     'src/components/online/StampBar.tsx': 'スタンプは絵文字を送る機能そのもの',
+    'src/components/online/stampKinds.ts': 'レース中の応援スタンプの一覧（RACE_EMOJI）＝絵文字を送る機能そのもの',
+    'src/lib/clubsApi.ts': '走友会の掲示板の反応の一覧（CLUB_REACTIONS）＝絵文字で反応を返す機能そのもの',
   }
+  // ★**`.tsx` だけでなく `.ts` も、`src/lib` も見ること。** 絵文字の一覧を `.ts` に置くと
+  //   `.tsx` だけを見る網からは丸ごと見えない（スタンプと反応の一覧がそうだった）
+  const emojiFiles = [...screens, ...files.filter(f => f.endsWith('.ts') && /^src[\\/](components|lib)[\\/]/.test(f))]
   const hits: string[] = []
-  for (const f of screens) {
+  for (const f of emojiFiles) {
     if (EMOJI_OK[f]) continue
     const body = read(f).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
     body.split('\n').forEach((ln, i) => { if (EMOJI.test(ln)) hits.push(`${f}:${i + 1}  ${ln.trim().slice(0, 60)}`) })
   }
-  check('src/components に絵文字が無い', hits.length === 0, `\n      ${hits.join('\n      ')}`)
+  check('src/components と src/lib に絵文字が無い', hits.length === 0, `\n      ${hits.join('\n      ')}`)
 }
 
 console.log('\n⑯ 節の番号がダブっていない（この点検自身の見張り）')

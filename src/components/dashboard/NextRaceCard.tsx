@@ -28,7 +28,7 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, va
   // ボタンの色だけはレース画面と同じ COMPETITION_BTN から引く（大会→色の対応は1箇所に）。
   // 世界選手権はこのカードを使わず Dashboard 側に専用UIがある（そちらは既に紫）。
   const AC = variant === 'ecl' ? {
-    border: C.red, shadowDeep: '#5a1010', frame: 'rgba(232,70,42,0.35)',
+    border: C.red, shadowDeep: '#5a1010', frame: alpha(CARD.red, 0.35),
     headerGrad: `linear-gradient(90deg, ${alpha(C.red, 0.20)}, ${alpha(C.red, 0.04)})`,
     headerBorder: alpha(C.red, 0.20),
     badgeGrad: `linear-gradient(180deg, #ff8a75 0%, ${C.red} 60%, #7a1610 100%)`,
@@ -36,7 +36,7 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, va
     divider: '#7a1610', tileBorder: alpha(C.red, 0.15), btnClass: COMPETITION_BTN.ecl,
     typeLabel: 'ECL', nextColor: C.red,
   } : isReserve ? {
-    border: C.blue, shadowDeep: '#2f3a7a', frame: 'rgba(121,134,203,0.35)',
+    border: C.blue, shadowDeep: '#2f3a7a', frame: alpha(C.blue, 0.35),
     headerGrad: `linear-gradient(90deg, ${alpha(C.blue, 0.20)}, ${alpha(C.blue, 0.04)})`,
     headerBorder: alpha(C.blue, 0.20),
     badgeGrad: `linear-gradient(180deg, #aab3e6 0%, ${C.blue} 60%, #4a56a8 100%)`,
@@ -44,7 +44,7 @@ export default function NextRaceCard({ race, raceNumber, totalRaces, onClick, va
     divider: '#4a56a8', tileBorder: alpha(C.blue, 0.15), btnClass: COMPETITION_BTN.reserve,
     typeLabel: 'RESERVE', nextColor: C.cyan,
   } : {
-    border: C.gold, shadowDeep: CARD.goldDark, frame: 'rgba(245,200,66,0.28)',
+    border: C.gold, shadowDeep: CARD.goldDark, frame: alpha(C.gold, 0.28),
     headerGrad: `linear-gradient(90deg, ${alpha(C.gold, 0.18)}, ${alpha(C.gold, 0.04)})`,
     headerBorder: alpha(C.gold, 0.18),
     badgeGrad: `linear-gradient(180deg, ${C.goldHi} 0%, ${C.gold} 60%, ${C.goldDark} 100%)`,

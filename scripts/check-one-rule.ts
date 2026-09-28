@@ -179,6 +179,16 @@ console.log('\n[10] 画面の「押せるか」と store の「受け付ける�
   check('枠の数を直書きしていない', !/[Ss]ponsors(\.length)?\s*>=\s*3\b/.test(code))
   check('広告の報酬は `utils/ads` 1本', /export const AD_REWARD_JEWELS/.test(code))
   check('報酬額を直書きしていない', !/jewels\s*\+\s*100\b/.test(code))
+  // ★**画面の字にも焼かないこと。** 判定は1本でも、見出しや札の数字を手で書くと
+  //   数を変えたときに画面だけ嘘になる（スポンサー「（3社）」・広告の札「+100」・レンタル枠「/3」が実際に焼いてあった）
+  // 戻し方：SponsorPage に「（3社）」／JewelsPage に JSX の `+100`／LoanSheet か TransferHub に `/3` を書き戻す
+  check('スポンサーの枠の数を画面の字に焼いていない', !/（3社）/.test(code))
+  check('広告の報酬額を画面の字に焼いていない', !/(^|[>\s])\+100(\s*$|<)/m.test(code))
+  const loanLit = code.split('\n').filter(l => /レンタル枠[^\n]{0,20}\/3\b|（3\/3）|レンタルの枠（3人）|(slots|loanSlots|loanBorrowedIn)\s*>=\s*3\b/.test(l))
+  check('レンタル枠の数を直書きしていない（`utils/bidGate` の `LOAN_SLOTS`）', loanLit.length === 0, loanLit.map(l => l.trim().slice(0, 60)).join(' / '))
+  // 借りている人数は `utils/rosterSync` の `loanedInCount` / `isLoanedIn` 1本
+  const loanCount = (code.match(/\.loan\.ownerTeamId !== \w+\)\.length/g) ?? []).length
+  check('借りている人数を手書きで数えていない', loanCount === 0, `${loanCount}か所`)
 }
 
 console.log('\n[11] プレシーズンに配るカードの中身は1本')
@@ -358,8 +368,10 @@ console.log('\n[20] 「その選手はいくらか」の材料も1本（今季�
     !/export function perfOf\([\s\S]{0,400}seasonPerfProfile\([^)]*currentSeason\.races/.test(code))
   const perfCallers = (code.match(/(?<!function )perfOf\(/g) ?? []).length
   // 呼び出しの数（2026-09-26 に呼ばれていなかった signForeignPlayer を消して 7 → 6。
-  //   同じ日に、直に seasonPerfProfile を呼んでいた CPU の移籍市場とトレードの値段を寄せて 6 → 8）
-  check('`perfOf` を呼ぶのは8か所', perfCallers === 8, `${perfCallers}か所`)
+  //   同じ日に、直に seasonPerfProfile を呼んでいた CPU の移籍市場とトレードの値段を寄せて 6 → 8。
+  //   2026-09-28 に、画面の市場年俸（ChatView の年俸ダイヤルの初期値2つ・NewsPage・ChatPage）が
+  //   出場を渡さずに `faMarketSalary(p)` を呼んでいて store の判定と額が違っていたのを揃えて 8 → 12）
+  check('`perfOf` を呼ぶのは12か所', perfCallers === 12, `${perfCallers}か所`)
 }
 
 console.log('\n[21] 「世界へ挑戦」の見出しは clubTier の isWorldChallenge 1本')

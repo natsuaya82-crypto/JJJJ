@@ -86,7 +86,7 @@ export default function ObjectivesPage() {
                               </linearGradient>
                             </defs>
                           </svg>
-                          <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 800, color: obj.done ? 'rgba(109,213,250,0.4)' : C.jewel }}>+{obj.rewardJewels}</span>
+                          <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 800, color: obj.done ? alpha(C.jewel, 0.4) : C.jewel }}>+{obj.rewardJewels}</span>
                         </div>
                       )}
                       {hasProgress && (

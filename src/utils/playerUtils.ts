@@ -351,7 +351,7 @@ export function acquisitionDesiredSalary(player: Player, source: 'fa' | 'scout',
   let desired = (market * 0.65 + cur * 0.35) * achieve
   const personality = player.personality ?? 'salary'
   if (personality === 'salary') desired *= 1.10   // 金型は高め
-  if (source === 'scout' && teamRaces >= 3) {
+  if (source === 'scout' && teamRaces >= PLAY_SAMPLE_RACES) {
     // 引き抜き：よく出てる主力ほど手放させるのに上乗せ
     const playMult = playFraction >= 0.8 ? 1.35 : playFraction >= 0.6 ? 1.18 : 1.0
     desired *= playMult

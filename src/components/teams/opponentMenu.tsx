@@ -13,6 +13,7 @@ import LoanSheet from '../transfer/LoanSheet'
 // この画面は長いあいだ何も見ておらず、押せるのに store が黙って捨てていた
 import { bidBlockReason, loanBlockReason } from '../../utils/bidGate'
 import { myClub } from '../../utils/world'
+import { loanedInCount } from '../../utils/rosterSync'
 
 
 function PlayerHead({ player }: { player: Player }) {
@@ -55,7 +56,7 @@ export function useOpponentMenu() {
       myTeam: myClub({ clubs, playerTeamId }),
       myTeamId: playerTeamId,
       bidsOnPlayer: (currentSeason.transferBids ?? []).filter(b => b.playerId === menuPlayer.id),
-      loanSlotsUsed: players.filter(pl => pl.teamId === playerTeamId && pl.loan && pl.loan.ownerTeamId !== playerTeamId).length,
+      loanSlotsUsed: loanedInCount(players, playerTeamId),
       loanRequested: (currentSeason.loanRequests ?? []).some(r => r.playerId === menuPlayer.id),
     }
     const bidNg = bidBlockReason(menuPlayer, gate)
@@ -84,7 +85,7 @@ export function useOpponentMenu() {
 
       {loanId && (() => {
         const p = players.find(x => x.id === loanId); if (!p) return null
-        const slots = players.filter(pl => pl.teamId === playerTeamId && pl.loan && pl.loan.ownerTeamId !== playerTeamId).length
+        const slots = loanedInCount(players, playerTeamId)
         const pending = (currentSeason.loanRequests ?? []).some(r => r.playerId === p.id)
         return <LoanSheet player={p} slots={slots} pending={pending} onSubmit={y => { submitLoanRequest(p.id, y); setLoanId(null) }} onClose={() => setLoanId(null)} />
       })()}

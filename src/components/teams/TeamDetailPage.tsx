@@ -24,7 +24,7 @@ import { SPECIALTY_LABELS } from '../../types'
 import type { Division } from '../../types'
 import { ROSTER_MAX } from '../../data/rosterRules'
 import { belongsToClub } from '../../utils/rosterSync'
-import { C, CARD, rankColor, SAIRA, F } from '../../styles/tokens'
+import { C, CARD, DIV_STAR, alpha, rankColor, SAIRA, F } from '../../styles/tokens'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
 import PlayerRow from '../player/PlayerRow'
@@ -211,7 +211,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
     // ★**リーグごとに出す**（オーナー・2026-08-12）。合計にすると3部優勝と1部優勝が混ざる
     for (const r of titleRows(teamHistoryOf(pastSeasons, id).titles)) {
       titles.push({ label: `${r.label}優勝`, count: r.count,
-        color: r.tier === 1 ? CARD.gold : r.tier === 2 ? '#9FB4CC' : '#7A6E58' })
+        color: r.tier === 1 ? CARD.gold : r.tier === 2 ? DIV_STAR[2] : DIV_STAR[3] })
     }
     const reserveTitles = (pastSeasons ?? []).filter(s => {
       const st = s.secondTeamStandings
@@ -613,7 +613,7 @@ function TeamDetailInner({ teamId, leagueId, clubId }: { teamId?: string; league
                 position: 'absolute', top: 3, bottom: 3,
                 left: moveTab === 'in' ? 3 : '50%',
                 width: 'calc(50% - 3px)',
-                background: moveTab === 'in' ? 'rgba(76,175,80,0.16)' : 'rgba(232,70,42,0.16)',
+                background: moveTab === 'in' ? alpha(CARD.green, 0.16) : alpha(CARD.red, 0.16),
                 border: `1px solid ${moveTab === 'in' ? `${CARD.green}55` : `${CARD.red}55`}`,
                 transition: 'left 0.2s, background 0.2s, border-color 0.2s',
               }}/>

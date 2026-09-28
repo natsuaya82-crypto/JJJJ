@@ -111,7 +111,12 @@ console.log('[4] 「◯クラブが動いています」は、実際に動くク
     /clubsWhere\(ctx\.clubs,/.test(src) && !/jpelClubs\(|clubsInLeague\(|isJpelLeague\(/.test(src))
   check('  獲る理由は needsPlayer と 走れるか（RUNNING_SLOTS）だけ',
     src.includes('needsPlayer(') && src.includes('RUNNING_SLOTS'))
-  check('  本人が行くかも見ている（appraiseMove）', src.includes('appraiseMove('))
+  // ★**呼んでいるかではなく、答え（.ok）で絞っているかを数えること。** 呼んで捨てても
+  //   `includes('appraiseMove(')` は緑のままになる
+  const appraiseCalls = (src.match(/appraiseMove\(/g) ?? []).length
+  const appraiseGates = (src.match(/\.filter\(x => appraiseMove\([^)]*\)\.ok\)/g) ?? []).length
+  check('  本人が行くかも見ている（appraiseMove の答えで絞る・呼ぶのは1か所）',
+    appraiseCalls === 1 && appraiseGates === 1, `呼ぶ ${appraiseCalls}か所・絞る ${appraiseGates}か所`)
   // 呼べること（型と実体の確認。中身の件数は名簿次第なので数は問わない）
   const n = rivalClubsFor(
     { id: 'x', teamId: '', specialty: 'ace', age: 26, status: 'active', ratings: {}, contract: { annualSalary: 1 } } as never,

@@ -7,6 +7,7 @@ import { FACILITY_KEYS, FACILITY_UPKEEP_PER_LEVEL } from '../../utils/facilities
 //   定数が無いもの（走友会の上限・対戦履歴の保存日数＝`supabase/all.sql` にしか無い）は
 //   文言のまま残してある
 import { ROSTER_MAX, ROSTER_MIN } from '../../data/rosterRules'
+import { CLUB_MAX } from '../../lib/clubsApi'
 import { PROMOTION_SLOTS } from '../../utils/league'
 import { DOMESTIC_BOTTOM_TIER, DOMESTIC_CLUB_COUNT, DOMESTIC_TOP_TIER, TIER_BUDGET } from '../../utils/clubTier'
 import { MAX_OFFERS_PER_PLAYER } from '../../utils/transferDecision'
@@ -179,7 +180,7 @@ const SECTIONS: Section[] = [
     lines: [
       'オンライン対戦では、他のGMのチームと実際に対戦できます。対戦履歴は60日間残ります。',
       'レース中は応援スタンプを送れます。絵文字のほか、自分の選手の顔でも送れます。',
-      '走友会は最大30人のコミュニティです。掲示板・カードのお願い・メンバーのロスター閲覧ができます。',
+      `走友会は最大${CLUB_MAX}人のコミュニティです。掲示板・カードのお願い・メンバーのロスター閲覧ができます。`,
       '掲示板の書き込みには絵文字で反応を返せます。メンバー一覧から直接フレンド申請もできます。',
     ],
   },

@@ -8,7 +8,7 @@ import PlayerFace from '../../player/PlayerFace'
 import { myLeagueRaces } from '../../../utils/world'
 import { clubRoutePath, type Club } from '../../../utils/clubs'
 import { usePlayerLongPress } from '../../player/usePlayerLongPress'
-import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, freeContactConsent } from '../../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, freeContactConsent, perfOf } from '../../../utils/playerUtils'
 import { playRateOf, prevSeasonOf } from '../../../utils/playRate'
 import { canSignPlayer, ROSTER_MAX } from '../../../data/rosterRules'
 import { mergeChatMessages } from '../../../utils/chatLog'
@@ -28,6 +28,8 @@ import { tierOfPlayerClub } from '../../../utils/clubTier'
 import { fmtYen } from '../../../utils/money'
 import { buildMessages, buildAcqMessages, buildTransferMessages, buildIncomingOfferMessages, buildIncomingLoanMessages, buildStayOrLeaveMessages } from '../../../utils/chatTalk'
 import { fmtDuration } from '../../../utils/chatFormat'
+import { LOAN_SLOTS } from '../../../utils/bidGate'
+import { loanedInCount } from '../../../utils/rosterSync'
 
 // 選手のチャット雑談イベント（疲労・士気・出場機会など）は廃止済み。
 // 判定が「常に対象なし」の空リストのまま各所に分岐だけ残っていたので、分岐ごと消した
@@ -115,7 +117,7 @@ export function ChatView({
   const incomingLoan = (currentSeason.incomingLoanOffers ?? []).find(o => o.playerId === player.id) ?? null
   const incomingLoanFrom = incomingLoan ? (clubIndex.byId(incomingLoan.fromTeamId)?.shortName ?? '他クラブ') : ''
   // 借り入れの枠（3人まで）。貸し出しには枠は要らない（カードでやっていたときと同じ条件）
-  const loanBorrowedIn = players.filter(pl => pl.teamId === playerTeamId && pl.loan && pl.loan.ownerTeamId !== playerTeamId).length
+  const loanBorrowedIn = loanedInCount(players, playerTeamId)
 
   // 自チーム所属かどうか。契約更新・引退・移籍希望・不満・契約残の催促は自チーム選手専用の会話で、
   // 他チーム/FA選手（獲得・移籍交渉の相手）に出してはいけない。
@@ -240,7 +242,7 @@ export function ChatView({
   }
 
   const openComposeAcq = () => {
-    const base = Math.round(faMarketSalary(player) / SALARY_DIAL_STEP) * SALARY_DIAL_STEP
+    const base = Math.round(faMarketSalary(player, perfOf(player, useGameStore.getState())) / SALARY_DIAL_STEP) * SALARY_DIAL_STEP
     setOfferSalary(Math.max(SALARY_DIAL_MIN, Math.min(NEGOTIATION_SALARY_MAX, base)))
     setOfferYears(2)
     setOfferContractType(acqOffer?.offerContractType ?? 'standard')
@@ -250,7 +252,7 @@ export function ChatView({
   }
 
   const openComposeTransfer = () => {
-    const base = Math.round(faMarketSalary(player) / SALARY_DIAL_STEP) * SALARY_DIAL_STEP
+    const base = Math.round(faMarketSalary(player, perfOf(player, useGameStore.getState())) / SALARY_DIAL_STEP) * SALARY_DIAL_STEP
     setOfferSalary(Math.max(SALARY_DIAL_MIN, Math.min(NEGOTIATION_SALARY_MAX, base)))
     setOfferYears(2)
     setComposeMode('transfer')
@@ -530,9 +532,9 @@ export function ChatView({
           const ok = acceptIncomingLoanOffer(incomingLoan.id)
           append({ from: 'player', kind: 'loan_result', text: ok
             ? (isLend ? `（代理人）${player.name}を${incomingLoanFrom}へ${incomingLoan.years}年のレンタルで貸し出しました` : `（代理人）${player.name}を${incomingLoan.years}年のレンタルで借り入れました`)
-            : `（代理人）レンタルの枠（3人）が埋まっているため、この話は成立しませんでした` })
+            : `（代理人）レンタルの枠（${LOAN_SLOTS}人）が埋まっているため、この話は成立しませんでした` })
           if (ok) setSettledLoan(true)
-        }, disabled: !isLend && loanBorrowedIn >= 3 },
+        }, disabled: !isLend && loanBorrowedIn >= LOAN_SLOTS },
         { label: '断る', color: C.red, action: () => {
           append(
             { from: 'gm', kind: 'loan_refused', text: '申し訳ありませんが、今回は見送らせてください。' },

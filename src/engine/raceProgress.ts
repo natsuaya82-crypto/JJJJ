@@ -26,6 +26,9 @@ import { applyRaceMorale, standingOf } from './raceMorale'
  */
 export const TRAINING_PLAN_CHANCE = 0.30
 
+/** 練習プラン「回復調整」で毎レース動く疲労。画面（`TeamManagement`）の文字もここから作る */
+export const RECOVERY_PLAN_FATIGUE = -8
+
 export function applyRaceProgress(params: {
   players: Player[]
   results: RaceResults
@@ -110,7 +113,7 @@ export function applyRaceProgress(params: {
     let planFatigueDelta = 0
     if (plan && p.status === 'active') {
       if (plan === '回復調整') {
-        planFatigueDelta = -8
+        planFatigueDelta = RECOVERY_PLAN_FATIGUE
       } else {
         const planStatMap: Record<string, keyof typeof newRatings> = {
           '持久重視': 'stamina', 'スピード重視': 'speed', '精神強化': 'mental', '登り強化': 'mountainUp' }

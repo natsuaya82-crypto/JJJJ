@@ -34,7 +34,6 @@ export default function TeamHub() {
     {
       key: '/team/roster',
       label: 'ロスター', en: 'ROSTER',
-      desc: '1軍・リザーブ・ユースの選手管理、放出',
       countLabel: expiringCount > 0 ? `FA間近 ${expiringCount}名` : `${myPlayers.length}名在籍`,
       badge: expiringCount,
       color: C.blue,
@@ -50,7 +49,6 @@ export default function TeamHub() {
     {
       key: '/cards',
       label: 'カード練習', en: 'TRAINING',
-      desc: 'カード合成で選手を育成',
       countLabel: trainingCards.length > 0
         ? `手持ち${trainingCards.length}枚${raceDroppedCards.length > 0 ? ` / NEW+${raceDroppedCards.length}` : ''}`
         : 'カードなし',
@@ -69,7 +67,6 @@ export default function TeamHub() {
     {
       key: '/team/nosale',
       label: '移籍方針', en: 'POLICY',
-      desc: '選手ごとに非売・貸出歓迎・売出を設定する',
       countLabel: (() => {
         // 数える集合は移籍方針の画面（`NoSalePage`）と同じ `squadPlayersOf` 1本
         const n = squadPlayersOf(players, playerTeamId).filter(p => p.noSale || p.loanListed || p.transferListed).length
@@ -89,7 +86,6 @@ export default function TeamHub() {
     {
       key: '/sponsors',
       label: 'スポンサー', en: 'SPONSORS',
-      desc: 'チーム・個人スポンサー契約管理',
       countLabel: (() => {
         const team = myClub({ clubs, playerTeamId })
         const cnt = (team?.sponsors ?? []).length
@@ -111,7 +107,6 @@ export default function TeamHub() {
     {
       key: '/team/facilities',
       label: '施設強化', en: 'FACILITIES',
-      desc: '合宿・医療・スカウト・戦術分析施設のアップグレード',
       countLabel: (() => {
         const team = myClub({ clubs, playerTeamId })
         const total = Object.values(facilitiesOf(team)).reduce((s, v) => s + v, 0)
@@ -132,7 +127,6 @@ export default function TeamHub() {
     {
       key: '/budget',
       label: '財務・予算', en: 'FINANCE',
-      desc: '予算・収支・年俸・スポンサー収入の管理',
       countLabel: (() => {
         const team = myClub({ clubs, playerTeamId })
         const b = team?.finance?.budget ?? 0
@@ -225,7 +219,7 @@ export default function TeamHub() {
           gap: 0, position: 'relative', zIndex: 2,
           background: `linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.3) 100%)`,
           overflow: 'hidden',
-          border: `1px solid rgba(245,200,66,0.22)`,
+          border: `1px solid ${alpha(C.gold, 0.22)}`,
           boxShadow: `inset 0 2px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)`,
         }}>
           {[

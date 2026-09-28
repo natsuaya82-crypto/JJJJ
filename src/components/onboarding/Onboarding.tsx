@@ -8,7 +8,7 @@ import LogoSelectSheet from '../shared/LogoSelectSheet'
 import GlassButton from '../ui/GlassButton'
 import { panelStyle } from '../ui/Panel'
 import { useAdHeight } from '../layout/Layout'
-import { F, C, alpha } from '../../styles/tokens'
+import { F, C, CARD, alpha } from '../../styles/tokens'
 
 type Step = 'welcome' | 'team_select' | 'customize' | 'confirm'
 
@@ -176,7 +176,7 @@ export default function Onboarding() {
                             width: '22px', height: '22px', borderRadius: '50%',
                             background: `linear-gradient(135deg, ${C.gold}, ${C.goldHi})`,
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            boxShadow: '0 0 8px rgba(201,168,76,0.5)',
+                            boxShadow: `0 0 8px ${alpha(CARD.gold, 0.5)}`,
                             flexShrink: 0,
                           }}>
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none">

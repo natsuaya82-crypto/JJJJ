@@ -17,12 +17,13 @@ import { TeamLogoSVG, LeagueLogoSVG } from '../icons/Icons'
 import { buildPlayerHistory, type HistComp, type HistoryRow } from '../../utils/careerStats'
 import { ovr, ratingColor, SPEC_COLOR, isStatMaxed } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
-import { C, CARD, glassStyle, rankColor, FONT, SAIRA, bottomStack, F } from '../../styles/tokens'
+import { C, CARD, alpha, glassStyle, rankColor, FONT, SAIRA, bottomStack, F } from '../../styles/tokens'
 import { getPlayerBadges } from '../../utils/badges'
 import { HOF_MAX, isHofEligible } from '../../utils/hofRoster'
 import BadgeContent, { badgeColor } from '../player/BadgeContent'
 import { safeRatings } from '../../engine/raceEngine'
 import { EVENT_DISTANCES, EVENT_LABEL, formatRaceTime } from '../../utils/eventTime'
+import { WA_EVENTS } from '../../engine/worldAthletics'
 import ShareCard from './ShareCard'
 import Flag from '../ui/Flag'
 import { natLabel, natGeoRegion } from '../../data/nationalities'
@@ -680,7 +681,7 @@ export default function PlayerSheet() {
                         {natLabel(player.nationality)}
                       </div>
                     </div>
-                    <div style={{ padding: '8px 10px',backgroundColor: 'rgba(232,70,42,0.08)', border: '1px solid rgba(232,70,42,0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ padding: '8px 10px',backgroundColor: alpha(CARD.red, 0.08), border: `1px solid ${alpha(CARD.red, 0.3)}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ fontSize: F.micro, color: CARD.textGhost }}>引退</div>
                       <div style={{ fontSize: F.body, fontWeight: '800', color: CARD.red }}>
                         {retYear != null ? `${retYear}年 引退` : '引退済み'}
@@ -742,11 +743,10 @@ export default function PlayerSheet() {
 
               {/* 世界選手権の個人種目（5000m 等）。駅伝ではないので大会の並びとは別に置く */}
               {!isProspect && (() => {
-                const indLabels = (['5000m', '10000m', 'マラソン'] as const).filter(label => {
-                  const ev = label === '5000m' ? 'd5000' : label === '10000m' ? 'd10000' : 'marathon'
+                const indLabels = WA_EVENTS.filter(ev => {
                   return (worldAthleticsResults ?? []).some(wr =>
                     wr.kind === 'main' && wr.meet.individuals.some(ir => ir.event === ev && ir.placings.some(pl => pl.playerId === player.id)))
-                })
+                }).map(ev => EVENT_LABEL[ev])
                 if (indLabels.length === 0) return null
                 return (
                   <div>
@@ -754,7 +754,7 @@ export default function PlayerSheet() {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '5px' }}>
                       {indLabels.map(label => (
                         <div key={label} onClick={() => openRaceDetail(`世界選手権 ${label}`)} style={{
-                          padding: '10px 6px',border: '1px solid rgba(168,85,247,0.35)', backgroundColor: CARD.surface,
+                          padding: '10px 6px',border: `1px solid ${alpha(C.purple, 0.35)}`, backgroundColor: CARD.surface,
                           cursor: 'pointer', textAlign: 'center', minHeight: 44,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                         }}>
@@ -811,7 +811,7 @@ export default function PlayerSheet() {
                             <span style={{ fontSize: F.body, fontWeight: '700', color: CARD.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {teamName}
                               {isLoan && <span style={{ fontSize: F.caption, color: CARD.textDim, marginLeft: '3px' }}>(L)</span>}
-                              {isRetired && i === 0 && <span style={{ fontSize: F.tiny, fontWeight: 800, color: CARD.red, marginLeft: '5px', padding: '1px 5px',background: 'rgba(232,70,42,0.12)', border: '1px solid rgba(232,70,42,0.3)' }}>引退済み</span>}
+                              {isRetired && i === 0 && <span style={{ fontSize: F.tiny, fontWeight: 800, color: CARD.red, marginLeft: '5px', padding: '1px 5px',background: alpha(CARD.red, 0.12), border: `1px solid ${alpha(CARD.red, 0.3)}` }}>引退済み</span>}
                             </span>
                           </div>
                           <span style={{ width: '28px', flexShrink: 0, fontSize: F.bodyLg, fontWeight: '900', color: CARD.textDim, fontFamily: 'monospace', textAlign: 'center' }}>{row.races}</span>
@@ -995,9 +995,7 @@ export default function PlayerSheet() {
           {/* Page 4: レース詳細（ドリルダウン） */}
           {page === 4 && selectedRaceName && (() => {
             // 世界選手権の個人種目（世界選手権 5000m 等）：年・開催都市・タイム・順位＋優勝/入賞パッチ
-            const indEv = selectedRaceName === '世界選手権 5000m' ? 'd5000'
-              : selectedRaceName === '世界選手権 10000m' ? 'd10000'
-              : selectedRaceName === '世界選手権 マラソン' ? 'marathon' : null
+            const indEv = WA_EVENTS.find(ev => selectedRaceName === `世界選手権 ${EVENT_LABEL[ev]}`) ?? null
             if (indEv) {
               const rows: { year: number; city: string; timeSec: number; rank: number }[] = []
               for (const wr of worldAthleticsResults ?? []) {
@@ -1082,8 +1080,8 @@ export default function PlayerSheet() {
             onClick={e => e.stopPropagation()}
             style={{
               width: '100%', maxWidth: 340, background: `linear-gradient(180deg, ${CARD.surface4}, ${CARD.surface2})`,
-              border: '2px solid rgba(201,168,76,0.5)',padding: '22px 20px 18px',
-              boxShadow: '0 0 40px rgba(201,168,76,0.2), 0 8px 32px rgba(0,0,0,0.6)',
+              border: `2px solid ${alpha(CARD.gold, 0.5)}`,padding: '22px 20px 18px',
+              boxShadow: `0 0 40px ${alpha(CARD.gold, 0.2)}, 0 8px 32px rgba(0,0,0,0.6)`,
             }}
           >
             <div style={{ fontSize: F.tiny, color: CARD.gold, letterSpacing: '2px', fontWeight: 900, marginBottom: 8, fontFamily: SAIRA }}>名前を変更</div>
@@ -1100,7 +1098,7 @@ export default function PlayerSheet() {
                 width: '100%', padding: '12px 14px',border: 'none', marginBottom: 16,
                 backgroundColor: CARD.surface3, color: CARD.text, fontSize: F.subLg, boxSizing: 'border-box',
                 fontFamily: SAIRA, outline: 'none',
-                boxShadow: 'inset 0 0 0 1px rgba(201,168,76,0.14)',
+                boxShadow: `inset 0 0 0 1px ${alpha(CARD.gold, 0.14)}`,
               }}
             />
             <div style={{ display: 'flex', gap: 10 }}>

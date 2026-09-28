@@ -8,6 +8,7 @@
 //   - 「今季の頭に自チームに居た選手」と「整理まで終わったあとの選手」を突き合わせる。
 //     整理後の一覧（`after`）で数えると、消えた選手そのものが見つからない
 //   - 行き先の名前は `findClub` 1本。国内と海外を分けないこと（海外へ移った選手も「出」に出る）
+import { belongsToClub } from '../utils/rosterSync'
 import { findClub } from '../utils/clubs'
 import type { Player, TransferRecord, WorldClub } from '../types'
 
@@ -33,7 +34,7 @@ export function collectDepartures(args: {
     findClub(clubs, teamId)?.shortName
     ?? null
   const departureNotices = before
-    .filter(p => p.teamId === playerTeamId && p.status !== 'retired')
+    .filter(p => belongsToClub(p, playerTeamId))
     .flatMap((oldP): { id: string; playerId: string; playerName: string; toTeamName: string; reason: 'transfer' | 'fa' }[] => {
       const now = cleanedPlayers.find(p => p.id === oldP.id)
       if (!now || now.status === 'retired' || now.teamId === playerTeamId) return []

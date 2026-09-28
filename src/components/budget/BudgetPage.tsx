@@ -7,8 +7,8 @@ import { C, alpha, SAIRA, FONT, F } from '../../styles/tokens'
 import { fmtYen } from '../../utils/money'
 import PlayerFace from '../player/PlayerFace'
 import { usePlayerLongPress } from '../player/usePlayerLongPress'
-import { operatingCostOf, CARRYOVER_CAP_SHARE } from '../../data/economy'
-import { facilityUpkeepOf } from '../../utils/facilities'
+import { operatingCostOf, CARRYOVER_CAP_SHARE, OPERATING_COST_RATE } from '../../data/economy'
+import { facilityUpkeepOf, FACILITY_KEYS, FACILITY_UPKEEP_PER_LEVEL } from '../../utils/facilities'
 import { panelStyle } from '../ui/Panel'
 import { myClub } from '../../utils/world'
 
@@ -103,7 +103,7 @@ export default function BudgetPage() {
             <div style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.gold, letterSpacing: '3px', fontWeight: 900, marginBottom: 6 }}>
               今シーズンの予算
             </div>
-            <div style={{ fontFamily: SAIRA, fontSize: 42, fontWeight: 900, color: budgetColor, lineHeight: 1, textShadow: budgetColor === C.green ? '0 0 10px rgba(46,204,113,0.4)' : budgetColor === C.red ? '0 0 10px rgba(255,71,87,0.4)' : '0 0 10px rgba(255,152,0,0.4)' }}>
+            <div style={{ fontFamily: SAIRA, fontSize: 42, fontWeight: 900, color: budgetColor, lineHeight: 1, textShadow: budgetColor === C.green ? `0 0 10px ${alpha(C.green, 0.4)}` : budgetColor === C.red ? `0 0 10px ${alpha(C.red, 0.4)}` : `0 0 10px ${alpha(C.orange, 0.4)}` }}>
               {fmtYen(budget)}
             </div>
             <div style={{ fontSize: F.label, color: C.textDim, marginTop: 6 }}>
@@ -141,8 +141,8 @@ export default function BudgetPage() {
             {transferSpend > 0 && <Row label="移籍金支出" value={`-${fmtYen(transferSpend)}`} color={C.red} sub="移籍金での選手獲得" />}
             {otherIncome !== 0 && <Row label="その他収支" value={`${otherIncome >= 0 ? '+' : '-'}${fmtYen(Math.abs(otherIncome))}`} color={otherIncome >= 0 ? C.green : C.red} sub="ECL賞金・イベント・海外移籍など" />}
             <Row label="総年俸" value={`-${fmtYen(squadSalaryTotal)}`} color={C.red} sub={`${rosterPlayers.length}名`} />
-            <Row label="運営費" value={`-${fmtYen(opCost)}`} color={C.red} sub="総年俸の10%" />
-            <Row label="施設維持費" value={`-${fmtYen(facUpkeep)}`} color={C.red} sub="レベル1つにつき2500万／年 × 4施設" />
+            <Row label="運営費" value={`-${fmtYen(opCost)}`} color={C.red} sub={`総年俸の${Math.round(OPERATING_COST_RATE * 100)}%`} />
+            <Row label="施設維持費" value={`-${fmtYen(facUpkeep)}`} color={C.red} sub={`レベル1つにつき${FACILITY_UPKEEP_PER_LEVEL / 10000}万／年 × ${FACILITY_KEYS.length}施設`} />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0 4px', borderTop: `1px solid ${C.border}` }}>
               <div>
                 <div style={{ fontSize: F.bodyLg, fontWeight: 800, color: C.text }}>期末残高</div>
@@ -150,7 +150,7 @@ export default function BudgetPage() {
                   来季へ繰り越せるのはクラブ予算の{Math.round(CARRYOVER_CAP_SHARE * 100)}%まで
                 </div>
               </div>
-              <div style={{ fontFamily: SAIRA, fontSize: F.hero, fontWeight: 900, color: seasonBalance >= 0 ? C.green : C.red, textShadow: seasonBalance >= 0 ? '0 0 10px rgba(46,204,113,0.4)' : '0 0 10px rgba(255,71,87,0.4)' }}>
+              <div style={{ fontFamily: SAIRA, fontSize: F.hero, fontWeight: 900, color: seasonBalance >= 0 ? C.green : C.red, textShadow: seasonBalance >= 0 ? `0 0 10px ${alpha(C.green, 0.4)}` : `0 0 10px ${alpha(C.red, 0.4)}` }}>
                 {fmtYen(seasonBalance, true)}
               </div>
             </div>

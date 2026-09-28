@@ -3,12 +3,14 @@ import React from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { C, SAIRA, FONT, F } from '../../styles/tokens'
+import { LOAN_SLOTS } from '../../utils/bidGate'
+import { loanedInCount } from '../../utils/rosterSync'
 
 
 export default function TransferHub() {
   const navigate = useNavigate()
   const { currentSeason, players, playerTeamId, getTransferWindow, gmRep } = useGameStore()
-  const loanSlots = players.filter(p => p.teamId === playerTeamId && p.loan && p.loan.ownerTeamId !== playerTeamId).length
+  const loanSlots = loanedInCount(players, playerTeamId)
   const starredOpponents = useGameStore(s => s.starredOpponents) ?? []
   const starredProspects = useGameStore(s => s.starredProspects) ?? []
 
@@ -55,7 +57,7 @@ export default function TransferHub() {
       path: '/transfer/rental',
       label: 'レンタル', en: 'LOAN',
       desc: '選手を借りる・若手を貸し出す',
-      countLabel: `レンタル枠 ${loanSlots}/3`,
+      countLabel: `レンタル枠 ${loanSlots}/${LOAN_SLOTS}`,
       badge: 0,
       color: C.blue,
       shadow: C.tileShadow,

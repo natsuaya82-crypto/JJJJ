@@ -143,7 +143,7 @@ export default function SponsorPage() {
         <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {slotsLeft === 0 && (
             <div style={{ padding: '8px 12px',background: alpha(C.orange, 0.08), border: `1px solid ${alpha(C.orange, 0.3)}`, fontSize: F.label, color: C.orange, textAlign: 'center' }}>
-              契約数が上限（3社）です。既存契約を解除してから受諾できます。
+              契約数が上限（{SPONSOR_SLOTS}社）です。既存契約を解除してから受諾できます。
             </div>
           )}
           {offers.length === 0 && (
