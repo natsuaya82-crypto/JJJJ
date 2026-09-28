@@ -73,7 +73,7 @@ export function SegmentResultCard({
               background: isMe ? alpha(C.gold, 0.06) : 'transparent',
               cursor: p ? 'pointer' : 'default',
             }}>
-              <div style={{ width: 24, textAlign: 'center', flexShrink: 0, fontSize: r.rank <= 3 ? 18 : 14, fontWeight: 900, color: rCol, fontFamily: SAIRA, lineHeight: 1 }}>{r.rank}</div>
+              <div style={{ width: 24, textAlign: 'center', flexShrink: 0, fontSize: r.rank <= 3 ? F.titleLg : F.sub, fontWeight: 900, color: rCol, fontFamily: SAIRA, lineHeight: 1 }}>{r.rank}</div>
               <FaceOrDot playerId={p?.id} nationality={p?.nationality} size={26} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>

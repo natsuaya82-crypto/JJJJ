@@ -196,7 +196,7 @@ export default function WorldTournamentPage() {
               const p = players.find(x => x.id === pl.playerId)
               return (
                 <div key={pl.playerId} {...(p ? longPress(p.id) : {})} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '5px 6px', borderBottom: `1px solid ${C.border}`, cursor: p ? 'pointer' : 'default', background: pl.nat === 'JPN' ? alpha(C.gold, 0.05) : 'transparent' }}>
-                  <span style={{ fontFamily: SAIRA, fontSize: pl.rank <= 3 ? 16 : 13, fontWeight: 900, color: rankColor(pl.rank), width: 24, textAlign: 'center', flexShrink: 0 }}>{pl.rank}</span>
+                  <span style={{ fontFamily: SAIRA, fontSize: pl.rank <= 3 ? F.title : F.bodyLg, fontWeight: 900, color: rankColor(pl.rank), width: 24, textAlign: 'center', flexShrink: 0 }}>{pl.rank}</span>
                   <PlayerFace playerId={pl.playerId} nationality={pl.nat} size={28} />
                   <Flag code={pl.nat} width={20} />
                   <span style={{ flex: 1, fontSize: F.body, color: pl.nat === 'JPN' ? C.gold : C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p?.name || pl.playerName}</span>

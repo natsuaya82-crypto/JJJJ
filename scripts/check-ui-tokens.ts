@@ -325,6 +325,18 @@ console.log('\n⑧ 角を丸めていない（丸いのは顔・ロゴ・点だ�
       }
     })
   }
+  // ★`.tsx` の中の `<style>` に書いた CSS も見る（`DataUpdateScreen` の 3px がすり抜けていた・2026-09-28）
+  for (const f of screens.filter(f => f.endsWith('.tsx'))) {
+    read(f).split('\n').forEach((l, i) => {
+      for (const m of l.matchAll(/border-radius:\s*([^;`}]+)[;`}]/g)) {
+        const v = m[1].trim()
+        if (/%/.test(v) || v === '0') continue
+        const px = parseFloat(v)
+        if (Number.isFinite(px) && (px <= 2 || px >= 999)) continue
+        hits.push(`${f}:${i + 1} ${m[0]}`)
+      }
+    })
+  }
   // ★CSS 側も見る。**ここが抜けていたので `index.css` は無防備だった**
   //   （⑧は `src/components` の `.tsx` しか数えていなかった）。
   //   丸くていいのは `50%`（顔・ロゴ・点）と、細い棒の端（2px 以下）と、ピル（999px 以上）。
@@ -420,6 +432,11 @@ console.log('\n⑪ 本文の文字サイズを数字で書いていない')
       for (const m of l.matchAll(/fontSize: *(?:'([\d.]+)px'|([\d.]+))(?![\d.])/g)) {
         const v = parseFloat(m[1] ?? m[2])
         if (v > 24) continue
+        hits.push(`${f}:${i + 1} ${m[0]}`)
+      }
+      // ★三項の枝も見る（`rank < 3 ? 15 : 12` が5か所すり抜けていた・2026-09-28）
+      for (const m of l.matchAll(/fontSize:[^,}\n]*?\?\s*([\d.]+)\s*:\s*([\d.]+)(?![\d.])/g)) {
+        if (Math.min(parseFloat(m[1]), parseFloat(m[2])) > 24) continue
         hits.push(`${f}:${i + 1} ${m[0]}`)
       }
     })

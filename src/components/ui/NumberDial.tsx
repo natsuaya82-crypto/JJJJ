@@ -72,7 +72,7 @@ function DigitWheel({ digit, onChange, accent }: {
           <div key={i} style={{
             height: ITEM_H, display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontFamily: SAIRA, fontWeight: 900,
-            fontSize: i === 1 ? 22 : 16,
+            fontSize: i === 1 ? F.headLg : F.title,
             color: i === 1 ? C.text : C.textGhost,
           }}>{n}</div>
         ))}

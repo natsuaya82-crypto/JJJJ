@@ -184,7 +184,7 @@ padding: '7px 3px 6px',
                     <JewelIcon size={13} />
                   )}
 
-                  <div style={{ fontFamily: SAIRA, fontSize: isBonus ? 9 : 11, color: claimed ? accent : isAvailable ? alpha(accent, 0.65) : C.textGhost, fontWeight: 900, lineHeight: 1 }}>
+                  <div style={{ fontFamily: SAIRA, fontSize: isBonus ? F.tiny : F.label, color: claimed ? accent : isAvailable ? alpha(accent, 0.65) : C.textGhost, fontWeight: 900, lineHeight: 1 }}>
                     +{reward}
                   </div>
                   {isBonus && (

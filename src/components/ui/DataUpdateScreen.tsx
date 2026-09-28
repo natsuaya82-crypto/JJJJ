@@ -115,7 +115,7 @@ export default function DataUpdateScreen({ onDone }: { onDone: () => void }) {
     }}>
       <style>{`
         @keyframes jpel-du-sweep {0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
-        .jpel-du-fill{position:absolute;top:0;left:0;height:100%;border-radius:3px;
+        .jpel-du-fill{position:absolute;top:0;left:0;height:100%;
           background:linear-gradient(90deg, ${C.goldDark}, ${C.gold} 70%, ${C.goldHi});
           box-shadow:0 0 12px ${alpha(C.gold, 0.55)};
           transition:width .45s cubic-bezier(.4,0,.2,1)}

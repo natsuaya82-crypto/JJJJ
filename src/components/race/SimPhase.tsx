@@ -191,7 +191,7 @@ export function RaceTrack({
               {/* 順位 + 矢印 */}
               <div style={{
                 width: 20, textAlign: 'center', flexShrink: 0, position: 'relative', zIndex: 1,
-                fontSize: rank < 3 ? 15 : 12, fontWeight: 900,
+                fontSize: rank < 3 ? F.subLg : F.body, fontWeight: 900,
                 color: isMe && flash ? C.green : rankCol, fontFamily: SAIRA,
               }}>
                 {row.gap != null && rank + 1}
