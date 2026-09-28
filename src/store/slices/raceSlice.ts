@@ -320,7 +320,6 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const clubsWithPrize = state.clubs
 
       // Transfer market activity
-      const nextRaceIndex = raceIndex + 1
       // 移籍ウィンドウは撤廃済み（getTransferWindow が常に「移籍受付中」を返す）。
       // 以前はここだけシーズンの35〜55%の間しかCPUのオファーを作らず、画面は
       // 「移籍受付中」なのに何も来ない期間ができていたので、常時オープンに揃えた
@@ -340,7 +339,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       // （有料の打診＝失効通知／フリーの接触＝本人が決断。見る順番に意味がある）
       const expiry = resolveExpiredOffers({
         players: finalPlayers, clubs: state.clubs,
-        currentSeason: state.currentSeason, playerTeamId, nextClock, nextRaceIndex,
+        currentSeason: state.currentSeason, playerTeamId, nextClock,
         ranRaces: updatedRaces, raceDate: race.date, playerTierOf: (p) => get().playerTierOf(p),
         destinationOf: (clubId, p) => get().destinationOf(clubId, p) })
       const offerExpiredNegs = expiry.expiredNegs
@@ -459,7 +458,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       const wishes = generatePlayerWishes({
         players: playersAfterLoan, currentSeason: state.currentSeason,
         myStandings, playerTeamId,
-        races: updatedRaces, raceIndex,
+        races: updatedRaces, clubs: state.clubs,
         worldRepresentatives: state.worldRepresentatives })
       const newTransferReqs = wishes.transferRequests
       const newOvReqs = wishes.overseasRequests

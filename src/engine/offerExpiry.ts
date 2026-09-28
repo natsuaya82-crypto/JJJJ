@@ -25,8 +25,6 @@ export function resolveExpiredOffers(params: {
   playerTeamId: string
   /** レース通算数（racesConsumed + 1）。期限はこれで測る */
   nextClock: number
-  /** 使っていない（出場率の分母は playRateOf が日程から数える）。呼ぶ側（raceSlice）から外したら消す */
-  nextRaceIndex?: number
   /** 出場実績を数えるための今季の日程（結果入り） */
   ranRaces: Race[]
   raceDate: string

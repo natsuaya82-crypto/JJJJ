@@ -375,8 +375,9 @@ console.log('\n[20] 「その選手はいくらか」の材料も1本（今季�
   //   2026-09-28 に加入の入口で契約を結び直すようにして +3＝自チームの契約満了の移籍（raceSlice）・
   //   自チームが売ったとき（marketOps）・CPUの出品の買い取りと競り負け（applyTransfers の joinContract）。
   //   同じ日に、画面の市場年俸（ChatView の年俸ダイヤルの初期値2つ・NewsPage・ChatPage）が
-  //   出場を渡さずに `faMarketSalary(p)` を呼んでいて store の判定と額が違っていたのを揃えて +4 → 15）
-  check('`perfOf` を呼ぶのは15か所', perfCallers === 15, `${perfCallers}か所`)
+  //   出場を渡さずに `faMarketSalary(p)` を呼んでいて store の判定と額が違っていたのを揃えて +4。
+  //   移籍の直訴の希望年俸（engine/playerWishes）が seasonPerfProfile を直に呼んでいたのを寄せて +1 → 16）
+  check('`perfOf` を呼ぶのは16か所', perfCallers === 16, `${perfCallers}か所`)
 }
 
 console.log('\n[21] 「世界へ挑戦」の見出しは clubTier の isWorldChallenge 1本')

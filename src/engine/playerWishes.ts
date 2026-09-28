@@ -13,10 +13,12 @@
 //
 // ★乱数は引数で受ける（既定は Math.random）。呼ぶ順は切り出し前と同じで、
 //   先に移籍希望、そのあと海外挑戦。
-import type { OverseasRegion, Player, Race, Season, SeasonStanding } from '../types'
+import type { OverseasRegion, Player, Race, Season, SeasonStanding, WorldClub } from '../types'
 import { rankOfTeam } from '../utils/league'
-import { faMarketSalary, ovr, seasonPerfProfile } from '../utils/playerUtils'
-import { seasonAppearances } from '../utils/playRate'
+import { faMarketSalary, ovr, perfOf } from '../utils/playerUtils'
+import { playRateOf } from '../utils/playRate'
+import { findClub } from '../utils/clubs'
+import { withLeagueRaces } from '../utils/world'
 import { openWishIds } from '../utils/talkSync'
 import { canWishTransfer, eligibilityCtx } from '../utils/transferEligibility'
 import { APPEARANCE_FLOOR, dreamRegionOf, playingStatus } from '../utils/transferDecision'
@@ -28,12 +30,16 @@ export function generatePlayerWishes(params: {
   /** 自チームのリーグの順位表（このレースの結果まで載せたもの） */
   myStandings: readonly SeasonStanding[]
   playerTeamId: string
+  /** 自チームのリーグの日程（このレースの結果まで載せたもの） */
   races: Race[]
-  raceIndex: number
+  /** 出場率は playRateOf 1本（そのクラブが走った日程で数える） */
+  clubs: readonly WorldClub[]
   worldRepresentatives: { playerId: string; year: number }[] | undefined
   rng?: () => number
 }) {
-  const { currentSeason, myStandings, playerTeamId, races, raceIndex, worldRepresentatives, rng = Math.random } = params
+  const { currentSeason, myStandings, playerTeamId, races, worldRepresentatives, clubs, rng = Math.random } = params
+  // 今季の日程は、自チームのリーグだけこのレースの結果まで載せたもの（ほかのリーグは今季のまま）
+  const rateSeason = withLeagueRaces(currentSeason, findClub(clubs, playerTeamId)?.leagueId, races)
   const players = params.players
   // 移籍の可否の材料は eligibilityCtx 1本（引退希望もここから）
   const eligCtx = eligibilityCtx(currentSeason, playerTeamId)
@@ -58,14 +64,15 @@ export function generatePlayerWishes(params: {
       && p.status === 'active' && p.contract.yearsLeft <= 1 && !openWish.has(p.id)
       && !p.transferListed && p.transferRequestDismissedYear !== currentSeason.year)
     .map(p => {
-      const apps = seasonAppearances(p.id, races)
-      const frac = apps / (raceIndex + 1)
+      // 出場率は utils/playRate の playRateOf 1本（ここで割り算を書かない。レンタル中の選手は借り先の日程で数える）
+      const rate = playRateOf(p.id, p.teamId, rateSeason, clubs)
+      const frac = rate.fraction
       let score = 0
       let reason: 'playing_time' | 'team_performance' | 'unhappy' = 'unhappy'
       // 「走れているか」は `transferDecision` の `playingStatus` 1本（線は APPEARANCE_FLOOR）。
       //   ★出走率を線と直に比べないこと。まだ分からないうち（PLAY_SAMPLE_RACES 未満）は 'unknown'＝
       //   出番の不満は言い出さない。不満の強さ（線からの距離）は値の曲線で、別の問い
-      if (playingStatus({ fraction: frac, teamRaces: raceIndex + 1 }) === 'benched') {
+      if (playingStatus(rate) === 'benched') {
         score = (APPEARANCE_FLOOR - frac) * 40; reason = 'playing_time'
       }
       // 役割ミスマッチ：任命した役割が期待する出場ラインを下回ると不満（エース/主力ほど強い）
@@ -85,7 +92,7 @@ export function generatePlayerWishes(params: {
       // 年俸重視の性格：相場の7割未満で使われていると「安すぎる」と不満を持つ（純粋なお金理由の移籍希望）。
       // ドラフト初回契約（rookieDeal）は安いのが前提なので対象外＝更新交渉で適正化する流れに乗せる
       if ((p.personality ?? 'salary') === 'salary' && !p.contract.rookieDeal) {
-        const market = faMarketSalary(p, seasonPerfProfile(p.id, races, raceIndex + 1))
+        const market = faMarketSalary(p, perfOf(p, { players, clubs, currentSeason: rateSeason }))
         const payRatio = market > 0 ? p.contract.annualSalary / market : 1
         if (payRatio < 0.7) {
           const money = (0.7 - payRatio) * 50
