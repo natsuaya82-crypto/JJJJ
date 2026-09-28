@@ -21,7 +21,7 @@ import { findClub } from '../utils/clubs'
 import { withLeagueRaces } from '../utils/world'
 import { openWishIds } from '../utils/talkSync'
 import { canWishTransfer, eligibilityCtx } from '../utils/transferEligibility'
-import { APPEARANCE_FLOOR, dreamRegionOf, playingStatus } from '../utils/transferDecision'
+import { APPEARANCE_FLOOR, dreamRegionOf, playingStatus, regionOfLeague } from '../utils/transferDecision'
 import { MORALE_DEFAULT } from '../utils/condition'
 
 export function generatePlayerWishes(params: {
@@ -117,9 +117,12 @@ export function generatePlayerWishes(params: {
   //    代表帰り（前年〜今年に世界選手権代表）は世界を見てきたので言い出しやすい ──
   // 夢の行き先はタイプで変わる：持久系→アフリカ高地／スピード系→欧州トラック／山・万能→北米
   // 夢の行き先は utils/transferDecision.ts の dreamRegionOf 1本（移籍の判定と同じ表を見る）
+  const myRegion = regionOfLeague(findClub(clubs, playerTeamId)?.leagueId)
   const ovCands = players.filter(p => p.teamId === playerTeamId && p.status === 'active' && !p.loan
     && ovr(p) >= 80 && p.age <= 30 && !p.overseasListed && !openWish.has(p.id)
-    && p.overseasDeniedYear !== currentSeason.year && !p.transferListed)
+    && p.overseasDeniedYear !== currentSeason.year && !p.transferListed
+    // 自チームがもう憧れの地域のリーグにいるなら言い出さない（オーナー・2026-09-28「直します」）
+    && dreamRegionOf(p.specialty) !== myRegion)
   let newOvReqs: { playerId: string; region: OverseasRegion }[] = []
   for (const p of ovCands) {
     const wasRep = (worldRepresentatives ?? []).some(r => r.playerId === p.id && r.year >= currentSeason.year - 1)

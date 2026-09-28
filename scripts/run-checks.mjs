@@ -37,6 +37,7 @@ const CHECKS = [
   // 引退・年齢込みの強さ・在籍人数・在籍上限・開幕の床。**src 全体**を見る唯一の点検
   // （single-source は store と engine しか読まないので、utils と components が網の外だった）
   'one-rule',
+  'overseas-wish',
   // 層をまたいだ import（下から上）を機械的に落とす。
   // 型だけの import は実行時に消えるので違反にしない（check-layers 側で除外済み）
   'layers',
