@@ -33,9 +33,9 @@ import { fmtYen } from '../../utils/money'
 import { offersAwaitingReply } from '../../utils/notifItems'
 import { SpecChip } from '../player/PlayerChips'
 import PlayerList from '../player/PlayerList'
-import { clubMap, clubsInLeague, clubsWhere, jpelClubIdSet, jpelClubs, myClub, otherClubs } from '../../utils/world'
+import { clubMap, clubsInLeague, clubsWhere, myClub, otherClubs } from '../../utils/world'
 import { holdsDraftPicks } from '../../data/leagueRules'
-import { FOREIGN_LEAGUE_DEFS } from '../../data/leagues'
+import { WORLD_LEAGUES } from '../../data/leagues'
 
 const MARKET_SORT_OPTIONS: { value: PlayerSortKey; label: string }[] = [
   { value: 'ovr', label: PLAYER_SORT_LABEL.ovr },
@@ -178,20 +178,13 @@ export default function TransferPage() {
       />
 
       {tab === 'market' && (() => {
-        const cpuJpel = otherClubs(jpelClubs(clubs), playerTeamId)
-        const leagueOptions = [
-          { id: 'jpel', name: '日本 (JPEL)' },
-          ...FOREIGN_LEAGUE_DEFS.map(l => ({ id: l.id, name: l.name })),
-        ]
+        // リーグは12本を同じ形で並べる（JPELも部ごと・オーナー・2026-09-28「部ごとに分けたい」）
+        const leagueOptions = WORLD_LEAGUES.map(l => ({ id: l.id, name: l.name }))
         const clubsForLeague: { id: string; name: string }[] =
-          mktLeague === 'all'
-            ? [
-                ...cpuJpel.map(t => ({ id: t.id, name: t.name })),
-                ...FOREIGN_LEAGUE_DEFS.flatMap(l => otherClubs(clubsInLeague(clubs, l.id), playerTeamId).map(c => ({ id: c.id, name: c.name }))),
-              ].sort((a, b) => a.name.localeCompare(b.name))
-            : mktLeague === 'jpel'
-            ? cpuJpel.map(t => ({ id: t.id, name: t.name })).sort((a, b) => a.name.localeCompare(b.name))
-            : (FOREIGN_LEAGUE_DEFS.some(l => l.id === mktLeague) ? otherClubs(clubsInLeague(clubs, mktLeague), playerTeamId) : []).map(c => ({ id: c.id, name: c.name }))
+          (mktLeague === 'all'
+            ? otherClubs(clubs, playerTeamId)
+            : otherClubs(clubsInLeague(clubs, mktLeague), playerTeamId)
+          ).map(c => ({ id: c.id, name: c.name })).sort((a, b) => a.name.localeCompare(b.name))
 
         // 枠で囲まない。下の細い線と文字だけで組む（ロスターと同じ）
         const cell: React.CSSProperties = {
@@ -288,7 +281,6 @@ export default function TransferPage() {
         const listings = currentSeason.transferListings ?? []
         const listedIds = new Set(listings.map(l => l.playerId))
 
-        const jpelTeamIds = jpelClubIdSet(clubs)
         const leagueIdByClub = clubMap(clubs, c => c.leagueId)
 
         // 一覧に出す＝入札できる、なので判定は入札と同じものを使う（utils/transferEligibility.ts）。
@@ -329,7 +321,6 @@ export default function TransferPage() {
           })
           .filter(p => {
             if (f.league === 'all') return true
-            if (f.league === 'jpel') return jpelTeamIds.has(p.teamId)
             return leagueIdByClub.get(p.teamId) === f.league
           })
           .filter(p => f.team === 'all' || p.teamId === f.team)
