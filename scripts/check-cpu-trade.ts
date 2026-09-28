@@ -33,9 +33,9 @@ const YEAR = 2030
 // 15番手以降＝「出番が無い」。その人数まで名簿を膨らませないと、そもそも出す選手が出ない
 const SIZE = RUNNING_SLOTS * 2 + 2
 
-function player(id: string, teamId: string, o: number, specialty = 'long'): Player {
+function player(id: string, teamId: string, o: number, specialty = 'long', age = 26): Player {
   return {
-    id, name: id, teamId, age: 26, status: 'active', specialty,
+    id, name: id, teamId, age, status: 'active', specialty,
     joinedYear: YEAR - 3, nationality: 'JPN',
     ratings: { speed: o, stamina: o, mountainUp: o, mountainDown: o, pacing: o, mental: o, recovery: o },
     // 残り1年で揃える。`tradeBalance` はもらう側を「相手の言い値」で数えるので、
@@ -51,18 +51,26 @@ const CTX: TradeValueCtx = {}
 const teams = [team('my'), team('a'), team('b')]
 
 /**
- * a＝買い手：**山登りが1人もいない**（穴がある）。全員 long
- * b＝売り手：山登りを1人だけ持っていて、その1人が**bでは最下位**（出番が無い）
- * 全員同じOVRなので、bの最下位でも a では1番手＝走れる7人に入る
+ * a＝買い手：**山登りが1人もいない**（穴がある）。全員 long。下の2人（a14・a15）が a の余り（15番手）
+ * b＝売り手：山登りを1人だけ持っていて、その1人が**bでは最下位**（16番手＝出番が無い）
+ * 山登りは a に入ると14番手＝戦力の線（SQUAD_DEPTH_SLOTS）の内側
+ *
+ * ★**OVRを全員同じにしないこと**（2026-09-28）。序列は `squadRankOf`＝「自分より上が何人か」で、
+ *   同じOVRは同じ順番になる。全員70だと全員が1番手＝誰も余りにならず、1件も成立しない
+ *   （以前は配列の並び順で序列を数えていたので、同じOVRでも余りが出ていた）。
+ *   a の余りは若く（年齢倍率で値段が上がる）、山登りと値段が釣り合うようにしてある
  *
  * ★タイプ名は `types` の `SPECIALTY_LABELS` のキーであること。
  *   存在しない名前を書くと `squadDepth` が拾えず、**誰も「必要」にならない**
  *   （最初に書いた版は 'balanced' / 'climber' と書いていて、全部0件だった）
  */
+const A_OVR = 66, A_AGE = 22
 function world() {
   return [
-    ...Array.from({ length: SIZE }, (_, i) => player(`a${i}`, 'a', 70)),
-    ...Array.from({ length: SIZE - 1 }, (_, i) => player(`b${i}`, 'b', 70)),
+    ...Array.from({ length: SIZE - 3 }, (_, i) => player(`a${i}`, 'a', 75)),
+    player(`a${SIZE - 3}`, 'a', 68),
+    ...Array.from({ length: 2 }, (_, i) => player(`a${SIZE - 2 + i}`, 'a', A_OVR, 'long', A_AGE)),
+    ...Array.from({ length: SIZE - 1 }, (_, i) => player(`b${i}`, 'b', 75)),
     player('b-climber', 'b', 70, 'mountain_up'),
   ]
 }
@@ -107,9 +115,9 @@ console.log('[2] 条件を1つずつ外すと成立しなくなる')
 
   // ② 売る側で出番がある選手は出さない（山型を1番手に置く）
   const starter = [
-    ...Array.from({ length: SIZE }, (_, i) => player(`a${i}`, 'a', 70)),
+    ...world().filter(p => p.teamId === 'a'),
     player('b-climber', 'b', 90, 'mountain_up'),
-    ...Array.from({ length: SIZE - 1 }, (_, i) => player(`b${i}`, 'b', 70)),
+    ...Array.from({ length: SIZE - 1 }, (_, i) => player(`b${i}`, 'b', 75)),
   ]
   check('② 売る側の主力（出番がある選手）は出さない', movedOf(starter, run(starter).players).length === 0)
 

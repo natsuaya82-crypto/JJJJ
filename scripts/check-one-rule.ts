@@ -146,7 +146,8 @@ console.log('\n[8] 名簿を減らす経路は、どれも同じ下限（CPU_SEL
   check('CPU_SELL_FLOOR が居る', /export const CPU_SELL_FLOOR/.test(code))
   check('解雇は理由ごとに線を持たず1本で止める', /const canLeave = Math\.max\(0, roster\.length - CPU_SELL_FLOOR\)/.test(code))
   check('貸す側も下限を見る', /rosterSize\(sid\) <= CPU_SELL_FLOOR/.test(code))
-  check('現金の移籍も下限を見る', /sellRoster\.length <= CPU_SELL_FLOOR/.test(code))
+  // 数えるのは在籍人数（怪我人も入る＝teamRosterSize と同じ）。走れる人だけの並びで数えると下限が甘くなる（2026-09-28）
+  check('現金の移籍も下限を見る', /\(headcount\.get\(sellClub\.id\) \?\? 0\) <= CPU_SELL_FLOOR/.test(code))
   // 戻し方：engine/cpuTransfers の出品の成立から `<= CPU_SELL_FLOOR` の行を消す
   // ★4本目の経路（シーズン中にCPUが出品した選手を別のCPUが買う）。以前は見ていなかった
   // 戻し方：engine/cpuMarket の borrow_in の候補から `> CPU_SELL_FLOOR` の行を消す
@@ -358,8 +359,10 @@ console.log('\n[20] 「その選手はいくらか」の材料も1本（今季�
     !/export function perfOf\([\s\S]{0,400}seasonPerfProfile\([^)]*currentSeason\.races/.test(code))
   const perfCallers = (code.match(/(?<!function )perfOf\(/g) ?? []).length
   // 呼び出しの数（2026-09-26 に呼ばれていなかった signForeignPlayer を消して 7 → 6。
-  //   同じ日に、直に seasonPerfProfile を呼んでいた CPU の移籍市場とトレードの値段を寄せて 6 → 8）
-  check('`perfOf` を呼ぶのは8か所', perfCallers === 8, `${perfCallers}か所`)
+  //   同じ日に、直に seasonPerfProfile を呼んでいた CPU の移籍市場とトレードの値段を寄せて 6 → 8。
+  //   2026-09-28 に加入の入口で契約を結び直すようにして 8 → 11＝自チームの契約満了の移籍（raceSlice）・
+  //   自チームが売ったとき（marketOps）・CPUの出品の買い取りと競り負け（applyTransfers の joinContract）
+  check('`perfOf` を呼ぶのは11か所', perfCallers === 11, `${perfCallers}か所`)
 }
 
 console.log('\n[21] 「世界へ挑戦」の見出しは clubTier の isWorldChallenge 1本')
