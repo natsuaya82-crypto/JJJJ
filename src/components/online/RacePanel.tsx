@@ -255,15 +255,12 @@ export default function RacePanel({
   return (
     <div>
       {/* LIVEヘッダー */}
-      <div style={{ padding: '8px 16px 6px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+      <div style={{ padding: '8px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: C.red, boxShadow: `0 0 5px ${C.red}` }} />
           <span style={{ fontFamily: SAIRA, fontSize: F.tiny, color: C.red, fontWeight: 800, letterSpacing: 2 }}>LIVE</span>
           <span style={{ fontSize: F.bodyLg, fontWeight: 700, color: C.text, flex: 1 }}>{course.name}</span>
           <span style={{ fontFamily: SAIRA, fontSize: F.caption, color: C.textDim }}>R{raceNo}/{totalRaces}・{segData?.segmentIndex}/{payload.segments.length}区</span>
-        </div>
-        <div style={{ height: 3, backgroundColor: C.border2,overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${(pos / payload.segments.length) * 100}%`, background: `linear-gradient(90deg, ${C.red}, ${C.gold})`,}} />
         </div>
       </div>
 
