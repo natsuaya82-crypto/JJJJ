@@ -22,13 +22,18 @@ export type StandRow = {
 // onRowLongPress: チーム行の長押しでチーム詳細へ（レース結果画面など、タップを他用途に使わない画面用）
 // promote / relegate: 昇格・降格の枠数。渡すと上位n・下位nに色と境目の線を出す
 //   （1部は降格だけ、3部は昇格だけ。海外リーグは入れ替えが無いので渡さない）
-export default function StandingsTable({ rows, onRowClick, onRowLongPress, promote = 0, relegate = 0 }: {
+export default function StandingsTable({ rows: given, onRowClick, onRowLongPress, promote = 0, relegate = 0 }: {
   rows: StandRow[]
   onRowClick?: (id: string) => void
   onRowLongPress?: (id: string) => void
   promote?: number
   relegate?: number
 }) {
+  // ★まだ誰も走っていない（開幕前）なら名前順。どのリーグの表も同じ（オーナー・2026-09-28）。
+  //   以前は海外リーグの画面だけ平均OVR順、JPELはデータの並びのままと割れていた
+  const rows = given.every(r => r.points === 0 && r.recentForm.length === 0)
+    ? [...given].sort((a, b) => a.name.localeCompare(b.name, 'ja'))
+    : given
   const relegateFrom = relegate > 0 ? rows.length - relegate : -1
   let pressTimer: ReturnType<typeof setTimeout> | null = null
   const lpHandlers = (id: string) => onRowLongPress ? {
