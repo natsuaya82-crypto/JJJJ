@@ -29,9 +29,6 @@ export type ClubTier =
   | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
   | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20
 
-export const CLUB_TIERS: readonly ClubTier[] =
-  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
-
 /** 初期ロスターの人数。国内・海外とも同じ（前は国内28・海外22でズレていた） */
 export const INITIAL_ROSTER_SIZE = 25
 

@@ -10,7 +10,7 @@
  * 除外していたのは3箇所だけ、残りは素通りだった。
  */
 import {
-  isNewJoin, isRetiring, isOwnedBy, isTalkFree,
+  isRetiring, isOwnedBy, isTalkFree,
   canBePoached, canReceiveFreeContact, canGoOverseasDream, canListForSale, canLoanOut,
   canTradeAway, canStartContractTalk, canWishTransfer, canAcceptOfferFor, isLeavingClub,
 } from '../src/utils/transferEligibility'
@@ -84,9 +84,6 @@ console.log('\n[5] 引退希望を受けた選手・加入1年目の選手')
   check('引退の話をしている選手は移籍希望を言い出さない', !canWishTransfer(P(), retiring))
   check('引退の話をしている選手は来たオファーを受けても放出しない', !canAcceptOfferFor(P(), retiring))
 
-  const fresh = P({ joinedYear: 2030 })
-  check('今季加入の判定', isNewJoin(fresh, 2030))
-  check('年が分からないときは加入1年目の判定をしない', !isNewJoin(fresh, undefined))
   // ★引き抜きを止めるのは「加入したときの契約が続いているか」1本
   //   （`isTransferLocked`。2026-08-20 に「加入から2年」の固定から変えた）
   const onJoinDeal = P({ contract: { annualSalary: 1000, yearsLeft: 3, faEligibleYear: 2033, signedOnJoin: true } } as Partial<Player>)

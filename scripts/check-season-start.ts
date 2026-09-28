@@ -23,7 +23,7 @@
  *   見る形に戻っていないことを見ます。
  */
 import { readFileSync } from 'node:fs'
-import { canStartSeason, seasonStartBlockers, rosterShortFor } from '../src/utils/seasonStart'
+import { canStartSeason, seasonStartBlockers } from '../src/utils/seasonStart'
 import { ROSTER_MIN } from '../src/data/rosterRules'
 
 let failed = 0
@@ -50,7 +50,6 @@ console.log('[1] プレシーズンに並べた用件が全部そろうまで開
   // 理由は必ず文章で出す（押せないのに何も出ないのが一番まずい）
   check('止めるときは必ず理由の文がある',
     seasonStartBlockers({ ...ok, draftDone: false }).every(b => b.length > 0))
-  check('人数の線は rosterShortFor 1本', rosterShortFor(ROSTER_MIN - 1) && !rosterShortFor(ROSTER_MIN))
   check('人数を止める側へ戻していない', !seasonStartBlockers({ ...ok, rosterCount: 1 }).some(b => b.includes('ロスター')))
 }
 

@@ -69,11 +69,6 @@ export function ctxForTeam(base: EligibilityCtx, teamId: string): EligibilityCtx
   return base.teamId === teamId ? base : { ...base, teamId }
 }
 
-/** 今季加入した選手か。1シーズンに何度も移籍させないための判定 */
-export function isNewJoin(p: Player, currentYear?: number): boolean {
-  return (currentYear ?? 0) > 0 && p.joinedYear === currentYear
-}
-
 /**
  * **加入したときの契約が続いている選手か。**（保有権が移る形すべての唯一の関門）
  *

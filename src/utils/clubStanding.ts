@@ -100,11 +100,6 @@ export function clubRacesDone(season: StandingSeasonLike, clubId: string): numbe
   return clubStandingRow(season, clubId)?.raceResults.length ?? 0
 }
 
-/** そのクラブがそのリーグ（部）で優勝した年か。国内も海外も「その集団の1位」1本 */
-export function clubWonLeague(season: StandingSeasonLike, clubId: string): boolean {
-  return clubSeasonRank(season, clubId).rank === 1
-}
-
 // ============================================================================
 // 歴代成績のグラフの縦軸（国内）
 // ============================================================================

@@ -4,7 +4,7 @@ import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { generateCpuRosters } from '../src/engine/playerGenerator'
 import { ovr } from '../src/utils/playerUtils'
-import { tierBudget, tierOf, TIER_BUDGET, CLUB_TIERS, type ClubTier } from '../src/utils/clubTier'
+import { tierBudget, tierOf, TIER_BUDGET, type ClubTier } from '../src/utils/clubTier'
 import { divisionOf } from '../src/utils/league'
 import type { Player, Team } from '../src/types'
 
@@ -31,7 +31,7 @@ const top10Of = (tid: string) => avg(allSamples.get(tid) ?? [])
 const squadOf = (tid: string) => avg(squadSamples.get(tid) ?? [])
 
 console.log(`■ ${RUNS}回生成した平均\n格  帯          予算    チーム数  部       全選手平均  上位10平均  上位10平均の最強〜最弱`)
-for (const tier of [...CLUB_TIERS].reverse() as ClubTier[]) {
+for (const tier of Array.from({ length: 20 }, (_, i) => (20 - i) as ClubTier)) {
   const teams = allTeams.filter(t => tierOf(t) === tier)
   if (teams.length === 0) {
     console.log(`${String(tier).padStart(2)}  ${''}  ${(TIER_BUDGET[tier] / 1e8).toFixed(2)}億      0     —        —           —`)

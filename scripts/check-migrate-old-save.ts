@@ -26,7 +26,7 @@ import { ranRaces } from '../src/utils/raceHistory'
 import { waRaceRows } from '../src/utils/waRaces'
 import { buildCareerCounts } from '../src/utils/careerStats'
 import { divisionStandings, DIVISIONS, divisionLeagueId, divisionOfLeague, leagueRaces, leagueStandingRows, divisionInSeason } from '../src/utils/league'
-import { clubSeasonRank, clubWonLeague } from '../src/utils/clubStanding'
+import { clubSeasonRank } from '../src/utils/clubStanding'
 import type { Race } from '../src/types'
 
 const problems: string[] = []
@@ -211,7 +211,7 @@ console.log('[海外リーグの順位表]')
   const pastRank = clubSeasonRank(psAfter as never, 'eth_1')
   check('読み口から今季の順位が引ける', rank.rank === 1 && rank.total === 2, JSON.stringify(rank))
   check('読み口から過去の順位が引ける', pastRank.rank === 1, JSON.stringify(pastRank))
-  check('過去のリーグ優勝が数えられる', clubWonLeague(psAfter as never, 'eth_1') && !clubWonLeague(psAfter as never, 'ken_1'))
+  check('過去のリーグ優勝が数えられる', clubSeasonRank(psAfter as never, 'eth_1').rank === 1 && clubSeasonRank(psAfter as never, 'ken_1').rank !== 1)
 }
 
 // ── v46：自チームの行が走った部と違う部に載っている過去の年（build 110 までのズレ）──

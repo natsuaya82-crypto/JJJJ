@@ -179,8 +179,3 @@ export function maskText(src: string): string {
   if (!any) return src
   return src.split('').map((ch, i) => (hit[i] ? MASK_CHAR : ch)).join('')
 }
-
-/** 伏せ字になる部分があるか（書く前の注意書きに使う。判定は `maskText` と同じ1本） */
-export function hasMaskedWord(src: string): boolean {
-  return maskText(src) !== src
-}

@@ -15,7 +15,7 @@
  *      （旧：自分の部のレース数を全チームに使い回していたので、2部・3部のクラブを見ると
  *        10と出ていた。部ごとにレース数は10/8/7と違う）
  */
-import { clubStandingRow, clubSeasonRank, clubRacesDone, clubWonLeague, normalizeStandingRows, normalizeForeignStandings } from '../src/utils/clubStanding'
+import { clubStandingRow, clubSeasonRank, clubRacesDone, normalizeStandingRows, normalizeForeignStandings } from '../src/utils/clubStanding'
 import {
   DIVISIONS, DIVISION_SIZE, DIVISION_RACES, divisionOf,
   rankedStandings, newSeasonStandings,
@@ -137,8 +137,8 @@ console.log('[3] 消化試合数は「そのクラブが走った数」')
 console.log('')
 console.log('[4] 優勝の判定（国内＝部の1位／海外＝リーグの1位）')
 {
-  const champs = teams.filter(t => clubWonLeague(season, t.id))
-  const fChamps = FOREIGN_LEAGUES.flatMap(l => l.clubs).filter(c => clubWonLeague(season, c.id))
+  const champs = teams.filter(t => clubSeasonRank(season, t.id).rank === 1)
+  const fChamps = FOREIGN_LEAGUES.flatMap(l => l.clubs).filter(c => clubSeasonRank(season, c.id).rank === 1)
   console.log(`  国内 ${champs.length}クラブ（3部あるので3件）／海外 ${fChamps.length}クラブ（9リーグなので9件）`)
   check('国内は部の数だけ1位が出る', champs.length === DIVISIONS.length, `${champs.length}件`)
   check('海外はリーグの数だけ1位が出る', fChamps.length === FOREIGN_LEAGUES.length, `${fChamps.length}件`)

@@ -23,7 +23,7 @@
  */
 import { readFileSync } from 'node:fs'
 import { execSync } from 'node:child_process'
-import { maskText, hasMaskedWord, MASK_CHAR } from '../src/utils/wordFilter'
+import { maskText, MASK_CHAR } from '../src/utils/wordFilter'
 
 let failed = 0
 const check = (name: string, ok: boolean, detail = '') => {
@@ -38,8 +38,6 @@ console.log('[1] 伏せ方')
   check('前後は残る', maskText('もう消えろよ') === `もう${MASK_CHAR.repeat(3)}よ`, maskText('もう消えろよ'))
   check('何も当たらなければ元の文のまま', maskText('また明日走りましょう') === 'また明日走りましょう')
   check('空文字でも落ちない', maskText('') === '')
-  check('hasMaskedWord は maskText と同じ判定',
-    hasMaskedWord('しね') && !hasMaskedWord('がんばろう'))
 }
 
 console.log('\n[2] すり抜けと巻き込み')

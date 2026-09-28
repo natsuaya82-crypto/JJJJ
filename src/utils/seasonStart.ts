@@ -1,4 +1,3 @@
-import { ROSTER_MIN } from '../data/rosterRules'
 
 /**
  * **開幕してよいか。プレシーズンの残り仕事の唯一の決まり。**
@@ -39,19 +38,6 @@ export type PreSeasonState = {
   draftDone: boolean
   /** 在籍人数（1軍・2軍あわせて） */
   rosterCount: number
-}
-
-/**
- * 人数が足りているか。線は `data/rosterRules` の `ROSTER_MIN` 1本。
- *
- * ★**これは開幕を止めません**（2026-09-15 に止めるのをやめました）。
- *   開幕の直前に `startRegularSeason` が `fillRostersForSeason` で全クラブを
- *   `SEASON_START_ROSTER`(20) 人まで埋めてから開幕します（`ROSTER_MIN` までではない）
- *   （オーナー「足りないならシーズン開始に勝手足りない分弱いの足せば？」）。
- *   いまはどの画面からも呼ばれていません（残すかはオーナー判断）。
- */
-export function rosterShortFor(rosterCount: number): boolean {
-  return rosterCount < ROSTER_MIN
 }
 
 /**
