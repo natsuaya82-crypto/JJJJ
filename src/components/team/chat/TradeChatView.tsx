@@ -11,7 +11,7 @@ import { canBePoached, canTradeAway, ctxForTeam, eligibilityCtx } from '../../..
 import type { Player, WorldClub } from '../../../types'
 import { holdsDraftPicks } from '../../../data/leagueRules'
 import { TeamLogoSVG } from '../../icons/Icons'
-import { pickKeysValue } from '../../../data/economy'
+import { POACH_PREMIUM, pickKeysValue } from '../../../data/economy'
 import { C, alpha, SAIRA, F } from '../../../styles/tokens'
 import { tradeConsentBonus, tradeRefuser } from '../../../engine/tradeConsent'
 import { fmtYen } from '../../../utils/money'
@@ -150,7 +150,6 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: WorldClub
           {submitted && !neg && (
             <div style={{padding: '14px', textAlign: 'center', background: alpha(C.green, 0.12), border: `1.5px solid ${alpha(C.green, 0.5)}` }}>
               <div style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: 900, color: C.green, marginBottom: 4 }}>トレード成立！</div>
-              <div style={{ fontSize: F.label, color: C.textSub, lineHeight: 1.6 }}>加入選手は2軍へ。契約体系は「移籍・獲得」タブの契約交渉で確定してください。</div>
               <button onClick={onClose} style={{ marginTop: 10, padding: '10px 20px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: F.bodyLg, fontWeight: 700, cursor: 'pointer', fontFamily: SAIRA }}>閉じる</button>
             </div>
           )}
@@ -200,7 +199,7 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: WorldClub
                   </div>
                   <span style={{ fontSize: F.bodyLg, fontWeight: 900, color: barColor, fontFamily: SAIRA, flexShrink: 0, minWidth: 38, textAlign: 'right' }}>{rate}%</span>
                 </div>
-                {hasKey && <div style={{ fontSize: F.caption, color: C.gold, marginTop: 6, lineHeight: 1.5 }}>主力を含むため必要額1.5倍で計算されています</div>}
+                {hasKey && <div style={{ fontSize: F.caption, color: C.gold, marginTop: 6, lineHeight: 1.5 }}>主力を含むため必要額{POACH_PREMIUM}倍で計算されています</div>}
                 {blockMsg && <div style={{ fontSize: F.caption, color: C.red, marginTop: 6, lineHeight: 1.5 }}>{blockMsg}</div>}
                 {!blockMsg && rate < 100 && shortage > 0 && (
                   <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 6, lineHeight: 1.5 }}>

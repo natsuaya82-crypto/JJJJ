@@ -573,7 +573,7 @@ export default function TransferPage() {
             )}
 
             <div style={{ fontSize: F.tiny, color: C.cyan, letterSpacing: '2px', marginBottom: '10px', fontWeight: '800', fontFamily: SAIRA }}>
-              1軍選手 — 出品管理
+              所属選手 — 出品管理
             </div>
             {myPlayers.map(p => {
               const isListed = listedIds.has(p.id)

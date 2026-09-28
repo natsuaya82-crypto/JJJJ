@@ -25,6 +25,8 @@ import { applyRaceMorale, standingOf } from './raceMorale'
  * 以前は engine が `0.30`・画面の文字が「確率35%」で、**遊ぶ人に見える数字だけが嘘**でした。
  */
 export const TRAINING_PLAN_CHANCE = 0.30
+/** 練習プランが当たったときに入る経験値（画面の「経験値+600」もここから出す） */
+export const TRAINING_PLAN_EXP = 600
 
 /** 練習プラン「回復調整」で毎レース動く疲労。画面（`TeamManagement`）の文字もここから作る */
 export const RECOVERY_PLAN_FATIGUE = -8
@@ -120,7 +122,7 @@ export function applyRaceProgress(params: {
         const planStat = planStatMap[plan]
         if (planStat && rng() < TRAINING_PLAN_CHANCE) {
           // 練習プランはEXPボーナスとして追加（直接+1ではなく）
-          const bonusGain: Partial<Record<CardStatKey, number>> = { [planStat as CardStatKey]: 600 }
+          const bonusGain: Partial<Record<CardStatKey, number>> = { [planStat as CardStatKey]: TRAINING_PLAN_EXP }
           const outcome = applyGrowth({ player: { ...p, ratings: newRatings, exp: newExp }, source: 'plan', baseGains: bonusGain, campLv })
           newRatings = outcome.ratings
           newExp = outcome.exp

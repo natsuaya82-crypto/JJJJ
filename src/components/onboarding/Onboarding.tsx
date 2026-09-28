@@ -364,9 +364,8 @@ export default function Onboarding() {
           )}
 
           <div style={{ fontSize: F.label, color: C.border3, marginBottom: '32px', padding: '10px 12px',backgroundColor: C.bg, border: `1px solid ${C.surface2}` }}>
-            初年度のドラフトは<b style={{ color: C.gold }}>見学</b>です。<br/>
-            代わりに、あとで選手を1人つくって加入させられます。<br/>
-            指名に参加できるのは2年目からです。
+            ドラフトで指名できるのは<b style={{ color: C.gold }}>JPEL1部のみ</b>です。<br/>
+            代わりに、あとで選手を1人つくって加入させられます。
           </div>
 
           <GlassButton full size="lg" onClick={handleConfirm}>

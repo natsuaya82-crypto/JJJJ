@@ -1,5 +1,5 @@
 import { clubSalaryTotal } from '../../utils/clubMoney'
-import { TRAINING_PLAN_CHANCE, RECOVERY_PLAN_FATIGUE } from '../../engine/raceProgress'
+import { TRAINING_PLAN_CHANCE, TRAINING_PLAN_EXP, RECOVERY_PLAN_FATIGUE } from '../../engine/raceProgress'
 import { STRATEGY_FATIGUE_MULT } from '../../engine/raceFatigue'
 import { useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -194,10 +194,10 @@ export default function TeamManagement() {
         const myMainPlayers = allPlayers.filter(p => p.teamId === playerTeamId && p.status === 'active')
         const PLANS = [
           { key: null, label: '通常トレーニング', desc: '標準的な練習メニュー。特定の能力を強化しない。', effect: '変化なし', color: C.textDim, shadow: '#333' },
-          { key: '持久重視', label: '持久重視', desc: 'スタミナ向上に特化したトレーニング。長距離レースに強くなる。', effect: `スタミナ +1 (確率${Math.round(TRAINING_PLAN_CHANCE * 100)}%)`, color: C.green, shadow: '#0d3d22' },
-          { key: 'スピード重視', label: 'スピード重視', desc: '速力向上のトレーニング。スプリント区間での活躍が期待できる。', effect: `速力 +1 (確率${Math.round(TRAINING_PLAN_CHANCE * 100)}%)`, color: C.red, shadow: '#660e10' },
-          { key: '精神強化', label: '精神強化', desc: '精神力・集中力を高める。プレッシャーに強くなる。', effect: `精神 +1 (確率${Math.round(TRAINING_PLAN_CHANCE * 100)}%)`, color: C.blue, shadow: C.tileShadow },
-          { key: '登り強化', label: '登り強化', desc: '山岳区間の走力を練習。山登り専門家でなくても効果あり。', effect: `登り +1 (確率${Math.round(TRAINING_PLAN_CHANCE * 100)}%)`, color: C.orange, shadow: '#5a2800' },
+          { key: '持久重視', label: '持久重視', desc: 'スタミナ向上に特化したトレーニング。長距離レースに強くなる。', effect: `スタミナ 経験値+${TRAINING_PLAN_EXP} (確率${Math.round(TRAINING_PLAN_CHANCE * 100)}%)`, color: C.green, shadow: '#0d3d22' },
+          { key: 'スピード重視', label: 'スピード重視', desc: '速力向上のトレーニング。スプリント区間での活躍が期待できる。', effect: `速力 経験値+${TRAINING_PLAN_EXP} (確率${Math.round(TRAINING_PLAN_CHANCE * 100)}%)`, color: C.red, shadow: '#660e10' },
+          { key: '精神強化', label: '精神強化', desc: '精神力・集中力を高める。プレッシャーに強くなる。', effect: `精神 経験値+${TRAINING_PLAN_EXP} (確率${Math.round(TRAINING_PLAN_CHANCE * 100)}%)`, color: C.blue, shadow: C.tileShadow },
+          { key: '登り強化', label: '登り強化', desc: '山岳区間の走力を練習。山登り専門家でなくても効果あり。', effect: `登り 経験値+${TRAINING_PLAN_EXP} (確率${Math.round(TRAINING_PLAN_CHANCE * 100)}%)`, color: C.orange, shadow: '#5a2800' },
           { key: '回復調整', label: '回復調整', desc: '激しいトレーニングを控え疲労回復を優先する調整期。', effect: `疲労 ${RECOVERY_PLAN_FATIGUE} (毎レース)`, color: C.cyan, shadow: '#0e3f5a' },
         ]
         const avgFatigue = myMainPlayers.length > 0

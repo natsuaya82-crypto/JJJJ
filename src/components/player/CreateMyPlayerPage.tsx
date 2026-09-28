@@ -117,7 +117,7 @@ export default function CreateMyPlayerPage() {
   return (
     <div style={{ fontFamily: FONT, minHeight: '100dvh', color: C.text, paddingBottom: bottomStack(adH, { aboveNav: true, extra: 84 }) }}>
       <PageHeader title="マイプレイヤー作成" onBack={() => navigate('/')} />
-      <div style={{ padding: '0 16px 10px', fontSize: F.label, color: C.textDim }}>初年度はドラフトに参加しない代わりに、選手を1人つくれます。</div>
+      <div style={{ padding: '0 16px 10px', fontSize: F.label, color: C.textDim }}>選手を1人つくれます。</div>
 
       {/* プレビュー */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, margin: '0 12px 12px', padding: 12,background: `linear-gradient(135deg, ${alpha(C.gold, 0.14)}, ${C.surface2})`, border: `2px solid ${C.goldDark}` }}>
