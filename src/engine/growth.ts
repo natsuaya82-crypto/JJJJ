@@ -21,7 +21,7 @@ import { tierGrowthRate, ANNUAL_BASE_EXP, type ClubTier } from '../utils/clubTie
  *     ここを勘違いすると必要枚数を3倍近く見誤ります（実際に誤った）。
  */
 export function requiredExpForLevel(level: number): number {
-  const dull = level < 80 ? 1 : level < 90 ? 2 : level < 99 ? 4 : 6 + (level - 99)
+  const dull = level < 80 ? 1 : level < 90 ? 2 : level < STAT_CAP ? 4 : 6 + (level - STAT_CAP)
   return Math.floor(0.5 * level * level * dull)
 }
 
@@ -216,7 +216,7 @@ function getPrimaryKey(specialty: string): RatingsKey {
 // growPlayer: 年齢増加・自然老化（ピーク後の衰え）＋加齢によるポテンシャル上限の減衰。
 // **成長（EXP）はここではやりません。** 自チームもCPU・海外も `engine/raceProgress` が
 // レースごとに配ります（2026-08-20 に揃えました。下の★）。
-// 一律EXPを配る能力の一覧。自チーム（毎レース）とCPU（年1回）で同じものを使う。
+// 一律EXPを配る能力の一覧。自チームもCPU・海外も（どちらも毎レース）同じものを使う。
 // 2つ持つと「片方は7能力に配る・もう片方は各能力へ丸ごと」のようにズレる（実際にズレていた）
 export const GROW_STAT_KEYS: RatingsKey[] = ['speed', 'stamina', 'mountainUp', 'mountainDown', 'pacing', 'mental', 'recovery']
 export function growPlayer(p: Player): Player {

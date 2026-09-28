@@ -279,11 +279,13 @@ console.log('\n[17] 累計ポイント制の順位（ECL・世界選手権）は
   // ★ECLページ・順位表・記録室の歴代優勝・世界選手権・`utils/eclHistory` の**5か所**に
   //   同じ式が写っていた。タイブレークを足すときに5か所を直すことになる形。
   // ★**画面のほうを実際に数える**（呼び出し回数だけ見ると、手書きの7か所目を足しても緑のまま）。
-  //   store 側（`competitionSlice` のECL最終順位）も同じここを通る＝**6か所**。
+  //   store 側（`competitionSlice` のECL最終順位）も同じここを通る。
+  //   世界選手権の予選・本戦の駅伝（`engine/worldAthletics` の大陸予選の締め・`byPoints`）も
+  //   同じここを通る（2026-09-28。手書きの `.sort` が3か所あった）＝**8か所**。
   check('pointSeriesStandings が居る', /export function pointSeriesStandings[<(]/.test(code))
   const callers = (code.match(/(?<!function )pointSeriesStandings\(/g) ?? []).length
-  check('呼んでいるのは6か所', callers === 6, `${callers}か所`)
-  const hand = srcFiles.filter(f => f.startsWith('src/components')
+  check('呼んでいるのは8か所', callers === 8, `${callers}か所`)
+  const hand = srcFiles.filter(f => (f.startsWith('src/components') || f === 'src/engine/worldAthletics.ts')
     && /\.sort\(\(a, b\) => b\.points - a\.points\)/.test(fileCode(f)))
   check('画面で並べ直していない', hand.length === 0, hand.join(', '))
 }

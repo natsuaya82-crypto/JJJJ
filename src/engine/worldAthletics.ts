@@ -15,6 +15,7 @@ import { EVENT_LABEL } from '../utils/eventTime'
 import { ovr } from '../utils/playerUtils'
 
 import { runBackgroundRace } from './backgroundRace'
+import { pointSeriesStandings } from '../utils/league'
 import { worldRace, worldRaceName } from '../utils/worldCourses'
 // コースの呼び名は地域ごと（中身は同じ）。アメリカ予選が「大阪カップ」にならないようにする
 import { COURSE_REGION_BY_CONT } from '../data/courseNames'
@@ -404,10 +405,8 @@ export function finishContinentalQualifiers(conts: ContinentalQualResult[]): Con
     // その年はもう決着しているので、得点0で並べ直して塗り替えてはいけない
     if (!(c.races ?? []).some(r => r.results) && c.advanced.length > 0) return c
     const slots = REGION_QUOTA.find(q => q.region === c.region)?.slots ?? 0
-    const standings = Object.keys(c.squads)
-      .map(natId => ({ nat: natId.slice(4) as Nationality, points: c.points?.[natId] ?? 0 }))
-      .sort((a, b) => b.points - a.points)
-      .map((r, i) => ({ ...r, rank: i + 1 }))
+    const standings = pointSeriesStandings(Object.keys(c.squads).map(id => ({ id })), c.points)
+      .map((r, i) => ({ nat: r.id.slice(4) as Nationality, points: r.points, rank: i + 1 }))
     return { ...c, standings, advanced: standings.slice(0, slots).map(s => s.nat) }
   })
 }
@@ -505,9 +504,14 @@ export function simulateIndividuals(fields: Record<WAEvent, FieldEntry[]>): WAIn
   })
 }
 
+// 駅伝3戦の合計ポイント順（utils/league の pointSeriesStandings 1本。同点は渡した並び。id は行の位置）
+function byPoints<T extends { points: number }>(rows: readonly T[]): T[] {
+  return pointSeriesStandings(rows.map((row, i) => ({ id: String(i), row })), Object.fromEntries(rows.map((r, i) => [String(i), r.points]))).map(x => x.row)
+}
+
 // 駅伝3戦の合計ポイントから予選の最終結果を組む（上位 advance カ国が通過）
 export function composeQualifierResult(year: number, rows: { nat: Nationality; points: number }[], advance = 3, host?: Nationality): WAQualifierResult {
-  const sorted = [...rows].sort((a, b) => b.points - a.points)
+  const sorted = byPoints(rows)
   const standings: QualStanding[] = sorted.map((r, i) => ({ nat: r.nat, strength: r.points, rank: i + 1, advanced: i < advance }))
   return { year, kind: 'qualifier', region: 'アジア＋オセアニア', host, standings, advanced: standings.filter(s => s.advanced).map(s => s.nat) }
 }
@@ -519,7 +523,7 @@ export function composeMainResult(
   ekidenRows: { nat: Nationality; points: number; runnerIds: string[] }[],
   ekidenSegPts?: Map<Nationality, number>,   // 各国の駅伝区間ポイント合計（無ければ0）
 ): WAMainResult {
-  const sorted = [...ekidenRows].sort((a, b) => b.points - a.points)
+  const sorted = byPoints(ekidenRows)
   const ekiden: WAEkidenPlacing[] = sorted.map((r, i) => ({ nat: r.nat, timeScore: r.points, rank: i + 1, runnerIds: r.runnerIds }))
   const totals = new Map<Nationality, WANationTotal>()
   for (const nat of nations) totals.set(nat, { nat, points: 0, golds: 0, silvers: 0, bronzes: 0, rank: 0 })
