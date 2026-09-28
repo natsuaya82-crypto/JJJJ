@@ -1,3 +1,4 @@
+import GlassButton from '../ui/GlassButton'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { SPECIALTY_LABELS } from '../../types'
@@ -69,18 +70,12 @@ export default function ContractInfoModal() {
           <InfoRow label="契約残り" value={`${player.contract.yearsLeft}年`} color={player.contract.yearsLeft <= 1 ? C.red : C.textSub} />
         </div>
 
-        <button
-          onClick={() => { closeContractInfo(); navigate(`/team/chat?player=${player.id}`) }}
-          style={{ width: '100%', padding: 13,cursor: 'pointer', background: `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})`, backdropFilter: 'blur(10px) saturate(118%)', WebkitBackdropFilter: 'blur(10px) saturate(118%)', border: `1px solid ${alpha(C.gold, 0.65)}`, color: C.gold, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22)', fontSize: F.sub, fontWeight: 900, fontFamily: SAIRA, marginBottom: 8 }}
-        >
+        <GlassButton onClick={() => { closeContractInfo(); navigate(`/team/chat?player=${player.id}`) }} color={C.gold} full style={{ marginBottom: 8 }}>
           契約更新の交渉
-        </button>
-        <button
-          onClick={closeContractInfo}
-          style={{ width: '100%', padding: 11,background: 'transparent', border: `1px solid ${C.border}`, color: C.textDim, fontSize: F.bodyLg, fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}
-        >
+        </GlassButton>
+        <GlassButton onClick={closeContractInfo} color={C.textDim} full>
           閉じる
-        </button>
+        </GlassButton>
 
         <div style={{ position: 'absolute', inset: 4, border: `1px solid ${alpha(C.gold, 0.12)}`,pointerEvents: 'none' }} />
       </div>

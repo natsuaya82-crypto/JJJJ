@@ -1,3 +1,4 @@
+import GlassButton from '../ui/GlassButton'
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
@@ -277,11 +278,7 @@ export default function NationalSquadSelectPage() {
             display: 'flex', alignItems: 'center', gap: 12, zIndex: 35,
           }}>
             {pickerPicked.size === 0 ? (
-              <button disabled style={{
-                flex: 1, padding: '13px 0',cursor: 'default',
-                background: C.surface2, border: `2px solid ${C.border2}`, color: C.textDim,
-                fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900,
-              }}>候補をタップで選択</button>
+              <GlassButton disabled onClick={() => {}} color={C.textDim} size="lg" style={{ flex: 1 }}>候補をタップで選択</GlassButton>
             ) : (
               <button onClick={confirmPick} className="btn-game btn-game--purple" style={{ flex: 1 }}>
                 <span className="btn-game__inner">この{pickerPicked.size}人を選出</span>
@@ -338,7 +335,7 @@ export default function NationalSquadSelectPage() {
         <span style={{ fontSize: F.caption, color: C.textDim }}>
           選出 <span style={{ color: full ? C.green : C.gold, fontWeight: 700, fontFamily: SAIRA }}>{filledCount}/{SQUAD}</span>
         </span>
-        <button onClick={autoSelect} style={{ marginLeft: 'auto', fontSize: F.label, fontWeight: 700, padding: '5px 12px',border: `1.5px solid ${alpha(C.cyan, 0.6)}`, background: alpha(C.cyan, 0.1), color: C.cyan, cursor: 'pointer', fontFamily: 'inherit' }}>自動選出</button>
+        <GlassButton onClick={autoSelect} color={C.cyan} size="sm" style={{ marginLeft: 'auto' }}>自動選出</GlassButton>
       </div>
 
       {/* 20枠リスト：空き枠タップ＝選出ピッカー、埋まった枠タップ＝外す（入れ替えはしない） */}
@@ -435,7 +432,7 @@ export default function NationalSquadSelectPage() {
           display: 'flex', alignItems: 'center', gap: 6,
           zIndex: 35,
         }}>
-          <button onClick={() => setSlots({})} style={{ padding: '10px 12px',border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: F.body, cursor: 'pointer', fontFamily: 'inherit' }}>クリア</button>
+          <GlassButton onClick={() => setSlots({})} color={C.textDim} size="sm">クリア</GlassButton>
           {full ? (
             <button onClick={save} className="btn-game btn-game--purple" style={{ flex: 1 }}>
               <span className="btn-game__inner">この{filledCount}人で確定</span>

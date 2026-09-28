@@ -1,3 +1,4 @@
+import GlassButton from '../ui/GlassButton'
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
@@ -538,18 +539,11 @@ export default function PlayerSheet() {
               </div>
               {/* パッチは1ページ目のある選手だけヘッダーから。1ページ目が無い引退選手は2ページ目に同じボタンがある */}
               {pages.includes(1) && badges.length > 0 && (
-                <button
-                  onClick={() => setShowBadges(true)}
-                  style={{
-                    marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 5, cursor: 'pointer',
-                    padding: '4px 10px',background: `linear-gradient(180deg, ${CARD.gold}22, ${CARD.gold}0E)`,
-                    border: `1px solid ${CARD.gold}55`, color: CARD.gold, fontFamily: 'inherit', fontWeight: 800, fontSize: F.caption,
-                  }}
-                >
+                <GlassButton onClick={() => setShowBadges(true)} color={CARD.gold} size="sm" style={{ marginTop: 6, gap: 5, display: 'inline-flex' }}>
                   パッチを確認する
                   <span style={{ fontFamily: SAIRA, fontWeight: 900 }}>{badges.length}</span>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
-                </button>
+                </GlassButton>
               )}
             </div>
             <div style={{ textAlign: 'center', flexShrink: 0 }}>
@@ -620,17 +614,13 @@ export default function PlayerSheet() {
                       別のセーブの選手なので teamId が自分と同じことがあり、それだけでは通ってしまう */}
                   {!isPreview && isHofEligible(player, playerTeamId) && (
                     <div data-html2canvas-ignore="true" style={{ marginTop: 8 }}>
-                      <button
+                      <GlassButton
                         onClick={() => { if (!registerHof(player.id)) setHofMsg(`殿堂入りは${HOF_MAX}人までです`); else setHofMsg(inHof ? '殿堂入りの能力を今の値に更新しました' : '殿堂入りチームに登録しました') }}
-                        style={{
-                          width: '100%', padding: '11px 14px',cursor: 'pointer', fontFamily: 'inherit',
-                          background: inHof ? 'transparent' : `linear-gradient(180deg, ${CARD.goldHi} 0%, ${CARD.gold} 60%, ${CARD.goldDark} 100%)`,
-                          border: `2px solid ${inHof ? `${CARD.gold}66` : CARD.goldDark}`,
-                          color: inHof ? CARD.gold : '#1a0d00', fontSize: F.bodyLg, fontWeight: 900,
-                        }}
+                        color={CARD.gold}
+                        full
                       >
                         {inHof ? '殿堂入り更新' : '殿堂入り登録'}
-                      </button>
+                      </GlassButton>
                       <div style={{ fontSize: F.caption, color: CARD.textGhost, marginTop: 6, lineHeight: 1.6 }}>
                         {hofMsg || `${hofCount}/${HOF_MAX}人`}
                       </div>
@@ -649,18 +639,11 @@ export default function PlayerSheet() {
                   （前は全パッチをそのまま並べていて、多い選手だと画面がパッチだらけになっていた） */}
               {isRetired && badges.length > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'center' }}>
-                  <button
-                    onClick={() => setShowBadges(true)}
-                    style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 5, cursor: 'pointer',
-                      padding: '5px 12px',background: `linear-gradient(180deg, ${CARD.gold}22, ${CARD.gold}0E)`,
-                      border: `1px solid ${CARD.gold}55`, color: CARD.gold, fontFamily: 'inherit', fontWeight: 800, fontSize: F.caption,
-                    }}
-                  >
+                  <GlassButton onClick={() => setShowBadges(true)} color={CARD.gold} size="sm" style={{ gap: 5, display: 'inline-flex' }}>
                     パッチを見る
                     <span style={{ fontFamily: SAIRA, fontWeight: 900 }}>{badges.length}</span>
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
-                  </button>
+                  </GlassButton>
                 </div>
               )}
 
@@ -1102,16 +1085,9 @@ export default function PlayerSheet() {
               }}
             />
             <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={() => setRenameDraft(null)}
-                style={{
-                  flex: 1, padding: '12px',cursor: 'pointer',
-                  border: `2px solid ${CARD.border2}`, background: 'transparent', color: CARD.textDim,
-                  fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900,
-                }}
-              >
+              <GlassButton onClick={() => setRenameDraft(null)} color={CARD.textDim} style={{ flex: 1 }}>
                 キャンセル
-              </button>
+              </GlassButton>
               <button
                 disabled={renameDraft.trim() === ''}
                 onClick={() => { renamePlayer(player.id, renameDraft); setRenameDraft(null) }}

@@ -1,4 +1,5 @@
-import { C, alpha, SAIRA, F } from '../../styles/tokens'
+import GlassButton from '../ui/GlassButton'
+import { C, SAIRA, F } from '../../styles/tokens'
 import type { Player } from '../../types'
 import BottomSheet from '../ui/BottomSheet'
 import { LOAN_SLOTS } from '../../utils/bidGate'
@@ -25,14 +26,13 @@ export default function LoanSheet({ player, slots, pending, onSubmit, onClose }:
       ) : (
         <div style={{ display: 'flex', gap: 10 }}>
           {[1, 2].map(y => (
-            <button key={y} onClick={() => onSubmit(y)}
-              style={{ flex: 1, padding: '14px',border: `1.5px solid ${alpha(C.blue, 0.5)}`, background: alpha(C.blue, 0.12), color: C.blue, fontSize: F.subLg, fontWeight: 800, cursor: 'pointer', fontFamily: SAIRA }}>
+            <GlassButton key={y} onClick={() => onSubmit(y)} color={C.blue} size="lg" style={{ flex: 1 }}>
               {y}年契約
-            </button>
+            </GlassButton>
           ))}
         </div>
       )}
-      <button onClick={onClose} style={{ display: 'block', width: '100%', marginTop: 12, padding: '13px',border: `1px solid ${C.border}`, background: C.surface2, color: C.textDim, fontSize: F.sub, fontWeight: 800, fontFamily: 'inherit', cursor: 'pointer' }}>キャンセル</button>
+      <GlassButton onClick={onClose} color={C.textDim} full style={{ marginTop: 12 }}>キャンセル</GlassButton>
     </BottomSheet>
   )
 }

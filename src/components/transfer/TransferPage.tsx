@@ -623,11 +623,7 @@ export default function TransferPage() {
                                   </div>
                                 )}
                               </div>
-                              <button onClick={() => delistMyPlayer(p.id)} style={{
-                                padding: '5px 9px',
-                                border: `1px solid ${alpha(C.textDim, 0.25)}`, background: 'transparent',
-                                color: C.textDim, fontSize: F.caption, cursor: 'pointer', fontFamily: SAIRA,
-                              }}>取下</button>
+                              <GlassButton onClick={() => delistMyPlayer(p.id)} color={C.textDim} size="sm">取下</GlassButton>
                             </>
                           ) : (
                             <GlassButton
@@ -659,7 +655,7 @@ export default function TransferPage() {
                         <GlassButton full style={{ flex: 1 }} onClick={() => { listMyPlayerForSale(p.id, listingPrice); setListingPlayerId(null) }}>
                           出品を確定
                         </GlassButton>
-                        <button onClick={() => setListingPlayerId(null)} style={{ padding: '10px 14px',border: `1px solid ${alpha(C.border3, 0.7)}`, background: 'transparent', color: C.textDim, fontSize: F.body, cursor: 'pointer', fontFamily: SAIRA, flexShrink: 0 }}>取消</button>
+                        <GlassButton onClick={() => setListingPlayerId(null)} color={C.textDim} style={{ flexShrink: 0 }}>取消</GlassButton>
                       </div>
                     </div>
                   )}

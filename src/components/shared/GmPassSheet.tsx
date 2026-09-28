@@ -195,17 +195,9 @@ export function GmPassCard() {
 
         {/* 「購入を復元」は購入済みでも必ず出しておく。
             機種変更やApple IDの入れ直しで権利が消えたときに、戻す手段が画面に無いと詰む */}
-        <button
-          onClick={handleRestore}
-          disabled={busy}
-          style={{
-            width: '100%', padding: '10px', marginTop: 9,cursor: busy ? 'default' : 'pointer',
-            background: 'transparent', border: `1px solid ${alpha(G, 0.14)}`, color: C.textDim,
-            fontSize: F.label, fontWeight: 700, fontFamily: SAIRA, opacity: busy ? 0.6 : 1,
-          }}
-        >
+        <GlassButton onClick={handleRestore} disabled={busy} color={C.textDim} size="sm" full style={{ marginTop: 9 }}>
           購入を復元
-        </button>
+        </GlassButton>
 
         <div style={{ fontSize: F.tiny, color: C.textGhost, lineHeight: 1.6, marginTop: 10, textAlign: 'center' }}>
           ※動画広告（ジュエル追加・2回目以降の大成功）は任意で見られます
@@ -229,16 +221,9 @@ export function GmPassSheet({ onClose }: { onClose: () => void }) {
     >
       <div style={{ maxWidth: 420, margin: '0 auto' }} onClick={e => e.stopPropagation()}>
         <GmPassCard />
-        <button
-          onClick={onClose}
-          style={{
-            width: '100%', padding: '13px',cursor: 'pointer',
-            background: 'transparent', border: `1px solid ${C.border2}`, color: C.textSub,
-            fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 700,
-          }}
-        >
+        <GlassButton onClick={onClose} color={C.textSub} full>
           閉じる
-        </button>
+        </GlassButton>
       </div>
     </ScreenCover>
   )

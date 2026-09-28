@@ -322,14 +322,9 @@ export default function TeamManagement() {
         <span style={{ fontSize: F.label, color: C.textDim }}>総年俸 <span style={{ color: C.textSub, fontWeight: 700, fontFamily: SAIRA }}>{fmtYen(rosterSalary)}</span></span>
         <div style={{ flex: 1 }} />
         {loanedIn.length > 0 && (
-          <button onClick={() => setActiveTab(activeTab === 'loan' ? 'main' : 'loan')} style={{
-            padding: '5px 11px',cursor: 'pointer', fontFamily: SAIRA, fontSize: F.label, fontWeight: 800,
-            border: `1px solid ${activeTab === 'loan' ? C.gold : C.border2}`,
-            background: activeTab === 'loan' ? alpha(C.gold, 0.15) : 'transparent',
-            color: activeTab === 'loan' ? C.gold : C.textDim,
-          }}>
+          <GlassButton onClick={() => setActiveTab(activeTab === 'loan' ? 'main' : 'loan')} color={activeTab === 'loan' ? C.gold : C.textDim} size="sm">
             レンタル {loanedIn.length}
-          </button>
+          </GlassButton>
         )}
       </div>
 
@@ -420,10 +415,9 @@ export default function TeamManagement() {
                   style={{ flex: 1, padding: '12px',border: 'none', background: C.red, color: '#fff', fontSize: F.bodyLg, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>
                   解雇する
                 </button>
-                <button onClick={() => setReleasePlayerId(null)}
-                  style={{ flex: 1, padding: '12px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textDim, fontSize: F.bodyLg, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                <GlassButton onClick={() => setReleasePlayerId(null)} color={C.textDim} style={{ flex: 1 }}>
                   やめる
-                </button>
+                </GlassButton>
               </div>
             </div>
           </ScreenCover>

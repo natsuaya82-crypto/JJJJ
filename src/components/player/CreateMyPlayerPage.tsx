@@ -1,3 +1,5 @@
+import GlassButton from '../ui/GlassButton'
+import PillTabs from '../ui/PillTabs'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
@@ -102,7 +104,7 @@ export default function CreateMyPlayerPage() {
         <div style={{ fontSize: F.headLg, fontWeight: 900 }}>{name}</div>
         <div style={{ fontSize: F.bodyLg, color: C.textSub }}>{age}歳 ・ {SPECIALTY_LABELS[specialty]} ・ マイチームに加入</div>
         <button onClick={() => navigate('/team/roster')} className="btn-game btn-game--gold" style={{ width: '80%', marginTop: 8 }}><span className="btn-game__inner">ロスターで確認 →</span></button>
-        <button onClick={() => navigate('/')} className="btn-press" style={{ width: '80%', padding: '12px 0',background: C.surface2, border: `2px solid ${C.border2}`, color: C.text, fontSize: F.sub, fontWeight: 900, cursor: 'pointer', fontFamily: SAIRA }}>ホームへ</button>
+        <GlassButton onClick={() => navigate('/')} color={C.textSub} style={{ width: '80%' }}>ホームへ</GlassButton>
       </div>
     )
   }
@@ -137,14 +139,11 @@ export default function CreateMyPlayerPage() {
             style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px',background: C.surface, border: `1px solid ${C.border2}`, color: C.text, fontSize: F.subLg, fontFamily: FONT }} />
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: F.body, color: C.textDim, width: 40 }}>国籍</span>
-            <button onClick={() => setNatSheet(true)} style={{
-              flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
-              background: C.surface, border: `1px solid ${C.border2}`, color: C.text, fontSize: F.bodyLg, cursor: 'pointer', fontFamily: FONT,
-            }}>
+            <GlassButton onClick={() => setNatSheet(true)} color={C.textSub} style={{ flex: 1, gap: 8, justifyContent: 'flex-start' }}>
               <Flag code={nationality} width={22} />
               <span style={{ flex: 1, textAlign: 'left' }}>{natLabel(nationality)}</span>
               <span style={{ color: C.textDim, fontSize: F.label }}>変更</span>
-            </button>
+            </GlassButton>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: F.body, color: C.textDim, width: 40 }}>年齢</span>
@@ -158,9 +157,9 @@ export default function CreateMyPlayerPage() {
       {card('ポジション（レース相性に影響）', (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
           {SPECIALTIES.map(sp => (
-            <button key={sp} onClick={() => setSpecialty(sp)} style={{ textAlign: 'left', padding: '8px 10px',cursor: 'pointer', background: specialty === sp ? alpha(C.gold, 0.18) : C.surface, border: `1.5px solid ${specialty === sp ? C.gold : C.border}`, fontFamily: FONT }}>
+            <GlassButton key={sp} onClick={() => setSpecialty(sp)} color={specialty === sp ? C.gold : C.textDim} size="sm" style={{ justifyContent: 'flex-start' }}>
               <div style={{ fontSize: F.body, fontWeight: 800, color: specialty === sp ? C.gold : C.text }}>{SPECIALTY_LABELS[sp]}</div>
-            </button>
+            </GlassButton>
           ))}
         </div>
       ))}
@@ -173,12 +172,12 @@ export default function CreateMyPlayerPage() {
             return (
               <div key={st.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: F.label, color: C.textSub, width: 36, flexShrink: 0 }}>{st.label}</span>
-                <button onClick={() => setStat(st.key, v - 1)} disabled={v <= MY_PLAYER_STAT_MIN} style={{ width: 26, height: 26,border: `1px solid ${C.border2}`, background: v <= MY_PLAYER_STAT_MIN ? C.surface2 : C.surface, color: v <= MY_PLAYER_STAT_MIN ? C.textGhost : C.text, fontSize: F.title, cursor: v <= MY_PLAYER_STAT_MIN ? 'default' : 'pointer', flexShrink: 0 }}>−</button>
+                <GlassButton onClick={() => setStat(st.key, v - 1)} disabled={v <= MY_PLAYER_STAT_MIN} color={C.textSub} size="sm" style={{ width: 26, height: 26, padding: 0, flexShrink: 0 }}>−</GlassButton>
                 <div style={{ flex: 1, position: 'relative', height: 8,background: C.border2, overflow: 'hidden' }}>
                   <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${cap}%`, background: alpha(C.green, 0.35) }} />
                   <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${v}%`, background: C.gold }} />
                 </div>
-                <button onClick={() => setStat(st.key, v + 1)} disabled={remaining <= 0 || v >= MY_PLAYER_STAT_MAX} style={{ width: 26, height: 26,border: `1px solid ${C.border2}`, background: remaining <= 0 ? C.surface2 : C.surface, color: remaining <= 0 ? C.textGhost : C.text, fontSize: F.title, cursor: remaining <= 0 ? 'default' : 'pointer', flexShrink: 0 }}>＋</button>
+                <GlassButton onClick={() => setStat(st.key, v + 1)} disabled={remaining <= 0 || v >= MY_PLAYER_STAT_MAX} color={C.textSub} size="sm" style={{ width: 26, height: 26, padding: 0, flexShrink: 0 }}>＋</GlassButton>
                 <span style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: C.text, width: 46, textAlign: 'right', flexShrink: 0 }}>{v}<span style={{ fontSize: F.tiny, color: C.green }}>→{cap}</span></span>
               </div>
             )
@@ -196,13 +195,17 @@ export default function CreateMyPlayerPage() {
             <FaceRow label="目" onPrev={() => setFace(f => ({ ...f, eye: (f.eye + 26) % 27 }))} onNext={() => setFace(f => ({ ...f, eye: (f.eye + 1) % 27 }))} value={`${face.eye + 1}/27`} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: F.caption, color: C.textDim, width: 30 }}>髪色</span>
-              {HAIRS.map(h => (
-                <button key={h} onClick={() => setFace(f => ({ ...f, hair: h }))} style={{ flex: 1, padding: '5px 0',cursor: 'pointer', fontSize: F.caption, fontWeight: 700, border: `1px solid ${face.hair === h ? C.gold : C.border}`, background: face.hair === h ? alpha(C.gold, 0.18) : C.surface, color: face.hair === h ? C.gold : C.textDim }}>{HAIR_LABEL[h]}</button>
-              ))}
+              <PillTabs
+                labels={HAIRS.map(h => HAIR_LABEL[h])}
+                value={(HAIRS as readonly string[]).indexOf(face.hair)}
+                onChange={i => setFace(f => ({ ...f, hair: HAIRS[i] }))}
+                fill
+                style={{ flex: 1 }}
+              />
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={() => setFace(f => ({ ...f, flip: !f.flip }))} style={{ flex: 1, padding: '6px 0',cursor: 'pointer', fontSize: F.label, fontWeight: 700, border: `1px solid ${C.border2}`, background: C.surface, color: C.textSub }}>左右反転</button>
-              <button onClick={() => setFace({ style: Math.floor(Math.random() * 24), eye: Math.floor(Math.random() * 27), hair: HAIRS[Math.floor(Math.random() * HAIRS.length)], flip: Math.random() < 0.5 })} style={{ flex: 1, padding: '6px 0',cursor: 'pointer', fontSize: F.label, fontWeight: 800, border: `1px solid ${C.goldDark}`, background: alpha(C.gold, 0.12), color: C.gold }}>ランダム</button>
+              <GlassButton onClick={() => setFace(f => ({ ...f, flip: !f.flip }))} color={C.textSub} size="sm" style={{ flex: 1 }}>左右反転</GlassButton>
+              <GlassButton onClick={() => setFace({ style: Math.floor(Math.random() * 24), eye: Math.floor(Math.random() * 27), hair: HAIRS[Math.floor(Math.random() * HAIRS.length)], flip: Math.random() < 0.5 })} color={C.gold} size="sm" style={{ flex: 1 }}>ランダム</GlassButton>
             </div>
           </div>
         </div>
@@ -215,15 +218,10 @@ export default function CreateMyPlayerPage() {
               <div style={{ fontSize: F.caption, color: C.textDim, fontFamily: SAIRA, letterSpacing: 1, margin: '4px 2px 6px' }}>{geo}</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
                 {list.map(n => (
-                  <button key={n} onClick={() => { setNationality(n); setNatSheet(false) }} style={{
-                    display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',cursor: 'pointer',
-                    background: nationality === n ? alpha(C.gold, 0.18) : C.surface,
-                    border: `1.5px solid ${nationality === n ? C.gold : C.border}`,
-                    color: nationality === n ? C.gold : C.text, fontSize: F.body, fontFamily: FONT, textAlign: 'left',
-                  }}>
+                  <GlassButton key={n} onClick={() => { setNationality(n); setNatSheet(false) }} color={nationality === n ? C.gold : C.textDim} size="sm" style={{ gap: 8, justifyContent: 'flex-start' }}>
                     <Flag code={n} width={20} />
                     <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{natLabel(n)}</span>
-                  </button>
+                  </GlassButton>
                 ))}
               </div>
             </div>
@@ -247,9 +245,9 @@ function FaceRow({ label, value, onPrev, onNext }: { label: string; value: strin
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       <span style={{ fontSize: F.caption, color: C.textDim, width: 30 }}>{label}</span>
-      <button onClick={onPrev} style={{ width: 30, height: 26,border: `1px solid ${C.border2}`, background: C.surface, color: C.text, fontSize: F.bodyLg, cursor: 'pointer' }}>◀</button>
+      <GlassButton onClick={onPrev} color={C.textSub} size="sm" style={{ width: 30, height: 26, padding: 0 }}>◀</GlassButton>
       <span style={{ flex: 1, textAlign: 'center', fontFamily: SAIRA, fontSize: F.body, color: C.textSub }}>{value}</span>
-      <button onClick={onNext} style={{ width: 30, height: 26,border: `1px solid ${C.border2}`, background: C.surface, color: C.text, fontSize: F.bodyLg, cursor: 'pointer' }}>▶</button>
+      <GlassButton onClick={onNext} color={C.textSub} size="sm" style={{ width: 30, height: 26, padding: 0 }}>▶</GlassButton>
     </div>
   )
 }

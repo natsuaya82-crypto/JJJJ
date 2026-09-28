@@ -136,10 +136,9 @@ function IndividualEventScreen({ event, players, playerTeamId, onRun, onDone }: 
                     </div>
                     {/* 表示は正規OVR（種目適性値は紛らわしいのでソート専用に） */}
                     <span style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: 900, color: ratingColor(ovr(p)), flexShrink: 0 }}>{ovr(p)}</span>
-                    <button onClick={(e) => { e.stopPropagation(); toggleResting(p.id) }}
-                      style={{ flexShrink: 0, padding: '5px 9px',cursor: 'pointer', fontFamily: 'inherit', fontSize: F.caption, fontWeight: 800, background: isResting ? 'transparent' : alpha(TT_COLOR, 0.14), border: `1.5px solid ${isResting ? C.border2 : alpha(TT_COLOR, 0.5)}`, color: isResting ? C.textDim : TT_COLOR }}>
+                    <GlassButton onClick={(e) => { e.stopPropagation(); toggleResting(p.id) }} color={isResting ? C.textDim : TT_COLOR} size="sm" style={{ flexShrink: 0 }}>
                       {isResting ? '休む' : '出走'}
-                    </button>
+                    </GlassButton>
                   </div>
                 )
               })

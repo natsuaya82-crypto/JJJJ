@@ -1,10 +1,11 @@
+import GlassButton from '../ui/GlassButton'
 import { useState } from 'react'
 import type { Player, WorldClub } from '../../types'
 import PlayerRow from '../player/PlayerRow'
 import PageHeader from '../ui/PageHeader'
 import GmInviteChat from './GmInviteChat'
 import { useAdHeight } from '../layout/Layout'
-import { C, alpha, bottomStack, F } from '../../styles/tokens'
+import { C, bottomStack, F } from '../../styles/tokens'
 import PlayerList from '../player/PlayerList'
 import ScreenCover from '../ui/ScreenCover'
 
@@ -46,13 +47,7 @@ export default function GmInvitePicker({ roster, dest, invite, onPick, onClose }
       </div>
 
       <div style={{ padding: '0 18px 12px' }}>
-        <button onClick={() => { onPick(''); onClose() }} style={{
-          width: '100%', padding: '12px 14px', cursor: 'pointer', textAlign: 'left',
-          border: `1px solid ${alpha(invite === '' ? C.gold : C.border3, 0.75)}`,
-          background: invite === '' ? alpha(C.gold, 0.12) : 'transparent',
-          color: invite === '' ? C.gold : C.textDim,
-          fontSize: F.bodyLg, fontWeight: 800, fontFamily: 'inherit',
-        }}>誰にも声をかけない</button>
+        <GlassButton onClick={() => { onPick(''); onClose() }} color={invite === '' ? C.gold : C.textDim} full style={{ justifyContent: 'flex-start' }}>誰にも声をかけない</GlassButton>
       </div>
 
       {/* ★並べ方はロスターと同じ（`margin: 0 18px`・箱に入れず gap 8） */}

@@ -92,7 +92,7 @@ export default function BidSheet({ player, budget, listing, onSubmit, onClose }:
         <GlassButton disabled={over} style={{ flex: 1, padding: '13px', fontSize: F.sub, fontFamily: SAIRA }} onClick={() => onSubmit(fee)}>
           {over ? '予算不足' : '入札する'}
         </GlassButton>
-        <button onClick={onClose} style={{ padding: '13px 16px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textDim, fontSize: F.bodyLg, cursor: 'pointer', fontFamily: SAIRA }}>取消</button>
+        <GlassButton onClick={onClose} color={C.textDim}>取消</GlassButton>
       </div>
     </BottomSheet>
   )

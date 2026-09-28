@@ -1,3 +1,4 @@
+import GlassButton from '../../ui/GlassButton'
 import { useState } from 'react'
 import { comparePlayers } from '../../../utils/playerSort'
 import BackButton from '../../ui/BackButton'
@@ -95,10 +96,9 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: WorldClub
     </div>
   )
   const primaryBtn = (label: string, onClick: () => void, enabled = true) => (
-    <button onClick={() => enabled && onClick()} disabled={!enabled}
-      style={{ flex: 1, padding: '14px',cursor: enabled ? 'pointer' : 'not-allowed', opacity: enabled ? 1 : 0.4, background: `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})`, backdropFilter: 'blur(10px) saturate(118%)', WebkitBackdropFilter: 'blur(10px) saturate(118%)', border: `1px solid ${alpha(C.gold, 0.65)}`, color: C.gold, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22)', fontSize: F.subLg, fontWeight: 900, fontFamily: SAIRA }}>
+    <GlassButton onClick={onClick} disabled={!enabled} color={C.gold} size="lg" style={{ flex: 1 }}>
       {label}
-    </button>
+    </GlassButton>
   )
   // 上の戻るボタンに統一：1個前の画面（ステップ）へ。ステップ1で閉じる。
   const goBack = () => { if (step > 1) { setSubmitted(false); setStep((step - 1) as 1 | 2 | 3) } else onClose() }
@@ -150,7 +150,7 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: WorldClub
           {submitted && !neg && (
             <div style={{padding: '14px', textAlign: 'center', background: alpha(C.green, 0.12), border: `1.5px solid ${alpha(C.green, 0.5)}` }}>
               <div style={{ fontFamily: SAIRA, fontSize: F.titleLg, fontWeight: 900, color: C.green, marginBottom: 4 }}>トレード成立！</div>
-              <button onClick={onClose} style={{ marginTop: 10, padding: '10px 20px',border: `1px solid ${C.border2}`, background: 'transparent', color: C.textSub, fontSize: F.bodyLg, fontWeight: 700, cursor: 'pointer', fontFamily: SAIRA }}>閉じる</button>
+              <GlassButton onClick={onClose} color={C.textSub} style={{ marginTop: 10, display: 'inline-flex' }}>閉じる</GlassButton>
             </div>
           )}
           {submitted && neg && (
@@ -158,8 +158,8 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: WorldClub
               <div style={{ fontSize: F.body, color: C.text, lineHeight: 1.6 }}>{neg.message}</div>
               {neg.status === 'countered' && (
                 <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                  <button onClick={() => { acceptTradeCounter(neg.id) }} style={{ flex: 1, padding: 10,border: 'none', background: C.green, color: '#fff', fontSize: F.bodyLg, fontWeight: 800, cursor: 'pointer', fontFamily: SAIRA }}>条件を飲んで成立</button>
-                  <button onClick={() => { dismissTradeNegotiation(neg.id); setSubmitted(false); setStep(1) }} style={{ padding: '10px 12px',border: `1px solid ${C.border}`, background: 'transparent', color: C.textDim, fontSize: F.body, fontWeight: 700, cursor: 'pointer', fontFamily: SAIRA }}>組み替え</button>
+                  <GlassButton onClick={() => { acceptTradeCounter(neg.id) }} color={C.green} style={{ flex: 1 }}>条件を飲んで成立</GlassButton>
+                  <GlassButton onClick={() => { dismissTradeNegotiation(neg.id); setSubmitted(false); setStep(1) }} color={C.textDim}>組み替え</GlassButton>
                 </div>
               )}
               {neg.status === 'rejected' && (
@@ -167,7 +167,7 @@ export function TradeChatView({ team, onClose, initialGetId }: { team: WorldClub
                   {tradeOutlook.blockNote
                     ? <div style={{ fontSize: F.caption, color: C.red, marginTop: 6, lineHeight: 1.5 }}>{tradeOutlook.blockNote}</div>
                     : tradeOutlook.shortage > 0 && <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 6, lineHeight: 1.5 }}>あと約{fmtYen(tradeOutlook.shortage)}相当が不足しています。出す選手か指名権を追加して再提案してください</div>}
-                  <button onClick={() => { dismissTradeNegotiation(neg.id); setSubmitted(false); setStep(1) }} style={{ marginTop: 8, padding: '8px 14px',border: `1px solid ${C.border}`, background: 'transparent', color: C.textDim, fontSize: F.body, fontWeight: 700, cursor: 'pointer', fontFamily: SAIRA }}>組み替えて再提案</button>
+                  <GlassButton onClick={() => { dismissTradeNegotiation(neg.id); setSubmitted(false); setStep(1) }} color={C.textDim} style={{ marginTop: 8 }}>組み替えて再提案</GlassButton>
                 </>
               )}
               <div style={{ fontSize: F.tiny, color: C.textGhost, marginTop: 6, fontFamily: SAIRA }}>交渉 {neg.round}/3 回目</div>
@@ -242,8 +242,8 @@ function TradeSelRow({ player, selected, color, onToggle }: { player: Player; se
 
 function PickChip({ label, selected, color, onToggle }: { label: string; selected: boolean; color: string; onToggle: () => void }) {
   return (
-    <button onClick={onToggle} style={{ padding: '6px 10px',cursor: 'pointer', fontFamily: SAIRA, fontSize: F.label, fontWeight: 800, background: selected ? alpha(color, 0.18) : C.surface2, border: `1.5px solid ${selected ? color : C.border2}`, color: selected ? color : C.textDim }}>
+    <GlassButton onClick={onToggle} color={selected ? color : C.textDim} size="sm">
       {label}指名権
-    </button>
+    </GlassButton>
   )
 }

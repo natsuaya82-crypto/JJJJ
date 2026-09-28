@@ -1,3 +1,4 @@
+import GlassButton from '../ui/GlassButton'
 import { useState, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import type { Race, Player, WorldClub } from '../../types'
@@ -381,19 +382,13 @@ export function SimPhase({
                   <div style={{ fontSize: F.body, color: C.textSub, lineHeight: 1.6 }}>{pendingEvent.battleContext}</div>
                 )}
                 {/* レース状況を別画面で確認 */}
-                <button onClick={() => setPeekRace(true)} style={{
-                  alignSelf: 'flex-start', marginTop: 16,
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '8px 14px',cursor: 'pointer',
-                  background: 'transparent', border: `1px solid ${alpha(segCol, 0.5)}`,
-                  color: segCol, fontFamily: SAIRA, fontSize: F.body, fontWeight: 700,
-                }}>
+                <GlassButton onClick={() => setPeekRace(true)} color={segCol} size="sm" style={{ alignSelf: 'flex-start', marginTop: 16, gap: 6 }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                     <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" stroke="currentColor" strokeWidth="1.8"/>
                     <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8"/>
                   </svg>
                   レース状況を見る
-                </button>
+                </GlassButton>
               </div>
 
               {/* 選択肢 */}
@@ -494,36 +489,18 @@ export function SimPhase({
                 <span className="btn-game__inner">最終結果を見る</span>
               </button>
             ) : (<>
-              <button
-                onClick={() => setManualPause(v => !v)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '8px 16px',cursor: 'pointer',
-                  background: manualPause ? `linear-gradient(180deg, ${C.gold}, ${alpha(C.gold, 0.7)})` : `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                  border: `1px solid ${manualPause ? C.gold : C.border2}`, color: manualPause ? C.bg : C.textSub,
-                  fontFamily: SAIRA, fontSize: F.body, fontWeight: 700,
-                }}
-              >
+              <GlassButton onClick={() => setManualPause(v => !v)} color={manualPause ? C.gold : C.textSub} size="sm" style={{ gap: 6 }}>
                 {manualPause ? '再生' : '一時停止'}
                 {manualPause
                   ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 4l14 8-14 8V4z" fill="currentColor"/></svg>
                   : <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M7 4h4v16H7zM13 4h4v16h-4z" fill="currentColor"/></svg>}
-              </button>
-              <button
-                onClick={skipLeg}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '8px 16px',cursor: 'pointer',
-                  background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                  border: `1px solid ${C.border2}`, color: C.textSub,
-                  fontFamily: SAIRA, fontSize: F.body, fontWeight: 700,
-                }}
-              >
+              </GlassButton>
+              <GlassButton onClick={skipLeg} color={C.textSub} size="sm" style={{ gap: 6 }}>
                 この区間をスキップ
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                   <path d="M5 4l9 8-9 8V4zM17 4h2v16h-2z" fill="currentColor"/>
                 </svg>
-              </button>
+              </GlassButton>
             </>)}
           </div>
           {/* 再生の速さ（試作「JPEL 3D中継」と同じく、時計の行の右） */}

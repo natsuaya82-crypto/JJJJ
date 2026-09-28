@@ -1,3 +1,4 @@
+import GlassButton from '../ui/GlassButton'
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import BackButton from '../ui/BackButton'
@@ -184,10 +185,7 @@ export default function NationalResultPage() {
     )}
     {isFinished && staged && (
       <div style={{ padding: '0 12px' }}>
-        <button onClick={() => navigate('/')} className="btn-press" style={{
-          width: '100%', padding: '14px 0',cursor: 'pointer', fontFamily: SAIRA,
-          background: C.surface2, border: `2px solid ${C.border2}`, color: C.text, fontSize: F.sub, fontWeight: 900,
-        }}>閉じる（シーズン終了へ）</button>
+        <GlassButton onClick={() => navigate('/')} color={C.textSub} full>閉じる（シーズン終了へ）</GlassButton>
       </div>
     )}
   </>)

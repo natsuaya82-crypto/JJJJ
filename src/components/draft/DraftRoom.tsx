@@ -1,4 +1,5 @@
-﻿import { useState, useEffect, useRef } from 'react'
+﻿import PillTabs from '../ui/PillTabs'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import type { Player, Specialty, GrowthCurve, TeamRole } from '../../types'
@@ -32,6 +33,7 @@ type PickLog = {
 const GROWTH_LABEL: Record<GrowthCurve, string> = { early: '早熟', normal: '標準', late_bloomer: '晩成' }
 const GROWTH_COLOR: Record<GrowthCurve, string> = { early: C.orange, normal: C.blue, late_bloomer: C.green }
 
+const YEAR_LABELS = ['1年', '2年', '3年', '4年']
 // ドラフト後の契約設定用
 const DC_CONTRACT_OPTS = [
   { key: 'standard' as const, label: '本契約' },
@@ -962,9 +964,7 @@ function DraftComplete({ picks, jpel, playerTeamId, onFinish }: {
               {/* 契約年数 */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ fontSize: F.tiny, color: C.textDim, width: 28, flexShrink: 0 }}>年数</span>
-                {[1, 2, 3, 4].map(y => (
-                  <button key={y} onClick={() => upd(p.id, { years: y })} style={btn(c.years === y)}>{y}年</button>
-                ))}
+                <PillTabs labels={YEAR_LABELS} value={c.years - 1} onChange={i => upd(p.id, { years: i + 1 })} fill style={{ flex: 1 }} />
               </div>
               {/* 契約形態は廃止（フラット化）。全員standard固定のため選択UIは非表示 */}
               {false && (

@@ -1,3 +1,4 @@
+import GlassButton from '../ui/GlassButton'
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { WEATHER_LABEL } from '../../data/races'
 import { lineupChemistry } from '../../engine/raceBoosts'
@@ -375,7 +376,7 @@ export function LineupPhase({
               {natLabel(dominantNat as Nationality)} 士気+{chemBonus}
             </div>
           )}
-          <button onClick={() => autoFill(segments, availablePlayers, raceLineup, setRaceLineup)} style={{ fontSize: F.label, fontWeight: 700, padding: '5px 12px',border: `1.5px solid ${alpha(C.cyan, 0.6)}`, background: alpha(C.cyan, 0.1), color: C.cyan, cursor: 'pointer', fontFamily: 'inherit' }}>自動配置</button>
+          <GlassButton onClick={() => autoFill(segments, availablePlayers, raceLineup, setRaceLineup)} color={C.cyan} size="sm">自動配置</GlassButton>
         </div>
       </div>
 
@@ -474,7 +475,7 @@ export function LineupPhase({
           display: 'flex', alignItems: 'center', gap: '6px',
           zIndex: 35,
         }}>
-          <button onClick={clearRaceLineup} style={{ padding: '10px 12px',border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: F.body, cursor: 'pointer', fontFamily: 'inherit' }}>クリア</button>
+          <GlassButton onClick={clearRaceLineup} color={C.textDim} size="sm">クリア</GlassButton>
           {allSegsFilled ? (
             <>
               {onSkipRace && (

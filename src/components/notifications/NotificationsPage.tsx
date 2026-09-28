@@ -1,3 +1,4 @@
+import GlassButton from '../ui/GlassButton'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import PageHeader from '../ui/PageHeader'
@@ -109,10 +110,8 @@ function FeeCounterCard({ bid, player, targetTeamName, cardStyle, inset, onAccep
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <Btn variant="primary" color={C.green} style={{ width: '100%'}} onClick={onAccept}>{fmtYen(counterFee)}で合意する</Btn>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => { setDialFee(counterFee || bid.offeredFee); setDialOpen(true) }}
-                style={{ flex: 1, padding: '11px',border: `1.5px solid ${alpha(C.gold, 0.45)}`, backgroundColor: alpha(C.gold, 0.08), color: C.gold, fontSize: F.bodyLg, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>金額を提示する</button>
-              <button onClick={onGiveUp}
-                style={{ flex: 1, padding: '11px',border: `1.5px solid ${alpha(C.textSub, 0.4)}`, backgroundColor: alpha(C.textSub, 0.06), color: C.textSub, fontSize: F.bodyLg, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>あきらめる</button>
+              <GlassButton onClick={() => { setDialFee(counterFee || bid.offeredFee); setDialOpen(true) }} color={C.gold} style={{ flex: 1 }}>金額を提示する</GlassButton>
+              <GlassButton onClick={onGiveUp} color={C.textSub} style={{ flex: 1 }}>あきらめる</GlassButton>
             </div>
           </div>
         ) : (
@@ -121,8 +120,7 @@ function FeeCounterCard({ bid, player, targetTeamName, cardStyle, inset, onAccep
             <NumberDial value={dialFee} onChange={v => setDialFee(Math.max(1_000_000, v))} min={1_000_000} accent={C.green} />
             <div style={{ display: 'flex', gap: 8 }}>
               <Btn variant="primary" color={C.green} style={{ flex: 1}} onClick={() => onReoffer(dialFee)}>この額で再提示</Btn>
-              <button onClick={() => setDialOpen(false)}
-                style={{ flex: 1, padding: '11px',border: `1.5px solid ${alpha(C.textSub, 0.4)}`, backgroundColor: alpha(C.textSub, 0.06), color: C.textSub, fontSize: F.bodyLg, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>戻る</button>
+              <GlassButton onClick={() => setDialOpen(false)} color={C.textSub} style={{ flex: 1 }}>戻る</GlassButton>
             </div>
           </div>
         )}
@@ -355,7 +353,7 @@ export default function NotificationsPage() {
                         <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim, marginBottom: '12px' }}>ロスター画面で確認できます。</div>
                         <div style={{ display: 'flex', gap: 8 }}>
                           <Btn variant="primary" color={C.cyan} style={{ flex: 1}} onClick={() => { dismissJoinNotice(key); navigate('/team/roster') }}>ロスターで確認</Btn>
-                          <button onClick={() => dismissJoinNotice(key)} style={{ flex: 'none', padding: '11px 16px',border: `1.5px solid ${alpha(C.textSub, 0.4)}`, backgroundColor: alpha(C.textSub, 0.06), color: C.textSub, fontSize: F.bodyLg, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>確認</button>
+                          <GlassButton onClick={() => dismissJoinNotice(key)} color={C.textSub} style={{ flex: 'none' }}>確認</GlassButton>
                         </div>
                       </div>
                     </div>
@@ -980,7 +978,7 @@ export default function NotificationsPage() {
             <div style={{ fontFamily: SAIRA, fontSize: F.hero, fontWeight: 900, color: C.gold, marginBottom: 12, textShadow: `0 0 20px ${alpha(C.gold, 0.6)}` }}>受け取りました！</div>
             <div style={{ fontSize: F.bodyLg, color: C.textSub, marginBottom: 6 }}>{claimedGift.title}</div>
             <div style={{ fontSize: F.body, color: C.textDim, marginBottom: 18 }}>{`${giftContents(claimedGift)}を手に入れた`}</div>
-            <button onClick={() => setClaimedGift(null)} style={{ width: '100%', padding: 13, background: `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})`, backdropFilter: 'blur(10px) saturate(118%)', WebkitBackdropFilter: 'blur(10px) saturate(118%)', border: `1px solid ${alpha(C.gold, 0.65)}`, color: C.gold, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22)', fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, cursor: 'pointer' }}>OK</button>
+            <GlassButton onClick={() => setClaimedGift(null)} color={C.gold} full>OK</GlassButton>
           </div>
         </ScreenCover>
       )}

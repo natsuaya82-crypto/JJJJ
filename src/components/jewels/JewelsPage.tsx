@@ -1,3 +1,4 @@
+import GlassButton from '../ui/GlassButton'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
@@ -117,21 +118,10 @@ export default function JewelsPage() {
               </div>
             )}
           </div>
-          <button
-            onClick={handleWatchAd}
-            disabled={adsLeft <= 0}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '10px 18px',cursor: adsLeft > 0 ? 'pointer' : 'default',
-              background: adsLeft > 0 ? 'linear-gradient(180deg, #1a4a7a 0%, #0f2a4a 100%)' : C.surface2,
-              border: `1px solid ${adsLeft > 0 ? alpha(C.jewel, 0.5) : C.border}`,
-              fontFamily: SAIRA, fontSize: F.subLg, fontWeight: 900,
-              color: adsLeft > 0 ? C.jewel : C.textGhost, flexShrink: 0,
-            }}
-          >
+          <GlassButton onClick={handleWatchAd} disabled={adsLeft <= 0} color={C.jewel} style={{ gap: 6, flexShrink: 0 }}>
             <JewelIcon size={14}detailed />
             +{AD_REWARD_JEWELS}
-          </button>
+          </GlassButton>
         </div>
       </div>
 

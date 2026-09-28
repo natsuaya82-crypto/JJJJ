@@ -127,12 +127,9 @@ export default function SponsorPage() {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => terminateSponsor(sp.id, null)}
-                  style={{ marginTop: 8, padding: '5px 10px',border: `1px solid ${alpha(C.red, 0.28)}`, background: alpha(C.red, 0.08), color: C.red, fontSize: F.tiny, cursor: 'pointer', fontFamily: SAIRA }}
-                >
+                <GlassButton onClick={() => terminateSponsor(sp.id, null)} color={C.red} size="sm" style={{ marginTop: 8 }}>
                   契約解除
-                </button>
+                </GlassButton>
               </div>
             )
           })}

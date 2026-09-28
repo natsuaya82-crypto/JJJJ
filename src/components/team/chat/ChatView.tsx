@@ -1,3 +1,4 @@
+import GlassButton from '../../ui/GlassButton'
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BackButton from '../../ui/BackButton'
@@ -904,14 +905,12 @@ export function ChatView({
               <NumberDial value={offerFee} onChange={v => setOfferFee(Math.max(1_000_000, v))} min={1_000_000} accent={C.gold} />
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
-              <button onClick={handleSubmitCounterFee}
-                style={{ flex: 2, padding: '10px',background: `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})`, backdropFilter: 'blur(10px) saturate(118%)', WebkitBackdropFilter: 'blur(10px) saturate(118%)', border: `1px solid ${alpha(C.gold, 0.65)}`, color: C.gold, boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.22)', fontSize: F.bodyLg, fontWeight: 900, cursor: 'pointer', fontFamily: 'inherit' }}>
+              <GlassButton onClick={handleSubmitCounterFee} color={C.gold} style={{ flex: 2 }}>
                 この金額で提示
-              </button>
-              <button onClick={() => setComposing(false)}
-                style={{ flex: 1, padding: '10px',border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: F.body, cursor: 'pointer', fontFamily: 'inherit' }}>
+              </GlassButton>
+              <GlassButton onClick={() => setComposing(false)} color={C.textDim} style={{ flex: 1 }}>
                 キャンセル
-              </button>
+              </GlassButton>
             </div>
           </div>
         ) : composing ? (
@@ -936,19 +935,17 @@ export function ChatView({
                 style={{ flex: 2, padding: '10px',border: 'none', backgroundColor: C.blue, color: '#fff', fontSize: F.bodyLg, fontWeight: 900, cursor: 'pointer', fontFamily: 'inherit' }}>
                 提示する
               </button>
-              <button onClick={() => setComposing(false)}
-                style={{ flex: 1, padding: '10px',border: `1px solid ${C.border2}`, backgroundColor: 'transparent', color: C.textDim, fontSize: F.body, cursor: 'pointer', fontFamily: 'inherit' }}>
+              <GlassButton onClick={() => setComposing(false)} color={C.textDim} style={{ flex: 1 }}>
                 キャンセル
-              </button>
+              </GlassButton>
             </div>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 16px 16px' }}>
             {replyButtons.map((btn, i) => (
-              <button key={i} onClick={btn.action} disabled={btn.disabled}
-                style={{ width: '100%', padding: '10px 12px',border: `1.5px solid ${alpha(btn.color, btn.disabled ? 0.2 : 0.5)}`, backgroundColor: alpha(btn.color, btn.disabled ? 0.04 : 0.1), color: btn.disabled ? C.textGhost : btn.color, fontSize: F.bodyLg, fontWeight: 700, cursor: btn.disabled ? 'default' : 'pointer', fontFamily: 'inherit', lineHeight: 1.4 }}>
+              <GlassButton key={i} onClick={btn.action} disabled={btn.disabled} color={btn.color} full style={{ whiteSpace: 'normal', lineHeight: 1.4 }}>
                 {btn.label}{btn.disabled ? '（枠が満杯）' : ''}
-              </button>
+              </GlassButton>
             ))}
           </div>
         )}

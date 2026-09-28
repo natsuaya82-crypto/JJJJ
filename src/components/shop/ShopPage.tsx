@@ -124,14 +124,9 @@ padding: '10px 14px', marginBottom: 16,
         </div>
 
         <div style={{ display: 'flex', gap: 10 }}>
-          <button onClick={onCancel} style={{
-            flex: 1, padding: '11px',
-            background: C.surface, border: `1px solid ${C.border}`,
-            color: C.textDim, fontSize: F.bodyLg, fontWeight: 700,
-            cursor: 'pointer', fontFamily: SAIRA,
-          }}>
+          <GlassButton onClick={onCancel} color={C.textDim} style={{ flex: 1 }}>
             キャンセル
-          </button>
+          </GlassButton>
           <GlassButton color={col} disabled={!canAfford} style={{
             flex: 2, padding: '11px', fontSize: F.bodyLg, fontFamily: SAIRA,
           }} onClick={() => canAfford && onConfirm(qty)}>

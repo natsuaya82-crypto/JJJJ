@@ -229,20 +229,10 @@ padding: '7px 3px 6px',
             ? <div style={{ fontFamily: SAIRA, fontSize: F.label, fontWeight: 900, color: C.gold, letterSpacing: '1px' }}>GM PASS ×2</div>
             : IAP_ENABLED
               ? (
-                <button
-                  onClick={() => { setGmPassOpen(true); audio.playSe('tap') }}
-                  className="btn-press"
-                  style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 5, cursor: 'pointer',
-                    padding: '5px 10px',
-                    background: `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.05)})`,
-                    border: `1px solid ${alpha(C.gold, 0.45)}`,
-                    fontFamily: SAIRA,
-                  }}
-                >
+                <GlassButton onClick={() => { setGmPassOpen(true); audio.playSe('tap') }} color={C.gold} size="sm" style={{ gap: 5 }}>
                   <span style={{ fontSize: F.label, fontWeight: 900, color: C.gold, letterSpacing: '0.5px' }}>GMパスで毎日×2</span>
                   <span style={{ fontSize: F.caption, color: alpha(C.gold, 0.85) }}>›</span>
-                </button>
+                </GlassButton>
               )
               : undefined}
         >

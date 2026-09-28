@@ -1,3 +1,4 @@
+import GlassButton from '../ui/GlassButton'
 import { belongsToClub } from '../../utils/rosterSync'
 import { useEffect, useRef } from 'react'
 import { useStickyTab } from '../../lib/useStickyTab'
@@ -367,18 +368,10 @@ export default function ChatPage() {
           const active = activeTab === key
           const badge = key === 'transfer' ? acqPlayers.length + inboundCount + contractPendingPlayers.length : 0
           return (
-            <button key={key} onClick={() => setActiveTab(key)}
-              style={{
-                flex: 1, padding: '9px 4px',cursor: 'pointer', fontFamily: 'inherit',
-                fontSize: F.bodyLg, fontWeight: 800,
-                background: active ? `linear-gradient(180deg, ${C.surface3}, ${C.surface2})` : 'transparent',
-                border: `1.5px solid ${active ? C.gold : C.border2}`,
-                color: active ? C.gold : C.textDim,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              }}>
+            <GlassButton key={key} onClick={() => setActiveTab(key)} color={active ? C.gold : C.textDim} style={{ flex: 1, gap: 6 }}>
               {label}
               {badge > 0 && <span style={{ fontFamily: SAIRA, fontSize: F.caption, fontWeight: 900, padding: '1px 6px',background: C.orange, color: '#111' }}>{badge}</span>}
-            </button>
+            </GlassButton>
           )
         })}
       </div>

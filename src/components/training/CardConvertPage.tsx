@@ -1,3 +1,4 @@
+import GlassButton from '../ui/GlassButton'
 import { useState } from 'react'
 import PageHeader from '../ui/PageHeader'
 import { panelStyle } from '../ui/Panel'
@@ -79,18 +80,11 @@ export default function CardConvertPage() {
                 </div>
               </div>
 
-              <button
-                onClick={() => bundles > 0 && setConfirming({ ex, statKey: 'speed' })}
-                disabled={bundles === 0}
-                className={bundles > 0 ? 'btn-game btn-game--gold' : undefined}
-                style={bundles > 0
-                  ? { width: '100%', padding: '12px', fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 800 }
-                  : { width: '100%', padding: '12px',background: C.surface2, border: `1px solid ${C.border2}`, color: C.textGhost, fontFamily: SAIRA, fontSize: F.body, fontWeight: 700, cursor: 'not-allowed' }}
-              >
+              <GlassButton onClick={() => setConfirming({ ex, statKey: 'speed' })} disabled={bundles === 0} color={C.gold} full>
                 {bundles > 0
                   ? `まとめて変換（${bundles * ex.need}枚 → ${bundles * ex.produce}枚）`
                   : `あと${ex.need - count % ex.need}枚で変換できます`}
-              </button>
+              </GlassButton>
             </div>
           )
         })}
@@ -120,15 +114,9 @@ padding: '10px 12px',
                 <div style={{ fontFamily: SAIRA, fontSize: F.body, fontWeight: 900, color: col }}>{RARITY_LABELS[ex.fromRarity]}</div>
                 <div style={{ fontFamily: SAIRA, fontSize: F.label, color: C.textDim }}>所持 <span style={{ color: C.text, fontWeight: 800 }}>{count}</span>枚</div>
               </div>
-              <button
-                onClick={() => bundles > 0 && setConfirming({ ex, statKey: STAT_KEYS[0] })}
-                disabled={bundles === 0}
-                style={bundles > 0
-                  ? { padding: '9px 14px',background: alpha(col, 0.16), border: `2px solid ${alpha(col, 0.55)}`, color: col, fontFamily: SAIRA, fontSize: F.body, fontWeight: 800, cursor: 'pointer' }
-                  : { padding: '9px 14px',background: 'transparent', border: `1px solid ${C.border2}`, color: C.textGhost, fontFamily: SAIRA, fontSize: F.label, fontWeight: 700, cursor: 'not-allowed' }}
-              >
+              <GlassButton onClick={() => setConfirming({ ex, statKey: STAT_KEYS[0] })} disabled={bundles === 0} color={col}>
                 {bundles > 0 ? `交換（${bundles}枚ぶん）` : `あと${ex.need - count % ex.need}枚`}
-              </button>
+              </GlassButton>
             </div>
           )
         })}

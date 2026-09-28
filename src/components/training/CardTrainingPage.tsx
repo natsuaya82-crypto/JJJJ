@@ -403,21 +403,11 @@ border: `2px dashed ${C.border2}`,
             </div>
           ) : useFreeGreat ? (
             // 買い切り版の無料確約をこの合成に使う（実行するまでは取り消せる）
-            <button
-              onClick={() => setUseFreeGreat(false)}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 7, cursor: 'pointer',
-                padding: '7px 14px',
-                background: `linear-gradient(180deg, ${alpha(C.gold, 0.22)}, ${alpha(C.gold, 0.08)})`,
-                border: `1px solid ${alpha(C.gold, 0.5)}`,
-                boxShadow: `0 2px 10px ${alpha(C.gold, 0.18)}`,
-                fontFamily: 'inherit',
-              }}
-            >
+            <GlassButton onClick={() => setUseFreeGreat(false)} color={C.gold} size="sm" style={{ display: 'inline-flex', gap: 7 }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.gold }} />
               <span style={{ fontSize: F.label, fontWeight: 800, color: C.gold }}>大成功確定（GMパス・本日1回）</span>
               <span style={{ fontSize: F.caption, color: alpha(C.gold, 0.85) }}>取消</span>
-            </button>
+            </GlassButton>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
               {freeGreatReady && (

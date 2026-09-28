@@ -1,3 +1,4 @@
+import GlassButton from '../ui/GlassButton'
 import { teamRosterSize } from '../../data/rosterRules'
 import { preseasonCardDist } from '../../data/cardShop'
 import { useNavigate } from 'react-router-dom'
@@ -178,31 +179,11 @@ function PreseasonHub({
           ★押せる／押せないの判定は utils/seasonStart 1本のまま。ここで組み直さないこと
             ——以前ボタンが `rosterShort` しか見ておらず、ドラフトを終える前に開幕できて
             その年のドラフトが消えていた */}
-      <button
-        onClick={() => { if (allReady) { onStart(); navigate('/schedule') } }}
-        disabled={!allReady}
-        className="btn-press"
-        style={{
-          position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          width: '100%', margin: '14px 0 0', padding: '15px 0',overflow: 'hidden',
-          fontFamily: 'inherit', cursor: allReady ? 'pointer' : 'default',
-          // ★もとが金のボタンなので、金のガラスにする（色は元のまま）
-          color: allReady ? C.goldHi : C.textGhost,
-          background: allReady
-            ? `linear-gradient(180deg, ${alpha(C.gold, 0.16)}, ${alpha(C.gold, 0.04)})`
-            : 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))',
-          backdropFilter: 'blur(10px) saturate(118%)',
-          WebkitBackdropFilter: 'blur(10px) saturate(118%)',
-          border: `1px solid ${allReady ? alpha(C.gold, 0.7) : alpha(C.border3, 0.6)}`,
-          boxShadow: allReady
-            ? `inset 0 1px 0 rgba(255,255,255,0.24), 0 8px 22px rgba(0,0,0,0.45), 0 0 18px ${alpha(C.gold, 0.10)}`
-            : 'none',
-        }}
-      >
+      <GlassButton onClick={() => { onStart(); navigate('/schedule') }} disabled={!allReady} color={C.gold} size="lg" full style={{ marginTop: 14 }}>
         <span style={{ fontSize: F.title, fontWeight: 900, letterSpacing: '3px' }}>
           {year}シーズン {allReady ? '開幕！' : '開幕（準備が残っています）'}
         </span>
-      </button>
+      </GlassButton>
 
     </div>
   )
@@ -444,14 +425,10 @@ export default function Dashboard() {
         <div style={{ margin: `0 ${PAGE_X}px 16px` }}>
           {eclNextCard}
           {!waDone && waJapanIn && (
-            <button onClick={() => navigate('/national/select')} className="btn-press" style={{
-              width: '100%', marginTop: 10, padding: '11px 14px',cursor: 'pointer',
-              background: `linear-gradient(180deg, ${alpha(C.purple, 0.16)}, ${alpha(C.purple, 0.06)})`,
-              border: `2px solid ${C.purpleDark}`, display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'inherit',
-            }}>
+            <GlassButton onClick={() => navigate('/national/select')} color={C.purple} full style={{ marginTop: 10, gap: 10 }}>
               <span style={{ fontSize: F.bodyLg, fontWeight: 900, color: C.purple }}>{waSquadReady ? '代表選考済み ✓（変更する）' : '日本代表を選考する'}</span>
               <span style={{ marginLeft: 'auto', fontSize: F.caption, fontWeight: 800, color: C.textDim }}>{waSquadReady ? 'ECL消化後に大会へ ›' : `${waTitle} ›`}</span>
-            </button>
+            </GlassButton>
           )}
           {/* ★ECLの残り戦があるあいだも大会へ進めるようにする。
               以前はこの分岐に選考ボタンしか無く、**大会へ入る導線がここだけ無かった**。
@@ -494,10 +471,7 @@ export default function Dashboard() {
                 </button>
               ) : (<>
               {waSquadReady ? (
-                <button onClick={() => navigate('/national/select')} className="btn-press" style={{
-                  width: '100%', padding: '12px 14px',cursor: 'pointer', fontFamily: 'inherit',
-                  background: C.surface2, border: `2px solid ${C.border2}`, color: C.textSub, fontSize: F.sub, fontWeight: 900,
-                }}>選考をやり直す</button>
+                <GlassButton onClick={() => navigate('/national/select')} color={C.textSub} full>選考をやり直す</GlassButton>
               ) : (
                 <button onClick={() => navigate('/national/select')} className="btn-game btn-game--purple" style={{ width: '100%' }}>
                   <span className="btn-game__inner" style={{ fontSize: F.sub, padding: '11px 14px',}}>日本代表を選考する</span>
@@ -575,10 +549,10 @@ export default function Dashboard() {
             )}
             <div style={{ padding: '14px 18px', position: 'relative', zIndex: 1 }}>
               {waDone && (
-                <button onClick={() => navigate(`/national/result?y=${currentSeason.year}`)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', marginBottom: 10,border: `1px solid ${alpha(C.purple, 0.4)}`, background: alpha(C.purple, 0.08), cursor: 'pointer' }}>
+                <GlassButton onClick={() => navigate(`/national/result?y=${currentSeason.year}`)} color={C.purple} full style={{ gap: 10, marginBottom: 10 }}>
                   <span style={{ fontSize: F.bodyLg, fontWeight: 900, color: C.purple }}>{waTitle} の結果</span>
                   <span style={{ marginLeft: 'auto', fontSize: F.label, fontWeight: 800, color: C.textDim }}>›</span>
-                </button>
+                </GlassButton>
               )}
               {unresolvedMandatoryCount > 0 && (
                 <div style={{ fontSize: F.label, color: C.orange, textAlign: 'center', marginBottom: 10 }}>
@@ -806,22 +780,13 @@ export default function Dashboard() {
           onConfirm={goNextSeasonWithAd}
           onCancel={() => setSeasonAdAsk(false)}
         >
-          <button
-            onClick={() => { setSeasonAdAsk(false); setGmPassOpen(true) }}
-            className="btn-press"
-            style={{
-              width: '100%', padding: '11px 12px',cursor: 'pointer',
-              background: `linear-gradient(180deg, ${alpha(C.gold, 0.2)}, ${alpha(C.gold, 0.06)})`,
-              border: `1.5px solid ${alpha(C.gold, 0.5)}`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-            }}
-          >
+          <GlassButton onClick={() => { setSeasonAdAsk(false); setGmPassOpen(true) }} color={C.gold} full style={{ gap: 7 }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
               <rect x="2.5" y="14" width="19" height="6" rx="1.6" stroke={C.gold} strokeWidth="1.7"/>
               <path d="M4 21.5L20 4" stroke={C.gold} strokeWidth="1.9" strokeLinecap="round"/>
             </svg>
             <span style={{ fontSize: F.bodyLg, fontWeight: 900, color: C.gold }}>GMパスで広告を消す（買い切り）</span>
-          </button>
+          </GlassButton>
         </ConfirmDialog>
       )}
       {gmPassOpen && <GmPassSheet onClose={() => setGmPassOpen(false)} />}

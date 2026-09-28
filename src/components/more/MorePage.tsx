@@ -168,19 +168,9 @@ function BlockedScreen({ onClose }: { onClose: () => void }) {
                 </div>
                 <div style={{ fontSize: F.caption, color: C.textDim, marginTop: 2 }}>GM {u.gmName}</div>
               </div>
-              <button
-                onClick={() => { void onUnblock(u) }}
-                disabled={busy === u.id}
-                className="btn-press"
-                style={{
-                  padding: '8px 14px',flexShrink: 0, cursor: busy === u.id ? 'default' : 'pointer',
-                  border: `2px solid ${alpha(C.cyan, busy === u.id ? 0.25 : 0.6)}`,
-                  background: `linear-gradient(180deg, ${C.surface3}, ${C.surface2})`,
-                  color: busy === u.id ? C.textGhost : C.cyan, fontSize: F.body, fontWeight: 900, fontFamily: SAIRA,
-                }}
-              >
+              <GlassButton onClick={() => { void onUnblock(u) }} disabled={busy === u.id} color={C.cyan} size="sm" style={{ flexShrink: 0 }}>
                 解除
-              </button>
+              </GlassButton>
             </div>
           ))}
         </div>
@@ -326,15 +316,11 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
             const isCurrent = s === currentSaveSlot()
             const used = slotsUsed[s]
             return (
-              <button
+              <GlassButton
                 key={s}
                 onClick={() => goToSlot(s)}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '12px 14px',cursor: 'pointer', textAlign: 'left',
-                  background: isCurrent ? alpha(C.gold, 0.12) : C.surface3,
-                  border: `1px solid ${isCurrent ? alpha(C.gold, 0.5) : C.border}`,
-                }}
+                color={isCurrent ? C.gold : C.textDim}
+                style={{ justifyContent: 'space-between' }}
               >
                 <span style={{ fontSize: F.bodyLg, fontWeight: 800, color: isCurrent ? C.gold : C.text }}>
                   スロット{s}{s === 1 && <span style={{ fontSize: F.caption, color: C.textDim, fontWeight: 400 }}>（これまでのデータ）</span>}
@@ -342,7 +328,7 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
                 <span style={{ fontSize: F.label, color: isCurrent ? C.gold : C.textDim }}>
                   {isCurrent ? '使用中' : used === undefined ? '…' : used ? 'データあり' : '空き'}
                 </span>
-              </button>
+              </GlassButton>
             )
           })}
         </div>
@@ -362,17 +348,15 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
         <div style={{ fontSize: F.label, color: C.textDim, lineHeight: 1.6, marginBottom: 12 }}>
           不具合の調査用です。いまのセーブと走行記録をまとめて1つのファイルにして、共有から送れます。
         </div>
-        <button
+        <GlassButton
           onClick={async () => { const r = await exportSaveToShare(archivedYears ?? []); setExportMsg(r.detail) }}
-          style={{
-            width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-            padding: '12px 14px',cursor: 'pointer', textAlign: 'left',
-            background: C.surface3, border: `1px solid ${C.border}`,
-          }}
+          color={C.textSub}
+          full
+          style={{ gap: 10, justifyContent: 'flex-start' }}
         >
           <span style={{ color: C.textDim, display: 'flex' }}>{IcShare}</span>
           <span style={{ flex: 1, fontSize: F.bodyLg, fontWeight: 800, color: C.text }}>セーブを書き出す</span>
-        </button>
+        </GlassButton>
         {exportMsg && (
           <div style={{ padding: '10px 2px 0', fontSize: F.label, color: C.textSub, lineHeight: 1.7 }}>{exportMsg}</div>
         )}
@@ -647,16 +631,9 @@ function ResetScreen({ resetGame, onClose }: { resetGame: () => void; onClose: (
           </div>
           {confirming ? (
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                onClick={() => setConfirming(false)}
-                style={{
-                  flex: 1, padding: '12px',
-                  border: `1px solid ${C.border}`, background: 'transparent',
-                  color: C.textSub, fontSize: F.bodyLg, fontWeight: '700', cursor: 'pointer', fontFamily: SAIRA,
-                }}
-              >
+              <GlassButton onClick={() => setConfirming(false)} color={C.textSub} style={{ flex: 1 }}>
                 キャンセル
-              </button>
+              </GlassButton>
               <GlassButton color={C.red} style={{ flex: 1, fontFamily: SAIRA }} onClick={resetGame}>
                 本当に削除する
               </GlassButton>
