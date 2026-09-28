@@ -13,8 +13,8 @@ import { pickKeysValue, roundFee } from '../../data/economy'
 import { ROSTER_MAX, canReleaseFromRoster, canSignContract, teamRosterSize } from '../../data/rosterRules'
 import { type AcquisitionOffer, type ContractRequest, type ExpiredNegKind, type IncomingOffer, type Player, type TradeNegotiation, type TransferListing } from '../../types'
 import { MAJOR_NEWS_OVR, tierOf, tierOfClubId, tierOfPlayerClub } from '../../utils/clubTier'
-import { tierLines, playerTierOf as playerTierFromLines } from '../../utils/playerTier'
-import { clubById, clubMap, myClub, otherClubs, withMyClub, myLeagueRaces, leagueIdOfClub } from '../../utils/world'
+import { worldTierLines, playerTierOf as playerTierFromLines } from '../../utils/playerTier'
+import { clubById, myClub, otherClubs, withMyClub, myLeagueRaces, leagueIdOfClub } from '../../utils/world'
 import { payBetween } from '../../utils/clubMoney'
 import { bigClub, clubCountryOf, findClub, homeCountryOf, isAbroad } from '../../utils/clubs'
 import { withMorale } from '../../utils/condition'
@@ -263,10 +263,9 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
   playerTierOf: (player) => {
     const state = get()
     if (tierLineCache.players !== state.players || tierLineCache.clubs !== state.clubs) {
-      const byId = clubMap(state.clubs, c => tierOf(c))
       tierLineCache.players = state.players
       tierLineCache.clubs = state.clubs
-      tierLineCache.lines = tierLines(state.players, (id: string) => byId.get(id) ?? tierOfClubId(id))
+      tierLineCache.lines = worldTierLines(state.players, state.clubs)
     }
     return playerTierFromLines(player, tierLineCache.lines)
   },
@@ -399,7 +398,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
         currentSeason: { ...st.currentSeason, incomingOffers: (st.currentSeason.incomingOffers ?? []).filter(o => o.id !== offerId) } }))
       return 'refused_by_player'
     }
-    // 国内へ売るときだけ相手が日本のリーグに居ることを確かめる（いまの振る舞い）
+    // 相手のクラブが世界（国内52＋海外180の1つの並び）に実在するかを確かめる
     if (!clubById(state.clubs, offer.fromTeamId)) { dropOffer(); return 'invalid' }
     // 成立後の後始末は finalizeSale 1本（国内・海外の違いもこの中）
     set(st => finalizeSale(st, offer, offer.offeredPrice))
@@ -1208,7 +1207,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     const player = state.players.find(p => p.id === bid.playerId)
     if (!player || player.teamId !== bid.targetTeamId) return { ok: false, reason: '彼は既に別のクラブへ移籍しています。' }
     // 入札してから成立までの間に状況が変わっていないか、入口と同じ判定で見直す
-    if (!canBePoached(player, { teamId: bid.targetTeamId, currentYear: state.currentSeason.year })) {
+    if (!canBePoached(player, ctxForTeam(eligibilityCtx(state.currentSeason, state.playerTeamId), bid.targetTeamId))) {
       return { ok: false, reason: '彼の状況が変わったため、この移籍は成立しませんでした。' }
     }
     const myTeam = myClub(state)
@@ -1367,7 +1366,7 @@ export const createMarketSlice = (set: SetGame, get: () => GameStore): Slice => 
     const tradeCtx = eligibilityCtx(state.currentSeason, state.playerTeamId)
     const badOut = offered.find(p => !canTradeAway(p, tradeCtx))
     if (badOut) return { ok: false, reason: `${badOut.name}は今トレードに出せる状態ではない。` }
-    const badIn = requested.find(p => !canBePoached(p, { teamId: p.teamId, currentYear: state.currentSeason.year }))
+    const badIn = requested.find(p => !canBePoached(p, ctxForTeam(tradeCtx, p.teamId)))
     if (badIn) return { ok: false, reason: `${badIn.name}は今こちらが動かせる選手ではない。` }
 
     // 価値の釣り合い：判断は utils/tradeValue.ts の1箇所（上下どちらにはみ出しても不成立）。

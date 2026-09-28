@@ -15,13 +15,17 @@ import { clubById, myClub, myLeagueRaces } from '../utils/world'
 import { bigClub, findClub } from '../utils/clubs'
 import { movePlayer } from '../utils/movePlayer'
 import { clubLabel, overseasMoveHeadline, soldPlayerHeadline } from '../utils/newsItems'
-import { marketValueOf, ovr } from '../utils/playerUtils'
+import { faMarketSalary, marketValueOf, newContractYears, ovr, perfOf } from '../utils/playerUtils'
 import { type PlayRateWorld } from '../utils/playRate'
 import { type TradeValueCtx } from '../utils/tradeValue'
 
 // 指名権のバックフィル判定。「自分が今持っているか」ではなく「どこかのチームが保有しているか」で見る。
 // 売却・トレード済みの指名権を「欠落」と誤認して再生成（複製）しないため。
-export function tradeValueCtxOf(state: Pick<GameState, 'currentSeason' | 'clubs' | 'players'>): TradeValueCtx {
+/**
+ * トレードの値段の材料。**渡す世界はその時点のもの**（名簿が動いたら作り直すこと）。
+ * オフに回すときは `currentSeason` に**走り終わったシーズン**を入れる（来季の空っぽの器だと全員が出場0になる）
+ */
+export function tradeValueCtxOf(state: PlayRateWorld): TradeValueCtx {
   return {
     // 出場は各選手の**クラブの日程**で数える（playerUtils の perfOf 1本。marketValueOf と同じ）
     world: state,
@@ -69,13 +73,17 @@ export function sellMove(
   state: Pick<GameState, 'players' | 'clubs' | 'playerTeamId' | 'currentSeason'>,
   playerId: string, toTeamId: string, fee: number, toName: string,
 ) {
+  const p = state.players.find(x => x.id === playerId)
   return movePlayer(state, playerId, toTeamId, {
     year: state.currentSeason.year,
     date: myLeagueRaces(state.currentSeason, state.playerTeamId)[state.currentSeason.currentRaceIndex]?.date,
     raceIndex: state.currentSeason.currentRaceIndex,
     fee, toName,
     myTeamId: state.playerTeamId,
-    lockUntilYear: state.currentSeason.year + 1 })
+    lockUntilYear: state.currentSeason.year + 1,
+    // ★加入の入口は必ず契約を渡す（movePlayer が signedOnJoin の印を付けるのは契約を渡されたときだけ）。
+    //   年数は newContractYears・年俸は faMarketSalary（出場は perfOf）＝シーズン中のFA・移籍市場と同じ
+    ...(p ? { contract: { yearsLeft: newContractYears(p, state.currentSeason.year), annualSalary: faMarketSalary(p, perfOf(p, state)) } } : {}) })
 }
 
 /**

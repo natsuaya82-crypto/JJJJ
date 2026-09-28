@@ -1,6 +1,7 @@
-import type { ClubTier } from './clubTier'
+import { DOMESTIC_BOTTOM_TIER, tierOf, type ClubTier } from './clubTier'
 import { effectiveOvr } from './playerUtils'
-import type { Player } from '../types'
+import { clubMap } from './world'
+import type { Player, WorldClub } from '../types'
 
 // ============================================================================
 // **選手の格。** クラブの格（`utils/clubTier`）とまったく同じ1〜20の目盛りで、
@@ -91,7 +92,9 @@ export const TIER_FALL_LIMIT = 3
  *   在籍枠で数えれば、**世界の作り方と同じ物差し**になる。
  *
  * ★**市場を回すたびに1回だけ組むこと。** 選手ごとに引き直すと232クラブ・6000人を
- *   毎回並べ替えることになる（`allTieredClubs` と同じ扱い）。
+ *   毎回並べ替えることになる。
+ * ★世界のクラブから組むときは下の `worldTierLines` 1本を通すこと（格の引き方と、
+ *   クラブが見つからないときの逃げ道をそろえるため）。
  * ★席の数は**実際の名簿の人数**から数える。格ごとのクラブ数も名簿の厚さも
  *   世界によって変わるので、固定の表を持たない。
  */
@@ -123,6 +126,19 @@ export function tierLines(
     if (lines[t] === Number.NEGATIVE_INFINITY) lines[t] = t > 1 ? lines[t - 1] : Number.POSITIVE_INFINITY
   }
   return lines
+}
+
+/**
+ * **世界のクラブから各格の線を組む唯一の入口。** 格は `tierOf`（クラブの実体）から引き、
+ * クラブが見つからないときは `tierOf(undefined)` と同じ `DOMESTIC_BOTTOM_TIER`。
+ *
+ * ★以前は同じ線を4か所（store の `playerTierOf`・移籍市場・CPUのトレード/レンタル・打診）が
+ *   別々に組んでいて、見つからないときの逃げ道が3通り（初期値の格 `tierOfClubId`／
+ *   `DOMESTIC_BOTTOM_TIER`／`tierOf(undefined)`）に割れていた。
+ */
+export function worldTierLines(players: readonly Player[], clubs: readonly WorldClub[]): number[] {
+  const byId = clubMap(clubs, c => tierOf(c))
+  return tierLines(players, id => byId.get(id) ?? DOMESTIC_BOTTOM_TIER)
 }
 
 /**

@@ -17,9 +17,9 @@ import { playRateOf } from '../utils/playRate'
 import { comparePlayers } from '../utils/playerSort'
 import { effectiveOvr, faMarketSalary, ovr } from '../utils/playerUtils'
 import { roundRobin } from '../utils/roundRobin'
-import { needsPlayer, thinSpecialties, wouldMakeLineup } from '../utils/squadNeeds'
+import { needsPlayer, squadRankOf, thinSpecialties, wouldMakeLineup } from '../utils/squadNeeds'
 import { MAX_OFFERS_PER_PLAYER, appraiseMove, hasNoPlayingTime, playingStatus, regionOfLeague } from '../utils/transferDecision'
-import { playerTierOf, tierLines } from '../utils/playerTier'
+import { playerTierOf, worldTierLines } from '../utils/playerTier'
 import { canBePoached, canClubApproachAgain, canGoOverseasDream, canLoanOut, canReceiveFreeContact, eligibilityCtx, isOwnedBy, type EligibilityCtx } from '../utils/transferEligibility'
 import { clubById, clubIdSet, clubMap, clubsWhere, mapClubs, myClub, otherClubs } from '../utils/world'
 import { clubCountryOf, isAbroad } from '../utils/clubs'
@@ -33,8 +33,7 @@ export function cpuStrategy(lastRank: number, totalTeams: number, avgAge: number
 }
 
 // そのチームが頭数の足りていないタイプ（薄い順）。判定は utils/squadNeeds.ts の1本。
-// 「どのタイプが足りていないか」は海外の補強（engine/foreignTransfers.ts）でも使うので、
-// タイプの一覧も人数の下限もあちらと同じものを見る
+// 国内も海外も同じ入口（移籍市場 engine/transferMarket も同じ `cpuSpecialtyNeeds` を見る）
 /**
  * クラブがFAを獲る判断。**FAを拾う判断はここ1本。国内も海外も同じ入口。**
  *
@@ -378,9 +377,12 @@ export function generateTransferActivity(
     // OVR65の下限が4か所にあった。下限はクラブの平均に連動するので、
     // 弱いクラブでは誰も出せず（52クラブ中17クラブが1人も出せなかった）、
     // 強いクラブでは「平均より5低い」だけで走れる主力まで市場に出ていた
-    const listRanked = [...teamPlayers.filter(p => p.status === 'active')].sort(comparePlayers('ovr'))
+    // ★序列は `squadRankOf` 1本で、名簿は走れる人（`active`）全員＝`keyPlayerStatus` と同じ。
+    //   以前は保有している人だけを並べた配列の添字で数えていて、借りている選手の分だけ序列がズレていた。
+    //   怪我人は序列に居ないので「余っている」には数えない（今までどおり）
+    const listRanked = (clubIndexOf(players).get(team.id) ?? []).filter(p => p.status === 'active')
     const spare = (p: Player) =>
-      !listedPlayerIds.has(p.id) && hasNoPlayingTime(listRanked.findIndex(x => x.id === p.id) + 1)
+      !listedPlayerIds.has(p.id) && p.status === 'active' && hasNoPlayingTime(squadRankOf(listRanked, p))
     let listed = false
 
     // Surplus specialist: 3+ players of same specialty → list the weakest
@@ -512,7 +514,7 @@ export function generateTransferActivity(
   //   中（`outOfBand`）にあるので、ここで別に呼ぶ必要はありません。
   const myTier = tierOf(myClub({ clubs, playerTeamId }) ?? { tier: 20 })
   // 選手の格の線は世界全体から1回だけ組む（utils/playerTier）
-  const myTierLines = tierLines(players, id => tierOf(clubById(clubs, id)))
+  const myTierLines = worldTierLines(players, clubs)
 
 
   for (const club of offerClubs) {
