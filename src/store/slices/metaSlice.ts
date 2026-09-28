@@ -68,9 +68,9 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
   dismissInjuryNotice: (key) => set(s => ({ seenInjuryIds: (s.seenInjuryIds ?? []).includes(key) ? s.seenInjuryIds : [...(s.seenInjuryIds ?? []), key].slice(-100) })),
 
 
-  // ギフト配布＋期限切れギフトの掃除（毎回起動時に呼ばれる・冪等）。
-  // **配るのは常に1件だけ。** 新しいギフトを出すときは GIFT_VERSION を変え、
-  // 前のギフトを未受け取りの人からは取り下げる（古いお知らせが残り続けないように）。
+  // 期限切れギフトの掃除（毎回起動時に呼ばれる・冪等）。
+  // ★**いまは配っていない**（2026-09-17 に1000DL記念を撤去。版の目印 GIFT_VERSION もそのとき無くなった）。
+  // 戻すときは配るのは常に1件だけにし、版を変えたら前のギフトを未受け取りの人から取り下げること。
   //
   // ★**中身を差し替えると、前のギフトを受け取っていない人には二度と届かない。**
   //   差し替えるときは、前のが役目を終えているかを必ず確かめること

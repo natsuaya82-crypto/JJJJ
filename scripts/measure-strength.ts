@@ -2,10 +2,10 @@
 //
 //   npx ts-node --compilerOptions '{"module":"commonjs"}' scripts/measure-strength.ts
 //
-// 出すのは「上位10人の平均OVR」。クラブの強さを1つの数で比べたいときの物差しで、
-// utils/clubPrestige.ts の prestigeScore と同じ考え方（あちらは年俸ベース）。
+// 出すのは「上位10人の平均OVR」。クラブの強さを1つの数で比べたいときの物差し
+// （以前あった utils/clubPrestige.ts の prestigeScore は削除済み。いまのクラブの強さの物差しは格1本）。
 //
-// 環境変数 RANK_UP=off で generateCpuRosters のランク引き上げを外して測れる。
+// ★以前ここに書いてあった環境変数 RANK_UP=off は、generateCpuRosters のランク引き上げ（RANK_UP）ごと廃止済みで効かない。
 import { INITIAL_TEAMS } from '../src/data/teams'
 import { LOWER_DIVISION_TEAMS } from '../src/data/teamsLower'
 import { FOREIGN_LEAGUES } from '../src/data/foreignLeagues'

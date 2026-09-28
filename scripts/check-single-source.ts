@@ -628,12 +628,12 @@ RULES.push({
   fix: '格で比べる（tierOf）。平均OVRは循環するので使わない',
 })
 // GMの評判の上下限。イベントの決着だけで11か所に手書きされていた。
-// **下限が 0 と 1 の2つある**ことが分かっているので（BACKLOG A-8）、
-// seasonObjectives の `Math.max(1, ...)` はそこだけ残して見えるようにしてある。
+// 以前は下限が 0 と 1 の2つあった（seasonObjectives だけ `Math.max(1, ...)`）が、
+// いまは seasonObjectives も `withGmRep` を通り、下限は 0 の1本（BACKLOG A-8 `済`）。
 RULES.push({
   name: '評判の上下限を手書きしている',
   pattern: /gmRep\s*[+-]|Math\.(min|max)\([^)]*gmRep/,
-  allow: ['src/utils/condition.ts', 'src/engine/eventEffects.ts', 'src/engine/seasonObjectives.ts'],
+  allow: ['src/utils/condition.ts', 'src/engine/seasonObjectives.ts'],
     neverAppears: '正は `utils/condition` の `withGmRep`。`gmRep` を直に足し引きする形はどこにも無いのが正しい',
   fix: 'utils/condition.ts の withGmRep(cur, delta) を使う',
 })

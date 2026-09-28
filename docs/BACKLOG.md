@@ -1245,7 +1245,7 @@ CLAUDE.md の「まだ無いもの」に書いてある **自チームの2チー
   - 開幕の関門を store にも置くか … **置かない**（「開幕できないまま進められない、は無くしたい。だから20人補充を入れた」）
   - 「1日」の区切り … `済`。**朝10時に揃えた**。そのあと同じ日にランクマッチそのものを削除（「ランクマッチは消してください」）
   - 育成選手の契約 … `済`。**他の加入と同じ**（`newContractYears`＋移籍ロック）。あわせて、CPUが指名した新人にも移籍ロックが付いていなかったのを直した
-  - 走友会の上限 … `済`。30を超えない（入る口2つとも走友会の行を押さえてから数える）＋ TS と SQL の突き合わせを `check-rated-server` に足した
+  - 走友会の上限 … `済`。30を超えない（入る口2つとも走友会の行を押さえてから数える）＋ TS と SQL の突き合わせを `check-rated-server` に足した（追記：`check-rated-server` はランクマッチと一緒に消したので、この突き合わせはいま `check-server-caps` の②にある）
   - borrow_in の下限 … `済`。`CPU_SELL_FLOOR` を当てた（名簿が減る5本目の経路）
   - 使われていない関数 … `済`（「使われてないのは消してください」）。`leaguesOfRegion` を削除
   - ランクマッチ … `済`（「ランクマッチは消してください」）。画面・段位の紋章・Edge Function・毎日の起動・点検を削除。
@@ -1444,6 +1444,7 @@ V39_LS=<archives を {キー:中身} にしたもの> npm run check
 **「Web で緑」と「iOS 実機で確認済み」は別物として扱う。** ここは私たちでは閉じられない。
 
 - `position: fixed`（`<main>` の中に書くと実機だけで下タブに食われる。掃除は進行中）
+  （追記：掃除は U-9 で `済`（2026-08-20）。`ui/ScreenPortal` を通す形で、`check-screen-portal` が見張る。実機での確認がオーナーの TestFlight 待ちなのは変わらない）
 - viewport ／ キーボード ／ セーフエリア
 - Capacitor（Filesystem・AdMob・lifecycle・background/foreground・セーブの書き出し）
 
@@ -1633,8 +1634,6 @@ const initialSlots = useMemo(() => {
 
 - **U-2. 始める前の画面が、共通の部品を1つも使っていない** … `済`（2026-08-14）。
   Onboarding の直書きの色 63→6件（クラブの識別色のみ）。GM就任＝GlassButton、
-  チーム選択の行＝Panel の形、見出し＝PageHeader、入力欄5か所＝1つの定義。以下は当時の記録。 `済`（2026-08-14）。
-  Onboarding の直書きの色 63→6件（クラブの識別色のみ）。GM就任＝GlassButton、
   チーム選択の行＝Panel の形、見出し＝PageHeader、入力欄5か所＝1つの定義。以下は当時の記録。
   タイトルの「TAP TO START」もオンボーディングの「GM就任」も `GlassButton` ではなく、
   平べったい金の板のまま。`PageHeader` も `Panel` も通っていない。
@@ -1687,8 +1686,6 @@ const initialSlots = useMemo(() => {
 - **U-6. 選手を出しているのに `PlayerRow` を通していない画面が27** …
   **カードとカードの間隔だけは片付いた**（`済`・2026-08-14）。`player/PlayerList` 1本にして、
   詰まっていた9画面を空いている方（gap 8）へ。点検⑨が見張る。行そのものを寄せる話は未着手。
-  **カードとカードの間隔だけは片付いた**（`済`・2026-08-14）。`player/PlayerList` 1本にして、
-  詰まっていた9画面を空いている方（gap 8）へ。点検⑨が見張る。行そのものを寄せる話は未着手。
   ただし「あえて変えているものを無理に変えなくていい」（オーナー・2026-08-13）ので
   全部を寄せる話ではない。問題は**どれが「あえて」でどれが「取り残し」かが
   区別されていない**こと（一覧だけあって印が無い）
@@ -1721,8 +1718,7 @@ const initialSlots = useMemo(() => {
 
 - **U-8. 角丸：`.tsx` は0件だが、CSS に7件残っている** … `済`（2026-08-14）。
   点検⑧を CSS まで広げた（丸くていいのは `50%` と細い棒の端 2px 以下とピル 999px 以上）。
-  以下は当時の記録。 `済`（2026-08-14）。
-  点検⑧を CSS まで広げた（丸くていいのは `50%` と細い棒の端 2px 以下とピル 999px 以上）。以下は当時の記録。
+  以下は当時の記録。
   点検⑧は `src/components` の `.tsx` しか見ておらず、**`index.css` は無防備**。
   中身は `border-radius: 2px` が4件（細い棒の端。意図どおり）と `999px` が2件
   （ピル）と `0` が2件。いまは実害が無いが、見張りが無いので増えても気づけない
@@ -1738,6 +1734,8 @@ const initialSlots = useMemo(() => {
   `OUTSIDE_MAIN` に1件ずつ書いた）：`App` / `Layout` / `TermsGate` / `Onboarding` /
   `DraftRoom` / `DataUpdateScreen` / `LoadingOverlay` / `ForceUpdateModal` / `IntroModal` /
   `ContractInfoModal` / `PlayerSheet` / `GmInvitePicker` / `GmInviteChat`。
+  （当時の13ファイル。いまの `OUTSIDE_MAIN` は `App` / `Layout` / `Onboarding` / `DraftRoom` の4件だけ——
+  ほかは `ui/ScreenCover`（U-13）へ寄せて `position: fixed` を書かなくなった）
 
   **見た目は変わりません。** 規格どおりのブラウザでは `fixed` はもともと viewport 基準
   （`<main>` の `position: fixed` は包含ブロックを作らず、出現アニメ `page-in` も
@@ -1773,7 +1771,8 @@ const initialSlots = useMemo(() => {
   `DraftRoom`。理由は `check-glass-tabbar.ts` の `HAND_ROLLED` に書いた）。
 
   段は menu(45) / panel(200) / sheet(300) / modal(400) / dialog(1000) / page(1200) /
-  celebration(3000) / gate(5000) / boot(9998) / blocking(9999)。**同じ段のもう1枚を
+  celebration(3000) / gate(5000) / boot(9998) / blocking(9999)。
+  （追記：`celebration` は段位が上がる演出だけが使っていたので、2026-09-26 にランクマッチと一緒に削除した。いまの段は `ui/ScreenCover` の `COVER`）**同じ段のもう1枚を
   上に重ねるときだけ `bump`**（買い物の結果を確認の上に、など）。いまの前後関係はそのまま写した。
 
   中身は `position: absolute` で置く（覆いが `inset: 0` の基準なので位置は同じ）。
@@ -1789,8 +1788,10 @@ const initialSlots = useMemo(() => {
   1件だけ見た目が変わる：`GmPassSheet` の幕が `rgba(0,0,0,0.78)` → `0.70`（段の `blur`）。
 
 - **U-10. `env(safe-area-inset-bottom)` の手書きが17件**（`bottomStack` を通していない）
+  （当時の数。いまは画面（`src/components`）のコメント以外で15件。`styles/tokens` の2件は数えない）
 
 - **U-11. `100dvh` の手書きが50件**（`contentHeight` を通していない）
+  （当時の数。いまは画面（`src/components`）のコメント以外で49件。土台（`index.css` / `styles/tokens`）の2件を入れると51件）
 
 - **U-12. 文字サイズが31種類・1900件** … `済`（2026-08-14）。
   `tokens.ts` の `F`（8〜24px の13段）に寄せた。1890件を置換。**25px 以上は段にしない**
@@ -1803,7 +1804,8 @@ const initialSlots = useMemo(() => {
   どれを触ればいいか分からない。角丸と同じ手（トークン → 一括置換 → 点検）が使える
 
 
-- **U-13. 画面の左右の余白が5通り** … ホームは `済`（2026-08-14）。
+- **U-19. 画面の左右の余白が5通り** … ホームは `済`（2026-08-14）。
+  （番号を振り直した：もとは **U-13** で、上の「画面を覆う」の U-13 と重なっていたため。`styles/tokens.ts` の `PAGE_X` の注記も U-19 に直した）
   同じホームの中で **12px（カード）と 18px（見出しの帯・CLUB・NEWS）**が混ざっていて、
   縦に並べたときに左端が6pxずれて見えていた（オーナー「ここがずれてる」）。
   `tokens.ts` の `PAGE_X` 1本にして揃えた。
@@ -1981,3 +1983,7 @@ friendships が 0 になる）。
   - **⑥ `final_push`（ラスト勝負）が存在しない** … 発火地点だけ書いてある
     （`interactiveRace.ts` の 74〜88%）が、そのIDのイベントが無い。
     **終盤に出るイベントが1つも無く**、7種すべて8〜60%の間で終わる（旧 F-5 の2番と同じ話）
+
+  - **④⑤⑥ → `済`**（2026-08-13・commit 14f19fc0。上の見出しの「未着手」は当時のまま残す）。
+    ④＝場面ごとの効き幅 `EVENT_SCALE`（上の案の数字のまま）／⑤＝得意な適性で相手が `SPEC_BONUS`(8) ぶん弱く見える（`withSpecBonus`・`EVENT_SPECIALTIES`）／
+    ⑥＝ラスト勝負 `final_push` を `makeFinalPushEvent` で足した。どれも `engine/interactiveRace.ts`

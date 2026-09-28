@@ -158,7 +158,7 @@ md は消すこと**。2026-08-23 に7本（リファクタリング設計書・
 | `src/utils/league.ts` | 順位の出し方。**日程・結果・順位表はリーグごとに持つ**（`Season.leagues`＝リーグID → 日程・順位表。国内の部のリーグIDは `divisionLeagueId`）。`leagueRaces` / `leagueStandingRows` / `divisionStandings`（部）／ **`seasonLeagueStandings`（そのクラブがその年に走ったリーグの順位表＝自チームの順位はここ。日本の部も海外リーグも同じ）** / `newSeasonStandings`。**指名権を持てるクラブは `draftPickHolders`**（`data/leagueRules` の `draftPicks`。発行・指名順・売り買いはこの並びだけを相手にする） |
 | `src/utils/clubs.ts` の `leagueRoutePath` | **そのリーグの順位表の行き先**（日本の部＝順位表の画面でその部を開く／海外＝リーグの画面）。「自分のリーグを開く」はここを通す。**`/standings` を決め打ちしないこと**——海外クラブを指揮していると日本の1部が開く。クラブ詳細の行き先は隣の `clubRoutePath` |
 | `src/utils/world.ts` の `myLeagueId` / `myLeagueRaces` | **自チームのいるリーグ**。順位表に載っている場所がその年の所属なので、過去の年にもそのまま使える。**部番号（`divisionOf(myClub(…))`）から自チームの日程・順位表を引く2本目を作らないこと** |
-| `src/engine/leagueDay.ts` | **時計は日付1本**。`runLeaguesThrough`＝その日までに開催のある、自チームのリーグ以外の11リーグ（日本の部も海外も）を日付の順に走らせる（本編の1戦の前と、シーズン末に残り全部）。`withCopiedSchedules`＝日程の手本を持つリーグ（`leagueRules` の `scheduleFrom`＝海外9）の日程（日本1部と同じ10日・同じコースの並び・呼び名は地域のもの）。順位表へ足すのは `addRaceToStandings` 1本（自チームのリーグも同じ）。**「自チームの何戦目か」でほかのリーグを進めないこと** |
+| `src/engine/leagueDay.ts` | **時計は日付1本**。`runLeaguesThrough`＝その日までに開催のある、自チームのリーグ以外の11リーグ（日本の部も海外も）を日付の順に走らせる（本編の1戦の前と、シーズン末に残り全部）。`withCopiedSchedules`＝日程の手本を持つリーグ（`leagueRules` の `scheduleFrom`＝海外9）の日程（日本1部と同じ10日・同じコースの並び・呼び名は地域のもの）。順位表へ足すのは `utils/league` の `addRaceToStandings` 1本（自チームのリーグも同じ）。**「自チームの何戦目か」でほかのリーグを進めないこと** |
 | `src/store/persistence/legacySeason.ts` | **旧い形のシーズンを均す唯一の場所**（`normalizeSeasonLeagues`）。旧い入れ物の名前（`races`／`divisionRaces`／`standings`／`foreignRaces`／`foreignStandings`／`foreignRaceIndex`）を書いてよいのはここと `migrateSave.ts` だけ（`check-season-leagues` が見張る） |
 | `src/data/rosterRules.ts` | ロスター人数の上限・下限。`ROSTER_MAX` / `ROSTER_MIN`（自チームの操作を止める線＝15人はOK）／ **`CPU_SELL_FLOOR`（裏で動くクラブが「これ以上は出さない」＝16。売って15人以下にはならない）**。以前は16／18／15の3通りに割れていた。★**名簿が減る経路は5つ。どれもこの1本を通すこと**——現金の移籍（`engine/transferMarket` の`sellCandidatesOf`）／解雇（`engine/cpuOffseason` の `runCpuReleases`）／**レンタルで貸す**（同 `runCpuLoans`）／シーズン中の出品の成立（`engine/cpuTransfers`）／自チームへ「貸したい」と言ってくる打診（`engine/cpuMarket` の borrow_in。オーナー・2026-09-26「下限あてなさい」）。貸すと `movePlayer` が `teamId` を借り手へ移すので**出した側の在籍が1人減ります**。★**解雇の中でも理由ごとに線を持たないこと**——切る理由は2つ（衰えた選手／払える年俸に収まらない）ありますが、**出せる人数は `canLeave` 1つ**で先に決めます。以前は「年俸」の枝だけが下限を見ていて、**「衰えた選手」は何人でも切れました**（16人のクラブに「平均より6低くて契約も切れる」選手が1人いると15人になる）。`check-offseason` の⑨が**そのための世界を1件だけ作って**確かめます（世界を1つ流す形では6回に1回しか当たらず、ほとんど何も守っていませんでした）。`check-one-rule` の⑧が5経路とも見張る |
 | `src/data/rosterRules.ts` の `teamRosterSize` | **在籍人数の数え方**。条件は `utils/rosterSync` の `belongsToClub` と同じ＝**引退していない人は全員**で、**怪我（`status === 'injured'`）も在籍に入る**（走れないだけで名簿に居て年俸も払っている）。★**画面や store で `filter(p => p.teamId === … && p.status === 'active')` と数え直さないこと。** `'active'` で数えると怪我人が落ちるので、同じ「うちの人数」が食い違います。実際に4か所が手書きで割れていました——ホームは `!== 'retired'`、通知の上限超え警告と `engine/offerExpiry` と `marketSlice` のレンタル可否は `=== 'active'`。上限を止めるのは前者なので、**怪我人が2人いると30人で埋まっているのに通知は「28人」**になり、レンタルは「まだ空きがある」と見えます（オーナー・2026-08-23「29人なのに30人が上限で入れませんとも言われるけど？」と同じ形）。`check-one-rule` の④⑤が見張る |
@@ -281,7 +281,7 @@ check('その2つとも locksNegotiation を通る',
 | もう二度と書くな（廃止した字） | `allow: []` | 置き場所が無いので生死の確かめの対象外。どこかに出たら違反で落ちる |
 
 **廃止した字・名前付きの定数になった字は `neverAppears` に理由を書くこと**
-（「漏れた」と「あえて」を区別する。`NOT_A_TAB` / `MINE_ONLY` / `OUTSIDE_MAIN` と同じ形）。
+（「漏れた」と「あえて」を区別する。`NOT_A_TAB` / `HAND_ROLLED` / `OUTSIDE_MAIN` と同じ形）。
 
 #### 判定した結果は、必ず exit につなぐこと
 
@@ -449,6 +449,7 @@ drop table if exists public.profiles  cascade;
 4. 既定値・トリガー・ポリシーを付け直す
 5. 権限（authenticated にだけ grant）
 6. notify pgrst, 'reload schema'
+7. 確認（表の数・ポリシーの数・関数の数・RLSが無い表を select で出す）
 ```
 
 関数の**返す列を変えた**ときと**引数を増やした**ときは、3 の冒頭の
@@ -497,7 +498,8 @@ px が 8 のもの（財務の予算カードの `0 8px 0 #8b6914`）が**26か�
 **「0件です」と言う前に、その網が何を見ていないかを確かめること。**
 
 いま fixture に載っているのは**全部カードの飾り**（`HelpPage` / `LoginBonusPage` /
-`ResultsPhase`（レースの名場面）/ `GmPassSheet` / `NewsModal`）で、**押すボタンは0件**です。
+`ResultsPhase`（レースの名場面）/ `GmPassSheet` / `NewsModal`）で、**影の塊を持つ押すボタンは0件**です。
+★ただし⑥が数えるのは「ぼかし無しで下へ落ちる影」だけです。**影を持たずに枠（`border`）だけを手書きした `<button>` はいまも画面に残っていて、⑥では1件も数えていません**（「押すボタンの手書きが0件」ではない）。
 `inset` は除いて数えます——`inset 0 1px 0 rgba(…)` はガラスの内側のハイライトそのもので、
 入れると28件が偽の当たりになります。
 
@@ -583,7 +585,7 @@ tab / page / view / division / section のものが一覧に無ければ落ち�
   **金が3種類・水色が2種類**になった（トークンは `#f5c842` / `#5ed4ff`）
 - `premium-menu-button` のクラスを `TeamsHub` が手書きしていた（`MenuButton` の冒頭に
   「手書きしないこと」と書いてあるのに）。足りない口（`right` / `compact`）が
-  無かったのが理由なので、**口は `MenuButton` に足す**
+  無かったのが理由なので、**口は `MenuButton` に足す**（`compact` はその後なくなり、行の高さは1つだけ＝`MenuButton` の冒頭）
 
 画面ごとの装飾の色（グラデーションなど）は禁止していません。`check-size` と同じで
 **今日より増えたら落ちる**だけです（`scripts/fixtures/ui-color-budget.json`）。
@@ -631,6 +633,7 @@ tab / page / view / division / section のものが一覧に無ければ落ち�
 絵文字が全部下タブの裏**にありました。ブラウザのプレビューでは再現しません。
 
 `BottomSheet` は `ScreenCover`（中で `createPortal` して `document.body` に出す）を通すので、この問題が起きません。
+広告バナーの高さとセーフエリアの処理もこの中にまとまっています。
 
 **シートではない「画面の下端に貼る行動ボタン」や「画面いっぱいの演出」は
 `src/components/ui/ScreenPortal.tsx` で包むこと**（中身を持たないただの管）。
@@ -639,7 +642,6 @@ tab / page / view / division / section のものが一覧に無ければ落ち�
 実機（iOS）で崩れる場合だけ直る形です。`<main>` の外にいる画面は要らないので、
 **理由を `check-screen-portal.ts` の `OUTSIDE_MAIN` に書くこと**
 （「漏れた」と「あえて」を区別するため）。
-広告バナーの高さとセーフエリアの処理もこの中にまとまっています。
 
 数字の直書きにも注意してください。人数上限は `ROSTER_MAX` を使い、`30` と書かないこと。
 
@@ -708,7 +710,7 @@ ECLの出場枠（頂点のリーグそれぞれの上位2）・レースと表�
 **1本＝国籍は「席の強さ（ランク）」から国の格で引く**（`utils/nationTier` の `drawNationalityForRank`・国の格は `data/nationTiers`）。
 席の強さはクラブの格のまま（`tierRankSlots`）で、**国の格が決めるのは「その席に誰が座るか」だけ**＝クラブの強さは1つも動かない。
 海外クラブの初期ロスター・海外の毎年の補充・開幕の床・若手の補充・日本のクラブの外国籍の席・自チームの外国籍の席の**6つとも**ここを通る
-（`check-nationality` の⑥が口の数を数える）。
+（呼ぶ口は `engine/playerGenerator` の5か所＝補充・開幕の床・若手の補充は同じ `newcomerIdentity` を通る。`check-nationality` の⑥がこの5を数える）。
 
 | 1本にした理由 | |
 |---|---|
@@ -740,7 +742,7 @@ ECLの出場枠（頂点のリーグそれぞれの上位2）・レースと表�
 
 | 何 | どこ |
 |---|---|
-| ピーク年齢（唯一の決まり） | `src/utils/playerUtils.ts` の `peakAgeOf` |
+| ピーク年齢（唯一の決まり） | `src/engine/ageCurve.ts` の `PEAK_AGE`（`peakAgeOfCurve`）。選手から引く窓口は `src/utils/playerUtils.ts` の `peakAgeOf`（中身は `peakAgeOfCurve` を呼ぶだけ） |
 | 成長の幹 | `src/engine/growth.ts` の `applyGrowth` |
 | 倍率の枝 | 同ファイルの `ageExpMultiplier` / `potentialExpMultiplier` / `facilityExpMultiplier` / `nationalityExpMultiplier` |
 | EXPの計算 | 同ファイルの `processExpGains`（プレイヤー側） |
@@ -749,8 +751,8 @@ ECLの出場枠（頂点のリーグそれぞれの上位2）・レースと表�
 | 年齢→OVRのカーブ | `src/engine/ageCurve.ts`（初期生成も値付けも見る唯一の表） |
 | ランクから能力値を作る | `playerGenerator.ts` の `buildRatingsForRank`（生成4経路すべてがここを通る。年齢ぶんは ageCurve から） |
 
-`ageMultiplier` / `growPlayer` / `careerStage` は全部 `peakAgeOf` を呼びます。
-**ピークの式を変えるときは `peakAgeOf` だけを触ってください。**
+`ageMultiplier` / `growPlayer` / `careerStage` は全部 `peakAgeOf` を呼び、`peakAgeOf` と年齢カーブ（`engine/ageCurve`）は同じ `PEAK_AGE` を読みます。
+**ピークの年齢を変えるときは `engine/ageCurve.ts` の `PEAK_AGE` だけを触ってください。**
 
 成長速度は `ANNUAL_BASE_EXP × tierGrowthRate`（`utils/clubTier.ts`）の1本です。
 かつて年次成長（growPlayer）と初期生成（旧 bakeAgeGrowth）の2箇所に同じ係数が

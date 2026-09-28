@@ -208,7 +208,7 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       // このレースの結果まで載せたシーズン（出場率・実績を見る engine に渡す）。
       // 自チームのリーグの順位表はまだこのレースの前のまま
       const seasonWithRace = withLeagueRaces(state.currentSeason, myLeague, updatedRaces)
-      // 順位表へ足すのは engine/leagueDay の addRaceToStandings 1本（ほかのリーグと同じ）
+      // 順位表へ足すのは utils/league の addRaceToStandings 1本（ほかのリーグと同じ）
       const myStandings = addRaceToStandings(leagueStandingRows(state.currentSeason, myLeague), { ...race, results })
       const updatedLeagues = myLeague == null ? state.currentSeason.leagues
         : { ...state.currentSeason.leagues, [myLeague]: { races: updatedRaces, standings: myStandings } }

@@ -106,7 +106,7 @@ export function unpackRace(p: PackedRace): RaceResults {
  */
 export type SeasonArchive = {
   year: number
-  /** 大会ごとの走行記録。キーは utils/seasonArchive の COMPETITIONS */
+  /** 大会ごとの走行記録。キーは store/seasonArchive の racesByCompetition が決める */
   races: Record<string, PackedRace[]>
 }
 

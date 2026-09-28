@@ -34,6 +34,7 @@ Supabase ダッシュボード → SQL Editor → all.sql を全文貼って Run
 4. 既定値・トリガー・ポリシーを付け直す
 5. 権限
 6. notify pgrst, 'reload schema'
+7. 確認（表の数・ポリシーの数・関数の数・RLSが無い表）
 ```
 
 関数の**返す列を変えたとき**は、3 の冒頭にある `drop function if exists` に
