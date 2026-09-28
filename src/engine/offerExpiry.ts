@@ -14,7 +14,8 @@ import { tierOfPlayerClub } from '../utils/clubTier'
 import { findClub } from '../utils/clubs'
 import { type NewsItem, freeTransferHeadline } from '../utils/newsItems'
 import { freeContactConsent } from '../utils/playerUtils'
-import { seasonAppearances } from '../utils/playRate'
+import { playRateOf } from '../utils/playRate'
+import { withLeagueRaces } from '../utils/world'
 import type { Destination } from '../utils/transferDecision'
 
 export function resolveExpiredOffers(params: {
@@ -24,8 +25,8 @@ export function resolveExpiredOffers(params: {
   playerTeamId: string
   /** レース通算数（racesConsumed + 1）。期限はこれで測る */
   nextClock: number
-  /** 自分の部で消化した本数（出場率の分母） */
-  nextRaceIndex: number
+  /** 使っていない（出場率の分母は playRateOf が日程から数える）。呼ぶ側（raceSlice）から外したら消す */
+  nextRaceIndex?: number
   /** 出場実績を数えるための今季の日程（結果入り） */
   ranRaces: Race[]
   raceDate: string
@@ -39,7 +40,7 @@ export function resolveExpiredOffers(params: {
   freeMoves: { playerId: string; toTeamId: string }[]
   freeMoveNews: NewsItem[]
 } {
-  const { players, clubs, currentSeason, playerTeamId, nextClock, nextRaceIndex, ranRaces, raceDate, destinationOf, playerTierOf } = params
+  const { players, clubs, currentSeason, playerTeamId, nextClock, ranRaces, raceDate, destinationOf, playerTierOf } = params
   // incomingOffer期限切れ（5試合）→ 失効通知＋1年交渉ロック
   // ※フリー移籍の接触（offeredPrice=0）は対象外：下の「本人決断」で処理する
   const offerExpiredNegs: ExpiredNegotiation[] = []
@@ -72,8 +73,10 @@ export function resolveExpiredOffers(params: {
     if (!pl || pl.teamId !== playerTeamId || pl.status !== 'active' || !suitor) return
     // 決断までに契約を更新できていれば残留確定（引き留め成功）。
     // 判定は出場実績込みの freeContactConsent（よく走っている選手・愛着のある選手は残留に傾く）
-    const flApps = seasonAppearances(pl.id, ranRaces)
-    const flFrac = flApps / Math.max(1, nextRaceIndex)
+    // 出場率は utils/playRate の playRateOf 1本（ここで割り算を書かない）。今季の日程は
+    // このレースの結果まで入った ranRaces（自チームのリーグ）に差し替えて渡す
+    const flRate = playRateOf(pl.id, pl.teamId,
+      withLeagueRaces(currentSeason, findClub(clubs, pl.teamId)?.leagueId, ranRaces), clubs)
     // 受け手が在籍上限なら移籍は成立しない＝残留（31人化の防止）。
     // ★**数も数え方も直書きしないこと**（2026-09-15）。ここは `30` を直に書いたうえで
     //   `status === 'active'` で数えていたので、**上限を止める側（`teamRosterSize`＝
@@ -85,7 +88,7 @@ export function resolveExpiredOffers(params: {
     const isRetiringFl = (currentSeason.retirementRequests ?? []).some(r => r.playerId === pl.id)
     const leaves = suitorSize >= rosterCapOf(0) || isRetiringFl ? false
       : pl.contract.yearsLeft > 1 ? false
-      : freeContactConsent(pl, destinationOf(suitor.id, pl), tierOfPlayerClub(pl.teamId, clubs), flFrac, nextRaceIndex, playerTierOf(pl))
+      : freeContactConsent(pl, destinationOf(suitor.id, pl), tierOfPlayerClub(pl.teamId, clubs), flRate.fraction, flRate.teamRaces, playerTierOf(pl))
     freeDecisionNotices.push({ id: o.id, playerId: pl.id, playerName: pl.name, toTeamName: suitor.shortName, left: leaves })
     if (leaves) freeMoves.push({ playerId: pl.id, toTeamId: suitor.id })
   })

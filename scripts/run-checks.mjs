@@ -204,6 +204,8 @@ const CHECKS = [
   { name: 'gm-foreign', shim: true },
   // 記録会の系統（日本のリーグのクラブは日本の記録会・海外は海外の記録会）。自チームが日本と海外の2年を回す
   { name: 'time-trial-circuit', shim: true },
+  // 通算のMVP回数：遊んでいる最中（endSeason）と読み込み直したあと（数え直し）が一致する。2年回す
+  { name: 'mvp-count', shim: true },
   // クラブの部はクラブのもの（監督が去っても元の部へ引き戻されない）
   'club-division-pin',
   // セーブの書き出し（本体＋走行記録の別ファイル）

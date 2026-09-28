@@ -3,7 +3,7 @@ import { natCategory } from '../data/nationalities'
 import type { TraitId } from '../utils/traitUtils'
 import type { Rank } from '../types'
 import { curveOvr } from './ageCurve'
-import { tierOf, tierOfClubId, tierRankSlots, TIER_POTENTIAL_CAP, INITIAL_ROSTER_SIZE, type ClubTier } from '../utils/clubTier'
+import { tierOf, tierRankSlots, TIER_POTENTIAL_CAP, INITIAL_ROSTER_SIZE, type ClubTier } from '../utils/clubTier'
 import { SPEC_STRONG_STATS, faMarketSalary, STAT_CAP } from '../utils/playerUtils'
 import { strHash } from '../utils/hash'
 import { SPECIALTIES } from '../utils/squadNeeds'
@@ -688,48 +688,48 @@ function generateRatings(rank: Rank, specialty: Specialty, baseBoost = 0) {
     mountainDown: base(), pacing: base(), mental: base(), recovery: base(),
   }
   if (specialty === 'ace') {
-    r.stamina = clamp(r.stamina + rng(6, 12), 0, 99)
-    r.pacing  = clamp(r.pacing  + rng(6, 12), 0, 99)
-    r.mental  = clamp(r.mental  + rng(4, 8),  0, 99)
+    r.stamina = clamp(r.stamina + rng(6, 12), 0, STAT_CAP)
+    r.pacing  = clamp(r.pacing  + rng(6, 12), 0, STAT_CAP)
+    r.mental  = clamp(r.mental  + rng(4, 8), 0, STAT_CAP)
     r.mountainUp   = weak()
     r.mountainDown = weak()
   } else if (specialty === 'mountain_up') {
-    r.mountainUp   = clamp(r.mountainUp + rng(12, 20), 0, 99)
+    r.mountainUp   = clamp(r.mountainUp + rng(12, 20), 0, STAT_CAP)
     r.speed        = weak()
     r.mountainDown = weak()
   } else if (specialty === 'mountain_down') {
-    r.mountainDown = clamp(r.mountainDown + rng(12, 20), 0, 99)
+    r.mountainDown = clamp(r.mountainDown + rng(12, 20), 0, STAT_CAP)
     r.mountainUp   = weak()
     r.stamina      = weak()
   } else if (specialty === 'undulating') {
-    r.mountainUp   = clamp(r.mountainUp   + rng(7, 12), 0, 99)
-    r.mountainDown = clamp(r.mountainDown + rng(7, 12), 0, 99)
+    r.mountainUp   = clamp(r.mountainUp   + rng(7, 12), 0, STAT_CAP)
+    r.mountainDown = clamp(r.mountainDown + rng(7, 12), 0, STAT_CAP)
     r.speed        = weak()
     r.pacing       = weak()
   } else if (specialty === 'sprinter') {
-    r.speed      = clamp(r.speed + rng(10, 18), 0, 99)
+    r.speed      = clamp(r.speed + rng(10, 18), 0, STAT_CAP)
     r.stamina    = weak()
     r.mountainUp = weak()
   } else if (specialty === 'long') {
-    r.stamina      = clamp(r.stamina + rng(8, 14), 0, 99)
-    r.pacing       = clamp(r.pacing  + rng(5, 10), 0, 99)
+    r.stamina      = clamp(r.stamina + rng(8, 14), 0, STAT_CAP)
+    r.pacing       = clamp(r.pacing  + rng(5, 10), 0, STAT_CAP)
     r.speed        = weak()
     r.mountainDown = weak()
   } else if (specialty === 'kick') {
-    r.speed   = clamp(r.speed  + rng(10, 16), 0, 99)
-    r.mental  = clamp(r.mental + rng(4, 8),   0, 99)
+    r.speed   = clamp(r.speed  + rng(10, 16), 0, STAT_CAP)
+    r.mental  = clamp(r.mental + rng(4, 8), 0, STAT_CAP)
     r.stamina = weak()
     r.pacing  = weak()
   } else if (specialty === 'grinder') {
-    r.stamina  = clamp(r.stamina + rng(8, 14), 0, 99)
-    r.pacing   = clamp(r.pacing  + rng(4, 8),  0, 99)
+    r.stamina  = clamp(r.stamina + rng(8, 14), 0, STAT_CAP)
+    r.pacing   = clamp(r.pacing  + rng(4, 8), 0, STAT_CAP)
     r.speed    = weak()
     r.recovery = weak()
   } else if (specialty === 'allrounder') {
-    r.speed   = clamp(r.speed   + rng(3, 6), 0, 99)
-    r.stamina = clamp(r.stamina + rng(3, 6), 0, 99)
-    r.pacing  = clamp(r.pacing  + rng(2, 5), 0, 99)
-    r.mental  = clamp(r.mental  + rng(2, 4), 0, 99)
+    r.speed   = clamp(r.speed   + rng(3, 6), 0, STAT_CAP)
+    r.stamina = clamp(r.stamina + rng(3, 6), 0, STAT_CAP)
+    r.pacing  = clamp(r.pacing  + rng(2, 5), 0, STAT_CAP)
+    r.mental  = clamp(r.mental  + rng(2, 4), 0, STAT_CAP)
     r.mountainDown = weak()
   }
   return r
@@ -1439,18 +1439,20 @@ export function refreshForeignLeagues(
   {
     for (const club of targetClubs) {
       const kept = (membersByClub.get(club.id) ?? []).filter(id => !removedIds.has(id))
-      // 新人補充の目標は26人まで（上限30に空き枠を残す）。全クラブを毎年30人に
-      // 埋めてしまうと買い手枠が消えて海外間の移籍市場が動かなくなる。
+      // 新人補充の目標は26人まで（在籍上限 ROSTER_MAX に空き枠を残す）。全クラブを毎年
+      // 上限まで埋めてしまうと買い手枠が消えて海外間の移籍市場が動かなくなる。
       // 上の空きは移籍・引き抜きで埋まり、クラブごとに人数の個性が出る。
       //
       // 2046修正: 人数だけで判定していたため、在籍が26人以上あるクラブには新人が
-      // 一人も入らなかった。引退は32〜40歳なので在籍はなかなか減らず、結果として
-      // 「海外クラブに若手がいない・全員が同じだけ歳を取る」状態になっていた。
-      // 人数に関係なく、23歳以下が3人未満なら若手を入れる（枠は上限30まで4人の余裕がある）。
+      // 一人も入らなかった。引退は RETIRE_AGE_MIN〜RETIRE_AGE_MAX 歳（utils/playerUtils の
+      // retirementAgeOf）なので在籍はなかなか減らず、結果として「海外クラブに若手がいない・
+      // 全員が同じだけ歳を取る」状態になっていた。
+      // 人数に関係なく、23歳以下が3人未満なら若手を入れる。★どちらの枝も ROSTER_MAX を超えない（若手の補充と同じ線）
       const young = kept.filter(id => (currentById.get(id)?.age ?? 99) <= 23).length
-      const addN = young < 3
+      const wantN = young < 3
         ? Math.min(3, 3 - young)
         : Math.min(3, Math.max(0, 26 - kept.length))
+      const addN = Math.min(wantN, Math.max(0, ROSTER_MAX - kept.length))
       const adds = (freshByClub.get(club.id) ?? []).slice(0, addN)
       for (const id of adds) { const p = byId.get(id); if (p) newPlayers.push({ ...p, joinedYear: year }) }
     }
@@ -1522,12 +1524,10 @@ export function generateForeignLeaguePlayers(
   year: number,
   // 年齢範囲。毎年の補充(refreshForeignLeagues)は伸びしろ持ちの若手だけを入れるので[19,22]を渡す。
   //
-  // 2046調整: 初期ロスターは[22,30]だった。引退は32〜40歳なので最初の5〜8年は誰も抜けず、
-  // 下の補充ゲート（在籍26人未満のときだけ新人を入れる）が一度も開かない。結果、
+  // 2046調整: 初期ロスターは[22,30]だった。当時は引退が32〜40歳だったので最初の5〜8年は誰も抜けず、
+  // 補充ゲート（当時は在籍26人未満のときだけ新人を入れる）が一度も開かなかった。結果、
   // 初期コホートがそのまま歳を取るだけで、海外リーグに若手が一人も居ない状態が続いていた。
-  // [18,28]に下げて最初から若手を混ぜる。成長速度の引き上げ（growPlayer / bakeAgeGrowth）と
-  // 打ち消し合うので、初年度の強さは従来とほぼ同じまま年齢構成だけが若返る
-  // （実測: 中央OVR 70→69 / 80以上 10%→12% / 90以上 0%→0%）。
+  // [18,28]に下げて最初から若手を混ぜる（能力値は年齢カーブ engine/ageCurve から出る）。
   ageRange: [number, number] = [18, 28],
 ): { players: Player[] } {
   const players: Player[] = []
@@ -1548,7 +1548,7 @@ export function generateForeignLeaguePlayers(
 
   for (const club of targetClubs) {
     {
-      const tier = tierOfClubId(club.id)
+      const tier = tierOf(club)
       const cap = TIER_POTENTIAL_CAP[tier]
       // ロスターの中身は格が決める（そのクラブに各ランクが何人いるか）。
       // シャッフルするのは refreshForeignLeagues が先頭数人を新加入として拾うため

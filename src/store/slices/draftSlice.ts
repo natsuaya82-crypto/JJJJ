@@ -23,6 +23,7 @@ import { cpuSignedHeadline, draftPickSoldHeadline, initialNews, type NewsItem } 
 import { faMarketSalary, ovr, playerConsentToMove, newContractYears } from '../../utils/playerUtils'
 import { SPECIALTIES } from '../../utils/squadNeeds'
 import { teamHistoriesOf } from '../../utils/teamHistory'
+import { MORALE_DEFAULT } from '../../utils/condition'
 
 type Slice = Pick<GameStore,
   'beginInauguralDraft' | 'playerPick' | 'cpuPick' | 'advanceDraft' | 'setDraftContract' | 'scoutDraftProspect' | 'initScoutPool' | 'generateDevProspects' | 'scoutDevProspect' | 'signDevProspect' | 'ensureFuturePicks' | 'sellDraftPick' | 'beginSeasonDraft'>
@@ -376,7 +377,7 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
 
         status: 'active',
         fatigue: 0,
-        morale: 70,
+        morale: MORALE_DEFAULT,
         form: 0,
         career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 } }
 

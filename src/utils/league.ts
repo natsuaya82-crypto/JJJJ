@@ -359,13 +359,6 @@ export function titleTier(key: TitleKey): Division {
   return typeof key === 'number' ? key : TOP_DIVISION
 }
 
-/** 部ごとの順位表をまとめて（得点順）。全チームぶんの成績を数え直すときに使う */
-export function standingsByDivision<T extends RankableRow & { teamId: string }>(
-  season: SeasonStandingsLike<T>,
-): { division: Division; rows: T[] }[] {
-  return DIVISIONS.map(d => ({ division: d, rows: divisionStandings(season, d) }))
-}
-
 /** 空の順位表（部ごとの箱だけ作る）。作る側はここを通す */
 export function emptyStandings<T>(): Record<Division, T[]> {
   return Object.fromEntries(DIVISIONS.map(d => [d, [] as T[]])) as Record<Division, T[]>

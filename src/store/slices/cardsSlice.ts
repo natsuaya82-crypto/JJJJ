@@ -8,7 +8,7 @@ import { applyGrowth } from '../../engine/growth'
 import { type CardStatKey, type Player, type TrainingCard } from '../../types'
 import { MAX_FUSION_CARDS, detectCombo, planExchange } from '../../utils/cardCombo'
 import { rankOfTeam, seasonLeagueStandings } from '../../utils/league'
-import { getStatPotentials, limitBreakCost } from '../../utils/playerUtils'
+import { getStatPotentials, limitBreakCost, STAT_CAP } from '../../utils/playerUtils'
 import { canSpendTrophy } from '../../utils/trophy'
 
 type Slice = Pick<GameStore,
@@ -139,7 +139,7 @@ export const createCardsSlice = (set: SetGame, get: () => GameStore): Slice => (
       const player = state.players.find(p => p.id === playerId)
       if (!player) return state
       const cap = (getStatPotentials(player) as Record<string, number>)[stat]
-      if (cap >= 99) return state
+      if (cap >= STAT_CAP) return state
       const cost = limitBreakCost(cap + 1)
       if ((state.jewels ?? 0) < cost) return state
       // 上限が確実に+1されるまでboostを積む（現在値>基礎上限のエッジケースで空振りしないように）

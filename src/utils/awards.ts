@@ -88,6 +88,17 @@ export function racesByLeague(s: SeasonRacesLike): { leagueId: LeagueId; races: 
     .map(l => ({ leagueId: l.id, races: leagueRaces(s, l.id) }))
     .filter(b => b.races.length > 0)
 }
+/**
+ * その年の**全リーグの**MVP（12リーグの並び。受賞者の居ないリーグは飛ばす）。
+ * endSeason が通算のMVP回数へ足すのはこれ。読み込み時に数え直す側（utils/careerStats の
+ * careerCountsOf → seasonAwardsOf）も12リーグ全部を数えるので、**自分のリーグだけを足さないこと**
+ * （遊んでいる最中と読み込み直したあとで回数が食い違う）。
+ */
+export function seasonMvpIds(s: SeasonRacesLike, players: Player[]): string[] {
+  return racesByLeague(s)
+    .map(b => computeSeasonAwards(b.races, players, s.year, b.leagueId).mvpId)
+    .filter((id): id is string => !!id)
+}
 const LEAGUE_ORDER = new Map(WORLD_LEAGUES.map((l, i) => [l.id, i]))
 
 // ── 歴代の表彰（保存してあるレース結果から作り直す） ──────────────────

@@ -1,7 +1,7 @@
 import type { Race, Player, Nationality } from '../types'
 import { foreignAppsOf } from './playerUtils'
 import { seasonAwardsOf, type SeasonRacesLike } from './awards'
-import type { RanRace } from './raceHistory'
+import { LEAGUE_ORDER, type RanRace } from './raceHistory'
 import { DIVISIONS, divisionLeagueId, divisionOfLeague, leagueRaces } from './league'
 
 // 選手の通算成績（通算出走数・通算区間賞・MVP回数）を、保存してあるレース結果から組み立てる。
@@ -164,14 +164,19 @@ export function buildPlayerHistory(params: {
   // ★在籍履歴も ranRows から積む。以前は自分の部の日程だけを
   //   数えていたので、**他の部のクラブの選手は出場0・区間賞0・平均「—」**のままだった。
   //   大学駅伝と世界大会はこれまでどおり在籍履歴には積まない（所属クラブの成績ではない）。
-  for (const { year, league, race } of ranRows) {
+  // ★海外リーグも同じ ranRows から**1本ずつ**積む（走った時点のクラブ＝runner.teamId）。以前は
+  //   foreignSeasonApps（1年に1クラブ・最後に走ったクラブ）から積んでいたので、シーズン途中で
+  //   海外クラブを移った選手の出場が全部移籍先の行に寄っていた（国内は1本ずつなので食い違う）。
+  for (const { year, league, order, race } of ranRows) {
     const comp: HistComp | null = league.startsWith('JPEL') ? 'main'
       : league === '2軍駅伝' ? 'second'
       : league === 'ECL' ? 'ecl'
+      : order === LEAGUE_ORDER.foreign ? 'foreign'
       : null
     if (comp) addHistory(year, comp, [race])
   }
-  // 海外リーグの出場（国内レースには出ないので foreignAppearances から年×クラブで積む）
+  // 走行記録を残していなかった古い年だけ、昔の海外の出場記録（foreignAppearances）から年×クラブで積む。
+  // 走行記録のある年は上の ranRows で積んであるので、ここで足すと二重になる
   const addForeignHistory = (year: number, appMap: Record<string, { clubId: string; races: number; wins: number; rankSum?: number; rankedRaces?: number }> | undefined) => {
     const a = appMap?.[playerId]
     if (!a || !a.clubId) return
@@ -184,8 +189,9 @@ export function buildPlayerHistory(params: {
     row.rankSum += a.rankSum ?? 0
     row.rankedRaces += a.rankedRaces ?? 0
   }
-  for (const ps of pastSeasons) addForeignHistory(ps.year, foreignSeasonApps(ps))
-  addForeignHistory(currentSeason.year, foreignSeasonApps(currentSeason))
+  for (const s of [...pastSeasons, currentSeason]) {
+    if (foreignLeagueRaces(s).length === 0) addForeignHistory(s.year, foreignSeasonApps(s))
+  }
   // 出走ゼロだった年の所属（シーズン終了時に保存・どのリーグのクラブも）からも行を埋める（0戦でも在籍は表示する）
   for (const ps of pastSeasons) {
     const z = (ps.zeroAppearances ?? []).find(e => e.playerId === playerId)

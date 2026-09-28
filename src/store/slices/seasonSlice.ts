@@ -10,7 +10,7 @@ import { growPlayer } from '../../engine/growth'
 import { generateDraftPool, generateForeignLeaguePlayers, refreshForeignLeagues, refreshDomesticYouth, fillRostersForSeason } from '../../engine/playerGenerator'
 import { type GmOffer, type Player, SPECIALTY_LABELS, type SeasonAward, type TransferRecord } from '../../types'
 import { archiveSeason } from '../../utils/archiveSeason'
-import { computeSeasonAwards } from '../../utils/awards'
+import { computeSeasonAwards, seasonMvpIds } from '../../utils/awards'
 import { processContractExpiry, settleZeroContracts } from '../../engine/contractExpiry'
 import { applySeasonCareerRecords } from '../../engine/careerRecords'
 import { computeDynastyMilestones } from '../../engine/dynastyMilestones'
@@ -32,7 +32,7 @@ import { MORALE_DEFAULT, setMorale } from '../../utils/condition'
 import { ALL_DOMESTIC_TEAMS, backfillDomesticClubs } from '../../utils/domesticClubs'
 import { buildOffer, canResignAsGm, makeGmOffer, resignOffers } from '../../utils/gmOffer'
 import { managedTeamIds, startTenure } from '../../utils/gmTenure'
-import { standingsByLeague, titleKeyOf, titleTier, TOP_DIVISION, draftPickHolders, myLeagueSize, newSeasonStandings, rankOfTeam, seasonLeagueStandings, divisionLeagues } from '../../utils/league'
+import { standingsByLeague, titleKeyOf, titleTier, TOP_DIVISION, draftPickHolders, myLeagueSize, newSeasonStandings, rankOfTeam, seasonLeagueStandings, divisionLeagues, divisionOfLeague } from '../../utils/league'
 import { leagueChampionHeadline, divisionsFoundedHeadline, growthHeadline, massFreeAgentHeadline, objectiveBonusHeadline, retiredHeadline, seasonBudgetHeadline, seasonOpenHeadline } from '../../utils/newsItems'
 import { comparePlayers } from '../../utils/playerSort'
 import { faMarketSalary, newContractYears, ovr, packForeignApps, perfOf } from '../../utils/playerUtils'
@@ -268,12 +268,12 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const cpuRenewalSalary = (p: Player) => faMarketSalary(p, perfOf(p, state))
       const cpuRenewIds = new Set<string>()
       {
-        // 格を引くクラブ一覧は**国内52＋海外180**（`allTieredClubs`）。
+        // 格を引くクラブ一覧は世界の232クラブ（`state.clubs` を `clubMap` で索引にする）。
         // ★以前ここは `state.teams.find(...)` で引いていて、**海外クラブには必ず
         //   `undefined` が返り**、`tierOf(undefined)` が最下位の格（20）に落ちていました。
         //   下のループは選手の `teamId` から作るので海外180クラブも入っているのに、
-        //   **海外は全部 4.2億（格20）で更新判定**＝本来 21.1億の格1が1/5の原資で、
-        //   満了した主力が更新されずFAへ流れていました。
+        //   **海外は全部 格20の予算で更新判定**＝格1（当時 21.1億・いまの TIER_BUDGET では 23.2億）が
+        //   1/5の原資で、満了した主力が更新されずFAへ流れていました。
         const renewalClubById = clubMap(state.clubs, c => c)
         const cpuTeamIdsRenewal = [...new Set(
           state.players
@@ -394,7 +394,6 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // （格は「今季走った部」での順位から。部の入れ替えはそのあと）
       const promo = computePromotion({ clubs: state.clubs, currentSeason: state.currentSeason, playerTeamId: state.playerTeamId })
       const nextTierOf = promo.nextTierOf
-      const nextDivisionOf = promo.nextDivisionOf
       const myNextTier = promo.myNextTier
       const divisionMoveNews = promo.divisionMoveNews
 
@@ -428,10 +427,12 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       // 今季の順位表は下で過去シーズンに保存されるので、成績はそこから数え直せる（utils/teamHistory.ts）
 
       // 来季の日程も部ごとに引き直す（25コースのうちファイナル3本は固定、22本を3部で取り合う）。
-      // 自分の部は昇降格のあとの部で引く
+      // 自分のリーグは昇降格のあとのリーグ（nextPlaceOf）で、手本を持つリーグ（scheduleFrom）は手本の日程で引く
+      // ★部の番号（divisionOf）で引かないこと——海外クラブを1部と読む
       const nextSchedules = drawSeasonSchedules(newYear)
-      const myNextDivision = nextDivisionOf(myClub(state) ?? { id: state.playerTeamId })
-      const newRaces = nextSchedules[myNextDivision] ?? generateSeasonRaces(newYear)
+      const myNextLeague = promo.nextPlaceOf(myClub(state) ?? { id: state.playerTeamId }).leagueId
+      const myScheduleDiv = divisionOfLeague(leagueRules(myNextLeague).scheduleFrom ?? myNextLeague)
+      const newRaces = (myScheduleDiv != null ? nextSchedules[myScheduleDiv] : undefined) ?? generateSeasonRaces(newYear)
       // 王者は「リーグごと」（12リーグ。日本の部も海外も同じ形でニュースに出す）。
       // 52チームを得点で並べた先頭ではない（部ごとにレース数が違う）
       const divisionChampionNews = standingsByLeague(state.currentSeason).map(({ leagueId, rows }) => {
@@ -520,7 +521,6 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const bonusTotalPayout = bonus.totalPayout
       const bonusPayoutNews = bonus.news
       const playerSegWinsSeason = bonus.playerSegWins
-      const leagueMvpId = bonus.leagueMvpId
 
       // 在籍選手の年俸を予算から控除。
       // 集計元は state.players（契約満了・引退を処理する前）。playersAfterMorale だと
@@ -576,9 +576,9 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
       const curStreak = dynasty.curStreak
       const dynastyNews = dynasty.news
 
-      // MVP・優勝・レンタル在籍履歴を通算成績へ書き込む。engine/careerRecords 1本
+      // MVP（全リーグの受賞者＝読み込み時の数え直しと同じ）・優勝・レンタル在籍履歴を通算成績へ。engine/careerRecords 1本
       const playersWithLoanHistory = applySeasonCareerRecords({
-        players: playersAfterMorale, leagueMvpId, currentSeason: state.currentSeason })
+        players: playersAfterMorale, mvpIds: seasonMvpIds(state.currentSeason, grownPlayers), currentSeason: state.currentSeason })
 
       const seasonTotalSegWins = Object.values(playerSegWinsSeason).reduce((s, v) => s + v, 0)
       const seasonAchievements = checkSeasonAchievements({
@@ -777,7 +777,7 @@ export const createSeasonSlice = (set: SetGame, get: () => GameStore): Slice => 
             if (parts.length < 4) return undefined
             return {
               participants: parts,
-              races: buildEclRaces(newYear, newRaces.map(r => r.date)),
+              races: buildEclRaces(newYear, (nextSchedules[TOP_DIVISION] ?? generateSeasonRaces(newYear)).map(r => r.date)),   // 日付は日本1部の日程（自チームの居場所によらない）
               raceIndex: 0,
               points: {} }
           })(),
