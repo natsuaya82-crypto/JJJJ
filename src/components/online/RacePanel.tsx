@@ -9,7 +9,8 @@ import type { Player, Team } from '../../types'
 import { RaceTrack } from '../race/SimPhase'
 import { RaceStage3D } from '../race/stage3d/RaceStage3D'
 import { SegmentResultCard } from './SegmentResultCard'
-import { useRaceClock } from '../race/useRaceClock'
+import { RACE_SPEEDS, useRaceClock, type RaceSpeed } from '../race/useRaceClock'
+import { SpeedPicker } from '../race/SpeedPicker'
 import { buildTimeline, legEndAt } from '../../engine/raceTimeline'
 import { formatDiff } from '../../engine/raceEngine'
 import { formatRaceTime } from '../../utils/eventTime'
@@ -54,6 +55,7 @@ export default function RacePanel({
   const [left, setLeft] = useState(0)
   const [pos, setPos] = useState(0)              // 自チームの走者が何区間目を走っているか（0始まり）
   const [paused, setPaused] = useState(false)
+  const [speed, setSpeed] = useState<RaceSpeed>(RACE_SPEEDS[0])
   // 区間結果で「次の区間へ」を押したあと、他のチームがそろうのを待っている状態
   const [segWait, setSegWait] = useState<{ seg: number; until: number } | null>(null)
   const [segLeft, setSegLeft] = useState(SEG_WAIT_SEC)
@@ -79,6 +81,7 @@ export default function RacePanel({
   const { t, jumpTo, restart } = useRaceClock(timeline, meId, {
     pausedAt: () => paused || stage !== 'track',
     stopAt,
+    speed,
   })
   // 自チームの走者がタスキを渡したら区間結果（時計はそこで止まっている）
   const view: Stage = stage === 'track' && t >= stopAt ? 'segresult' : stage
@@ -277,7 +280,7 @@ export default function RacePanel({
             <RaceStage3D race={race} raceTeams={entries} players={players} playerTeamId={meId}
               timeline={timeline} snap={snap} runnerIdOf={runnerIdOf} />
           )}
-          head={
+          head={<>
             <div style={{ padding: '10px 12px 0', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
               <button onClick={() => setPaused(v => !v)} style={{
                 padding: '8px 16px',cursor: 'pointer',
@@ -292,7 +295,11 @@ export default function RacePanel({
                 fontFamily: SAIRA, fontSize: F.body, fontWeight: 700,
               }}>この区間をスキップ</button>
             </div>
-          }
+            {/* 再生の速さ（本編の中継と同じ） */}
+            <div style={{ padding: '8px 12px 0', display: 'flex', justifyContent: 'flex-end' }}>
+              <SpeedPicker speed={speed} onChange={setSpeed} />
+            </div>
+          </>}
         />
       </>)}
 

@@ -56,6 +56,18 @@ console.log('\n[4] 位置はスナップショットから')
   check('RaceStage3D は raceKm をスナップショットから渡す', /raceKm: r\.raceKm/.test(stage))
 }
 
+console.log('\n[再生の速さ] ×10 / ×100 / ×200（オーナー・2026-09-28「10 100 200」＝試作と同じ）')
+{
+  // 戻し方：useRaceClock の RACE_SPEEDS を [10, 100] にする／片方の画面から SpeedPicker を外す
+  const clock = readFileSync('src/components/race/useRaceClock.ts', 'utf8')
+  check('段階は RACE_SPEEDS の1本で [10, 100, 200]', /export const RACE_SPEEDS = \[10, 100, 200\] as const/.test(clock))
+  check('時計はレース秒 ÷ 画面の秒で進む（区間ごとに速さを変えない）', /dt \* opts\.speed \/ 1000/.test(clock) && !/legPlayMs/.test(clock))
+  for (const f of ['src/components/race/SimPhase.tsx', 'src/components/online/RacePanel.tsx']) {
+    const s = readFileSync(f, 'utf8')
+    check(`${f} に速さの切り替えがあり、時計に渡している`, /<SpeedPicker speed=\{speed\}/.test(s) && /speed[,}\s]/.test(s.slice(s.indexOf('useRaceClock('))))
+  }
+}
+
 console.log('')
 if (failed > 0) { console.log(`✗ 3D中継の決まりと違います（${failed}件）`); process.exit(1) }
 console.log('✓ three.js は開いたときだけ読み、位置は中継の時計のスナップショットから')

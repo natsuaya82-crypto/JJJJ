@@ -19,7 +19,8 @@ import PillTabs from '../ui/PillTabs'
 import ScreenPortal from '../ui/ScreenPortal'
 import { useStickyTab } from '../../lib/useStickyTab'
 import { clubById } from '../../utils/world'
-import { focusTeamOf, useRaceClock } from './useRaceClock'
+import { RACE_SPEEDS, focusTeamOf, useRaceClock, type RaceSpeed } from './useRaceClock'
+import { SpeedPicker } from './SpeedPicker'
 import { RaceStage3D } from './stage3d/RaceStage3D'
 import { useSegmentRecords } from '../../lib/useSegmentRecords'
 import { useGameStore } from '../../store/gameStore'
@@ -281,13 +282,14 @@ export function SimPhase({
   const [eventIntro, setEventIntro] = useState(false)
   const [peekRace, setPeekRace] = useState(false)
   const [manualPause, setManualPause] = useState(false)  // 手動の一時停止
+  const [speed, setSpeed] = useState<RaceSpeed>(RACE_SPEEDS[0])
   // イベントは自チームの走者の位置で出て、そこで時計を止める
   const eventAt = (at: number) => {
     const r = pending ? runnerAt(timeline, playerTeamId, at) : null
     return !!pending && !!r && !r.finished && r.leg === pending.leg
       && r.km / (timeline.distances[r.leg] || 1) >= pending.event.trigger.min
   }
-  const { t, jumpTo } = useRaceClock(timeline, playerTeamId, { pausedAt: at => manualPause || eventAt(at) })
+  const { t, jumpTo } = useRaceClock(timeline, playerTeamId, { pausedAt: at => manualPause || eventAt(at), speed })
   const me = runnerAt(timeline, playerTeamId, t)
   const pendingEvent = pending && eventAt(t) ? pending.event : null
 
@@ -524,6 +526,12 @@ export function SimPhase({
               </button>
             </>)}
           </div>
+          {/* 再生の速さ（試作「JPEL 3D中継」と同じく、時計の行の右） */}
+          {!done && (
+            <div style={{ padding: '8px 12px 0', display: 'flex', justifyContent: 'flex-end' }}>
+              <SpeedPicker speed={speed} onChange={setSpeed} />
+            </div>
+          )}
         </>}
       />
     </div>
