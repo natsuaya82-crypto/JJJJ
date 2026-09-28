@@ -1,4 +1,5 @@
 ﻿import type { Player, Specialty, GrowthCurve, Nationality, ForeignCategory, ForeignClub, WorldClub } from '../types'
+import { MORALE_DEFAULT } from '../utils/condition'
 import { natCategory } from '../data/nationalities'
 import type { TraitId } from '../utils/traitUtils'
 import type { Rank } from '../types'
@@ -923,7 +924,7 @@ export function generateDraftPool(year: number, avoidNames?: Set<string>): Playe
       origin,
       status: 'draft_eligible',
       fatigue: 0,
-      morale: 90,
+      morale: MORALE_DEFAULT,
       form: 0,
       career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
       traits: assignTraits(rank, specialty, age),
@@ -968,7 +969,7 @@ export function generateDraftPool(year: number, avoidNames?: Set<string>): Playe
       origin: pOrig,
       status: 'draft_eligible',
       fatigue: 0,
-      morale: 90,
+      morale: MORALE_DEFAULT,
       form: 0,
       career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
       traits: assignTraits('SSS', spec, 22),
@@ -1009,7 +1010,7 @@ export function generateDraftPool(year: number, avoidNames?: Set<string>): Playe
       origin: lbOrig,
       status: 'draft_eligible',
       fatigue: 0,
-      morale: 90,
+      morale: MORALE_DEFAULT,
       form: 0,
       career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
       traits: assignTraits('A', spec, lbAge),

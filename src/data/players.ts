@@ -177,7 +177,7 @@ export const BASE_PLAYERS: Player[] = [
     teamId: '',
     contract: { yearsLeft: 3, annualSalary: 7000000, faEligibleYear: 2035 },
     nationality: 'JPN', origin: '備後高校',
-    status: 'active', fatigue: 2, morale: 90,
+    status: 'active', fatigue: 2, morale: 70,
     career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
   },
   {

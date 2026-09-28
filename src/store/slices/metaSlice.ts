@@ -2,6 +2,7 @@
 
 import type { GameStore, SetGame } from '../gameStore'
 import { loginPrevKey, loginTodayKey } from '../../utils/loginDate'
+import { MORALE_DEFAULT } from '../../utils/condition'
 import { ADS_PER_DAY, AD_REWARD_JEWELS, getAdDay } from '../../utils/ads'
 import { myClub, withMyClub } from '../../utils/world'
 import { findClub } from '../../utils/clubs'
@@ -241,7 +242,7 @@ export const createMetaSlice = (set: SetGame, get: () => GameStore): Slice => ({
       status: 'active',
       contract: { yearsLeft: 4, annualSalary: faMarketSalary({ ratings: params.ratings, age: params.age } as import('../../types').Player), totalYears: 4, contractType: 'standard', faEligibleYear: state.currentSeason.year + 4, rookieDeal: false },
       career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 },
-      fatigue: 0, form: 0, morale: 90,
+      fatigue: 0, form: 0, morale: MORALE_DEFAULT,
       joinedYear: state.currentSeason.year,
       customCaps: caps,
       customFace: params.customFace,
