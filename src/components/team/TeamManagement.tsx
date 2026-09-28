@@ -1,5 +1,6 @@
 import { clubSalaryTotal } from '../../utils/clubMoney'
-import { TRAINING_PLAN_CHANCE } from '../../engine/raceProgress'
+import { TRAINING_PLAN_CHANCE, RECOVERY_PLAN_FATIGUE } from '../../engine/raceProgress'
+import { STRATEGY_FATIGUE_MULT } from '../../engine/raceFatigue'
 import { useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useStickyTab } from '../../lib/useStickyTab'
@@ -17,13 +18,14 @@ import PlayerFace from '../player/PlayerFace'
 import NewBadge from '../ui/NewBadge'
 import ActionSheet from '../ui/ActionSheet'
 import PlayerRow, { type RowHandlers } from '../player/PlayerRow'
-import { ROSTER_MAX, ROSTER_MIN, teamRosterSize } from '../../data/rosterRules'
+import { ROSTER_MAX, ROSTER_MIN, SEASON_START_ROSTER, teamRosterSize } from '../../data/rosterRules'
 import SortSelect from '../ui/SortSelect'
 import { comparePlayers, PLAYER_SORT_LABEL, type PlayerSortKey } from '../../utils/playerSort'
 import PlayerList from '../player/PlayerList'
 import ScreenCover from '../ui/ScreenCover'
 import { clubById, myClub } from '../../utils/world'
 import { clubCity, clubFounded, clubGmName } from '../../utils/clubs'
+import { isLoanedIn } from '../../utils/rosterSync'
 
 const SORT_OPTIONS: { value: PlayerSortKey; label: string }[] = [
   { value: 'ovr', label: PLAYER_SORT_LABEL.ovr },
@@ -121,7 +123,7 @@ export default function TeamManagement() {
   if (!team) return null
 
   // レンタルで借りている選手（teamId=自チーム・loan付きで所有者が他チーム）。roster配列外の別枠。
-  const loanedIn = allPlayers.filter(p => p.teamId === playerTeamId && p.loan && p.loan.ownerTeamId !== playerTeamId && p.status !== 'retired')
+  const loanedIn = allPlayers.filter(p => isLoanedIn(p, playerTeamId))
   // 総年俸は `utils/clubMoney` の `clubSalaryTotal` 1本（予算が引く額と同じ数え方）
   const rosterSalary = clubSalaryTotal(allPlayers, playerTeamId)
   // ★**人数は枠を判定する数え方と同じ1本**（`data/rosterRules` の `teamRosterSize`）。
@@ -158,9 +160,9 @@ export default function TeamManagement() {
         <div style={{ padding: '0 12px', paddingBottom: '80px' }}>
           <div style={{ fontSize: F.caption, color: C.textDim, letterSpacing: '2px', marginBottom: '14px', padding: '0 2px' }}>レース戦略</div>
           {([
-            { key: 'aggressive' as const, label: '積極策', desc: '全区間で攻めの走り。順位を狙いに行くが疲労が大きく蓄積する。', stat: '疲労増加 +40% / 区間タイム向上', color: C.red, shadow: '#660e10' },
+            { key: 'aggressive' as const, label: '積極策', desc: '全区間で攻めの走り。順位を狙いに行くが疲労が大きく蓄積する。', stat: `疲労増加 +${Math.round((STRATEGY_FATIGUE_MULT.aggressive - 1) * 100)}% / 区間タイム向上`, color: C.red, shadow: '#660e10' },
             { key: 'balanced' as const, label: 'バランス', desc: '攻守のバランスを取った標準戦略。安定した成績を目指す。', stat: '疲労標準 / 安定したパフォーマンス', color: C.gold, shadow: '#5a3500' },
-            { key: 'conservative' as const, label: '省エネ策', desc: 'ペースを抑えて疲労を最小化。長期的なコンディション維持を優先。', stat: '疲労減少 -35% / タイムは落ちる', color: C.blue, shadow: C.tileShadow },
+            { key: 'conservative' as const, label: '省エネ策', desc: 'ペースを抑えて疲労を最小化。長期的なコンディション維持を優先。', stat: `疲労減少 -${Math.round((1 - STRATEGY_FATIGUE_MULT.conservative) * 100)}% / タイムは落ちる`, color: C.blue, shadow: C.tileShadow },
           ] as { key: 'aggressive' | 'balanced' | 'conservative'; label: string; desc: string; stat: string; color: string; shadow: string }[]).map(opt => {
             const active = raceStrategy === opt.key
             return (
@@ -196,7 +198,7 @@ export default function TeamManagement() {
           { key: 'スピード重視', label: 'スピード重視', desc: '速力向上のトレーニング。スプリント区間での活躍が期待できる。', effect: `速力 +1 (確率${Math.round(TRAINING_PLAN_CHANCE * 100)}%)`, color: C.red, shadow: '#660e10' },
           { key: '精神強化', label: '精神強化', desc: '精神力・集中力を高める。プレッシャーに強くなる。', effect: `精神 +1 (確率${Math.round(TRAINING_PLAN_CHANCE * 100)}%)`, color: C.blue, shadow: C.tileShadow },
           { key: '登り強化', label: '登り強化', desc: '山岳区間の走力を練習。山登り専門家でなくても効果あり。', effect: `登り +1 (確率${Math.round(TRAINING_PLAN_CHANCE * 100)}%)`, color: C.orange, shadow: '#5a2800' },
-          { key: '回復調整', label: '回復調整', desc: '激しいトレーニングを控え疲労回復を優先する調整期。', effect: '疲労 -8 (毎レース)', color: C.cyan, shadow: '#0e3f5a' },
+          { key: '回復調整', label: '回復調整', desc: '激しいトレーニングを控え疲労回復を優先する調整期。', effect: `疲労 ${RECOVERY_PLAN_FATIGUE} (毎レース)`, color: C.cyan, shadow: '#0e3f5a' },
         ]
         const avgFatigue = myMainPlayers.length > 0
           ? Math.round(myMainPlayers.reduce((s, p) => s + (p.fatigue ?? 0), 0) / myMainPlayers.length)
@@ -312,10 +314,10 @@ export default function TeamManagement() {
       {/* ロスター見出し：人数・総年俸・（あれば）レンタルトグルを1行に集約 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 18px 8px', flexWrap: 'wrap' }}>
         <span style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: 900, color: C.text }}>ロスター</span>
-        {/* 20人未満は赤字で警告（下限15に近づいている） */}
-        <span style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: 800, color: rosterCount < 20 ? C.red : C.text }}>
+        {/* `SEASON_START_ROSTER`(20)人未満は赤字で警告（下限15に近づいている） */}
+        <span style={{ fontFamily: SAIRA, fontSize: F.title, fontWeight: 800, color: rosterCount < SEASON_START_ROSTER ? C.red : C.text }}>
           {rosterCount}<span style={{ fontSize: F.label, color: C.textDim }}>/{ROSTER_MAX}</span>
-          {rosterCount < 20 && <span style={{ fontSize: F.tiny, marginLeft: 4 }}>下限{ROSTER_MIN}</span>}
+          {rosterCount < SEASON_START_ROSTER && <span style={{ fontSize: F.tiny, marginLeft: 4 }}>下限{ROSTER_MIN}</span>}
         </span>
         <span style={{ fontSize: F.label, color: C.textDim }}>総年俸 <span style={{ color: C.textSub, fontWeight: 700, fontFamily: SAIRA }}>{fmtYen(rosterSalary)}</span></span>
         <div style={{ flex: 1 }} />

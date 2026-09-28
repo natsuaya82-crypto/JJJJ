@@ -12,7 +12,7 @@ function J({ n, dim }: { n: number; dim?: boolean }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
       <JewelIcon size={12} opacity={dim ? 0.4 : 1}detailed />
-      <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 800, color: dim ? 'rgba(109,213,250,0.4)' : C.jewel }}>+{n}</span>
+      <span style={{ fontFamily: SAIRA, fontSize: F.bodyLg, fontWeight: 800, color: dim ? alpha(C.jewel, 0.4) : C.jewel }}>+{n}</span>
     </span>
   )
 }
@@ -101,7 +101,7 @@ export default function JewelsPage() {
         <div style={{ fontFamily: SAIRA, fontSize: F.label, color: alpha(C.jewel, 0.85), letterSpacing: '3px', marginBottom: 8 }}>保有ジュエル</div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
           <JewelIcon size={28}detailed />
-          <span style={{ fontFamily: SAIRA, fontSize: 40, fontWeight: 900, color: C.jewel, textShadow: '0 0 20px rgba(109,213,250,0.6)', lineHeight: 1 }}>{jewels.toLocaleString()}</span>
+          <span style={{ fontFamily: SAIRA, fontSize: 40, fontWeight: 900, color: C.jewel, textShadow: `0 0 20px ${alpha(C.jewel, 0.6)}`, lineHeight: 1 }}>{jewels.toLocaleString()}</span>
         </div>
       </div>
 
@@ -130,7 +130,7 @@ export default function JewelsPage() {
             }}
           >
             <JewelIcon size={14}detailed />
-            +100
+            +{AD_REWARD_JEWELS}
           </button>
         </div>
       </div>

@@ -1,3 +1,4 @@
+import { belongsToClub } from '../../utils/rosterSync'
 import { injuryBlockedIds } from '../../utils/raceAvailability'
 import { WEATHER_LABEL } from '../../data/races'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -82,7 +83,7 @@ export default function EclPage() {
   )
 
   const myPlayers = useMemo(
-    () => players.filter(p => p.teamId === playerTeamId && p.status !== 'retired'),
+    () => players.filter(p => belongsToClub(p, playerTeamId)),
     [players, playerTeamId]
   )
   // 故障者は選べない。**ただし健常者だけで区間が埋まらないときは解禁する**

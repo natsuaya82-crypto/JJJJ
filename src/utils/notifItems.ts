@@ -7,6 +7,7 @@
 //
 // ここは画面から切り離した素の関数にしてある（フックを使わない）ので、
 // 呼び出し側でストアから値を取って渡すこと。
+import { belongsToClub, isSquadMember } from './rosterSync'
 import type { Season, Player, WorldClub, ExpiredNegKind } from '../types'
 import { ROSTER_MAX, teamRosterSize } from '../data/rosterRules'
 import { loginTodayKey } from './loginDate'
@@ -236,7 +237,7 @@ export function collectNotifications(input: NotifInput) {
   // ケガ中(status === 'injured')も現役。ここを 'active' だけで見ていたので、
   // 選手がケガをした瞬間にその選手あてのオファーや直訴がベルから消えて、
   // 通知ページには出ているのに数字が合わない、ということが起きていた
-  const isMine = (id: string) => players.some(p => p.id === id && p.teamId === playerTeamId && p.status !== 'retired')
+  const isMine = (id: string) => players.some(p => p.id === id && belongsToClub(p, playerTeamId))
 
   // 移籍金つきのオファーと、フリー移籍の接触（金額0＝GMは関与できない情報通知）は別扱い
   const allIncoming = currentSeason.incomingOffers ?? []
@@ -272,7 +273,7 @@ export function collectNotifications(input: NotifInput) {
   // （ベルに「引退申請」と「契約交渉」の2件が出るのに、画面には引退のカードしか無かった）
   const pendingContracts = (currentSeason.contractRequests ?? []).filter(r =>
     isLiveContract(r) && !ctCtx.freeContactIds.has(r.playerId) && !ctCtx.retiringIds.has(r.playerId)
-    && players.some(p => p.id === r.playerId && p.teamId === playerTeamId && p.status !== 'retired' && !p.transferListed && !p.loan))
+    && players.some(p => p.id === r.playerId && isSquadMember(p, playerTeamId) && !p.transferListed))
 
   // スポンサー枠（3）が満杯なら、これ以上契約できないのでオファー通知は出さない
   const myTeam = myClub({ clubs, playerTeamId })
@@ -288,7 +289,7 @@ export function collectNotifications(input: NotifInput) {
   //   クラブが実在するかは選手の所属で分かる（下の `offeredPlayerIds.every(...)`）。
   const tradeOffers = (currentSeason.pendingTradeOffers ?? []).filter(o =>
     o.offeredPlayerIds.length > 0 && o.requestedPlayerIds.length > 0
-    && o.offeredPlayerIds.every(pid => players.some(p => p.id === pid && p.teamId === o.fromTeamId && p.status !== 'retired'))
+    && o.offeredPlayerIds.every(pid => players.some(p => p.id === pid && belongsToClub(p, o.fromTeamId)))
     && o.requestedPlayerIds.every(pid => isMine(pid)))
 
   // チャットには返事のボタンが出るのに、ベルにも通知ページにも一度も出ていなかったもの。

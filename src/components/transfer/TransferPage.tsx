@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { clubSalaryTotal } from '../../utils/clubMoney'
-import { squadPlayersOf } from '../../utils/rosterSync'
+import { squadPlayersOf, loanedInCount } from '../../utils/rosterSync'
 import PageHeader from '../ui/PageHeader'
 import GlassButton from '../ui/GlassButton'
 import { useGameStore } from '../../store/gameStore'
@@ -421,7 +421,7 @@ export default function TransferPage() {
                 myTeam,
                 myTeamId: playerTeamId,
                 bidsOnPlayer: (currentSeason.transferBids ?? []).filter(b => b.playerId === mp.id),
-                loanSlotsUsed: players.filter(pl => pl.teamId === playerTeamId && pl.loan && pl.loan.ownerTeamId !== playerTeamId).length,
+                loanSlotsUsed: loanedInCount(players, playerTeamId),
                 loanRequested: (currentSeason.loanRequests ?? []).some(r => r.playerId === mp.id),
               }
               const bidNg = bidBlockReason(mp, gate)
@@ -477,7 +477,7 @@ export default function TransferPage() {
             {loanTarget && (() => {
               const rp = players.find(x => x.id === loanTarget)
               if (!rp) return null
-              const slots = players.filter(pl => pl.teamId === playerTeamId && pl.loan && pl.loan.ownerTeamId !== playerTeamId).length
+              const slots = loanedInCount(players, playerTeamId)
               const pending = (currentSeason.loanRequests ?? []).some(r => r.playerId === rp.id)
               return <LoanSheet player={rp} slots={slots} pending={pending} onSubmit={y => { submitLoanRequest(rp.id, y); setLoanTarget(null) }} onClose={() => setLoanTarget(null)} />
             })()}

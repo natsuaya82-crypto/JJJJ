@@ -115,7 +115,7 @@ export default function SchedulePage() {
           eyebrow={`${currentSeason.year} SEASON`}
           title="年間予定表"
           right={<div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: F.bodyLg, fontWeight: '800', color: C.gold, fontFamily: SAIRA, textShadow: '0 0 10px rgba(245,200,66,0.5)' }}>
+            <div style={{ fontSize: F.bodyLg, fontWeight: '800', color: C.gold, fontFamily: SAIRA, textShadow: `0 0 10px ${alpha(C.gold, 0.5)}` }}>
               {totalDone}<span style={{ color: C.textDim, fontWeight: '400' }}>/{totalRaces}</span>
             </div>
             <div style={{ fontSize: F.caption, color: C.textDim }}>試合消化</div>

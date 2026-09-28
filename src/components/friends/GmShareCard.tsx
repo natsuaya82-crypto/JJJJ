@@ -2,7 +2,7 @@ import type { WorldClub } from '../../types'
 import { TeamLogoSVG } from '../icons/Icons'
 import { useTeamHistory } from '../../lib/useTeamHistory'
 import { topTitleCount } from '../../utils/teamHistory'
-import { C, SAIRA, CARD, F } from '../../styles/tokens'
+import { C, SAIRA, CARD, alpha, F } from '../../styles/tokens'
 import { clubGmName } from '../../utils/clubs'
 
 const GOLD = CARD.gold
@@ -52,7 +52,7 @@ export default function GmShareCard({ team, code }: { team?: WorldClub; code: st
       </div>
 
       {/* フレンドコード（主役） */}
-      <div style={{ position: 'relative',padding: '16px 20px', background: 'linear-gradient(180deg, rgba(201,168,76,0.14), rgba(0,0,0,0.35))', border: `2px solid ${GOLD}88`, textAlign: 'center' }}>
+      <div style={{ position: 'relative',padding: '16px 20px', background: `linear-gradient(180deg, ${alpha(CARD.gold, 0.14)}, rgba(0,0,0,0.35))`, border: `2px solid ${GOLD}88`, textAlign: 'center' }}>
         <div style={{ fontSize: F.body, fontWeight: 900, letterSpacing: 4, color: GOLD, marginBottom: 6 }}>FRIEND CODE</div>
         <div style={{ fontSize: 46, fontWeight: 900, letterSpacing: 8, color: '#FFE9A8', lineHeight: 1, textShadow: `0 0 18px ${GOLD}66` }}>{code}</div>
       </div>

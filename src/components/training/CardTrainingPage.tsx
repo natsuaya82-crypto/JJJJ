@@ -1,3 +1,4 @@
+import { squadPlayersOf } from '../../utils/rosterSync'
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { greatSuccessChance, activeEvents } from '../../data/events'
 import { comparePlayers } from '../../utils/playerSort'
@@ -100,7 +101,7 @@ export default function CardTrainingPage() {
 
   const mainPlayers = useMemo(
     // レンタル加入選手(loan付き＝他チーム所有)は育成対象外。カード合成できないように除外する。
-    () => players.filter(p => p.teamId === playerTeamId && p.status !== 'retired' && !p.loan).sort(comparePlayers('ovr')),
+    () => squadPlayersOf(players, playerTeamId).sort(comparePlayers('ovr')),
     [players, playerTeamId]
   )
 

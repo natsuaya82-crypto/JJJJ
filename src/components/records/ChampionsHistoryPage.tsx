@@ -7,7 +7,8 @@ import { useClubIndex } from '../../lib/useClubIndex'
 import { clubRoutePath, findClub } from '../../utils/clubs'
 import { makeTeamIdAt } from '../../utils/gmTenure'
 import type { Race } from '../../types'
-import { EVENT_LABEL, formatRaceTime } from '../../utils/eventTime'
+import { EVENT_DISTANCES, EVENT_LABEL, eventDistKey, formatRaceTime, type EventDistance } from '../../utils/eventTime'
+import { WA_EVENTS, type WAEvent } from '../../engine/worldAthletics'
 import { playerLabel } from '../../utils/playerUtils'
 import { TeamLogoSVG } from '../icons/Icons'
 import Flag from '../ui/Flag'
@@ -24,15 +25,13 @@ import { clubById, clubsWhere, myLeagueRaces } from '../../utils/world'
 type Category = 'jpel' | 'ecl' | 'waqual' | 'wamain' | 'reserve' | 'tt'
 const OVERALL = '__overall__'   // 総合優勝を表す特別なraceName
 type RaceRef = { year: number; race: Race }
-type DistKey = 'd5000' | 'd10000' | 'half' | 'marathon'
+type DistKey = EventDistance
 
 // jpel ＝「自分のリーグ」の大会。呼び名は自チームのリーグ（日本の部なら JPEL、海外ならそのリーグ名）
 const CAT_LABEL: Record<Category, string> = { jpel: 'JPEL', ecl: 'ECL', waqual: 'アジア予選', wamain: '世界選手権', reserve: 'リザーブ駅伝', tt: '記録会' }
 // 各大会の確立カラーに合わせる（JPEL=金 / ECL=赤 / アジア予選=ピンク / 世界選手権=紫 / リザーブ=青 / 記録会=緑）
 const CAT_COLOR: Record<Category, string> = { jpel: C.gold, ecl: C.red, waqual: C.pink, wamain: C.purple, reserve: C.blue, tt: C.green }
 const GOLD = '#FFD700'
-const DIST_KEYS: DistKey[] = ['d5000', 'd10000', 'half', 'marathon']
-const DIST_TO_KEY: Record<number, DistKey> = { 5000: 'd5000', 10000: 'd10000', 21097: 'half', 42195: 'marathon' }
 
 // ドリルダウンの行（年を選ぶ・大会を選ぶ・種目を選ぶ）の見た目。**この画面の11か所が全部これ。**
 // 以前は同じ塊（枠2px＋下に3pxの影＋グラデーション）が11か所に写してあり、飴玉の影をやめたときに
@@ -75,7 +74,7 @@ export default function ChampionsHistoryPage() {
   const [teamId, setTeamId] = useState<string | null>(null)
   const [ttDist, setTtDist] = useState<DistKey | null>(null)
   // 世界選手権（本線）の種目選択と、アジア予選/駅伝のレース選択
-  const [waEvent, setWaEvent] = useState<'d5000' | 'd10000' | 'marathon' | 'ekiden' | null>(null)
+  const [waEvent, setWaEvent] = useState<WAEvent | 'ekiden' | null>(null)
   const [waRace, setWaRace] = useState<Race | null>(null)
 
   const waResults = useGameStore(s => s.worldAthleticsResults) ?? []
@@ -168,8 +167,8 @@ export default function ChampionsHistoryPage() {
     // 今季分：開催済みの記録会結果から種目ごと選手ベスト→トップ3
     const cur = new Map<DistKey, Map<string, { playerId: string; teamId: string; timeSec: number }>>()
     for (const ev of currentSeason.individualEvents ?? []) {
-      const key = DIST_TO_KEY[ev.distance]
-      if (!key || !ev.results) continue
+      const key = eventDistKey(ev.distance)
+      if (!ev.results) continue
       if (!cur.has(key)) cur.set(key, new Map())
       const best = cur.get(key)!
       for (const r of ev.results) {
@@ -374,7 +373,7 @@ export default function ChampionsHistoryPage() {
       {/* 記録会 Level 1: 種目一覧 */}
       {cat === 'tt' && ttDist == null && (
         <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {DIST_KEYS.map(d => {
+          {EVENT_DISTANCES.map(d => {
             const rows = ttByDist.get(d) ?? []
             return (
               <button key={d} onClick={() => setTtDist(d)} style={rowStyle(false, true)}>
@@ -495,7 +494,7 @@ export default function ChampionsHistoryPage() {
       {/* ── 世界選手権: 種目一覧（5000m/10000m/マラソン/駅伝） ── */}
       {cat === 'wamain' && waEvent == null && (
         <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {([['d5000', '5000m'], ['d10000', '10000m'], ['marathon', 'マラソン'], ['ekiden', '駅伝']] as const).map(([ev, label]) => (
+          {([...WA_EVENTS.map(e => [e, EVENT_LABEL[e]] as const), ['ekiden', '駅伝'] as const]).map(([ev, label]) => (
             <button key={ev} onClick={() => setWaEvent(ev)} style={rowStyle(false, true)}>
               <span style={{ fontSize: F.sub, fontWeight: 800, flex: 1 }}>{label}</span>
               <span style={{ fontSize: F.caption, color: C.textDim, padding: '2px 8px',background: alpha(CAT_COLOR.wamain, 0.12) }}>{waMain.length}回開催</span>
@@ -508,7 +507,7 @@ export default function ChampionsHistoryPage() {
       {/* ── 世界選手権 個人種目: 年度一覧（優勝者付き・記録会と同じ見た目） ── */}
       {cat === 'wamain' && (waEvent === 'd5000' || waEvent === 'd10000' || waEvent === 'marathon') && year == null && (
         <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: CAT_COLOR.wamain, paddingLeft: 2, marginBottom: 2 }}>{waEvent === 'd5000' ? '5000m' : waEvent === 'd10000' ? '10000m' : 'マラソン'}</div>
+          <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: CAT_COLOR.wamain, paddingLeft: 2, marginBottom: 2 }}>{EVENT_LABEL[waEvent]}</div>
           {waMain.filter(r => (r.meet?.individuals ?? []).some(ir => ir.event === waEvent && ir.placings.length > 0)).length === 0 ? (
             <div style={{ textAlign: 'center', color: C.textDim, fontSize: F.bodyLg, padding: '30px 0' }}>まだ記録がありません</div>
           ) : waMain.map(r => {
@@ -545,7 +544,7 @@ export default function ChampionsHistoryPage() {
         const rows = (ir?.placings ?? []).slice(0, 8)
         return (
           <div style={{ padding: '0 14px' }}>
-            <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: CAT_COLOR.wamain, paddingLeft: 2, marginBottom: 6 }}>{year}年 世界選手権 {waEvent === 'd5000' ? '5000m' : waEvent === 'd10000' ? '10000m' : 'マラソン'}</div>
+            <div style={{ fontFamily: SAIRA, fontSize: F.sub, fontWeight: 900, color: CAT_COLOR.wamain, paddingLeft: 2, marginBottom: 6 }}>{year}年 世界選手権 {EVENT_LABEL[waEvent as WAEvent]}</div>
             <div style={{overflow: 'hidden', border: `1px solid ${C.border}` }}>
               {rows.map((e, i, arr) => {
                 const isJp = e.nat === 'JPN'

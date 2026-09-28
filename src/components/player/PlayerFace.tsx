@@ -1,6 +1,7 @@
 import type { Nationality } from '../../types'
 import { natFaceRegion } from '../../data/nationalities'
 import { useGameStore } from '../../store/gameStore'
+import { strHash } from '../../utils/hash'
 
 // Python face_generator.py と同じ定数
 const CW = 260
@@ -38,12 +39,9 @@ function hairColorFromNationality(nat: Nationality, styleIndex: number): HairCol
   return choices[styleIndex % choices.length]
 }
 
+// `utils/hash` の `strHash` 1本（符号付きに直して絶対値＝以前の手書きと同じ値。50万件で突き合わせ済み）
 function playerHash(id: string): number {
-  let h = 0
-  for (let i = 0; i < id.length; i++) {
-    h = Math.imul(31, h) + id.charCodeAt(i) | 0
-  }
-  return Math.abs(h)
+  return Math.abs(strHash(id) | 0)
 }
 
 function faceIndices(playerId: string, nationality: Nationality) {

@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
-import { ovr, faMarketSalary, SPEC_COLOR } from '../../utils/playerUtils'
+import { ovr, faMarketSalary, perfOf, SPEC_COLOR } from '../../utils/playerUtils'
 import { fmtYen } from '../../utils/money'
 import { SPECIALTY_LABELS } from '../../types'
 import PlayerFace from '../player/PlayerFace'
@@ -34,6 +34,9 @@ export default function NewsPage() {
   const location = useLocation()
   const newsFeed  = useGameStore(s => s.currentSeason.newsFeed)
   const players   = useGameStore(s => s.players)
+  // 市場年俸の出場実績は store の判定と同じ `perfOf`（`marketSlice` が見ている材料）
+  const clubs     = useGameStore(s => s.clubs)
+  const currentSeason = useGameStore(s => s.currentSeason)
   const clubIndex = useClubIndex()
   const openPlayerSheet = useGameStore(s => s.openPlayerSheet)
   // 所属の解決は国内チーム→海外クラブの順（海外移籍ニュースで所属が「—」にならないように）
@@ -102,7 +105,7 @@ export default function NewsPage() {
             const team = resolveAnyTeam(relPlayer.teamId)
             const specCol = SPEC_COLOR[relPlayer.specialty]
             const salary = relPlayer.contract.annualSalary
-            const market = faMarketSalary(relPlayer)
+            const market = faMarketSalary(relPlayer, perfOf(relPlayer, { players, clubs, currentSeason }))
             const isFA = !relPlayer.teamId
 
             return (

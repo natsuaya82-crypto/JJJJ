@@ -6,7 +6,7 @@ import PageHeader from '../ui/PageHeader'
 import { useGameStore } from '../../store/gameStore'
 import { useClubIndex } from '../../lib/useClubIndex'
 import PlayerFace from '../player/PlayerFace'
-import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, racesConsumed } from '../../utils/playerUtils'
+import { ovr, ratingColor, SPEC_COLOR, faMarketSalary, perfOf, racesConsumed } from '../../utils/playerUtils'
 import { useOfferResults } from '../transfer/useOfferResults'
 import { OfferResultList } from '../transfer/OfferResultList'
 import { chatTopicIds, offersByPlayer, offersAwaitingReply, asCardCount, expiredNegText } from '../../utils/notifItems'
@@ -341,7 +341,7 @@ export default function ChatPage() {
                 ) : <span style={{ fontSize: F.caption, color: C.green, fontWeight: 700 }}>未所属</span>
               })()}
               <span style={{ fontSize: F.label, color: C.textDim }}>
-                {offer.source === 'fa' ? `市場年俸 ${fmtYen(faMarketSalary(player))}` : `市場価値 ${fmtYen(marketValueOf(player))}`}
+                {offer.source === 'fa' ? `市場年俸 ${fmtYen(faMarketSalary(player, perfOf(player, { players, clubs, currentSeason })))}` : `市場価値 ${fmtYen(marketValueOf(player))}`}
               </span>
             </div>
           </div>

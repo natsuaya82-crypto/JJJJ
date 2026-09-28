@@ -322,7 +322,12 @@ console.log('\n[9] ストアが自前で判定を持っていない')
   check('通知ページが文言を決め打ちしていない', !page.includes('選手が移籍を拒否しました') && !page.includes('>来季まで交渉できません<'))
   check('通知ページは expiredNegText から出す', page.includes('expiredNegText(neg.kind)'))
   // ★獲得オファーの期限切れは engine/offerExpiry.ts へ移設。store だけを見ると空振りする
-  check('獲得オファーの失効に種類がついている', logic.includes("kind: 'offer'"))
+  // ★**字があるかではなく、失効を積む口を全部数えること。** 口が2つに増えて片方だけ種類を
+  //   付け忘れても、`includes("kind: 'offer'")` は1つ目に当たって緑のままになる
+  const offerPushes = [...logic.matchAll(/offerExpiredNegs\.push\(\{([^}]*)\}\)/g)]
+  check('獲得オファーの失効を積む口が全部、種類つき',
+    offerPushes.length >= 1 && offerPushes.every(m => m[1].includes("kind: 'offer'")),
+    `${offerPushes.length}か所・種類なし ${offerPushes.filter(m => !m[1].includes("kind: 'offer'")).length}か所`)
   // 契約更新の期限切れは store/slices/raceSlice.ts のまま
   check('契約更新の失効に種類がついている', store.includes("kind: 'contract'"))
   // 競り負け・額不足・相手が他所へ移った、はどれも金額やタイミングの問題なので
@@ -342,7 +347,13 @@ console.log('\n[9] ストアが自前で判定を持っていない')
     lockCalls === 2, `${lockCalls}か所`)
   check('種類を手書きで比べる形に戻っていない', !logic.includes("r.expired.kind !== 'outbid'"))
   // 「上回られた」と出しておいて選手が残っていたら、次の節に同じ額でもう一度出せてしまう
-  check('競り負けた選手は実際に相手クラブへ移る', store.includes('outbidMoves'))
+  // ★**字があるかではなく、作る口と渡す口を数えること。** `store.includes('outbidMoves')` は
+  //   受け取って捨てても（移籍の処理へ渡さなくても）緑だった
+  const outbidPushes = (logic.match(/outbidMoves\.push\(/g) ?? []).length
+  check('競り負けを積むのは1か所（engine/bidResolution）', outbidPushes === 1, `${outbidPushes}か所`)
+  const applyCalls = [...logic.matchAll(/(?<!function )applySettledTransfers\(\{([\s\S]*?)\}\)/g)]
+  check('競り負けた選手は実際に相手クラブへ移る（移籍の反映は1か所で、outbidMoves を渡している）',
+    applyCalls.length === 1 && applyCalls.every(m => /\boutbidMoves(\s*:\s*[\w.]*\boutbidMoves)?\s*[,}\n]/.test(m[1])), `${applyCalls.length}か所`)
   // ★競り負けた選手を実際に動かす処理は engine/applyTransfers.ts へ移設。
   //   窓を狭くしないこと。ループの中に「移す直前に本人へもう一度聞く」処理が入ったぶん
   //   400文字では届かなくなった（movePlayer は動いていないのに落ちる）

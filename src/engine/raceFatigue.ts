@@ -13,6 +13,9 @@ import { facilitiesOf, facilityMedFatigueMultiplier } from '../utils/facilities'
 
 export type RaceStrategy = 'aggressive' | 'conservative' | 'balanced'
 
+/** 作戦ごとの疲労の倍率。画面（`TeamManagement` の作戦一覧）の文字もここから作る */
+export const STRATEGY_FATIGUE_MULT: Record<RaceStrategy, number> = { aggressive: 1.4, conservative: 0.65, balanced: 1.0 }
+
 export function applyRaceFatigue(params: {
   players: Player[]
   /** そのレースを走った選手 */
@@ -23,7 +26,7 @@ export function applyRaceFatigue(params: {
   segmentCount: number
 }): Player[] {
   const { players, racingIds, clubs, raceStrategy, segmentCount } = params
-  const stratMult = raceStrategy === 'aggressive' ? 1.4 : raceStrategy === 'conservative' ? 0.65 : 1.0
+  const stratMult = STRATEGY_FATIGUE_MULT[raceStrategy ?? 'balanced'] ?? 1.0
   // ★施設は `facilitiesOf` 1本（格から出る土台＋自分で建てたぶん）
   const medLvByTeam = clubMap(clubs, t => facilitiesOf(t).medicalCenter)
   const baseFatigueGain = Math.min(14, 4 + segmentCount * 1.5) * stratMult

@@ -1,3 +1,4 @@
+import { belongsToClub } from '../../utils/rosterSync'
 import { injuryBlockedIds } from '../../utils/raceAvailability'
 import { WEATHER_LABEL } from '../../data/races'
 import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react'
@@ -366,7 +367,7 @@ export default function RacePage() {
 
   const segCount = race?.segments?.length ?? 6
   // ロスターは1つだけ。所属している選手（レンタルで借りている選手も含む）は全員出走できる
-  const mainPlayers = players.filter(p => p.teamId === playerTeamId && p.status !== 'retired')
+  const mainPlayers = players.filter(p => belongsToClub(p, playerTeamId))
   // 【進行不可の安全弁2】健常者が区間数未満なら負傷者の出走も許可する
   // （全区間を埋められないと「開始」も「スキップ」も出せず完全に詰むため）。
   // **判定は `utils/raceAvailability` の `injuryBlockedIds` 1本**（ECL・世界選手権・

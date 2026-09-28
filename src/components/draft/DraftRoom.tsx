@@ -324,7 +324,7 @@ export default function DraftRoom() {
         @keyframes fadeOut    { 0%{opacity:1;transform:scale(1)} 70%{opacity:1} 100%{opacity:0;transform:scale(1.05)} }
         @keyframes announceIn { from{opacity:0;transform:translate(-50%,-50%) scale(.9)} to{opacity:1;transform:translate(-50%,-50%) scale(1)} }
         @keyframes pulse      { 0%,100%{opacity:1} 50%{opacity:.3} }
-        @keyframes glow       { 0%,100%{box-shadow:0 0 14px rgba(245,200,66,.4)} 50%{box-shadow:0 0 28px rgba(245,200,66,.9)} }
+        @keyframes glow       { 0%,100%{box-shadow:0 0 14px ${alpha(C.gold, 0.4)}} 50%{box-shadow:0 0 28px ${alpha(C.gold, 0.9)}} }
         select option { background: ${C.surface2}; }
       `}</style>
 
@@ -401,7 +401,7 @@ export default function DraftRoom() {
               background: `linear-gradient(135deg, ${alpha(C.gold, 0.2)}, ${alpha(C.gold, 0.06)})`,
               border: `1px solid ${alpha(C.gold, 0.3)}`,
             }}>
-              <div style={{ fontSize: F.title, fontWeight: '900', color: C.gold, lineHeight: 1, fontFamily: SAIRA, textShadow: '0 0 10px rgba(245,200,66,0.5)' }}>
+              <div style={{ fontSize: F.title, fontWeight: '900', color: C.gold, lineHeight: 1, fontFamily: SAIRA, textShadow: `0 0 10px ${alpha(C.gold, 0.5)}` }}>
                 {myPicksTotal === 0 ? '観戦' : <>{myPicksDone}<span style={{ fontSize: F.caption, color: C.textDim }}>/{myPicksTotal}</span></>}
               </div>
               <div style={{ fontSize: F.micro, color: C.textDim, marginTop: '1px' }}>{myPicksTotal === 0 ? 'WATCHING' : 'MY PICKS'}</div>
