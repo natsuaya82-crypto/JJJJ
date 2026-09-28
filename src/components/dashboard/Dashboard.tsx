@@ -179,7 +179,7 @@ function PreseasonHub({
           ★押せる／押せないの判定は utils/seasonStart 1本のまま。ここで組み直さないこと
             ——以前ボタンが `rosterShort` しか見ておらず、ドラフトを終える前に開幕できて
             その年のドラフトが消えていた */}
-      <GlassButton onClick={() => { onStart(); navigate('/schedule') }} disabled={!allReady} color={C.gold} size="lg" full style={{ marginTop: 14 }}>
+      <GlassButton onClick={() => { if (allReady) { onStart(); navigate('/schedule') } }} disabled={!allReady} color={C.gold} size="lg" full style={{ marginTop: 14 }}>
         <span style={{ fontSize: F.title, fontWeight: 900, letterSpacing: '3px' }}>
           {year}シーズン {allReady ? '開幕！' : '開幕（準備が残っています）'}
         </span>
