@@ -5,12 +5,12 @@ import { playRateOf, prevSeasonOf } from '../../utils/playRate'
 import { tradeValueCtxOf } from '../marketOps'
 import { draftPickValue } from '../../data/economy'
 import { SEASON_2027_RACES, generateIndividualEvents } from '../../data/races'
-import { DEV_PROSPECT_ID_PREFIX, ROSTER_MAX, rosterCapOf, teamRosterSize } from '../../data/rosterRules'
+import { rosterCapOf, teamRosterSize } from '../../data/rosterRules'
 import { pickCpuFreeAgents } from '../../engine/cpuMarket'
 import { CPU_TICK_TRANSFERS, runCpuLoans, runCpuReleases, runCpuTrades } from '../../engine/cpuOffseason'
 import { runTransferMarket } from '../../engine/transferMarket'
 import { draftLotteryOrder, draftOrderTeams, pickExistsAnywhere, standingsPickNumbers } from '../../engine/draftOrder'
-import { buildDraftOrder, generateCpuRosters, generateDraftPool, generateForeignLeaguePlayers, generateJpelForeignName, generatePlayerInitialRoster } from '../../engine/playerGenerator'
+import { buildDraftOrder, generateCpuRosters, generateDraftPool, generateForeignLeaguePlayers, generatePlayerInitialRoster } from '../../engine/playerGenerator'
 import { type ForeignClub, type Player, type Team, type TransferRecord, type WorldClub } from '../../types'
 import { tierBudget, tierOf, tierOfPlayerClub } from '../../utils/clubTier'
 import { clubById, clubsWhere, isJpelLeague, jpelClubs, mapClubs, myClub, otherClubs, withMyClub, myLeagueId, myLeagueRaces, withLeagueRaces } from '../../utils/world'
@@ -21,12 +21,10 @@ import { movePlayer } from '../../utils/movePlayer'
 import { payBetween } from '../../utils/clubMoney'
 import { cpuSignedHeadline, draftPickSoldHeadline, initialNews, type NewsItem } from '../../utils/newsItems'
 import { faMarketSalary, ovr, playerConsentToMove, newContractYears } from '../../utils/playerUtils'
-import { SPECIALTIES } from '../../utils/squadNeeds'
 import { teamHistoriesOf } from '../../utils/teamHistory'
-import { MORALE_DEFAULT } from '../../utils/condition'
 
 type Slice = Pick<GameStore,
-  'beginInauguralDraft' | 'playerPick' | 'cpuPick' | 'advanceDraft' | 'setDraftContract' | 'scoutDraftProspect' | 'initScoutPool' | 'generateDevProspects' | 'scoutDevProspect' | 'signDevProspect' | 'ensureFuturePicks' | 'sellDraftPick' | 'beginSeasonDraft'>
+  'beginInauguralDraft' | 'playerPick' | 'cpuPick' | 'advanceDraft' | 'setDraftContract' | 'scoutDraftProspect' | 'initScoutPool' | 'ensureFuturePicks' | 'sellDraftPick' | 'beginSeasonDraft'>
 
 export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => ({
 
@@ -284,119 +282,6 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
           individualEvents: (state.currentSeason.individualEvents ?? []).length > 0 ? state.currentSeason.individualEvents : generateIndividualEvents(state.currentSeason.year),
           newsFeed: (state.currentSeason.newsFeed ?? []).length > 0 ? state.currentSeason.newsFeed : initialNews() } })
     }
-  },
-
-
-  generateDevProspects: () => {
-    set(state => {
-      if ((state.currentSeason.devProspects ?? []).length > 0) return state
-      const NAMES = ['村上 蒼', '橋本 颯', '田中 悠馬', '小林 煌', '中村 海斗', '伊藤 涼', '山田 蓮', '佐藤 翔', '加藤 健', '鈴木 碧', '松本 楓', '渡辺 律', '井上 光', '木村 颯太', '高橋 凌', '石川 仁', '林 優斗', '近藤 葵', '前田 空', '岡田 風']
-      const CITIES = ['東京', '神奈川', '大阪', '愛知', '福岡', '北海道', '宮城', '広島', '静岡', '千葉']
-      const SPECS = SPECIALTIES
-      const usedForeignNames = new Set<string>()
-      const prospects: import('../../types').DevProspect[] = Array.from({ length: 12 }, (_, i) => {
-        const potential = 50 + Math.floor(Math.random() * 45)
-        const base = 40 + Math.floor(Math.random() * 30)
-        // 15%は外国人。国籍だけ「外国」ではなく、実際の国籍・出身国・現地名を持たせる
-        const foreign = Math.random() < 0.15 ? generateJpelForeignName(usedForeignNames) : null
-        return {
-          id: `${DEV_PROSPECT_ID_PREFIX}${state.currentSeason.year}_${i}`,
-          name: foreign ? foreign.name : NAMES[i % NAMES.length],
-          age: 18 + Math.floor(Math.random() * 4),
-          origin: foreign ? foreign.origin : CITIES[Math.floor(Math.random() * CITIES.length)],
-          nationality: foreign ? foreign.nat : 'JPN',
-          specialty: SPECS[Math.floor(Math.random() * SPECS.length)],
-          potential,
-          trueRatings: {
-            speed: base + Math.floor(Math.random() * 20),
-            stamina: base + Math.floor(Math.random() * 20),
-            mountainUp: base + Math.floor(Math.random() * 20),
-            mountainDown: base + Math.floor(Math.random() * 20),
-            pacing: base + Math.floor(Math.random() * 20),
-            mental: base + Math.floor(Math.random() * 20),
-            recovery: base + Math.floor(Math.random() * 20) },
-          signingFee: (20 + Math.floor(Math.random() * 60)) * 1000000,
-          scouted: false }
-      })
-      return { currentSeason: { ...state.currentSeason, devProspects: prospects } }
-    })
-  },
-
-
-  scoutDevProspect: (prospectId) => {
-    set(state => {
-      const pts = state.currentSeason.scoutPoints ?? 0
-      if (pts < 1) return state
-      return {
-        currentSeason: {
-          ...state.currentSeason,
-          scoutPoints: pts - 1,
-          devProspects: (state.currentSeason.devProspects ?? []).map(p =>
-            p.id === prospectId ? { ...p, scouted: true } : p
-          ) } }
-    })
-  },
-
-
-  signDevProspect: (prospectId) => {
-    set(state => {
-      const team = myClub(state)
-      if (!team) return state
-      const prospect = (state.currentSeason.devProspects ?? []).find(p => p.id === prospectId)
-      if (!prospect) return state
-      if ((team.finance?.budget ?? 0) < prospect.signingFee) return state
-      // 2軍の区分は廃止済み。人数は総在籍(ROSTER_MAX)で見る
-      if (teamRosterSize(state.players, team.id) >= ROSTER_MAX) return state
-
-
-      const newPlayer: import('../../types').Player = {
-        id: prospect.id,
-        name: prospect.name,
-        nameKana: '',
-        age: prospect.age,
-        yearsPro: 0,
-        draftYear: state.currentSeason.year,
-        draftRound: null,
-        draftPick: null,
-        ratings: { ...prospect.trueRatings },
-        specialty: prospect.specialty,
-        potential: prospect.potential,
-        growthCurve: 'normal',
-        // 所属はこのあと movePlayer で入れる（名簿と支度金の後始末をまとめて任せるため）
-        teamId: '',
-        joinedYear: state.currentSeason.year,
-        // 契約は movePlayer に渡す（年数は newContractYears 1本＝若いほど長い。加入の契約なので移籍ロックも付く）。
-        // 以前は `yearsLeft: 2` の固定で、movePlayer に契約を渡さないのでロックも付かなかった（オーナー・2026-09-26「2」）
-        contract: {
-          yearsLeft: 0,
-          annualSalary: 15000000,
-          faEligibleYear: state.currentSeason.year + 2,
-          contractType: 'development' },
-        nationality: prospect.nationality,
-        origin: prospect.origin,
-
-        status: 'active',
-        fatigue: 0,
-        morale: MORALE_DEFAULT,
-        form: 0,
-        career: { totalRaces: 0, segmentWins: 0, championships: 0, mvpAwards: 0 } }
-
-      // 名簿入りと支度金の引き落としは movePlayer に任せる（獲得・移籍と同じ後始末）。
-      // 移籍ではないので履歴には残さない
-      const moved = movePlayer(
-        { players: [...state.players, newPlayer], clubs: state.clubs },
-        newPlayer.id, state.playerTeamId,
-        { year: state.currentSeason.year, fee: prospect.signingFee, history: false,
-          contract: { yearsLeft: newContractYears(newPlayer, state.currentSeason.year) } },
-      )
-      if (!moved.ok) return state
-      return {
-        players: moved.players,
-        clubs: moved.clubs,
-        currentSeason: {
-          ...state.currentSeason,
-          devProspects: (state.currentSeason.devProspects ?? []).filter(p => p.id !== prospectId) } }
-    })
   },
 
 

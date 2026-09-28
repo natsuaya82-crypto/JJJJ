@@ -104,8 +104,8 @@ export function canReleaseFromRoster(players: Player[], teamId: string): boolean
 export type ContractType = 'standard' | 'development' | 'dual'
 
 /**
- * 育成選手（`signDevProspect`）の選手IDの頭。**入口の印はここ1本**（契約の種類は更新で変わるので印にならない）。
- * 新人王は「その年に世界に入った選手」から選ぶが、育成選手は外す（utils/awards）
+ * 育成選手の選手IDの頭。★**育成選手の機能は 2026-09-28 に消した**（オーナー「いらん」）。古いセーブには
+ * この頭の選手が残っているので、印だけ残す（新人王は「その年に世界に入った選手」から選ぶが、育成選手は外す＝utils/awards）
  */
 export const DEV_PROSPECT_ID_PREFIX = 'dev_'
 

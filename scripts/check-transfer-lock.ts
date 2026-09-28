@@ -76,8 +76,9 @@ console.log('\n[1b] 印を付けるのは movePlayer 1本。更新で消す')
   const draft = src('src/store/slices/draftSlice.ts')
   const joinCalls = [...draft.matchAll(/movePlayer\([^;]*?\)\s*\n/g)].map(m => m[0])
     .filter(c => /playerTeamId|, teamId,|newPlayer\.id/.test(c) && !/'',/.test(c))
-  check('ドラフトの指名と育成選手の加入が movePlayer に契約を渡す',
-    joinCalls.length >= 3 && joinCalls.every(c => /contract:/.test(c)),
+  // 育成選手の機能は 2026-09-28 に消した（オーナー「いらん」）ので、入口は自チームとCPUの指名の2本
+  check('ドラフトの指名（自チーム・CPU）が movePlayer に契約を渡す',
+    joinCalls.length >= 2 && joinCalls.every(c => /contract:/.test(c)),
     joinCalls.filter(c => !/contract:/.test(c)).map(c => c.trim().slice(0, 80)).join(' / ') || `${joinCalls.length}本`)
   check('setDraftContract で印を書き足していない', !/signedOnJoin: true/.test(draft))
   // ★経緯の説明文にも当たるので、**export が残っていないか**だけを見る

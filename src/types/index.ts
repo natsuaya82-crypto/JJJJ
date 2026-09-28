@@ -869,6 +869,7 @@ export type ArchivedSeason = Pick<Season,
 // kind が付いている発言は、増やさずに文面だけ差し替える。
 export type ChatMessage = { from: 'player' | 'gm'; text: string; kind?: string }
 
+/** 育成選手の候補。★機能は 2026-09-28 に消した（オーナー「いらん」）。古いセーブの `devProspects` を読むためだけに残す */
 export type DevProspect = {
   id: string
   name: string

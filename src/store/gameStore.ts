@@ -140,9 +140,6 @@ export type GameStore = GameState & {
   // Gameplay
   getPlayer: (playerId: string) => Player | undefined
   getTeamPlayers: (teamId: string) => Player[]
-  generateDevProspects: () => void
-  scoutDevProspect: (prospectId: string) => void
-  signDevProspect: (prospectId: string) => void
 
   // Scouting
   spendScoutPoint: () => void

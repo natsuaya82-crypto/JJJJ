@@ -337,28 +337,6 @@ SCENARIOS['draft-flow'] = () => {
   })
 }
 
-SCENARIOS['draft-dev-prospect'] = () => {
-  console.log('[draft-dev-prospect] 育成候補の獲得：予算内は成立、予算超過は不成立')
-  buildState('regular', 3)
-  const g = () => useGameStore.getState()
-  const mk = (id: string, fee: number): import('../src/types').DevProspect => ({
-    id, name: `育成${id}`, age: 18, origin: '', nationality: 'JPN',
-    specialty: 'allrounder', potential: 75,
-    trueRatings: { speed: 60, stamina: 60, mountainUp: 60, mountainDown: 60, pacing: 60, mental: 60, recovery: 60 },
-    signingFee: fee, scouted: false,
-  })
-  // 1人目は予算内（成立）、2人目はチーム予算(4億)を超える額（不成立）にして両方の枝を通す
-  useGameStore.setState({
-    currentSeason: { ...g().currentSeason, devProspects: [mk('dp-ok', 10_000_000), mk('dp-over', 500_000_000)] },
-  } as never)
-  compare('draft-dev-prospect', () => {
-    const before = teamRosterSize(g().players, MY)
-    g().signDevProspect('dp-ok')
-    g().signDevProspect('dp-over')
-    console.log(`      在籍 ${before} → ${teamRosterSize(g().players, MY)}`)
-  })
-}
-
 SCENARIOS['draft-pick-sale'] = () => {
   console.log('[draft-pick-sale] 指名権の売却：成立／価格超過で不成立／買い手の予算不足で不成立')
   buildState('regular', 3)

@@ -91,7 +91,6 @@ const acts: [string, () => void][] = [
   ['ensureFuturePicks', () => st().ensureFuturePicks?.()],
   ['ensureIndividualEvents', () => st().ensureIndividualEvents?.()],
   ['ensureWorldRacePlans', () => st().ensureWorldRacePlans?.()],
-  ['generateDevProspects', () => st().generateDevProspects?.()],
   ['startRegularSeason', () => st().startRegularSeason?.()],
   ['runRace', () => st().runRace(assignLineupByTerrain(P, races[0]) as never)],
   ['advanceLeaguesTo', () => st().advanceLeaguesTo?.(`${YEAR}-12-31`)],
