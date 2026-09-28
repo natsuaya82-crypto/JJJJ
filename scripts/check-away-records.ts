@@ -11,6 +11,7 @@
  * 通算成績は走行記録から数え直す（utils/careerStats）ので、数が変わると年俸も移籍金も動く。
  */
 import { runLeaguesThrough } from '../src/engine/leagueDay'
+import { leagueMakesRecordNews } from '../src/engine/raceRecords'
 import { buildCareerCounts } from '../src/utils/careerStats'
 import { generateCpuRosters, generateForeignLeaguePlayers } from '../src/engine/playerGenerator'
 import { INITIAL_TEAMS } from '../src/data/teams'
@@ -172,6 +173,16 @@ console.log('[6] ほかのリーグの区間新記録もニュースになる（
   console.log(`      区間新 ${news.length}件（海外リーグ ${foreignNews}件）`)
   check('ほかのリーグの区間新がニュースになる', news.length > 0 && news.every(n => n.headline.startsWith('【区間新記録】')), `${news.length}件`)
   check('海外リーグの区間新もニュースになる', foreignNews > 0, `${foreignNews}件`)
+  // ★ニュースにするのは平均の格が SEGMENT_NEWS_MAX_AVG_TIER(9) 以下のリーグだけ（オーナー・2026-09-28「オセアニアまでやな」）
+  //   戻し方：engine/leagueDay の `if (newsLeagues.get(d.leagueId))` を外す
+  const leagueOfPlayer = new Map(players.map(p => [p.id, clubs.find(c => c.id === p.teamId)?.leagueId]))
+  const newsFrom = new Set(news.map(n => leagueOfPlayer.get((n.relatedIds ?? [])[0] ?? '')))
+  const want = new Set(Object.keys(L).filter(id => id !== myLeague && leagueMakesRecordNews(id, clubs)))
+  console.log(`      ニュースを出すリーグ ${[...want].join('・')}`)
+  check('線より下のリーグ（アジア・中米・南米・2部）の区間新はニュースにしない', [...newsFrom].every(id => id && want.has(id)),
+    [...newsFrom].filter(id => !id || !want.has(id)).join('・'))
+  check('線はオセアニアまで（平均の格9以下が7リーグ・自チームの3部を除く）',
+    want.size === 7 && want.has('oceania') && !want.has(divisionLeagueId(2)), [...want].join('・'))
   // 過去のシーズンが無くても、同じ呼び名のコースを先に走ったリーグの記録が「前の記録」になる
   console.log(`      （過去のシーズン無しでも、同じ半年のうちに ${out.news.length}件）`)
 }

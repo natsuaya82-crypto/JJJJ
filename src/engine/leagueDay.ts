@@ -17,7 +17,7 @@ import { leaguesWhere, type WorldLeague } from '../data/leagues'
 import { playersByClub } from '../utils/rosterSync'
 import { applyCareerAdd, runBackgroundRace } from './backgroundRace'
 import { applyRaceMorale, standingOf } from './raceMorale'
-import { detectSegmentRecords } from './raceRecords'
+import { detectSegmentRecords, leagueMakesRecordNews } from './raceRecords'
 import { segmentRecordsOf, type SeasonRacesLike, type SegmentRecordMap } from '../utils/segmentRecords'
 import type { NewsItem } from '../utils/newsItems'
 
@@ -123,6 +123,7 @@ export function runLeaguesThrough(o: {
   // 走る前の記録を1回だけ組み、1本走るたびにその本の最速を書き足す（毎回組み直すと過去の全シーズンを数え直す）
   const records: SegmentRecordMap = { ...segmentRecordsOf(o.pastSeasons, o.season) }
   const news: NewsItem[] = []
+  const newsLeagues = new Map(Object.keys(leagues).map(id => [id, leagueMakesRecordNews(id, o.clubs)]))
 
   for (const d of due) {
     const lg = leagues[d.leagueId]
@@ -134,9 +135,11 @@ export function runLeaguesThrough(o: {
       entrants: lg.standings.map(s => ({ id: s.teamId, roster: (byClub.get(s.teamId) ?? []).filter(canRunLeagueRace) })),
     })
     if (out.race.results) {
-      news.push(...detectSegmentRecords({
+      // 記録は全リーグで更新する。ニュースにするのは平均の格が線より上のリーグだけ（leagueMakesRecordNews）
+      const found = detectSegmentRecords({
         race: out.race, results: out.race.results, players, clubs: o.clubs,
-        playerTeamId: o.playerTeamId, leagueId: d.leagueId, prevSegRecords: records }).news)
+        playerTeamId: o.playerTeamId, leagueId: d.leagueId, prevSegRecords: records }).news
+      if (newsLeagues.get(d.leagueId)) news.push(...found)
       for (const sr of out.race.results.segmentResults) {
         const key = `${out.race.name}-${sr.segmentIndex}`
         for (const run of sr.runners) {

@@ -11,7 +11,8 @@
 import type { LeagueId, Player, Race, RaceResults, WorldClub } from '../types'
 import type { SegmentRecordMap } from '../utils/segmentRecords'
 import { type NewsItem, segmentRecordHeadline } from '../utils/newsItems'
-import { clubById } from '../utils/world'
+import { clubById, clubsInLeague } from '../utils/world'
+import { tierOf } from '../utils/clubTier'
 
 export function detectSegmentRecords(params: {
   race: Race
@@ -50,4 +51,19 @@ export function detectSegmentRecords(params: {
     }
   }
   return { news, marks }
+}
+
+/**
+ * **ほかのリーグの区間新をニュースにする線**＝リーグの平均の格がこれ以下（オーナー・2026-09-28「オセアニアまでやな」）。
+ * 初期の平均の格で並べると 東アフリカ・欧州西南4.5／北米5.0／アフリカ北南6.5／欧州北東7.0／JPEL1部8.0／オセアニア9.0
+ * までが入り、南米11.7／JPEL2部13.5／アジア・中米15.0／JPEL3部18.0 は入らない。
+ * ★自分のリーグの区間新はこの線に関係なく出る（本編の1戦＝store/slices/raceSlice はここを見ない）
+ */
+export const SEGMENT_NEWS_MAX_AVG_TIER = 9
+
+/** そのリーグの区間新をニュースにするか（平均の格はいまのクラブの格から出す） */
+export function leagueMakesRecordNews(leagueId: LeagueId, clubs: readonly WorldClub[]): boolean {
+  const members = clubsInLeague(clubs, leagueId)
+  if (members.length === 0) return false
+  return members.reduce((s, c) => s + tierOf(c), 0) / members.length <= SEGMENT_NEWS_MAX_AVG_TIER
 }
