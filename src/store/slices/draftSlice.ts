@@ -598,13 +598,15 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
     const cpuTransferIds = new Set<string>()
     let playersAfterCpuTransfer = playersAfterCpuRelease
     let clubsAfterCpuTransfer = clubsAfterCpuRelease
+    // ★**走り終わったシーズン**。この時点の currentSeason は来季の空っぽの器（下の3本が同じものを見る）
+    const finishedSeason = state.pastSeasons[state.pastSeasons.length - 1] ?? state.currentSeason
     {
       const bought = runTransferMarket(
         { players: playersAfterCpuRelease, clubs: clubsAfterCpuRelease },
         { playerTeamId: state.playerTeamId, year: state.currentSeason.year,
           // ★**走り終わったシーズン**を渡す。この時点の currentSeason は来季の空っぽの器で、
           //   それを渡すと全員が「出場0」になり移籍金も年俸も一律に潰れる
-          season: state.pastSeasons[state.pastSeasons.length - 1] ?? state.currentSeason,
+          season: finishedSeason,
           pastSeasons: state.pastSeasons.slice(0, -1),
           // 上限は `rosterCapFor` 1本。指名権を持たないクラブ（海外）は `rosterCapOf(0)`＝`ROSTER_MAX`
           rosterCapFor,
@@ -627,10 +629,14 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       const traded = runCpuTrades(
         { players: playersAfterCpuTransfer, clubs: clubsAfterCpuTransfer },
         { playerTeamId: state.playerTeamId, year: state.currentSeason.year,
-          tradeValueCtx: tradeValueCtxOf(state), excludeIds: cpuTransferIds,
+          // ★値段も出場率も**走り終わったシーズン**と**市場を回したあとの名簿**で見る
+          //   （現金の移籍と同じ。currentSeason は来季の空っぽの器なので全員が出場0になる）
+          tradeValueCtx: tradeValueCtxOf({ players: playersAfterCpuTransfer, clubs: clubsAfterCpuTransfer,
+            currentSeason: finishedSeason, pastSeasons: state.pastSeasons }),
+          excludeIds: cpuTransferIds,
           // ④本人の同意（現金の移籍と同じ入口）
           destinationOf: get().destinationOf,
-          season: state.currentSeason, pastSeasons: state.pastSeasons })
+          season: finishedSeason, pastSeasons: state.pastSeasons })
       playersAfterCpuTransfer = traded.players
       clubsAfterCpuTransfer = traded.clubs
       offseasonTxRecords.push(...traded.records)
@@ -643,8 +649,9 @@ export const createDraftSlice = (set: SetGame, get: () => GameStore): Slice => (
       const loaned = runCpuLoans(
         { players: playersAfterCpuTransfer, clubs: clubsAfterCpuTransfer },
         { playerTeamId: state.playerTeamId, year: state.currentSeason.year, excludeIds: cpuTransferIds,
-          // ④本人が行くか（レンタルの基準で）
-          destinationOf: get().destinationOf })
+          // ④本人が行くか（レンタルの基準で）。出場率は走り終わったシーズンから（省略すると 0.5 / 0戦 の手書きに落ちる）
+          destinationOf: get().destinationOf,
+          season: finishedSeason, pastSeasons: state.pastSeasons })
       playersAfterCpuTransfer = loaned.players
       clubsAfterCpuTransfer = loaned.clubs
       offseasonTxNews.push(...loaned.news)

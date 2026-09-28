@@ -21,6 +21,7 @@ import { clubById } from '../utils/world'
 import { bigClub } from '../utils/clubs'
 import { type NewsItem, clubLabel, transferHeadline } from '../utils/newsItems'
 import { ovr } from '../utils/playerUtils'
+import { needsPlayer } from '../utils/squadNeeds'
 import { appraiseMove, type Destination } from '../utils/transferDecision'
 import { canBePoached, ctxForTeam, eligibilityCtx } from '../utils/transferEligibility'
 import { playRateOf, prevSeasonOf, type PlayRateSeason } from '../utils/playRate'
@@ -87,11 +88,15 @@ export function settleCpuTransfers(params: {
       if (listing.fromTeamId !== playerTeamId && (rosterCount.get(listing.fromTeamId) ?? 0) <= CPU_SELL_FLOOR) continue
       // 買い手が満杯（30人以上）または予算不足なら今回は見送り（出品は残す）
       if ((rosterCount.get(buyerTeamId) ?? 0) >= ROSTER_MAX || (buyer.finance?.budget ?? 0) < listing.askingPrice) continue
+      // ①買い手が要るか（`utils/squadNeeds` の needsPlayer 1本＝穴があって、そこで走れる）。
+      //   ほかの買う道（移籍市場・トレード・打診・FA）と同じ関門。以前はここだけ見ておらず、
+      //   要らない選手でも抽選に当たれば買っていた（出品は残す＝別のクラブ・別のレースで話が来る）
+      if (!needsPlayer((rosterIndex.get(buyerTeamId) ?? []).filter(x => x.status === 'active'), p)) continue
       // 出品していても、行き先に納得しなければ本人は行かない（承諾・逆提示・買う側と同じゲート）。
       // ここは自動成立なので断られても札は消さず、別のクラブ・別のレースで話が来るのを待つ
       // ★出場率は `utils/playRate` 1本。ベタ書きの 0.5 / 0戦 に戻さないこと——
-      //   teamRaces が 0 だと `appraiseMove` の関門（走れている選手は格下へ行かない・
-      //   1戦も走っていない選手は格上へ行かない）が**一度も発火しません**
+      //   teamRaces が 0 だと `appraiseMove` の出場機会の見方（`playingStatus`）が
+      //   正しく働きません
       const { fraction, teamRaces } = playRateOf(p.id, listing.fromTeamId, currentSeason,
         clubs, prevSeasonOf(pastSeasons, currentSeason.year))
       if (!appraiseMove(p, destinationOf(buyerTeamId, p), {

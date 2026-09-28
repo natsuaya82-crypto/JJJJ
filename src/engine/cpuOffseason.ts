@@ -18,7 +18,7 @@ import { isLoanedIn } from '../utils/rosterSync'
 import { priceOf, tradeBalance, type TradeValueCtx } from '../utils/tradeValue'
 import { playRateOf, prevSeasonOf, type PlayRateSeason } from '../utils/playRate'
 import { appraiseMove, hasNoPlayingTime, type Destination } from '../utils/transferDecision'
-import { playerTierOf, tierLines } from '../utils/playerTier'
+import { playerTierOf, worldTierLines } from '../utils/playerTier'
 import { isOwnedBy, isTransferLocked } from '../utils/transferEligibility'
 import { comparePlayers } from '../utils/playerSort'
 import { clubIndexOf } from '../utils/rosterSync'
@@ -26,8 +26,8 @@ import { clubIds, clubMap, otherClubs } from '../utils/world'
 import { movePlayer } from '../utils/movePlayer'
 import { effectiveOvr, ovr, playerConsentToMove } from '../utils/playerUtils'
 import { clubLabel, loanHeadline, type NewsItem } from '../utils/newsItems'
-import { needsPlayer } from '../utils/squadNeeds'
-import { DOMESTIC_BOTTOM_TIER, tierOf, tierOfPlayerClub, tierBudget } from '../utils/clubTier'
+import { needsPlayer, squadRankOf } from '../utils/squadNeeds'
+import { tierOfPlayerClub, tierBudget } from '../utils/clubTier'
 import { runTransferMarket } from './transferMarket'
 import { ROSTER_MAX, CPU_SELL_FLOOR } from '../data/rosterRules'
 import type { ArchivedSeason, Player, Season, TransferRecord, WorldClub } from '../types'
@@ -252,11 +252,12 @@ export function runCpuLoans(
   const receivedLoan: Record<string, number> = {}
   // クラブの名簿は索引から引く（クラブの数だけ全選手を走査しない・utils/rosterSync）
   // 選手の格の線は世界全体から1回だけ組む（utils/playerTier）
-  const loanTierBy = clubMap(world.clubs, c => tierOf(c))
-  const loanLines = tierLines(players, id => loanTierBy.get(id) ?? DOMESTIC_BOTTOM_TIER)
+  const loanLines = worldTierLines(players, world.clubs)
   const rosterOf = (teamId: string) => (clubIndexOf(players).get(teamId) ?? [])
     .filter(p => p.status === 'active' && !p.loan)
     .sort(comparePlayers('ovr'))
+  // 序列を数える名簿は走れる人（`active`）全員＝`keyPlayerStatus` と同じ（借りている選手も入る）
+  const activeOf = (teamId: string) => (clubIndexOf(players).get(teamId) ?? []).filter(p => p.status === 'active')
 
   let lent = 0
   for (const receiver of cpuIds) {
@@ -274,8 +275,9 @@ export function runCpuLoans(
       //   15人になり `ROSTER_MIN` を割るので、`check-offseason` が12回に3回落ちていました
       //   （実測で14人まで落ちた回あり）。**新しい線を引かないこと。**
       if (rosterSize(sid) <= CPU_SELL_FLOOR) continue
-      const found = rosterOf(sid).find((p, i) =>
-        hasNoPlayingTime(i + 1) && p.age <= LOAN_MAX_AGE
+      const sidActive = activeOf(sid)
+      const found = rosterOf(sid).find(p =>
+        hasNoPlayingTime(squadRankOf(sidActive, p)) && p.age <= LOAN_MAX_AGE
         // ★レンタルは `isTransferLocked` の対象外（オーナー・2026-08-14「レンタルのみ」）。
         //   ここは今までどおり「同じ年に二度は動かさない」だけ
         && !loanedIds.has(p.id) && p.joinedYear !== ctx.year
@@ -351,8 +353,7 @@ export function runCpuTrades(
   const tradeCount: Record<string, number> = {}
   const cpuIds = marketClubIds(world.clubs, ctx.playerTeamId)
   // 格を引く材料は1回だけ組む（232クラブの配列を1組ごとに作り直さない）
-  const tradeTierBy = clubMap(world.clubs, c => tierOf(c))
-  const tradeLines = tierLines(players, id => tradeTierBy.get(id) ?? DOMESTIC_BOTTOM_TIER)
+  const tradeLines = worldTierLines(players, world.clubs)
 
   let done = 0
   for (const buyerId of cpuIds) {
@@ -366,10 +367,11 @@ export function runCpuTrades(
     //   実際に通っていたのは「その前の移籍で人が抜けて22人になったクラブ」だけ。
     // 出すのは「自分のところで出番が無い選手」（transferDecision の hasNoPlayingTime 1本）。
     // 以前はここに平均OVRから作った下限表（74/67/60）があった＝格とは別の物差し
+    // 序列は `squadRankOf` 1本（名簿は走れる人全員＝`keyPlayerStatus` と同じ）
     const buyerRanked = [...buyRoster].sort(comparePlayers('ovr'))
     const buyerSurplus = buyerRanked
       // レンタルで借りている選手は保有権が無いのでトレードに出せない
-      .filter((p, i) => isOwnedBy(p, buyerId) && !tradedIds.has(p.id) && !isTransferLocked(p, ctx.year) && hasNoPlayingTime(i + 1))
+      .filter(p => isOwnedBy(p, buyerId) && !tradedIds.has(p.id) && !isTransferLocked(p, ctx.year) && hasNoPlayingTime(squadRankOf(buyRoster, p)))
       // 値段は tradeValue の priceOf 1本（下の成立判定と同じ物差し）
       .sort((a, b) => priceOf(b, ctx.tradeValueCtx) - priceOf(a, ctx.tradeValueCtx))
     if (buyerSurplus.length === 0) continue
@@ -391,11 +393,11 @@ export function runCpuTrades(
       //   トレードだけ両側に「必要か」を課していたので、
       //   「相手で15番手以降なのに、うちの走れる7人に入る」を**両クラブが互いに**
       //   満たす必要があり、実測で1件も成立しませんでした。
-      const target = sellRoster.slice(TRADE_SELLER_PROTECTED).find((p, i) =>
+      const target = sellRoster.slice(TRADE_SELLER_PROTECTED).find(p =>
         isOwnedBy(p, sellerId) &&
         !tradedIds.has(p.id) &&
         !isTransferLocked(p, ctx.year) &&
-        needsPlayer(buyRoster, p) && hasNoPlayingTime(i + TRADE_SELLER_PROTECTED + 1) &&
+        needsPlayer(buyRoster, p) && hasNoPlayingTime(squadRankOf(sellRoster, p)) &&
         tradeBalance({ outPlayers: [offered], inPlayers: [p] }, ctx.tradeValueCtx).ok
       )
       if (!target) continue
@@ -543,7 +545,11 @@ export function runCpuMarketTick(
   // 移籍は engine/transferMarket の1本。オフの一括処理と同じ関数を件数だけ絞って呼ぶ
   const bought = runTransferMarket(world, { ...ctx, excludeIds, maxMoves: CPU_TICK_TRANSFERS })
   const traded = runCpuTrades({ players: bought.players, clubs: bought.clubs },
-    { playerTeamId: ctx.playerTeamId, year: ctx.year, tradeValueCtx: ctx.tradeValueCtx, excludeIds, maxTrades: CPU_TICK_TRADES, date: ctx.date,
+    { playerTeamId: ctx.playerTeamId, year: ctx.year,
+      // 値段の材料は**移籍を回したあとの名簿**に差し替える（序列＝余剰かを古い名簿で数えない）
+      tradeValueCtx: { ...ctx.tradeValueCtx, players: bought.players,
+        ...(ctx.tradeValueCtx.world ? { world: { ...ctx.tradeValueCtx.world, players: bought.players, clubs: bought.clubs } } : {}) },
+      excludeIds, maxTrades: CPU_TICK_TRADES, date: ctx.date,
       destinationOf: ctx.destinationOf,
       season: ctx.season, pastSeasons: ctx.pastSeasons })
   const lent = runCpuLoans({ players: traded.players, clubs: traded.clubs },

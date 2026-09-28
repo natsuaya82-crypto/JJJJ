@@ -66,7 +66,8 @@ export const createCompetitionSlice = (set: SetGame, get: () => GameStore): Slic
         // 上限は `rosterCapOf` 1本（シーズン中は空けておく指名権ぶんが無いので、どのクラブも同じ数）
         rosterCapFor: () => rosterCapOf(draftPickCounts),
         destinationOf: get().destinationOf,
-        tradeValueCtx: tradeValueCtxOf(state),
+        // 値段の材料は**この回の名簿**で作り直す（前の回で動いた選手の序列・所属を古いまま見ない）
+        tradeValueCtx: tradeValueCtxOf({ players, clubs, currentSeason: state.currentSeason, pastSeasons: state.pastSeasons }),
         date: roundDate })
       players = r.players
       clubs = r.clubs

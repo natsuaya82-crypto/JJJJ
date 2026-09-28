@@ -34,7 +34,7 @@ import { isLiveContract } from '../../utils/contractTalk'
 import { leagueThroughRank, myLeagueSize, segmentPrizeByTeam, leagueStandingRows, addRaceToStandings } from '../../utils/league'
 import { movePlayer } from '../../utils/movePlayer'
 import { segmentPrizeHeadline, worldChampFinishHeadline } from '../../utils/newsItems'
-import { playerConsentToMove, racesConsumed } from '../../utils/playerUtils'
+import { faMarketSalary, newContractYears, perfOf, playerConsentToMove, racesConsumed } from '../../utils/playerUtils'
 import { tierOfPlayerClub } from '../../utils/clubTier'
 import { eligibilityCtx } from '../../utils/transferEligibility'
 
@@ -496,12 +496,18 @@ export const createRaceSlice = (set: SetGame, get: () => GameStore): Slice => ({
       let clubsAfterFreeMoves = clubsAfterLoan
       const freeMoveRecords: TransferRecord[] = []
       for (const mv of freeMoves) {
+        const leaver = playersAfterFreeMoves.find(p => p.id === mv.playerId)
         const m = movePlayer({ players: playersAfterFreeMoves, clubs: clubsAfterFreeMoves }, mv.playerId, mv.toTeamId, {
           year: state.currentSeason.year,
           date: race.date,
           kind: 'free',
           myTeamId: playerTeamId,
-          lockUntilYear: state.currentSeason.year + 1 })
+          lockUntilYear: state.currentSeason.year + 1,
+          // ★加入の入口は必ず契約を渡す（signedOnJoin の印・契約年数は movePlayer が契約から付ける）。
+          //   年数は newContractYears・年俸は faMarketSalary（出場は perfOf）＝シーズン中のFA・移籍市場と同じ
+          ...(leaver ? { contract: {
+            yearsLeft: newContractYears(leaver, state.currentSeason.year),
+            annualSalary: faMarketSalary(leaver, perfOf(leaver, { players: playersAfterFreeMoves, clubs: clubsAfterFreeMoves, currentSeason: state.currentSeason })) } } : {}) })
         if (!m.ok) continue
         playersAfterFreeMoves = m.players
         clubsAfterFreeMoves = m.clubs
