@@ -136,7 +136,13 @@ type Actor = {
   lat: number
   x: number
   finished: boolean
+  /** ゴールしたら消えていく（1→0）。体の材質の不透明度に当てる */
+  fade: number
+  mats: THREE.Material[]
 }
+
+/** ゴールした走者が消えるまでの秒（画面の秒） */
+const FINISH_FADE_SEC = 1.2
 
 /** 走者の頭の上の▼を置く所（canvas の左上からの px）。映っていなければ visible が false */
 export type PlaceLabel = (teamId: string, x: number, y: number, visible: boolean) => void
@@ -245,6 +251,7 @@ export function createStage(canvas: HTMLCanvasElement, segs: readonly StageSegme
     racers.forEach((tm, i) => {
       const body = cloneSkinned(gltf.scene)
       const uniform = new THREE.Color(tm.color)
+      const mats: THREE.Material[] = []
       body.traverse(o => {
         const mesh = o as THREE.SkinnedMesh
         if (!mesh.isMesh || !mesh.visible) return
@@ -259,6 +266,7 @@ export function createStage(canvas: HTMLCanvasElement, segs: readonly StageSegme
             .replace('#include <color_fragment>', 'diffuseColor.rgb = mix(uSkin, uUniform, clamp(vColor.r, 0.0, 1.0));')
         }
         mesh.material = mat
+        mats.push(mat)
       })
       const holder = new THREE.Group()
       holder.add(body)
@@ -269,7 +277,7 @@ export function createStage(canvas: HTMLCanvasElement, segs: readonly StageSegme
         act.time = hash01(i) * clip.duration
         act.play()
       }
-      actors.set(tm.teamId, { teamId: tm.teamId, holder, mixer, lat: ((i % 5) - 2) * 0.9, x: 0, finished: false })
+      actors.set(tm.teamId, { teamId: tm.teamId, holder, mixer, lat: ((i % 5) - 2) * 0.9, x: 0, finished: false, fade: 1, mats })
     })
     onReady?.()
   })
@@ -300,7 +308,13 @@ export function createStage(canvas: HTMLCanvasElement, segs: readonly StageSegme
       if (!a) continue
       a.x = Math.min(totalM, r.raceKm * 1000)
       a.finished = r.finished
-      const near = Math.abs(a.x - fx) < VISIBLE_M
+      // ゴールした走者は消えていく（オーナー・2026-09-29「走り終わったら選手フェードアウト」）
+      const fade = r.finished ? Math.max(0, a.fade - dt / FINISH_FADE_SEC) : 1
+      if (fade !== a.fade) {
+        a.fade = fade
+        for (const mt of a.mats) { mt.transparent = fade < 1; mt.opacity = fade }
+      }
+      const near = Math.abs(a.x - fx) < VISIBLE_M && fade > 0
       a.holder.visible = near
       if (!near) continue
       roadPoint(a.x, a.lat, hAt, a.holder.position)

@@ -169,6 +169,11 @@ function makeTeams(): TimelineTeam[] {
     mid.map(r => r.teamId).join('') === 'bca' && near(mid[0].gap!, 0) && near(mid[1].gap!, 30 - 8.9 * (300 / 95)) && near(mid[2].gap!, 5.5),
     mid.map(r => `${r.teamId}${r.gap}`).join(' '))
   check('[6] まだその区間に入っていないチームは差が無い', legBoardAt(tl, 105, 1).find(r => r.teamId === 'c')!.gap === null)
+  // 区間の一覧はタイムそのものを出す（オーナー・2026-09-29「+秒じゃなくてちゃんとタイムにしてtopもなし」）
+  check('[6] 走り終えた区間のタイム＝区間タイム', board.map(r => `${r.teamId}${r.time}${r.done ? '済' : ''}`).join(' ') === 'b89済 c95済 a100済',
+    board.map(r => `${r.teamId}${r.time}${r.done}`).join(' '))
+  check('[6] 走っている途中はそこまでの秒', mid.map(r => `${r.teamId}${r.time}${r.done ? '済' : ''}`).join(' ') === 'b40 c30 a50',
+    mid.map(r => `${r.teamId}${r.time}${r.done}`).join(' '))
 }
 
 // ── [7] 画面がこの1本を読んでいる ──
@@ -182,6 +187,10 @@ function makeTeams(): TimelineTeam[] {
   check('[7] 旧い位置の計算（calcRunnerPositions）が戻っていない',
     ![sim, page, online, panel].some(s => s.includes('calcRunnerPositions') || s.includes('kmRatio')))
   check('[7] 棒グラフは raceTimeline から位置と差を読む', /snapshotAt\(/.test(sim) && /legBoardAt\(/.test(sim))
+  // 区間の一覧は TOP も +秒も出さず、区間タイム（formatRaceTime(row.time)）。上に走り出した区間の札を並べる
+  check('[7] 区間の一覧はタイムを出す（+秒・TOPではない）', /board === 'leg' \? \(row\.time == null \? null/.test(sim) && /formatRaceTime\(row\.time\)/.test(sim))
+  check('[7] 区間の一覧の上に、走り出した区間の札がある', /labels=\{startedLegs\.map/.test(sim))
+  check('[7] 全チームがゴールしたら結果へ進む', /if \(!done\) return[\s\S]{0,120}AUTO_RESULTS_MS/.test(sim))
   check('[7] 本編・オンライン・大会の中継が同じ時計を通る',
     [page, online, panel].every(s => s.includes('buildTimeline(')) && online.includes('useRaceClock('))
   check('[7] CPU の区間タイムはレースの頭で全区間ぶん出す（呼ぶのは1か所）',

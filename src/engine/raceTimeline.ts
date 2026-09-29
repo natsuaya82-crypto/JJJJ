@@ -179,8 +179,10 @@ export function snapshotAt(tl: RaceTimeline, t: number): TimelineSnapshot {
 /**
  * その区間の順（その区間で速い順）。`gap` は1位との差の秒。まだその区間に入っていないチームは
  * 後ろに総合の順で並び、`gap` は null。
+ * `time` はその区間を走った秒（走り終えていれば区間タイム、走っている途中ならそこまでの秒）、
+ * `done` はその区間を走り終えたか。まだ入っていないチームはどちらも null / false。
  */
-export function legBoardAt(tl: RaceTimeline, t: number, leg: number): { teamId: string; gap: number | null }[] {
+export function legBoardAt(tl: RaceTimeline, t: number, leg: number): { teamId: string; gap: number | null; time: number | null; done: boolean }[] {
   const dist = tl.distances[leg] ?? 0
   const started = tl.entries
     .filter(b => leg < b.ran && b.starts[leg] <= t)
@@ -196,8 +198,8 @@ export function legBoardAt(tl: RaceTimeline, t: number, leg: number): { teamId: 
   const top = lost[0]?.lost ?? 0
   const inLeg = new Set(lost.map(p => p.x.b.teamId))
   return [
-    ...lost.map(p => ({ teamId: p.x.b.teamId, gap: p.lost - top })),
-    ...snapshotAt(tl, t).overall.filter(s => !inLeg.has(s.teamId)).map(s => ({ teamId: s.teamId, gap: null })),
+    ...lost.map(p => ({ teamId: p.x.b.teamId, gap: p.lost - top, time: p.x.e, done: p.x.e >= p.x.b.legs[leg]!.time })),
+    ...snapshotAt(tl, t).overall.filter(s => !inLeg.has(s.teamId)).map(s => ({ teamId: s.teamId, gap: null, time: null, done: false })),
   ]
 }
 

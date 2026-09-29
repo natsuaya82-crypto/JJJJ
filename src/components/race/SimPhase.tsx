@@ -32,6 +32,9 @@ export type RunnerIdOf = (teamId: string, leg: number) => string | undefined
 
 const BOARDS = ['total', 'leg'] as const
 
+/** 全チームがゴールしてから結果へ進むまで（ゴールした走者が3Dで消えるのと同じくらい） */
+const AUTO_RESULTS_MS = 1500
+
 // レーストラック表示。位置と差は `engine/raceTimeline` だけから出す（ここで計算しない）
 export function RaceTrack({
   race, raceTeams, players, playerTeamId, timeline, t, runnerIdOf, renderStage, head,
@@ -60,10 +63,15 @@ export function RaceTrack({
   const legStartKm = timeline.startKm[leg] ?? 0
   const segCol = currentSeg ? terrainColor(currentSeg.uphillPct, currentSeg.downhillPct) : C.blue
 
-  // 区間の一覧は、1区のあいだは1区、そのあとは走り終えた1つ前の区間（ゴールしたら最後の区間）
-  const boardLeg = board === 'leg' && focus && !focus.finished && leg > 0 ? leg - 1 : leg
+  // 区間の一覧は、上の札（1区・2区…）で選んだ区間。選んでいなければ、1区のあいだは1区、
+  // そのあとは走り終えた1つ前の区間（ゴールしたら最後の区間）。
+  // 札に並ぶのは、どこかのチームがもう走り出した区間だけ（オーナー・2026-09-29「上に1区とか置いて区間賞はレース中でもみれるように」）
+  const [legPick, setLegPick] = useState<number | null>(null)
+  const startedLegs = race.segments.map((_, i) => i).filter(i => i <= (snap.overall[0]?.leg ?? 0))
+  const autoLeg = focus && !focus.finished && leg > 0 ? leg - 1 : leg
+  const boardLeg = legPick != null && legPick < startedLegs.length ? legPick : autoLeg
   const rows = board === 'total'
-    ? snap.overall.map(s => ({ teamId: s.teamId, gap: s.gap as number | null, raceKm: s.raceKm, runnerId: runnerIdOf(s.teamId, s.leg) }))
+    ? snap.overall.map(s => ({ teamId: s.teamId, gap: s.gap as number | null, time: null as number | null, raceKm: s.raceKm, runnerId: runnerIdOf(s.teamId, s.leg) }))
     : legBoardAt(timeline, t, boardLeg).map(r => ({
         ...r,
         raceKm: runnerAt(timeline, r.teamId, t)?.raceKm ?? 0,
@@ -143,9 +151,12 @@ export function RaceTrack({
 
       <div style={{ padding: '4px 0 0' }}>
         <PillTabs labels={['総合', '区間']} value={BOARDS.indexOf(board)} onChange={i => setBoard(BOARDS[i])} fill style={{ padding: '6px 12px' }} />
-        {board === 'leg' && boardSeg && (
+        {board === 'leg' && (
+          <PillTabs labels={startedLegs.map(i => `${race.segments[i].index}区`)} value={boardLeg}
+            onChange={i => setLegPick(i)} style={{ padding: '0 12px 6px' }} />
+        )}
+        {board === 'leg' && boardSeg && record && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 12px 6px', minWidth: 0 }}>
-            <span style={{ flex: 'none', fontWeight: 900, fontSize: F.body, lineHeight: 1, padding: '3px 6px 2px', color: C.text, background: C.surface3, border: `1px solid ${C.border2}` }}>{boardSeg.index}区</span>
             {record && (<>
               <span style={{ flex: 'none', fontWeight: 900, fontSize: F.caption, lineHeight: 1, padding: '3px 5px 2px', color: C.gold, background: alpha(C.gold, 0.16), border: `1px solid ${alpha(C.gold, 0.65)}` }}>区間記録</span>
               <span style={{ flex: 'none', fontFamily: SAIRA, fontWeight: 900, fontSize: F.subLg, lineHeight: 1, fontVariantNumeric: 'tabular-nums', color: C.text }}>{formatRaceTime(record.timeSec)}</span>
@@ -233,9 +244,14 @@ export function RaceTrack({
                 </div>
               </div>
 
-              {/* タイム差（折り返し禁止：折り返すと行高が変わり下位がガタつくため） */}
+              {/* 総合はタイム差、区間はその区間のタイム（折り返し禁止：折り返すと行高が変わり下位がガタつくため）。
+                  区間はタイムそのものを出す（オーナー・2026-09-29「+秒じゃなくてちゃんとタイムにしてtopもなし」） */}
               <div style={{ minWidth: 52, textAlign: 'right', flexShrink: 0, fontFamily: SAIRA, position: 'relative', zIndex: 1, whiteSpace: 'nowrap' }}>
-                {row.gap == null ? null : rank === 0 ? (
+                {board === 'leg' ? (row.time == null ? null : (
+                  <span style={{ fontSize: F.body, fontWeight: 700, color: C.text, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                    {formatRaceTime(row.time)}
+                  </span>
+                )) : row.gap == null ? null : rank === 0 ? (
                   <span style={{ fontSize: F.label, color: C.gold, fontWeight: 900, whiteSpace: 'nowrap' }}>TOP</span>
                 ) : (
                   <span style={{ fontSize: F.body, fontWeight: 700, color: isMe ? C.red : C.textDim, whiteSpace: 'nowrap' }}>
@@ -329,6 +345,14 @@ export function SimPhase({
   }
 
   const done = t >= timeline.endTime
+  // 全チームが走り終えたら、ゴールした走者が消えるのを待って結果へ（オーナー・2026-09-29「勝手に結果に進められる？」）
+  const finishRef = useRef(onFinish)
+  finishRef.current = onFinish
+  useEffect(() => {
+    if (!done) return
+    const tm = setTimeout(() => finishRef.current(), AUTO_RESULTS_MS)
+    return () => clearTimeout(tm)
+  }, [done])
   const totalSegs = race.segments.length
   const focusId = focusTeamOf(timeline, playerTeamId, t)
   const focusLeg = (focusId ? runnerAt(timeline, focusId, t)?.leg : 0) ?? 0
