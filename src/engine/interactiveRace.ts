@@ -283,6 +283,13 @@ export type RaceContext = {
   isFirstSeg: boolean
 }
 
+/**
+ * **レース中の選択イベントを出すか。** いまは出さない（オーナー・2026-09-29「一旦見えないようにしよう」）。
+ * 仕組み（選択肢・効き目・点検）は残してあるので、戻すときはここを true にするだけ。
+ * 設定画面の「レース中の選択イベント」の行も、これが false のあいだは出さない。
+ */
+export const RACE_EVENTS_OPEN = false
+
 export function generateSegmentEvents(params: {
   seg: Segment
   playerBaseTime: number

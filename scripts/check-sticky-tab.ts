@@ -162,6 +162,15 @@ console.log('\n[5] 開いている会話も URL 1本（チャット）')
   check('閉じるのは navigate(-1) 1本', /const closeConversation = \(\) => navigate\(-1\)/.test(src))
 }
 
+console.log('\n[押した値はすぐ出る] 毎フレーム描き直す画面（中継）でもタブが切り替わる')
+{
+  // ルーターはURLの書き換えを transition で流すので、中継のように描き直し続ける画面ではいつまでも反映されない
+  // （2026-09-29・レース中に「区間」を押しても総合のままだった）。押した値を先に出し、URLが変わったらURLを正にする
+  // 戻し方：useStickyTab の pressed を消す
+  const hook = readFileSync('src/lib/useStickyTab.ts', 'utf8')
+  check('押した値をURLより先に出す（pressed）', /setPressed\(\{ v, from: raw \}\)/.test(hook) && /pressed\.from === raw \? pressed\.v/.test(hook))
+}
+
 console.log('')
 if (failed > 0) { console.log(`✗ タブが戻ったときに先頭へ戻ります（${failed}件）`); process.exit(1) }
 console.log('✓ タブはURLに覚えている。詳細から戻っても見ていたところのまま')

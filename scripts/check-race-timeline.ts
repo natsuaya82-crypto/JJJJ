@@ -191,6 +191,13 @@ function makeTeams(): TimelineTeam[] {
   check('[7] 区間の一覧はタイムを出す（+秒・TOPではない）', /board === 'leg' \? \(row\.time == null \? null/.test(sim) && /formatRaceTime\(row\.time\)/.test(sim))
   check('[7] 区間の一覧の上に、走り出した区間の札がある', /labels=\{startedLegs\.map/.test(sim))
   check('[7] 全チームがゴールしたら結果へ進む', /if \(!done\) return[\s\S]{0,120}AUTO_RESULTS_MS/.test(sim))
+  // スキップは「ゴールまで」の1つ（区間ごとに飛ぶ形はやめた・オーナー・2026-09-29「bがいいかも」）
+  check('[7] スキップはゴールまで（区間の終わりへ飛ぶ形が戻っていない）', /jumpTo\(timeline\.endTime\)/.test(sim) && !/この区間をスキップ/.test(sim))
+  // ★一気に全区間を飛ぶと受け渡しが同じ描画で何回も呼ばれる。描画の時点の iSim を読むと2回目以降が捨てられ、結果へ進めない
+  check('[7] 受け渡しは直前の状態から作る（setISim に関数を渡す）', /function handleHandoff[\s\S]{0,400}setISim\(prev =>/.test(page))
+  // レース中の選択イベントはいま出さない（オーナー・2026-09-29「一旦見えないようにしよう」）。戻すときは RACE_EVENTS_OPEN
+  check('[7] 選択イベントは RACE_EVENTS_OPEN が false のあいだ出ない', /RACE_EVENTS_OPEN && playerObj/.test(page)
+    && /export const RACE_EVENTS_OPEN = false/.test(readFileSync('src/engine/interactiveRace.ts', 'utf8')))
   check('[7] 本編・オンライン・大会の中継が同じ時計を通る',
     [page, online, panel].every(s => s.includes('buildTimeline(')) && online.includes('useRaceClock('))
   check('[7] CPU の区間タイムはレースの頭で全区間ぶん出す（呼ぶのは1か所）',

@@ -20,7 +20,7 @@
 //   ★**パス（`/standings/2` のような形）にはしないこと。** 画面の出現アニメは
 //     `location.pathname` で動いているので（`App.tsx`）、パスを書き換えると
 //     タブを押すたびにページごと出直します。クエリなら動きません。
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 /**
@@ -38,15 +38,21 @@ export function useStickyTab<T extends string | number>(
 ): [T, (v: T) => void] {
   const [params, setParams] = useSearchParams()
   const raw = params.get(key)
-  const current = values.find(v => String(v) === raw) ?? fallback
+  // ★押した値はすぐ画面に出す（URLが追いつくまでの間）。ルーターはURLの書き換えを「後回しでよい更新」
+  //   （React の transition）で流すので、中継のように毎フレーム描き直している画面では**いつまでも反映されない**
+  //   （2026-09-29・レース中に「区間」を押しても総合のままだった。止まったあとは切り替わる）。
+  //   押したときのURLの値（from）を一緒に覚え、URLが変わったら（追いついた・戻る矢印で戻った）こちらは使わない＝URLが正
+  const [pressed, setPressed] = useState<{ v: T; from: string | null } | null>(null)
+  const current = (pressed && pressed.from === raw ? pressed.v : undefined) ?? values.find(v => String(v) === raw) ?? fallback
 
   const set = useCallback((v: T) => {
+    setPressed({ v, from: raw })
     const next = new URLSearchParams(params)
     // 既定と同じものはURLに残さない（`?tab=members` のような無駄な字を増やさない）
     if (String(v) === String(fallback)) next.delete(key)
     else next.set(key, String(v))
     setParams(next, { replace: true })
-  }, [key, fallback, params, setParams])
+  }, [key, fallback, params, setParams, raw])
 
   return [current, set]
 }

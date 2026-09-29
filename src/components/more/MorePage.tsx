@@ -23,6 +23,7 @@ import ScreenCover from '../ui/ScreenCover'
 import { OFFLINE_TEXT } from '../../lib/supabase'
 import { clubById, myClub } from '../../utils/world'
 import { clubCity, clubGmName } from '../../utils/clubs'
+import { RACE_EVENTS_OPEN } from '../../engine/interactiveRace'
 
 
 
@@ -249,12 +250,14 @@ export default function MorePage({ onBackToTitle }: { onBackToTitle?: () => void
       <div>
         <SettingRow icon={IcTeam} label="チーム編集" sub={myTeam ? `${myTeam.name}・GM ${clubGmName(myTeam)}` : undefined} onClick={() => setDetail('team')} />
         <SettingRow icon={IcSound} label="サウンド" sub="SE・BGMの音量" onClick={() => setDetail('sound')} />
-        <SettingRow
-          icon={IcRace}
-          label="レース中の選択イベント"
-          sub={raceEventsEnabled ? 'オン（区間ごとに監督判断あり）' : 'オフ（流し見・自動進行）'}
-          onClick={() => setRaceEventsEnabled(!raceEventsEnabled)}
-        />
+        {RACE_EVENTS_OPEN && (
+          <SettingRow
+            icon={IcRace}
+            label="レース中の選択イベント"
+            sub={raceEventsEnabled ? 'オン（区間ごとに監督判断あり）' : 'オフ（流し見・自動進行）'}
+            onClick={() => setRaceEventsEnabled(!raceEventsEnabled)}
+          />
+        )}
         <SettingRow icon={IcX} label="公式X（@JPEL_MANAGER）" sub="アップデート情報・お問い合わせ" onClick={() => window.open('https://x.com/JPEL_MANAGER', '_blank')} />
         {onlineAvailable() && <SettingRow icon={IcBlock} label="ブロックした利用者" sub="オンラインで表示しない相手" onClick={() => setDetail('blocked')} />}
         <SettingRow

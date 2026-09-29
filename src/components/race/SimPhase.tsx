@@ -282,7 +282,7 @@ type Props = {
   onChoiceMade?: (choiceIdx: number, t: number) => void
   /** 自チームの走者がその区間（添字）を走り終えた */
   onHandoff?: (leg: number) => void
-  /** 「この区間をスキップ」。自チームの走者の残りのイベントを捨てる */
+  /** 「ゴールまでスキップ」を押した。自チームの走者の残りのイベントを捨てる */
   onSkipLeg?: () => void
   /** 全チームが走り終えたあとの「最終結果を見る」 */
   onFinish: () => void
@@ -335,13 +335,11 @@ export function SimPhase({
     setTimeout(() => onChoiceMade?.(i, t), 380)
   }
 
-  // 「この区間をスキップ」：速さを決めているチームの区間の終わりへ（走り終えていればゴールへ）
-  function skipLeg() {
-    const id = focusTeamOf(timeline, playerTeamId, t)
-    const r = id ? runnerAt(timeline, id, t) : null
-    const end = id && r && !r.finished ? legEndAt(timeline, id, r.leg) : null
+  // 「ゴールまでスキップ」：全チームがゴールした時刻まで飛ぶ（そのあとは自動で結果へ）。
+  // 区間ごとに飛ぶ形はやめた（オーナー・2026-09-29「区間ごとのスキップだとなんかきもい」→「bがいいかも」）
+  function skipToGoal() {
     if (me && !me.finished) onSkipLeg?.()
-    jumpTo(end != null && end > t ? end : timeline.endTime)
+    jumpTo(timeline.endTime)
   }
 
   const done = t >= timeline.endTime
@@ -519,8 +517,8 @@ export function SimPhase({
                   ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 4l14 8-14 8V4z" fill="currentColor"/></svg>
                   : <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M7 4h4v16H7zM13 4h4v16h-4z" fill="currentColor"/></svg>}
               </GlassButton>
-              <GlassButton onClick={skipLeg} color={C.textSub} size="sm" style={{ gap: 6 }}>
-                この区間をスキップ
+              <GlassButton onClick={skipToGoal} color={C.textSub} size="sm" style={{ gap: 6 }}>
+                ゴールまでスキップ
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
                   <path d="M5 4l9 8-9 8V4zM17 4h2v16h-2z" fill="currentColor"/>
                 </svg>

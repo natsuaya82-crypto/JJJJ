@@ -26,7 +26,7 @@ import { getDueIndividualEvent, formatRaceTime, eventDistKey, eventLabelOf } fro
 import { C, CARD, alpha, SAIRA, TT_COLOR, bottomStack, F } from '../../styles/tokens'
 import {
   calcCpuTimesForSeg, calcSegOvr, calcNaturalDrain, calcFinalSegTime,
-  generateSegmentEvents, resolveChoice, finalizeSegment,
+  generateSegmentEvents, resolveChoice, finalizeSegment, RACE_EVENTS_OPEN,
 } from '../../engine/interactiveRace'
 import type { ISim, InteractiveSegResult } from '../../engine/interactiveRace'
 import { buildTimeline, withNewLegTime, type RaceTimeline } from '../../engine/raceTimeline'
@@ -498,8 +498,8 @@ export default function RacePage() {
       if (tid !== playerTeamId) cumulativeTimes[tid] = t
     }
 
-    // 設定でレース中の選択イベントをオフ（流し見モード）にしていたらイベントを出さない
-    const events = (playerObj && (useGameStore.getState().raceEventsEnabled ?? true))
+    // 選択イベントはいま出さない（engine/interactiveRace の RACE_EVENTS_OPEN）。出すときも、設定でオフ（流し見モード）ならイベントを出さない
+    const events = (RACE_EVENTS_OPEN && playerObj && (useGameStore.getState().raceEventsEnabled ?? true))
       ? generateSegmentEvents({
           seg,
           playerBaseTime,
@@ -625,12 +625,17 @@ export default function RacePage() {
   }
 
   /** 自チームの走者がタスキを渡した（`leg` は `race.segments` の添字）。次の区間の用意をする */
+  // ★直前の状態から作ること（setISim に関数を渡す）。「ゴールまでスキップ」で時計が一気に進むと
+  //   同じ描画の中で受け渡しが何回も呼ばれ、描画の時点の iSim を読むと2回目以降が古い区間を見て捨てられる
+  //   （全区間が確定せず、結果へ進めなくなる）
   function handleHandoff(leg: number) {
-    if (!iSim || !race) return
-    if (race.segments[leg]?.index !== iSim.currentSegIdx) return
-    const done = finalizeCurrentSeg(iSim, race)
-    const nextSeg = race.segments[leg + 1]
-    setISim(nextSeg ? buildSegmentState(done, nextSeg.index, race) : done)
+    if (!race) return
+    setISim(prev => {
+      if (!prev || race.segments[leg]?.index !== prev.currentSegIdx) return prev
+      const done = finalizeCurrentSeg(prev, race)
+      const nextSeg = race.segments[leg + 1]
+      return nextSeg ? buildSegmentState(done, nextSeg.index, race) : done
+    })
   }
 
   /** 全チームが走り終えた：結果を確定して結果画面へ */
