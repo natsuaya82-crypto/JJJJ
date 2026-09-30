@@ -9,7 +9,7 @@ import {
   legBoardAt, legEndAt, runnerAt, snapshotAt,
   type RaceTimeline, type TimelineSnapshot,
 } from '../../engine/raceTimeline'
-import { terrainColor, terrainLabel } from './raceUtils'
+import { terrainColor } from './raceUtils'
 import { C, alpha, glassStyle, rankColor, SAIRA, bottomStack, F } from '../../styles/tokens'
 import { TeamLogoSVG } from '../icons/Icons'
 import { audio } from '../../utils/audio'
@@ -21,7 +21,7 @@ import ScreenPortal from '../ui/ScreenPortal'
 import { useStickyTab } from '../../lib/useStickyTab'
 import { clubById } from '../../utils/world'
 import { RACE_SPEEDS, focusTeamOf, useRaceClock, type RaceSpeed } from './useRaceClock'
-import { SpeedPicker } from './SpeedPicker'
+import { PauseButton, SpeedPicker } from './SpeedPicker'
 import { RaceStage3D } from './stage3d/RaceStage3D'
 import { useSegmentRecords } from '../../lib/useSegmentRecords'
 import { useGameStore } from '../../store/gameStore'
@@ -119,33 +119,7 @@ export function RaceTrack({
       {/* ここから上に固定（3Dを見ながら下の一覧だけをスクロールする） */}
       <div style={{ position: 'sticky', top: 0, zIndex: 20, background: C.bg }}>
       {head}
-      {/* 区間情報ヘッダー（自チームの走者の区間。走っていなければ先頭の区間） */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '10px 16px 10px',
-        borderBottom: `1px solid ${C.border}`,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 36, height: 36,
-            background: `linear-gradient(135deg, ${segCol}, ${alpha(segCol, 0.45)})`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: F.title, fontWeight: 900, color: C.bg, flexShrink: 0,
-          }}>{currentSeg?.index}</div>
-          {currentSeg && (
-            <div>
-              <div style={{ fontSize: F.sub, fontWeight: 800, color: segCol }}>{currentSeg.distanceKm.toFixed(1)} km</div>
-              <div style={{ fontSize: F.caption, color: C.textDim }}>{terrainLabel(currentSeg.uphillPct, currentSeg.downhillPct, currentSeg.distanceKm)}</div>
-            </div>
-          )}
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 32, fontWeight: 900, color: C.text, fontFamily: SAIRA, lineHeight: 1 }}>
-            {(focus?.km ?? 0).toFixed(1)}
-          </div>
-          <div style={{ fontSize: F.caption, color: C.textDim }}>/ {distanceKm.toFixed(1)} km</div>
-        </div>
-      </div>
+      <div style={{ height: 10 }} />
 
       {renderStage?.(snap)}
 
@@ -504,19 +478,16 @@ export function SimPhase({
             </div>
           </div>
 
-          {/* 一時停止・区間スキップ。全チームが走り終えたら結果へ */}
-          <div style={{ padding: '10px 12px 0', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+          {/* 一時停止・速さ・ゴールまでスキップを1行に。全チームが走り終えたら結果へ */}
+          <div style={{ padding: '10px 12px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
             {done ? (
               <button className="btn-game btn-game--gold" onClick={onFinish} style={{ width: '100%' }}>
                 <span className="btn-game__inner">最終結果を見る</span>
               </button>
             ) : (<>
-              <GlassButton onClick={() => setManualPause(v => !v)} color={manualPause ? C.gold : C.textSub} size="sm" style={{ gap: 6 }}>
-                {manualPause ? '再生' : '一時停止'}
-                {manualPause
-                  ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M6 4l14 8-14 8V4z" fill="currentColor"/></svg>
-                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M7 4h4v16H7zM13 4h4v16h-4z" fill="currentColor"/></svg>}
-              </GlassButton>
+              <PauseButton paused={manualPause} onToggle={() => setManualPause(v => !v)} />
+              <SpeedPicker speed={speed} onChange={setSpeed} />
+              <div style={{ flex: 1 }} />
               <GlassButton onClick={skipToGoal} color={C.textSub} size="sm" style={{ gap: 6 }}>
                 ゴールまでスキップ
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -525,12 +496,6 @@ export function SimPhase({
               </GlassButton>
             </>)}
           </div>
-          {/* 再生の速さ（試作「JPEL 3D中継」と同じく、時計の行の右） */}
-          {!done && (
-            <div style={{ padding: '8px 12px 0', display: 'flex', justifyContent: 'flex-end' }}>
-              <SpeedPicker speed={speed} onChange={setSpeed} />
-            </div>
-          )}
         </>}
       />
     </div>

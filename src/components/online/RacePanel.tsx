@@ -11,7 +11,7 @@ import { RaceTrack } from '../race/SimPhase'
 import { RaceStage3D } from '../race/stage3d/RaceStage3D'
 import { SegmentResultCard } from './SegmentResultCard'
 import { RACE_SPEEDS, useRaceClock, type RaceSpeed } from '../race/useRaceClock'
-import { SpeedPicker } from '../race/SpeedPicker'
+import { PauseButton, SpeedPicker } from '../race/SpeedPicker'
 import { buildTimeline, legEndAt } from '../../engine/raceTimeline'
 import { formatDiff } from '../../engine/raceEngine'
 import { formatRaceTime } from '../../utils/eventTime'
@@ -282,13 +282,11 @@ export default function RacePanel({
               timeline={timeline} snap={snap} runnerIdOf={runnerIdOf} />
           )}
           head={<>
-            <div style={{ padding: '10px 12px 0', display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-              <GlassButton onClick={() => setPaused(v => !v)} color={paused ? C.gold : C.textSub} size="sm">{paused ? '再生' : '一時停止'}</GlassButton>
-              <GlassButton onClick={() => jumpTo(stopAt)} color={C.textSub} size="sm">この区間をスキップ</GlassButton>
-            </div>
-            {/* 再生の速さ（本編の中継と同じ） */}
-            <div style={{ padding: '8px 12px 0', display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ padding: '10px 12px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <PauseButton paused={paused} onToggle={() => setPaused(v => !v)} />
               <SpeedPicker speed={speed} onChange={setSpeed} />
+              <div style={{ flex: 1 }} />
+              <GlassButton onClick={() => jumpTo(stopAt)} color={C.textSub} size="sm">この区間をスキップ</GlassButton>
             </div>
           </>}
         />

@@ -6,6 +6,7 @@ import { panelStyle } from '../../ui/Panel'
 import { useSegmentRecords } from '../../../lib/useSegmentRecords'
 import { formatRaceTime } from '../../../utils/eventTime'
 import { clubById } from '../../../utils/world'
+import { hairRgbOf, shoeRgbOf } from '../../../utils/playerFace'
 import { TeamLogoSVG } from '../../icons/Icons'
 import { FaceOrDot } from '../SegmentDetailCard'
 import type { Stage } from './scene'
@@ -85,10 +86,16 @@ export function RaceStage3D({ race, raceTeams, players, playerTeamId, timeline, 
     return () => ro.disconnect()
   }, [])
 
+  const playerById = useMemo(() => new Map((players ?? []).map(p => [p.id, p])), [players])
+
   // 毎コマ、同じ瞬間を渡す
   useEffect(() => {
     stageRef.current?.setFrame({
-      runners: order.map(r => ({ teamId: r.teamId, raceKm: r.raceKm, finished: r.finished })),
+      runners: order.map(r => {
+        const pl = playerById.get(runnerIdOf(r.teamId, r.leg) ?? '')
+        return { teamId: r.teamId, raceKm: r.raceKm, finished: r.finished,
+          hair: pl ? hairRgbOf(pl) : undefined, shoe: pl ? shoeRgbOf(pl.id) : undefined }
+      }),
       focusTeamId: focusId,
     })
   })

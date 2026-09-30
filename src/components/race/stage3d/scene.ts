@@ -21,7 +21,8 @@ export type StageSegment = { distanceKm: number; uphillPct: number; downhillPct:
 export type StageTeam = { teamId: string; color: string }
 /** 1コマぶんの入力。km はスタートからの距離 */
 export type StageFrame = {
-  runners: readonly { teamId: string; raceKm: number; finished: boolean }[]
+  /** hair / shoe は走っている選手の髪と靴の色（`utils/playerFace`）。無ければ黒髪・白い靴 */
+  runners: readonly { teamId: string; raceKm: number; finished: boolean; hair?: number; shoe?: number }[]
   focusTeamId: string | null
 }
 export type Stage = {
@@ -37,6 +38,8 @@ const LINE = 0xf2f2f2
 const TREE = 0x3f6e36
 const TRUNK = 0x6b4f33
 const SKIN = 0x8a5a3c
+const HAIR = 0x2e2724
+const SHOE = 0xf2f2f2
 const GATE = 0xf5c842
 
 const STEP = 5            // 道の刻み（m）
@@ -139,6 +142,8 @@ type Actor = {
   /** ゴールしたら消えていく（1→0）。体の材質の不透明度に当てる */
   fade: number
   mats: THREE.Material[]
+  hair: THREE.Color
+  shoe: THREE.Color
 }
 
 /** ゴールした走者が消えるまでの秒（画面の秒） */
@@ -251,19 +256,27 @@ export function createStage(canvas: HTMLCanvasElement, segs: readonly StageSegme
     racers.forEach((tm, i) => {
       const body = cloneSkinned(gltf.scene)
       const uniform = new THREE.Color(tm.color)
+      const hair = new THREE.Color(HAIR)
+      const shoe = new THREE.Color(SHOE)
       const mats: THREE.Material[] = []
       body.traverse(o => {
         const mesh = o as THREE.SkinnedMesh
         if (!mesh.isMesh || !mesh.visible) return
         mesh.frustumCulled = false
-        // 頂点の色は「ユニフォームの所（白）」と「体の所（黒）」の印。白をチームの色、黒を肌にする
+        // 頂点の色は印：赤＝ユニフォーム（チームの色）／緑＝髪／青＝靴／どれでもない所＝肌
         const mat = new THREE.MeshLambertMaterial({ vertexColors: true })
         mat.onBeforeCompile = sh => {
           sh.uniforms.uUniform = { value: uniform }
           sh.uniforms.uSkin = { value: new THREE.Color(SKIN) }
+          sh.uniforms.uHair = { value: hair }
+          sh.uniforms.uShoe = { value: shoe }
           sh.fragmentShader = sh.fragmentShader
-            .replace('void main() {', 'uniform vec3 uUniform;\nuniform vec3 uSkin;\nvoid main() {')
-            .replace('#include <color_fragment>', 'diffuseColor.rgb = mix(uSkin, uUniform, clamp(vColor.r, 0.0, 1.0));')
+            .replace('void main() {', 'uniform vec3 uUniform;\nuniform vec3 uSkin;\nuniform vec3 uHair;\nuniform vec3 uShoe;\nvoid main() {')
+            .replace('#include <color_fragment>', [
+              'vec3 c = mix(uSkin, uUniform, clamp(vColor.r, 0.0, 1.0));',
+              'c = mix(c, uHair, clamp(vColor.g, 0.0, 1.0));',
+              'diffuseColor.rgb = mix(c, uShoe, clamp(vColor.b, 0.0, 1.0));',
+            ].join('\n'))
         }
         mesh.material = mat
         mats.push(mat)
@@ -277,7 +290,7 @@ export function createStage(canvas: HTMLCanvasElement, segs: readonly StageSegme
         act.time = hash01(i) * clip.duration
         act.play()
       }
-      actors.set(tm.teamId, { teamId: tm.teamId, holder, mixer, lat: ((i % 5) - 2) * 0.9, x: 0, finished: false, fade: 1, mats })
+      actors.set(tm.teamId, { teamId: tm.teamId, holder, mixer, lat: ((i % 5) - 2) * 0.9, x: 0, finished: false, fade: 1, mats, hair, shoe })
     })
     onReady?.()
   })
@@ -308,6 +321,9 @@ export function createStage(canvas: HTMLCanvasElement, segs: readonly StageSegme
       if (!a) continue
       a.x = Math.min(totalM, r.raceKm * 1000)
       a.finished = r.finished
+      // 区間が変わると走る選手が変わるので、髪と靴もそのつど塗り直す
+      a.hair.setHex(r.hair ?? HAIR)
+      a.shoe.setHex(r.shoe ?? SHOE)
       // ゴールした走者は消えていく（オーナー・2026-09-29「走り終わったら選手フェードアウト」）
       const fade = r.finished ? Math.max(0, a.fade - dt / FINISH_FADE_SEC) : 1
       if (fade !== a.fade) {
